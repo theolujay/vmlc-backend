@@ -216,19 +216,23 @@ class Question(models.Model):
     A question belonging to one or more exams. Includes text, difficulty, and staff author.
     """
 
-    QUESTION_OPTIONS = [
-        ("A", "Option A"),
-        ("B", "Option B"),
-        ("C", "Option C"),
-        ("D", "Option D"),
-    ]
+    class Options(models.TextChoices):
+        A = "A", "Option A"
+        B = "B", "Option B"
+        C = "C", "Option C"
+        D = "D", "Option D"
+
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
 
     text = models.TextField()
     option_a = models.CharField(max_length=255, blank=True)
     option_b = models.CharField(max_length=255, blank=True)
     option_c = models.CharField(max_length=255, blank=True)
     option_d = models.CharField(max_length=255, blank=True)
-    correct_answer = models.CharField(max_length=1, choices=QUESTION_OPTIONS)
+    correct_answer = models.CharField(max_length=1, choices=Options.choices)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -247,8 +251,8 @@ class Question(models.Model):
     )
     difficulty = models.CharField(
         max_length=10,
-        choices=[("easy", "Easy"), ("medium", "Medium"), ("hard", "Hard")],
-        default="medium",
+        choices=Difficulty.choices,
+        default=Difficulty.MEDIUM,
     )
 
     def __str__(self):
@@ -260,13 +264,12 @@ class Exam(models.Model):
     Represents a collection of questions scheduled at a specific date for a stage of competition.
     """
 
-    STAGE_CHOICES = (
-        ("screening", "Screening"),
-        ("league", "League"),
-    )
+    class Stages(models.TextChoices):
+        SCREENING = "screening", "Screening"
+        LEAGUE = "league", "League"
 
     stage = models.CharField(
-        max_length=20, choices=STAGE_CHOICES, default="league", db_index=True
+        max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
