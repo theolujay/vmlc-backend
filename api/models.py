@@ -141,7 +141,7 @@ class Candidate(models.Model):
 
     def get_score_dict(self):
         """
-        Returns a dictionary of total, average, and per-exam scores for this candidate.        
+        Returns a dictionary of total, average, and per-exam scores for this candidate.
         Uses annotated and prefetched data if available to avoid extra queries.
         """
         # Use annotated values if they exist
@@ -149,27 +149,34 @@ class Candidate(models.Model):
         average_score = getattr(self, "average_score", None)
 
         # Use prefetched scores if they exist, otherwise query
-        if hasattr(self, "_prefetched_objects_cache") and "scores" in self._prefetched_objects_cache:
+        if (
+            hasattr(self, "_prefetched_objects_cache")
+            and "scores" in self._prefetched_objects_cache
+        ):
             scores = self._prefetched_objects_cache["scores"]
         else:
             scores = self.scores.select_related("exam", "submitted_by__user").all()
 
         # If total/average scores were not annotated, calculate them from the scores list
         if total_score is None and scores:
-            total_score = sum(s.score for s in scores)
+            total_score = sum(s.score for s in scores if s.score is not None)
         if average_score is None and scores:
             average_score = total_score / len(scores) if scores else 0
 
         return {
-            "total_score": float(total_score or 0),
-            "average_score": float(average_score or 0),
+            "total_score": float(total_score) if total_score is not None else 0.0,
+            "average_score": float(average_score) if average_score is not None else 0.0,
             "scores": [
                 {
                     "exam_id": s.exam.id,
                     "exam_title": s.exam.title,
                     "score": float(s.score),
                     "date_recorded": s.date_recorded.isoformat(),
-                    "submitted_by": (s.submitted_by.user.get_full_name() if s.submitted_by and s.submitted_by.user else None),
+                    "submitted_by": (
+                        s.submitted_by.user.get_full_name()
+                        if s.submitted_by and s.submitted_by.user
+                        else None
+                    ),
                     "auto_score": s.auto_score,
                 }
                 for s in scores
