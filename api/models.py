@@ -67,7 +67,9 @@ class Candidate(models.Model):
         FINAL = "final", "Final"
         WINNER = "winner", "Winner"
 
-    user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        User, primary_key=True, on_delete=models.CASCADE, related_name="candidate_profile"
+    )
     phone = models.CharField(max_length=20, blank=True)
     school = models.CharField(max_length=150)
     profile_photo = models.ImageField(
@@ -346,7 +348,9 @@ class CandidateScore(models.Model):
     candidate = models.ForeignKey(
         "Candidate", on_delete=models.CASCADE, related_name="scores"
     )
-    exam = models.ForeignKey("Exam", on_delete=models.CASCADE, related_name="scores")
+    exam = models.ForeignKey(
+        "Exam", on_delete=models.PROTECT, related_name="scores"
+    )
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     date_recorded = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
