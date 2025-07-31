@@ -378,7 +378,7 @@ class CandidateAnswer(models.Model):
     question = models.ForeignKey("Question", on_delete=models.CASCADE)
     selected_option = models.CharField(
         max_length=1,
-        choices=Question.QUESTION_OPTIONS,
+        choices=Question.Options.choices,
         blank=True,
         null=True,
     )
@@ -386,9 +386,14 @@ class CandidateAnswer(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['candidate_score', 'question'], name='unique_answer_per_candidate_score')
+            models.UniqueConstraint(
+                fields=["candidate_score", "question"],
+                name="unique_answer_per_candidate_score",
+            )
         ]
 
+    def __str__(self):
+        return f"Answer by {self.candidate_score.candidate.user.username} for Q{self.question.id}"
 
 
 class LeaderboardSnapshot(models.Model):
@@ -396,7 +401,11 @@ class LeaderboardSnapshot(models.Model):
     data = models.JSONField()
 
     published_by = models.ForeignKey(
-        "Staff", on_delete=models.SET_NULL, null=True, blank=True
+        "Staff",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leaderboard_snapshots",
     )
 
     class Meta:
@@ -412,3 +421,6 @@ class FeatureFlag(models.Model):
             return cls.objects.get(key=key).value
         except cls.DoesNotExist:
             return default
+
+    def __str__(self):
+        return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
