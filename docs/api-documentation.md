@@ -1105,7 +1105,7 @@ Explore the API interactively using our documentation interfaces:
 
 For technical support, API key requests, or questions:
 
-**Email:** `ezekieloluj@gmail.com`
+**Email:** `olujay.dev@gmail.com`
 
 **Discord:** `@olujay`
 

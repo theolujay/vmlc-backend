@@ -50,7 +50,7 @@ class CandidateManager(models.Manager):
         """
         return (
             self.with_scores()
-            .prefetch_related("scores__exam", "user")
+            .prefetch_related("scores__exam", "scores__submitted_by__user")
             .select_related("user")
         )
 
@@ -61,12 +61,11 @@ class Candidate(models.Model):
     Linked to a User, assigned a role, and tracks their profile and score history.
     """
 
-    ROLE_CHOICES = (
-        ("screening", "Screening"),
-        ("league", "League"),
-        ("final", "Final"),
-        ("winner", "Winner"),
-    )
+    class Roles(models.TextChoices):
+        SCREENING = "screening", "Screening"
+        LEAGUE = "league", "League"
+        FINAL = "final", "Final"
+        WINNER = "winner", "Winner"
 
     user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE)
     phone = models.CharField(max_length=20, blank=True)
@@ -83,7 +82,7 @@ class Candidate(models.Model):
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True, db_index=True)
     role = models.CharField(
-        max_length=15, choices=ROLE_CHOICES, default="screening", db_index=True
+        max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True
     )
 
     objects = CandidateManager()
@@ -113,7 +112,7 @@ class Candidate(models.Model):
         """
         Returns True if candidate has 'winner' role.
         """
-        return self.role == "winner"
+        return self.role == self.Roles.WINNER
 
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.school}"
@@ -140,23 +139,38 @@ class Candidate(models.Model):
 
     def get_score_dict(self):
         """
-        Returns a dictionary of total, average, and per-exam scores for this candidate.
+        Returns a dictionary of total, average, and per-exam scores for this candidate.        
+        Uses annotated and prefetched data if available to avoid extra queries.
         """
+        # Use annotated values if they exist
+        total_score = getattr(self, "total_score", None)
+        average_score = getattr(self, "average_score", None)
+
+        # Use prefetched scores if they exist, otherwise query
+        if hasattr(self, "_prefetched_objects_cache") and "scores" in self._prefetched_objects_cache:
+            scores = self._prefetched_objects_cache["scores"]
+        else:
+            scores = self.scores.select_related("exam", "submitted_by__user").all()
+
+        # If total/average scores were not annotated, calculate them from the scores list
+        if total_score is None and scores:
+            total_score = sum(s.score for s in scores)
+        if average_score is None and scores:
+            average_score = total_score / len(scores) if scores else 0
+
         return {
-            "total_score": float(getattr(self, "total_score", 0)),
-            "average_score": float(getattr(self, "average_score", 0)),
+            "total_score": float(total_score or 0),
+            "average_score": float(average_score or 0),
             "scores": [
                 {
                     "exam_id": s.exam.id,
                     "exam_title": s.exam.title,
                     "score": float(s.score),
                     "date_recorded": s.date_recorded.isoformat(),
-                    "submitted_by": (
-                        s.submitted_by.user.get_full_name() if s.submitted_by else None
-                    ),
+                    "submitted_by": (s.submitted_by.user.get_full_name() if s.submitted_by and s.submitted_by.user else None),
                     "auto_score": s.auto_score,
                 }
-                for s in self.scores.all()
+                for s in scores
             ],
         }
 
@@ -166,15 +180,16 @@ class Staff(models.Model):
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
 
-    ROLE_CHOICES = (
-        ("owner", "Owner"),
-        ("admin", "Admin"),
-        ("moderator", "Moderator"),
-        ("sponsor", "Sponsor"),
-        ("volunteer", "Volunteer"),
-    )
+    class Roles(models.TextChoices):
+        OWNER = "owner", "Owner"
+        ADMIN = "admin", "Admin"
+        MODERATOR = "moderator", "Moderator"
+        SPONSOR = "sponsor", "Sponsor"
+        VOLUNTEER = "volunteer", "Volunteer"
 
-    user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
+    )
     phone = models.CharField(max_length=20, blank=True)
     occupation = models.CharField(max_length=50, blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
@@ -188,7 +203,7 @@ class Staff(models.Model):
     id_card = models.ImageField(upload_to="staff_id_cards/", blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     role = models.CharField(
-        max_length=20, choices=ROLE_CHOICES, default="volunteer", db_index=True
+        max_length=20, choices=Roles.choices, default=Roles.VOLUNTEER, db_index=True
     )
     is_active = models.BooleanField(default=True, db_index=True)
 
@@ -383,4 +398,3 @@ class FeatureFlag(models.Model):
             return cls.objects.get(key=key).value
         except cls.DoesNotExist:
             return default
-        

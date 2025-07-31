@@ -114,4 +114,5 @@ For support or API key requests, contact:
 
 - Email: `ezekieloluj@gmail.com`
 - Discord: `@olujay`
+
 ---

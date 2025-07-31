@@ -6,6 +6,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url # type: ignore
+
 from dotenv import load_dotenv
 
 
@@ -14,44 +16,54 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("The SECRET_KEY environment variable must be set.")
 
-DEBUG = True if os.environ.get("DEBUG") == "True" else False
+DEBUG = os.environ.get("DEBUG") == "True"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
+# Filter out empty strings that can result from splitting an empty or malformed string
+ALLOWED_HOSTS = [
+    host.strip() for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host.strip()
+]
 
+# Grouping apps by origin (Django, third-party, local) improves clarity.
 INSTALLED_APPS = [
+    # Django Core Apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "api",
-    "storages",
-    "django_extensions",
-    "corsheaders",
-    "rest_framework_simplejwt.token_blacklist",
-    "debug_toolbar",
+    # Third-Party Apps
     "rest_framework",
-    "rest_framework_api_key",
     "rest_framework.authtoken",
+    "rest_framework_api_key",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
     "drf_yasg",
     "django_filters",
+    "storages",
+    "django_extensions",
+    "debug_toolbar",
+    # Local Apps
+    "api",
 ]
 
+# The order of middleware is important. This order is optimized for security and
+# correctness based on the documentation of the installed middleware.
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
-    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -73,16 +85,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+# Admin URL
+# It's recommended to use something other than 'admin/' for security.
+ADMIN_URL = os.environ.get("DJANGO_ADMIN_URL", "admin/")
+
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Use dj-database-url to parse the DATABASE_URL environment variable.
+# Falls back to SQLite for local development if DATABASE_URL is not set.
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {"default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -114,7 +134,14 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Media files (uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# The `STORAGES` dictionary is the modern way to configure file storage.
+# The `STATICFILES_STORAGE` setting is redundant and can be removed.
+# STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -149,21 +176,22 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=159),
+    # A shorter access token lifetime enhances security. 15 minutes is a common standard.
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-INTERNAL_IPS = [
-    "127.0.0.1",
-    "localhost",
-]
+INTERNAL_IPS = [ip.strip() for ip in os.environ.get("INTERNAL_IPS", "127.0.0.1,localhost").split(",")]
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
         "file": {
             "level": "INFO",
             "class": "logging.FileHandler",
@@ -172,16 +200,17 @@ LOGGING = {
     },
     "loggers": {
         "api.views.auth_views": {
-            "handlers": ["file"],
+            "handlers": ["console"] if not DEBUG else ["file"],
             "level": "DEBUG",
             "propagate": True,
         },
     },
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-]
+# It's better to configure this from the environment for flexibility
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"
+).split(",")
 
 GRAPH_MODELS = {
     "all_applications": True,
@@ -190,20 +219,49 @@ GRAPH_MODELS = {
 
 SWAGGER_USE_COMPAT_RENDERERS = False
 
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
-            "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-            "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
-            "region_name": os.environ.get("AWS_S3_REGION_NAME"),
-            "custom_domain": f"{os.environ.get('AWS_STORAGE_BUCKET_NAME')}.s3.{os.environ.get('AWS_S3_REGION_NAME')}.amazonaws.com",
-            "file_overwrite": False,
-            "default_acl": None,
+# API Documentation settings
+BASE_URL = os.environ.get("BASE_URL")
+TOS_URL = os.environ.get("TOS_URL", "https://example.com/terms/")
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "support@example.com")
+CONTACT_URL = os.environ.get("CONTACT_URL", "https://support.example.com")
+LICENSE_URL = os.environ.get("LICENSE_URL", "https://example.com/license/")
+LOGO_URL = os.environ.get("LOGO_URL", "https://example.com/static/logo.png")
+
+if DEBUG:
+    # Development storage settings (local filesystem)
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
-    },
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    },
-}
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+else:
+    # Production storage settings (S3)
+    for var in [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_STORAGE_BUCKET_NAME",
+        "AWS_S3_REGION_NAME",
+    ]:
+        if not os.environ.get(var):
+            raise ValueError(f"The {var} environment variable must be set for S3 storage.")
+
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": AWS_STORAGE_BUCKET_NAME,
+                "region_name": AWS_S3_REGION_NAME,
+                "custom_domain": AWS_S3_CUSTOM_DOMAIN,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
