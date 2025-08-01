@@ -1,18 +1,19 @@
 """
-Authentication-related API views for login, logout, and registration.
+API views for user registration and managing registration status.
 """
 
 import logging
 
+from django.core.exceptions import ImproperlyConfigured
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_api_key.permissions import HasAPIKey # type: ignore
+from rest_framework.views import APIView
+from rest_framework_api_key.permissions import HasAPIKey  # type: ignore
 
-from ..permissions import StaffWithRole
-from ..models import FeatureFlag
+from ..models import FeatureFlag, Staff
+from ..permissions import HasStaffRole
 from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
@@ -25,25 +26,33 @@ logger = logging.getLogger(__name__)
 class BaseRegistrationView(CreateAPIView):
     """Base registration view with common logic"""
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasAPIKey]
+    feature_flag_key = None  # Subclasses must define this
 
     def create(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return Response({"error": "Already authenticated"}, status=400)
-        if not FeatureFlag.get_bool("registration_open", default=True):
             return Response(
-                {"detail": "Registration is currently closed."}, status=status.HTTP_403_FORBIDDEN
+                {"error": "Already authenticated. Please log out to register a new account."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Use the specific feature flag key for the registration type
+        if self.feature_flag_key and not FeatureFlag.get_bool(
+            self.feature_flag_key, default=False
+        ):
+            return Response(
+                {"detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"message": "Registration successful"},
-                status=status.HTTP_201_CREATED,
-            )
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
         return Response(
-            {"error": "Registration failed", "details": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
+            {"message": "Registration successful"},
+            status=status.HTTP_201_CREATED,
+            headers=headers,
         )
 
 
@@ -51,60 +60,58 @@ class CandidateRegistrationView(BaseRegistrationView):
     """Register a new candidate"""
 
     serializer_class = CandidateRegistrationSerializer
-    permission_classes = [HasAPIKey]
+    feature_flag_key = "candidate_registration_open"
 
 
 class StaffRegistrationView(BaseRegistrationView):
     """Register a new staff member"""
 
     serializer_class = StaffRegistrationSerializer
-    permission_classes = [HasAPIKey]
-    
-    
-@api_view(["POST"])
-@permission_classes([StaffWithRole(["admin", "owner"])])
-def toggle_candidate_registration(request):
+    feature_flag_key = "staff_registration_open"
+
+
+class ToggleFeatureFlagView(APIView):
     """
-    Toggle the candidate registration status for candidates.
-
-    Requires staff with 'admin' or 'owner' role.
+    A generic view to toggle a boolean feature flag.
+    Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
-    open_flag = request.data.get("open", False)
-    
-    obj, created = FeatureFlag.objects.get_or_create(
-        key="candidate_registration_open",
-        defaults={"value": open_flag}
-    )
 
-    if not created:
-        obj.value = open_flag
-        obj.save()
-    
-    return Response(
-        {"message": f"candidate_registration_open: {obj.value}"}, status=status.HTTP_200_OK
-    )
+    permission_classes = [IsAuthenticated]  # Base permission
+    feature_flag_key = None
 
-@api_view(["POST"])
-@permission_classes([StaffWithRole(["owner"])])
-def toggle_staff_registration(request):
-    """
-    Toggle the staff registration status for staff members.
+    def post(self, request, *args, **kwargs):
+        if not self.feature_flag_key:
+            raise ImproperlyConfigured(
+                f"{self.__class__.__name__} is missing a feature_flag_key."
+            )
 
-    Requires staff with 'owner' role.
-    """
-    open_flag = request.data.get("open", False)
+        visible_flag = request.data.get("open", False)
+        obj, created = FeatureFlag.objects.get_or_create(
+            key=self.feature_flag_key, defaults={"value": visible_flag}
+        )
 
-    obj, created = FeatureFlag.objects.get_or_create(
-        key="staff_registration_open",
-        defaults={"value": open_flag}
-    )
+        if not created:
+            obj.value = visible_flag
+            obj.save()
 
-    if not created:
-        obj.value = open_flag
-        obj.save()
+        logger.info(
+            "Feature flag '%s' toggled to %s by user '%s'.", self.feature_flag_key, obj.value, request.user.username
+        )
+        return Response(
+            {"message": f"'{self.feature_flag_key}' is now {'open' if obj.value else 'closed'}."},
+            status=status.HTTP_200_OK,
+        )
 
-    return Response(
-        {"message": f"staff_registration_open: {obj.value}"}, status=status.HTTP_200_OK
-    )
 
-    
+class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
+    """Toggles the 'candidate_registration_open' feature flag."""
+
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    feature_flag_key = "candidate_registration_open"
+
+
+class ToggleStaffRegistrationView(ToggleFeatureFlagView):
+    """Toggles the 'staff_registration_open' feature flag."""
+
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
+    feature_flag_key = "staff_registration_open"
