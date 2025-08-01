@@ -1,69 +1,93 @@
 """
-Docstring...
+API view for handling candidate answer submissions for an exam.
 """
 
-from django.utils import timezone
+import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 
-from ..utils.helpers import auto_score
-from ..serializers import CandidateAnswerBulkSerializer
+from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import IsCandidate
-from ..models import (
-    Exam,
-    Question,
-    CandidateScore,
-    CandidateAnswer,
-)
+from ..serializers import CandidateAnswerBulkSerializer
+from ..utils.helpers import auto_score
 
+logger = logging.getLogger(__name__)
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, IsCandidate])
-def submit_exam_answers(request, exam_id):
+class SubmitAnswersView(APIView):
     """
-    Candidate submits answers for an exam.
+    Handles the submission of a candidate's answers for a specific exam.
     """
-    try:
-        candidate = request.user.candidate
-        exam = Exam.objects.get(pk=exam_id)
-    except (Exam.DoesNotExist, AttributeError):
+
+    permission_classes = [IsAuthenticated, IsCandidate]
+    serializer_class = CandidateAnswerBulkSerializer
+
+    def post(self, request, exam_id: int):
+        """
+        Validates and saves a bulk submission of answers for an exam.
+
+        - Ensures the exam is open and the candidate is eligible.
+        - Prevents re-submission.
+        - Creates all answers within a single database transaction.
+        - Triggers auto-scoring upon successful submission.
+        """
+        candidate = request.user.candidate_profile
+        exam = get_object_or_404(Exam, pk=exam_id)
+
+        # 1. Business Logic Validation
+        if not exam.is_currently_open:
+            return Response(
+                {"detail": "This exam is not currently open for submissions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if candidate.role != exam.stage:
+            return Response(
+                {"detail": "You are not eligible to take this exam."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # 2. Prevent Re-submission
+        candidate_score, created = CandidateScore.objects.get_or_create(
+            candidate=candidate, exam=exam
+        )
+
+        if not created and CandidateAnswer.objects.filter(candidate_score=candidate_score).exists():
+            return Response(
+                {"detail": "You have already submitted answers for this exam."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 3. Data Validation
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        answers_data = serializer.validated_data["answers"]
+
+        # 4. Atomic Bulk Creation and Scoring
+        with transaction.atomic():
+            answers_to_create = [
+                CandidateAnswer(
+                    candidate_score=candidate_score,
+                    question=answer_data["question"],
+                    selected_option=answer_data.get("selected_option", ""),
+                )
+                for answer_data in answers_data
+            ]
+            CandidateAnswer.objects.bulk_create(answers_to_create)
+            auto_score(candidate_score)
+
+        logger.info(
+            "Candidate %s successfully submitted answers for exam %s.",
+            candidate.pk,
+            exam.pk,
+        )
+
         return Response(
-            {"error": "Invalid exam or candidate."}, status=status.HTTP_400_BAD_REQUEST
+            {"message": "Answers submitted successfully!"},
+            status=status.HTTP_201_CREATED,
         )
-
-    candidate_score, _ = CandidateScore.objects.get_or_create(
-        candidate=candidate,
-        exam=exam,
-    )
-
-    if CandidateAnswer.objects.filter(candidate_score=candidate_score).exists():
-        return Response(
-            {"message": "You have already submitted answers for this exam."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    serializer = CandidateAnswerBulkSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    answers_data = serializer.validated_data["answers"]
-
-    for answer_data in answers_data:
-        question_obj = answer_data["question"]
-        selected_option = answer_data["selected_option"]
-
-        CandidateAnswer.objects.create(
-            candidate_score=candidate_score,
-            question=question_obj,
-            selected_option=selected_option,
-        )
-
-    auto_score(candidate_score)
-
-    return Response(
-        {
-            "message": "Answers submitted!",
-        },
-        status=status.HTTP_200_OK,
-    )

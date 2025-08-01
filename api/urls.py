@@ -117,7 +117,7 @@ urlpatterns = [
     ),
     path(
         "exams/<int:exam_id>/submit-exam-answers/",
-        answers.submit_exam_answers,
+        answers.SubmitAnswersView.as_view(),
         name="api-submit-exam-answers",
     ),
     # === QUESTIONS ===
