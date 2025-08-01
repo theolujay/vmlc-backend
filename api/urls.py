@@ -35,9 +35,8 @@ app_name = "api"
 urlpatterns = [
     # === ROOT & AUTH ===
     path("", root.api_root, name="api-root"),
-    path("auth/login/", auth.login_api, name="api-login"),
-    path("auth/logout/", auth.logout_api, name="api-logout"),
-    path("auth/token/", TokenObtainPairView.as_view(), name="token-obtain-pair"),
+    path("auth/login/", auth.LoginView.as_view(), name="api-login"),
+    path("auth/logout/", auth.LogoutView.as_view(), name="api-logout"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     # === REGISTRATION ===
     path(

@@ -91,12 +91,8 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     - all scores
     - total and average score
     """
-
     user = UserSerializer(read_only=True)
-    latest_score = serializers.SerializerMethodField()
-    all_scores = serializers.SerializerMethodField()
-    total_score = serializers.SerializerMethodField()
-    average_score = serializers.SerializerMethodField()
+    scores = serializers.SerializerMethodField(help_text="Detailed score breakdown for the candidate.")
 
     class Meta:
         model = Candidate
@@ -110,69 +106,16 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "date_created",
             "date_updated",
-            "latest_score",
-            "all_scores",
-            "total_score",
-            "average_score",
+            "scores",
         )
         read_only_fields = ("date_created", "date_updated", "user")
 
-    def get_latest_score(self, obj):
+    def get_scores(self, obj: Candidate) -> dict:
         """
-        Returns latest score for candidate if available.
+        Efficiently returns a dictionary of scores by leveraging the
+        annotated and prefetched data from the model's `get_score_dict` method.
         """
-        try:
-            latest = obj.get_latest_score()
-            return {
-                "exam": latest.exam.title,
-                "score": latest.score,
-                "date": latest.date_created,
-            }
-        except:
-            return None
-
-    def get_all_scores(self, obj):
-        """
-        Returns list of all candidate scores.
-        """
-        from .models import CandidateScore
-
-        scores = CandidateScore.objects.filter(candidate=obj)
-        return [
-            {
-                "exam": score.exam.title,
-                "score": score.score,
-                "date": score.date_recorded,
-            }
-            for score in scores
-        ]
-
-    def get_total_score(self, obj):
-        """
-        Returns sum of all scores for candidate.
-        """
-        from .models import CandidateScore
-
-        return (
-            CandidateScore.objects.filter(candidate=obj).aggregate(total=Sum("score"))[
-                "total"
-            ]
-            or 0
-        )
-
-    def get_average_score(self, obj):
-        """
-        Returns average score for candidate.
-        """
-        from .models import CandidateScore
-        from django.db.models import Avg
-
-        return (
-            CandidateScore.objects.filter(candidate=obj).aggregate(avg=Avg("score"))[
-                "avg"
-            ]
-            or 0
-        )
+        return obj.get_score_dict()
 
 
 class MinimalStaffSerializer(serializers.ModelSerializer):
@@ -366,99 +309,84 @@ class CandidateScoreSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "date_created")
 
 
-class CandidateRegistrationSerializer(serializers.ModelSerializer):
+class BaseRegistrationSerializer(serializers.ModelSerializer):
+    """
+    Abstract base serializer for user registration.
+    Handles common user creation and password validation logic.
+    """
+    user = UserSerializer()
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        validators=[password_validation.validate_password],
+        style={"input_type": "password"},
+        help_text="Required. 8 characters minimum.",
+    )
+    password2 = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={"input_type": "password"},
+        label="Confirm password",
+    )
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password2"]:
+            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        return attrs
+
+    def create_user(self, user_data, password):
+        return User.objects.create_user(
+            username=user_data["username"],
+            email=user_data["email"],
+            first_name=user_data.get("first_name", ""),
+            last_name=user_data.get("last_name", ""),
+            password=password,
+        )
+
+
+class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new candidates (creates User and Candidate).
     """
 
-    user = UserSerializer()
-    password1 = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
-
     class Meta:
         model = Candidate
-        fields = ("user", "password1", "password2", "phone", "school", "profile_photo")
-
-    def validate(self, attrs):
-        if attrs.get("password1") != attrs.get("password2"):
-            raise serializers.ValidationError({"password2": "Passwords do not match."})
-        return attrs
-
-    def validate_password1(self, value):
-        """
-        Custom password validation using Django's built-in validators.
-        """
-        try:
-            password_validation.validate_password(value)
-        except ValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
-        return value
+        fields = ("user", "password", "password2", "phone", "school", "profile_photo")
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
-        password, _ = validated_data.pop("password1"), validated_data.pop("password2")
+        password = validated_data.pop("password")
+        validated_data.pop("password2")
 
         with transaction.atomic():
-            user = User.objects.create_user(
-                username=user_data["username"],
-                email=user_data["email"],
-                first_name=user_data.get("first_name", ""),
-                last_name=user_data.get("last_name", ""),
-                password=password,
-            )
-
+            user = self.create_user(user_data, password)
             candidate = Candidate.objects.create(user=user, **validated_data)
             return candidate
 
 
-class StaffRegistrationSerializer(serializers.ModelSerializer):
+class StaffRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new staff (creates User and Staff).
     """
 
-    user = UserSerializer()
-    password1 = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
-
     class Meta:
         model = Staff
-        fields = [
+        fields = (
             "user",
-            "password1",
+            "password",
             "password2",
             "phone",
             "occupation",
             "profile_photo",
-        ]
-
-    def validate(self, data):
-        if data["password1"] != data["password2"]:
-            raise serializers.ValidationError({"password2": "Passwords do not match."})
-        return data
-
-    def validate_password1(self, value):
-        """
-        Custom password validation using Django's built-in validators.
-        """
-        try:
-            password_validation.validate_password(value)
-        except ValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
-        return value
+        )
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
-        password, _ = validated_data.pop("password1"), validated_data.pop("password2")
+        password = validated_data.pop("password")
+        validated_data.pop("password2")
 
         with transaction.atomic():
-            user = User.objects.create_user(
-                username=user_data["username"],
-                email=user_data["email"],
-                first_name=user_data.get("first_name", ""),
-                last_name=user_data.get("last_name", ""),
-                password=password,
-            )
-
+            user = self.create_user(user_data, password)
             staff = Staff.objects.create(user=user, **validated_data)
             return staff
 

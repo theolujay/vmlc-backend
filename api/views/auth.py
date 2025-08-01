@@ -1,26 +1,19 @@
 """
 Authentication-related API views for login, logout, and registration.
 """
-
 import logging
 
-from django.contrib.auth import authenticate
-from django.urls.exceptions import NoReverseMatch
-
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
-from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework.views import APIView
+from rest_framework.throttling import SimpleRateThrottle
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_api_key.permissions import HasAPIKey # type: ignore
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from ..serializers import (
-    UserSerializer,
-)
-
+from ..serializers import UserSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -40,120 +33,78 @@ class LoginRateThrottle(SimpleRateThrottle):
             "ident": self.get_ident(request)
         }
 
-@api_view(["POST"])
-@permission_classes([HasAPIKey])
-@throttle_classes([LoginRateThrottle])
-def login_api(request):
-    """Authenticate user and return tokens + user info"""
+import logging
 
-    username = request.data.get("username", "").strip()
-    password = request.data.get("password", "")
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-    if not username or not password:
-        return Response(
-            {"error": "Username and password are required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+from ..serializers import UserSerializer
 
-    if len(username) < 3:
-        return Response(
-            {"error": "Username must be at least 3 characters long"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+logger = logging.getLogger(__name__)
 
-    user = authenticate(request, username=username, password=password)
-
-    if user is not None:
-        if not user.is_active:
-            return Response(
-                {"error": "Account is deactivated"}, status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
-
-        # Determine user type and route
-        user_type = None
-        user_route = None
-
-        try:
-            if hasattr(user, "candidate"):
-                user_type = "candidate"
-                user_route = reverse("v1:api-candidate-me", request=request)
-            elif hasattr(user, "staff"):
-                user_type = "staff"
-                user_route = reverse("v1:api-staff-me", request=request)
-        except NoReverseMatch:
-            # Handle case where routes don't exist
-            user_route = None
-
-        logger.info("User %s logged in successfully as %s", username, user_type)
-
-        return Response(
-            {
-                "message": "Login successful",
-                "tokens": {"access": str(access_token), "refresh": str(refresh)},
-                "user": UserSerializer(user).data,
-                "user_type": user_type,
-                "user_route": user_route,
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    logger.warning("Failed login attempt for username: %s", username)
-    return Response(
-        {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
-    )
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def logout_api(request):
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    Logout user by blacklisting the refresh token
-    Client should send refresh token in request body
+    Customizes the JWT token response to include user details.
     """
-    try:
-        refresh_token = request.data.get("refresh_token")
+    def validate(self, attrs):
+        # The default result (access/refres tokens)
+        data = super().validate(attrs)
+        
+        # Add user information to the response
+        user_serializer = UserSerializer(self.user)
+        data["user"] = user_serializer.data
+        
+        return data
+    
+class LoginView(TokenObtainPairView):
+    """
+    Custom login view to handle user authentication and token generation.
+    Uses the custom serializer to include user data in the response.
+    """
+    
+    serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [AllowAny]
+    throttle_scope = "login"
+    
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        username = request.data.get("username", "N/A")
+        if response.status_code == status.HTTP_200_OK:
+            logger.info("User %s logged in successfully", username)
+        else:
+            logger.warning("Failed login attempt for username: %s", username)
+        return response
+    
+class LogoutView(APIView):
+    """
+    Handles user logout by blacklisting the provided refresh token.
+    """
+    
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        """
+        Expects a 'refresh' token in the request body.
+        """
+        refresh_token = request.data.get("refresh")
         if not refresh_token:
             return Response(
                 {"error": "Refresh token is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        # Blacklist the refresh token
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-
-        logger.info("User %s logged out successfully", request.user.username)
-
-        return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
-
-    except TokenError as e:
-        logger.warning(
-            "Token error during logout for user %s: %s", request.user.username, str(e)
-        )
-        return Response(
-            {"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    except InvalidToken as e:
-        logger.warning(
-            "Invalid token during logout for user %s: %s", request.user.username, str(e)
-        )
-        return Response(
-            {"error": "Invalid token format"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    except Exception:
-        logger.error(
-            "Unexpected error during logout for user %s",
-            request.user.username,
-            exc_info=True,
-            extra={"action": "logout"},
-        )
-        return Response(
-            {"error": "Logout failed due to server error"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            logger.info("User %s logged out successfully", request.user.username)
+            return Response(
+                {"detail": "Successfully logged out."},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        except TokenError as e:
+            logger.warning("Logout failed for user, %s: %s", request.user.username, e)
