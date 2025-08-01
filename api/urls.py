@@ -130,10 +130,10 @@ urlpatterns = [
     # === DASHBOARDS ===
     path(
         "dashboard/candidate/",
-        dashboard.candidate_dashboard_api,
+        dashboard.CandidateDashboardView.as_view(),
         name="api-candidate-dashboard",
     ),
-    path("dashboard/staff/", dashboard.staff_dashboard_api, name="api-staff-dashboard"),
+    path("dashboard/staff/", dashboard.StaffDashboardView.as_view(), name="api-staff-dashboard"),
     # === ACCOUNT MANAGEMENT ===
     path(
         "account-management/",

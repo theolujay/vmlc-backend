@@ -5,10 +5,9 @@ Django settings for core project.
 import os
 from datetime import timedelta
 from pathlib import Path
-
 import dj_database_url # type: ignore
-
 from dotenv import load_dotenv
+from logging.handlers import RotatingFileHandler
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -184,24 +183,41 @@ SIMPLE_JWT = {
 }
 
 INTERNAL_IPS = [ip.strip() for ip in os.environ.get("INTERNAL_IPS", "127.0.0.1,localhost").split(",")]
-
+if DEBUG:
+    LOG_DIR = BASE_DIR / "logs"
+    LOG_DIR.mkdir(exist_ok=True)
+else:
+    LOG_DIR = Path("/var/log/yourapp")
+    
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
         "console": {
+            "level": "DEBUG" if DEBUG else "INFO",
             "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
         "file": {
             "level": "INFO",
-            "class": "logging.FileHandler",
-            "filename": "auth.log",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "logs/vmlc_api.log",  # Put in logs/ directory
+            "formatter": "verbose",
+            "maxBytes": 5 * 1024 * 1024,     # 5MB
+            "backupCount": 3,                # Keep 3 backups
+            "encoding": "utf-8",             # Handle unicode properly
         },
     },
     "loggers": {
-        "api.views.auth_views": {
-            "handlers": ["console"] if not DEBUG else ["file"],
-            "level": "DEBUG",
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG" if DEBUG else "INFO",
             "propagate": True,
         },
     },
