@@ -5,7 +5,7 @@ listing, updating, deletion, and role assignment.
 
 import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.generics import (
@@ -18,7 +18,7 @@ from rest_framework import status
 from rest_framework.settings import api_settings
 
 from ..models import Staff
-from ..permissions import StaffWithRole, IsStaff
+from ..permissions import HasStaffRole, IsStaff
 from ..serializers import StaffDetailSerializer, StaffListSerializer
 from ..utils.user import validate_role
 from ..utils.query_filters import filter_staffs
@@ -26,51 +26,43 @@ from ..utils.query_filters import filter_staffs
 logger = logging.getLogger(__name__)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated, IsStaff])
-def staff_me_api(request):
+class StaffMeView(RetrieveAPIView):
     """
     Retrieve the authenticated staff member's own profile.
-
-    Returns:
-        200 OK with staff data if the user is a staff member.
-        403 FORBIDDEN if user is not a staff member.
     """
-    try:
-        staff = request.user.staff
-        serializer = StaffListSerializer(staff)
-        return Response(serializer.data)
-    except AttributeError:
-        return Response(
-            {"error": "Not a staff member"}, status=status.HTTP_403_FORBIDDEN
-        )
+
+    permission_classes = [IsAuthenticated, IsStaff]
+    serializer_class = StaffDetailSerializer
+
+    def get_object(self):
+        """
+        Return the staff profile for the currently authenticated user.
+        """
+        # The IsStaff permission already ensures the profile exists.
+        return self.request.user.staff_profile
 
 
 class StaffListView(ListAPIView):
     """
     List all staff members with pagination and optional filtering.
 
-    Permissions:
-        - Only accessible to users with roles: moderator, admin, or owner.
+    Only accessible to users with roles: moderator, admin, or owner.
     """
 
     permission_classes = [
         IsAuthenticated,
-        StaffWithRole(["moderator", "admin", "owner"]),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = StaffListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get_queryset(self):
         """
-        Apply query filters to the staff queryset.
-
-        Returns:
-            Filtered queryset of staff members.
+        Returns a filtered queryset of staff members.
         """
-        return filter_staffs(
-            Staff.objects.all().order_by("-date_created"), self.request.query_params
-        )
+        # Eagerly fetch related user data to prevent N+1 queries by the serializer.
+        queryset = Staff.objects.select_related("user").order_by("-date_created")
+        return filter_staffs(queryset, self.request.query_params)
 
 
 class StaffDetailView(RetrieveUpdateDestroyAPIView):
@@ -84,35 +76,30 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Soft delete the staff (marks as inactive).
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["owner"])]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
     serializer_class = StaffDetailSerializer
-    queryset = Staff.objects.all()
+    queryset = Staff.objects.select_related("user").all()
     lookup_url_kwarg = "staff_id"
-
-    def retrieve(self, request: Request, *args, **kwargs) -> Response:
-        """
-        Return staff member's serialized data.
-        """
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
     def perform_update(self, serializer) -> None:
         """
         Save updates to staff member and log the action.
         """
         logger.info(
-            f"Updating staff {serializer.instance.pk}",
+            "Updating staff %s",
+            serializer.instance.pk,
             extra={"user": self.request.user.id},
         )
-        serializer.save(updated_by=self.request.user.staff)
+        serializer.save()
 
     def perform_destroy(self, instance) -> None:
         """
         Soft-delete staff by setting `is_active` to False.
         """
         logger.info(
-            f"Soft-deleting staff {instance.pk}", extra={"user": self.request.user.id}
+            "Soft-deleting staff %s",
+            instance.pk,
+            extra={"user": self.request.user.id},
         )
         instance.is_active = False
         instance.save()
@@ -126,7 +113,7 @@ class AssignStaffRoleView(UpdateAPIView):
     - Only accepts PUT requests.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["owner"])]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"
@@ -148,4 +135,10 @@ class AssignStaffRoleView(UpdateAPIView):
 
         staff.role = new_role
         staff.save()
+        logger.info(
+            "Assigned role '%s' to staff %s by user %s",
+            new_role,
+            staff.pk,
+            request.user.username,
+        )
         return Response(self.get_serializer(staff).data)

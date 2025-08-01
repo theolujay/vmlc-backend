@@ -86,7 +86,7 @@ urlpatterns = [
     ),
     # === STAFF ===
     path("staff/", staff.StaffListView.as_view(), name="api-staff-list"),
-    path("staff/me/", staff.staff_me_api, name="api-staff-me"),
+    path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
     path(
         "staff/<int:staff_id>/",
         staff.StaffDetailView.as_view(),

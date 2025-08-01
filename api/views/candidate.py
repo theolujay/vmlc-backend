@@ -5,8 +5,8 @@ API views specific to candidates.
 import logging
 
 from django.db.models import Prefetch
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import (
+    RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
@@ -16,32 +16,30 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
 
-from ..models import Candidate, CandidateScore
-from ..permissions import StaffWithRole
+from ..models import Candidate, CandidateScore, Staff
+from ..permissions import HasStaffRole, IsCandidate
 from ..serializers import CandidateDetailSerializer, CandidateListSerializer
 from ..utils.user import validate_role
 from ..utils.query_filters import filter_candidates
-from ..utils.helpers import get_candidate_with_scores
 
 logger = logging.getLogger(__name__)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def candidate_me_api(request):
+class CandidateMeView(RetrieveAPIView):
     """
     Retrieve the authenticated candidate's own profile.
-
-    Returns:
-        200 OK with candidate data if the user is a candidate,
-        403 FORBIDDEN otherwise.
     """
-    try:
-        candidate = request.user.candidate
-        serializer = CandidateListSerializer(candidate)
-        return Response(serializer.data)
-    except AttributeError:
-        return Response({"error": "Not a candidate"}, status=status.HTTP_403_FORBIDDEN)
+
+    permission_classes = [IsAuthenticated, IsCandidate]
+    serializer_class = CandidateDetailSerializer
+    queryset = Candidate.objects.with_complete_data()
+
+    def get_object(self):
+        """
+        Return the candidate profile for the currently authenticated user.
+        """
+        # The IsCandidate permission already ensures the profile exists.
+        return self.queryset.get(user=self.request.user)
 
 
 class CandidateListView(ListAPIView):
@@ -54,7 +52,7 @@ class CandidateListView(ListAPIView):
 
     permission_classes = [
         IsAuthenticated,
-        StaffWithRole(["moderator", "admin", "owner"]),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = CandidateListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -63,9 +61,9 @@ class CandidateListView(ListAPIView):
         """
         Returns a filtered queryset of candidates based on request query parameters.
         """
-        return filter_candidates(
-            Candidate.objects.all().order_by("-date_created"), self.request.query_params
-        )
+        # Eagerly fetch related user data to prevent N+1 queries by the serializer.
+        queryset = Candidate.objects.select_related("user").order_by("-date_created")
+        return filter_candidates(queryset, self.request.query_params)
 
 
 class CandidateDetailView(RetrieveUpdateDestroyAPIView):
@@ -75,47 +73,36 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     Only accessible to staff with 'owner' or 'admin' roles.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["owner", "admin"])]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = CandidateDetailSerializer
-    queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
 
     def get_queryset(self):
         """
-        Returns a queryset with prefetch optimization for candidate scores,
-        including related exams and submitters.
+        Returns a queryset with prefetch optimization for candidate scores.
         """
-        return Candidate.objects.with_scores().prefetch_related(
-            Prefetch(
-                "scores",
-                queryset=CandidateScore.objects.select_related("exam", "submitted_by"),
-            )
-        )
-
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Retrieves candidate profile along with detailed score information.
-        """
-        candidate = self.get_object()
-        return Response(get_candidate_with_scores(candidate))
+        return Candidate.objects.with_complete_data()
 
     def perform_update(self, serializer) -> None:
         """
         Save updates to candidate and log the action.
         """
         logger.info(
-            f"Updating candidate {serializer.instance.pk}",
+            "Updating candidate %s",
+            serializer.instance.pk,
             extra={"user": self.request.user.id},
         )
-        serializer.save(updated_by=self.request.user.staff)
+        serializer.save()
 
     def perform_destroy(self, instance) -> None:
         """
-        Soft-delete staff by setting `is_active` to False.
+        Soft-delete candidate by setting `is_active` to False.
         """
         logger.info(
-            f"Soft-deleting candidate {instance.pk}",
-            extra={"user": self.request.user.id},
+            "Soft-deleting candidate %s", instance.pk, extra={"user": self.request.user.id}
         )
         instance.is_active = False
         instance.save()
@@ -128,7 +115,10 @@ class AssignCandidateRoleView(UpdateAPIView):
     Only staff with 'owner' or 'admin' roles are permitted.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["owner", "admin"])]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = CandidateDetailSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
