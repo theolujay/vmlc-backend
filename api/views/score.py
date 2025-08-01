@@ -2,95 +2,105 @@
 API views for retrieving and submitting candidate scores.
 """
 
-from django.shortcuts import get_object_or_404
+import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
-from ..models import Candidate, CandidateScore, Exam
-from ..serializers import CandidateScoreSerializer
-from ..permissions import StaffWithRole
+from ..models import Candidate, CandidateScore, Exam, Staff
+from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..serializers import CandidateScoreSerializer, SubmitScoreSerializer
+
+logger = logging.getLogger(__name__)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated, StaffWithRole(["admin", "owner"])])
-def candidate_scores_api(request, candidate_id):
+class CandidateScoreListView(ListAPIView):
     """
     Retrieve all scores for a given candidate.
 
-    Args:
-        candidate_id (int): ID of the candidate whose scores are to be fetched.
-
-    Returns:
-        200 OK with serialized score data.
-        404 NOT FOUND if candidate does not exist.
-
-    Permissions:
-        - Only staff with 'admin' or 'owner' roles can access.
+    Accessible by staff with 'admin' or 'owner' roles.
     """
-    candidate = get_object_or_404(Candidate, pk=candidate_id)
-    scores = CandidateScore.objects.filter(candidate=candidate)
-    serializer = CandidateScoreSerializer(scores, many=True)
-    return Response(serializer.data)
+
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+    serializer_class = CandidateScoreSerializer
+
+    def get_queryset(self):
+        """
+        Returns a queryset of scores for the specified candidate,
+        optimized with prefetching.
+        """
+        candidate_id = self.kwargs.get("candidate_id")
+        # Ensure the candidate exists before proceeding
+        get_object_or_404(Candidate, pk=candidate_id)
+        return (
+            CandidateScore.objects.filter(candidate_id=candidate_id)
+            .select_related("candidate__user", "exam")
+            .order_by("-date_recorded")
+        )
 
 
-@api_view(["PUT"])
-@permission_classes([IsAuthenticated, StaffWithRole(["admin", "owner"])])
-def submit_exam_score_api(request, exam_id):
+class SubmitScoreView(APIView):
     """
     Submit or update a candidate's score for a specific exam.
-
-    Expected PUT data:
-        - candidate_id: ID of the candidate.
-        - score: Score to submit or update.
-
-    Args:
-        exam_id (int): ID of the exam.
-
-    Returns:
-        200 OK with message and submitted score data.
-        400 BAD REQUEST if required fields are missing or invalid.
-        403 FORBIDDEN if user is not valid staff.
-
-    Permissions:
-        - Only staff with 'admin' or 'owner' roles can submit scores.
     """
-    try:
-        candidate_id = request.data.get("candidate_id")
-        score = request.data.get("score")
 
-        if candidate_id is None or score is None:
-            return Response(
-                {"error": "candidate_id and score are required."}, status=400
-            )
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+    serializer_class = SubmitScoreSerializer
 
-        candidate = get_object_or_404(Candidate, pk=candidate_id)
+    def put(self, request, exam_id: int):
+        """
+        Handles the submission of a score for a candidate in a given exam.
+
+        Expects `candidate_id` and `score` in the request body.
+        """
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated_data = serializer.validated_data
+        candidate_id = validated_data["candidate_id"]
+        score = validated_data["score"]
+
+        # get_object_or_404 is fine here as the serializer already validated existence
+        candidate = Candidate.objects.get(pk=candidate_id)
         exam = get_object_or_404(Exam, pk=exam_id)
-        staff = request.user.staff
+        # IsVerifiedStaff permission ensures staff_profile exists
+        staff = request.user.staff_profile
 
         # Create or update the score
-        _, created = CandidateScore.objects.update_or_create(
+        score_obj, created = CandidateScore.objects.update_or_create(
             candidate=candidate,
             exam=exam,
             defaults={"score": score, "submitted_by": staff, "auto_score": False},
         )
 
+        action = "submitted" if created else "updated"
+        logger.info(
+            "Score for candidate %s on exam %s was %s by staff %s.",
+            candidate.pk,
+            exam.pk,
+            action,
+            staff.pk,
+        )
+
         return Response(
             {
-                "message": "Score submitted." if created else "Score updated.",
+                "message": f"Score {action}.",
                 "data": {
                     "candidate": candidate.user.get_full_name(),
                     "exam": exam.title,
                     "score": float(score),
                 },
-            }
+            },
+            status=status.HTTP_200_OK,
         )
-
-    except AttributeError:
-        return Response(
-            {"error": "Only admin and owner staff members can submit scores."},
-            status=403,
-        )
-    except Exception as e:
-        return Response({"error": str(e)}, status=400)

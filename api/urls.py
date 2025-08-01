@@ -63,7 +63,7 @@ urlpatterns = [
     path(
         "candidates/", candidate.CandidateListView.as_view(), name="api-candidate-list"
     ),
-    path("candidates/me/", candidate.candidate_me_api, name="api-candidate-me"),
+    path("candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"),
     path(
         "candidates/<int:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
@@ -76,7 +76,7 @@ urlpatterns = [
     ),
     path(
         "candidates/<int:candidate_id>/scores/",
-        score.candidate_scores_api,
+        score.CandidateScoreListView.as_view(),
         name="api-candidate-scores",
     ),
     path(
@@ -112,7 +112,7 @@ urlpatterns = [
     ),
     path(
         "exams/<int:exam_id>/submit-exam-score/",
-        score.submit_exam_score_api,
+        score.SubmitScoreView.as_view(),
         name="api-submit-exam-score",
     ),
     path(
