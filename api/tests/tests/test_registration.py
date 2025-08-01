@@ -14,7 +14,6 @@ def authenticated_api_client(api_client, settings):
     api_client.credentials(HTTP_AUTHORIZATION=f"Api-Key {test_api_key}")
     return api_client
 
-
 @pytest.fixture
 def valid_candidate_data():
     """Factory function for candidate data to avoid mutation issues"""

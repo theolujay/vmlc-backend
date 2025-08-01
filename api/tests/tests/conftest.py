@@ -68,47 +68,6 @@ def create_logged_in_screening_candidate(api_client):
 
 
 @pytest.fixture
-def create_logged_in_league_candidate(api_client):
-    """Create and login a league candidate."""
-
-    def _do(
-        username="league_candidate",
-        email="league_candidate@test.com",
-        password="password123",
-    ):
-        user = User.objects.create_user(
-            username=username, email=email, password=password
-        )
-        candidate = Candidate.objects.create(user=user, role="league")
-        refresh = RefreshToken.for_user(user)
-        api_client.force_authenticate(user=user)
-        return candidate, str(refresh), str(refresh.access_token)
-
-    return _do
-
-
-@pytest.fixture
-def create_logged_in_staff(api_client):
-    """Create and login a staff user with a specified role."""
-
-    def _do(
-        username="staff",
-        email="staff@test.com",
-        password="password123",
-        role="moderator",
-    ):
-        user = User.objects.create_user(
-            username=username, email=email, password=password
-        )
-        staff = Staff.objects.create(user=user, role=role)
-        refresh = RefreshToken.for_user(user)
-        api_client.force_authenticate(user=user)
-        return staff, str(refresh), str(refresh.access_token)
-
-    return _do
-
-
-@pytest.fixture
 def create_logged_in_volunteer(api_client):
     """Create and login a volunteer user with a specified role."""
 
@@ -186,6 +145,48 @@ def create_logged_in_owner(api_client):
     return _do
 
 
+@pytest.fixture
+def create_logged_in_league_candidate(api_client):
+    """Create and login a league candidate."""
+
+    def _do(
+        username="league_candidate",
+        email="league_candidate@test.com",
+        password="password123",
+    ):
+        user = User.objects.create_user(
+            username=username, email=email, password=password
+        )
+        candidate = Candidate.objects.create(user=user, role="league")
+        refresh = RefreshToken.for_user(user)
+        api_client.force_authenticate(user=user)
+        return candidate, str(refresh), str(refresh.access_token)
+
+    return _do
+
+
+@pytest.fixture
+def create_logged_in_staff(api_client):
+    """Create and login a staff user with a specified role."""
+
+    def _do(
+        username="staff",
+        email="staff@test.com",
+        password="password123",
+        role="moderator",
+    ):
+        user = User.objects.create_user(
+            username=username, email=email, password=password
+        )
+        staff = Staff.objects.create(user=user, role=role)
+        refresh = RefreshToken.for_user(user)
+        api_client.force_authenticate(user=user)
+        return staff, str(refresh), str(refresh.access_token)
+
+    return _do
+
+
+@pytest.fixture
 def create_dummy_user():
     """Create a dummy user for testing purposes."""
     return User.objects.create_user(

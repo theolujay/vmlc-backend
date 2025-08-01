@@ -24,11 +24,10 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id",
-            # "username",
             "email",
             "first_name",
-            "phone",
             "last_name",
+            "phone",
             "date_joined",
         )
         read_only_fields = ("id", "date_joined")

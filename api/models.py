@@ -17,6 +17,7 @@ from django.db import models
 from django.db.models import Sum, Avg, Count
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
+from django.core.validators import RegexValidator
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -48,14 +49,23 @@ class User(AbstractUser):
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=20, blank=True)
-
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    phone_regex = RegexValidator(
+        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+    )
+    phone = models.CharField(
+        validators=[phone_regex],
+        max_length=17,  # Fixed: Now matches the regex (allows +234XXXXXXXXXX)
+        unique=True,
+        help_text="Nigerian phone number for SMS notifications and contact",
+    )
     username = models.CharField(max_length=255, unique=True)
-
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
-    objects = CustomUserManager() # type: ignore
+    objects = CustomUserManager()
 
 
 class CandidateManager(models.Manager):
