@@ -63,7 +63,9 @@ urlpatterns = [
     path(
         "candidates/", candidate.CandidateListView.as_view(), name="api-candidate-list"
     ),
-    path("candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"),
+    path(
+        "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
+    ),
     path(
         "candidates/<int:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
@@ -133,7 +135,11 @@ urlpatterns = [
         dashboard.CandidateDashboardView.as_view(),
         name="api-candidate-dashboard",
     ),
-    path("dashboard/staff/", dashboard.StaffDashboardView.as_view(), name="api-staff-dashboard"),
+    path(
+        "dashboard/staff/",
+        dashboard.StaffDashboardView.as_view(),
+        name="api-staff-dashboard",
+    ),
     # === ACCOUNT MANAGEMENT ===
     path(
         "account-management/",

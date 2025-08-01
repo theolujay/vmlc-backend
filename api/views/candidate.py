@@ -74,7 +74,10 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     Only accessible to staff with 'owner' or 'admin' roles.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = CandidateDetailSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
@@ -117,7 +120,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             extra={"user": self.request.user.id},
         )
 
-        instance.is_active = False # Make the instance inactive
+        instance.is_active = False  # Make the instance inactive
         instance.save()
 
 
@@ -128,7 +131,10 @@ class AssignCandidateRoleView(UpdateAPIView):
     Only staff with 'owner' or 'admin' roles are permitted.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = CandidateDetailSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"

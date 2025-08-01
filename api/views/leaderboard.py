@@ -22,7 +22,10 @@ class PublishLeaderboardView(APIView):
     Refreshes and publishes the leaderboard snapshot. Admin/Owner only.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
 
     def post(self, request):
         """
@@ -97,5 +100,8 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     Accessible only by staff with 'admin' or 'owner' roles.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     feature_flag_key = "leaderboard_open"

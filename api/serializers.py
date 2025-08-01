@@ -91,8 +91,11 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     - all scores
     - total and average score
     """
+
     user = UserSerializer(read_only=True)
-    scores = serializers.SerializerMethodField(help_text="Detailed score breakdown for the candidate.")
+    scores = serializers.SerializerMethodField(
+        help_text="Detailed score breakdown for the candidate."
+    )
 
     class Meta:
         model = Candidate
@@ -171,6 +174,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("date_created", "date_updated", "user")
 
+
 class QuestionListSerializer(serializers.ModelSerializer):
     """
     Serializer for exam questions with created_by staff included.
@@ -193,6 +197,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
             # "created_by",
         )
         read_only_fields = ("id", "date_created", "created_by")
+
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
     """
@@ -288,7 +293,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         """
         Returns average score, using annotated value if available.
         """
-        avg = getattr(obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"])
+        avg = getattr(
+            obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"]
+        )
         return float(avg or 0.0)
 
 
@@ -316,7 +323,9 @@ class SubmitScoreSerializer(serializers.Serializer):
 
     def validate_candidate_id(self, value):
         if not Candidate.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("A candidate with this ID does not exist.")
+            raise serializers.ValidationError(
+                "A candidate with this ID does not exist."
+            )
         return value
 
     class Meta:
@@ -328,6 +337,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     Abstract base serializer for user registration.
     Handles common user creation and password validation logic.
     """
+
     user = UserSerializer()
     password = serializers.CharField(
         write_only=True,

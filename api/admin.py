@@ -72,7 +72,12 @@ class StaffAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("date_created", "date_updated")
     list_filter = ("role", "is_verified", "is_active")
-    search_fields = ("user__username", "user__first_name", "user__last_name", "occupation")
+    search_fields = (
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+        "occupation",
+    )
     list_select_related = ("user",)
     date_hierarchy = "date_created"
 
@@ -169,6 +174,7 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     def get_exam_title(self, obj):
         return obj.exam.title
 
+
 @admin.register(CandidateAnswer)
 class CandidateAnswerAdmin(admin.ModelAdmin):
     """
@@ -188,10 +194,16 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     list_filter = ("candidate_score__exam", "answered_at")
     search_fields = ("candidate_score__candidate__user__username", "question__text")
     autocomplete_fields = ("question", "candidate_score")
-    list_select_related = ("candidate_score__candidate__user", "candidate_score__exam", "question")
+    list_select_related = (
+        "candidate_score__candidate__user",
+        "candidate_score__exam",
+        "question",
+    )
     date_hierarchy = "answered_at"
 
-    @admin.display(description="Candidate", ordering="candidate_score__candidate__user__username")
+    @admin.display(
+        description="Candidate", ordering="candidate_score__candidate__user__username"
+    )
     def get_candidate_username(self, obj):
         return obj.candidate_score.candidate.user.username
 
@@ -201,7 +213,11 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
 
     @admin.display(description="Question", ordering="question__text")
     def get_question_text(self, obj):
-        return str(obj.question)[:50] + "..." if len(str(obj.question)) > 50 else str(obj.question)
+        return (
+            str(obj.question)[:50] + "..."
+            if len(str(obj.question)) > 50
+            else str(obj.question)
+        )
 
 
 @admin.register(LeaderboardSnapshot)
@@ -232,8 +248,10 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     @admin.display(description="Data Summary")
     def data_summary(self, obj):
         import json
+
         summary = str(json.dumps(obj.data))
         return (summary[:75] + "...") if len(summary) > 75 else summary
+
 
 @admin.register(FeatureFlag)
 class FeatureFlagAdmin(admin.ModelAdmin):

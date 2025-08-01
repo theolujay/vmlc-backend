@@ -1,6 +1,7 @@
 """
 API views to set, list, and retrieve exam details.
 """
+
 from django.db.models import Avg, Count
 
 from django.shortcuts import get_object_or_404
@@ -56,7 +57,6 @@ class ExamListView(ListCreateAPIView):
 
     def get_queryset(self):
         """Returns a queryset of all Exam objects."""
-        
 
     def perform_create(self, serializer):
         """
@@ -89,6 +89,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         return Exam.objects.annotate(average_score=Avg("scores__score")).select_related(
             "created_by__user", "updated_by__user"
         )
+
     # `perform_destroy` is handled by the parent class, no need to override.
 
 
@@ -110,7 +111,10 @@ class ExamQuestionsView(ListAPIView):
         Returns the queryset of questions related to a given exam.
         """
         # Use prefetch_related to optimize fetching the question creator's user data.
-        exam = get_object_or_404(Exam.objects.prefetch_related('questions__created_by__user'), pk=self.kwargs["exam_id"])
+        exam = get_object_or_404(
+            Exam.objects.prefetch_related("questions__created_by__user"),
+            pk=self.kwargs["exam_id"],
+        )
         return exam.questions.all()
 
 

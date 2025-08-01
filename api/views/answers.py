@@ -19,6 +19,7 @@ from ..utils.helpers import auto_score
 
 logger = logging.getLogger(__name__)
 
+
 class SubmitAnswersView(APIView):
     """
     Handles the submission of a candidate's answers for a specific exam.
@@ -57,7 +58,10 @@ class SubmitAnswersView(APIView):
             candidate=candidate, exam=exam
         )
 
-        if not created and CandidateAnswer.objects.filter(candidate_score=candidate_score).exists():
+        if (
+            not created
+            and CandidateAnswer.objects.filter(candidate_score=candidate_score).exists()
+        ):
             return Response(
                 {"detail": "You have already submitted answers for this exam."},
                 status=status.HTTP_400_BAD_REQUEST,

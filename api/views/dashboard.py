@@ -114,13 +114,17 @@ class AccountManagementView(APIView):
         except (PermissionDenied, User.DoesNotExist) as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_403_FORBIDDEN
-                if isinstance(e, PermissionDenied)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_403_FORBIDDEN
+                    if isinstance(e, PermissionDenied)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
 
         user_data = UserSerializer(target_user).data
-        profile, profile_serializer_class = self._get_profile_and_serializer(target_user)
+        profile, profile_serializer_class = self._get_profile_and_serializer(
+            target_user
+        )
 
         if profile and profile_serializer_class:
             profile_data = profile_serializer_class(profile).data
@@ -128,6 +132,7 @@ class AccountManagementView(APIView):
             profile_data = None
 
         return Response({"user": user_data, "profile": profile_data})
+
     def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.
@@ -143,12 +148,12 @@ class AccountManagementView(APIView):
 
         user_data = request.data.get("user", {})
         profile_data = request.data.get("profile", {})
-        
-        user_serializer = UserSerializer(
-            target_user, data=user_data, partial=partial
-        )
+
+        user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
         user_serializer.is_valid(raise_exception=True)
-        profile, profile_serializer_class = self._get_profile_and_serializer(target_user)
+        profile, profile_serializer_class = self._get_profile_and_serializer(
+            target_user
+        )
         profile_serializer = None
         if profile and profile_serializer_class:
             profile_serializer = profile_serializer_class(
@@ -173,13 +178,13 @@ class AccountManagementView(APIView):
                 "profile": profile_serializer.data if profile_serializer else None,
             }
         )
-    
+
     def put(self, request, user_id=None):
         """
         Fully update both user and profile data.
         """
         return self._update_account(request, partial=False, user_id=user_id)
-    
+
     def patch(self, request, user_id=None):
         """
         Partially update user and/or profile data.

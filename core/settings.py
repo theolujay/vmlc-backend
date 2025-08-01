@@ -5,7 +5,7 @@ Django settings for core project.
 import os
 from datetime import timedelta
 from pathlib import Path
-import dj_database_url # type: ignore
+import dj_database_url  # type: ignore
 from dotenv import load_dotenv
 from logging.handlers import RotatingFileHandler
 
@@ -22,7 +22,9 @@ DEBUG = os.environ.get("DEBUG") == "True"
 
 # Filter out empty strings that can result from splitting an empty or malformed string
 ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host.strip()
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if host.strip()
 ]
 
 # Grouping apps by origin (Django, third-party, local) improves clarity.
@@ -94,7 +96,9 @@ ADMIN_URL = os.environ.get("DJANGO_ADMIN_URL", "admin/")
 # Falls back to SQLite for local development if DATABASE_URL is not set.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
+    DATABASES = {
+        "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+    }
 else:
     DATABASES = {
         "default": {
@@ -151,10 +155,10 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/day",        # Unauthenticated
-        "user": "1000/day",       # Authenticated users
-        "login": "5/min",         # Login endpoint
-        "burst": "20/min",        # For sensitive or POST-heavy endpoints
+        "anon": "100/day",  # Unauthenticated
+        "user": "1000/day",  # Authenticated users
+        "login": "5/min",  # Login endpoint
+        "burst": "20/min",  # For sensitive or POST-heavy endpoints
         "sustained": "100/hour",  # For sustained traffic
     },
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
@@ -182,13 +186,16 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-INTERNAL_IPS = [ip.strip() for ip in os.environ.get("INTERNAL_IPS", "127.0.0.1,localhost").split(",")]
+INTERNAL_IPS = [
+    ip.strip()
+    for ip in os.environ.get("INTERNAL_IPS", "127.0.0.1,localhost").split(",")
+]
 if DEBUG:
     LOG_DIR = BASE_DIR / "logs"
     LOG_DIR.mkdir(exist_ok=True)
 else:
     LOG_DIR = Path("/var/log/yourapp")
-    
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -209,9 +216,9 @@ LOGGING = {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": "logs/vmlc_api.log",  # Put in logs/ directory
             "formatter": "verbose",
-            "maxBytes": 5 * 1024 * 1024,     # 5MB
-            "backupCount": 3,                # Keep 3 backups
-            "encoding": "utf-8",             # Handle unicode properly
+            "maxBytes": 5 * 1024 * 1024,  # 5MB
+            "backupCount": 3,  # Keep 3 backups
+            "encoding": "utf-8",  # Handle unicode properly
         },
     },
     "loggers": {
@@ -262,11 +269,15 @@ else:
         "AWS_S3_REGION_NAME",
     ]:
         if not os.environ.get(var):
-            raise ValueError(f"The {var} environment variable must be set for S3 storage.")
+            raise ValueError(
+                f"The {var} environment variable must be set for S3 storage."
+            )
 
     AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    AWS_S3_CUSTOM_DOMAIN = (
+        f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    )
 
     STORAGES = {
         "default": {

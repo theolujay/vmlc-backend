@@ -68,7 +68,10 @@ class Candidate(models.Model):
         WINNER = "winner", "Winner"
 
     user = models.OneToOneField(
-        User, primary_key=True, on_delete=models.CASCADE, related_name="candidate_profile"
+        User,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="candidate_profile",
     )
     phone = models.CharField(max_length=20, blank=True)
     school = models.CharField(max_length=150)
@@ -91,6 +94,7 @@ class Candidate(models.Model):
     total_score: Optional[float]
     average_score: Optional[float]
     exams_taken: Optional[int]
+
     class Meta:
         indexes = [
             models.Index(fields=["role", "is_active"]),
@@ -355,9 +359,7 @@ class CandidateScore(models.Model):
     candidate = models.ForeignKey(
         "Candidate", on_delete=models.CASCADE, related_name="scores"
     )
-    exam = models.ForeignKey(
-        "Exam", on_delete=models.PROTECT, related_name="scores"
-    )
+    exam = models.ForeignKey("Exam", on_delete=models.PROTECT, related_name="scores")
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     date_recorded = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -410,6 +412,7 @@ class LeaderboardSnapshot(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
 
 class FeatureFlag(models.Model):
     key = models.CharField(max_length=50, unique=True)

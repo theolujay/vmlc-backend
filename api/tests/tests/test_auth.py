@@ -13,6 +13,7 @@ def authenticated_api_client(api_client, settings):
     api_client.credentials(HTTP_AUTHORIZATION=f"Api-Key {test_api_key}")
     return api_client
 
+
 @pytest.fixture
 def login_url():
     return reverse("v1:api-login")
@@ -34,6 +35,7 @@ def create_logged_in_user(authenticated_api_client):
         return user, str(refresh), str(refresh.access_token)
 
     return do_create
+
 
 @pytest.mark.django_db
 class TestLogin:
@@ -61,7 +63,7 @@ class TestLogin:
             username="patrick",
             email="patrick@test.com",
             password="safepassword123",
-            is_active=False
+            is_active=False,
         )
         data = {"username": "patrick", "password": "safepassword123"}
         response = authenticated_api_client.post(login_url, data, format="json")
@@ -77,29 +79,43 @@ class TestLogin:
     def test_login_wrong_method(self, authenticated_api_client, login_url):
         response = authenticated_api_client.get(login_url)
         assert response.status_code == 405
+
+
 @pytest.mark.django_db
 class TestLogout:
-    def test_logout_success(self, authenticated_api_client, logout_url, create_logged_in_user):
+    def test_logout_success(
+        self, authenticated_api_client, logout_url, create_logged_in_user
+    ):
         user, refresh, access = create_logged_in_user()
         authenticated_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
-        response = authenticated_api_client.post(logout_url, {"refresh_token": refresh}, format="json")
+        response = authenticated_api_client.post(
+            logout_url, {"refresh_token": refresh}, format="json"
+        )
         assert response.status_code == 200
         assert "Logout successful" in response.data["message"]
 
-    def test_logout_missing_token(self, authenticated_api_client, logout_url, create_logged_in_user):
+    def test_logout_missing_token(
+        self, authenticated_api_client, logout_url, create_logged_in_user
+    ):
         _, _, access = create_logged_in_user()
         authenticated_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         response = authenticated_api_client.post(logout_url, {}, format="json")
         assert response.status_code == 400
         assert "Refresh token is required" in response.data["error"]
 
-    def test_logout_invalid_token(self, authenticated_api_client, logout_url, create_logged_in_user):
+    def test_logout_invalid_token(
+        self, authenticated_api_client, logout_url, create_logged_in_user
+    ):
         _, _, access = create_logged_in_user()
         authenticated_api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
-        response = authenticated_api_client.post(logout_url, {"refresh_token": "invalidtoken"}, format="json")
+        response = authenticated_api_client.post(
+            logout_url, {"refresh_token": "invalidtoken"}, format="json"
+        )
         assert response.status_code == 400
         assert "Invalid" in response.data["error"]
 
     def test_logout_auth_required(self, authenticated_api_client, logout_url):
-        response = authenticated_api_client.post(logout_url, {"refresh_token": "sometoken"}, format="json")
+        response = authenticated_api_client.post(
+            logout_url, {"refresh_token": "sometoken"}, format="json"
+        )
         assert response.status_code == 401

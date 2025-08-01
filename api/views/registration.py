@@ -32,7 +32,9 @@ class BaseRegistrationView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return Response(
-                {"error": "Already authenticated. Please log out to register a new account."},
+                {
+                    "error": "Already authenticated. Please log out to register a new account."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -41,7 +43,9 @@ class BaseRegistrationView(CreateAPIView):
             self.feature_flag_key, default=False
         ):
             return Response(
-                {"detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."},
+                {
+                    "detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -95,10 +99,15 @@ class ToggleFeatureFlagView(APIView):
             obj.save()
 
         logger.info(
-            "Feature flag '%s' toggled to %s by user '%s'.", self.feature_flag_key, obj.value, request.user.username
+            "Feature flag '%s' toggled to %s by user '%s'.",
+            self.feature_flag_key,
+            obj.value,
+            request.user.username,
         )
         return Response(
-            {"message": f"'{self.feature_flag_key}' is now {'open' if obj.value else 'closed'}."},
+            {
+                "message": f"'{self.feature_flag_key}' is now {'open' if obj.value else 'closed'}."
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -106,7 +115,10 @@ class ToggleFeatureFlagView(APIView):
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     feature_flag_key = "candidate_registration_open"
 
 
