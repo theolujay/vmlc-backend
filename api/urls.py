@@ -40,24 +40,24 @@ urlpatterns = [
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     # === REGISTRATION ===
     path(
-        "toggle-candidate-registration/",
-        registration.toggle_candidate_registration,
-        name="api-toggle-candidate-registration",
-    ),
-    path(
-        "toggle-staff-registration/",
-        registration.toggle_staff_registration,
-        name="api-toggle-staff-registration",
-    ),
-    path(
         "register/candidate/",
         registration.CandidateRegistrationView.as_view(),
         name="api-register-candidate",
     ),
     path(
+        "register/candidate/toggle/",
+        registration.ToggleCandidateRegistrationView.as_view(),
+        name="api-toggle-candidate-registration",
+    ),
+    path(
         "register/staff/",
         registration.StaffRegistrationView.as_view(),
         name="api-register-staff",
+    ),
+    path(
+        "register/staff/toggle/",
+        registration.ToggleStaffRegistrationView.as_view(),
+        name="api-toggle-staff-registration",
     ),
     # === CANDIDATES ===
     path(
