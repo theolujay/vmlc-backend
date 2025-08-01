@@ -10,21 +10,51 @@ Includes models for:
 """
 
 from typing import Optional
+import uuid
 
 from django.db import models
 from django.db.models import Sum, Avg, Count
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.contrib.auth import get_user_model
 
-User = get_user_model()
-# class CustomUser(AbstractUser):
-#     """
-#     Custom user model with unique email and username login support.
-#     Users can log in with either username or email.
-#     """
-#     email = models.EmailField(unique=True)
-#     # USERNAME_FIELD = "email"
-#     # REQUIRED_FIELDS = []
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("The Email field must be set")
+        email = self.normalize_email(email)
+
+        if "username" not in extra_fields:
+            extra_fields["username"] = email
+
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+
+        return self.create_user(email, password, **extra_fields)
+
+class User(AbstractUser):
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True)
+
+    username = models.CharField(max_length=255, unique=True, null=True, blank=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    objects = CustomUserManager() # type: ignore
 
 
 class CandidateManager(models.Manager):
@@ -73,7 +103,6 @@ class Candidate(models.Model):
         on_delete=models.CASCADE,
         related_name="candidate_profile",
     )
-    phone = models.CharField(max_length=20, blank=True)
     school = models.CharField(max_length=150)
     profile_photo = models.ImageField(
         upload_to="candidate_profile_photos/",

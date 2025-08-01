@@ -59,8 +59,8 @@ class QuestionListView(ListCreateAPIView):
         # IsVerifiedStaff permission ensures staff_profile exists
         serializer.save(created_by=self.request.user.staff_profile)
         logger.info(
-            "Question created by %s",
-            self.request.user.username,
+            "Question created by user %s",
+            self.request.user.id,
             extra={"question_id": serializer.instance.id},
         )
 
@@ -96,7 +96,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         logger.info(
             "Question %s updated by %s",
             serializer.instance.id,
-            self.request.user.username,
+            self.request.user.id,
         )
 
     def perform_destroy(self, instance):
@@ -106,5 +106,5 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         question_id = instance.id
         instance.delete()
         logger.info(
-            "Question %s deleted by %s", question_id, self.request.user.username
+            "Question %s deleted by user %s", question_id, self.request.user.id
         )

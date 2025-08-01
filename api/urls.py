@@ -17,7 +17,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 from .views import (
-    answers,
+    answer,
     auth,
     candidate,
     dashboard,
@@ -119,7 +119,7 @@ urlpatterns = [
     ),
     path(
         "exams/<int:exam_id>/submit-exam-answers/",
-        answers.SubmitAnswersView.as_view(),
+        answer.SubmitAnswersView.as_view(),
         name="api-submit-exam-answers",
     ),
     # === QUESTIONS ===

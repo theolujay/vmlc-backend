@@ -166,10 +166,10 @@ class AccountManagementView(APIView):
             if profile_serializer:
                 profile_serializer.save()
 
-        logger.into(
+        logger.info(
             "Account for user %s updated by %s.",
-            target_user.username,
-            request.user.username,
+            target_user.id,
+            request.user.id,
         )
         return Response(
             {

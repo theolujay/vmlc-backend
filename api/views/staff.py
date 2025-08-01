@@ -136,9 +136,9 @@ class AssignStaffRoleView(UpdateAPIView):
         staff.role = new_role
         staff.save()
         logger.info(
-            "Assigned role '%s' to staff %s by user %s",
+            "Assigned role '%s' to staff %s by user %s.",
             new_role,
             staff.pk,
-            request.user.username,
+            request.user.id,
         )
         return Response(self.get_serializer(staff).data)
