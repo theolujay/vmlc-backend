@@ -1,6 +1,7 @@
 """
 API views to set, list, and retrieve exam details.
 """
+from django.db.models import Avg, Count
 
 from django.shortcuts import get_object_or_404
 
@@ -14,14 +15,14 @@ from rest_framework.generics import (
     ListCreateAPIView,
 )
 
-from ..models import Exam, CandidateScore, Candidate, Question
+from ..models import Exam, CandidateScore, Candidate, Question, Staff
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
     QuestionDetailSerializer,
     CandidateExamSerializer,
 )
-from ..permissions import StaffWithRole, IsCandidate, IsLeagueCandidate
+from ..permissions import HasStaffRole, IsCandidate, IsLeagueCandidate, IsVerifiedStaff
 from ..utils.query_filters import ExamFilter
 
 
@@ -33,7 +34,11 @@ class ExamListView(ListCreateAPIView):
     - POST: Creates a new exam with detailed input data.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["admin", "owner"])]
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
 
@@ -51,7 +56,7 @@ class ExamListView(ListCreateAPIView):
 
     def get_queryset(self):
         """Returns a queryset of all Exam objects."""
-        return Exam.objects.all().order_by("-date_created")
+        
 
     def perform_create(self, serializer):
         """
@@ -69,17 +74,22 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Remove the exam.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["admin", "owner"])]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = ExamDetailSerializer
-    queryset = Exam.objects.all().order_by("-date_created")
     lookup_url_kwarg = "exam_id"
 
-    def perform_destroy(self, instance):
+    def get_queryset(self):
         """
-        Deletes the exam instance and returns a success message.
+        Optimizes the queryset by annotating with average score and prefetching
+        related data needed by the serializer.
         """
-        instance.delete()
-        return Response({"message": "Exam deleted successfully."})
+        return Exam.objects.annotate(average_score=Avg("scores__score")).select_related(
+            "created_by__user", "updated_by__user"
+        )
+    # `perform_destroy` is handled by the parent class, no need to override.
 
 
 class ExamQuestionsView(ListAPIView):
@@ -89,15 +99,19 @@ class ExamQuestionsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["admin", "owner"])]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = QuestionDetailSerializer
 
     def get_queryset(self):
         """
         Returns the queryset of questions related to a given exam.
         """
-        exam = get_object_or_404(Exam, pk=self.kwargs["exam_id"])
-        return exam.questions.all().order_by("-date_created")
+        # Use prefetch_related to optimize fetching the question creator's user data.
+        exam = get_object_or_404(Exam.objects.prefetch_related('questions__created_by__user'), pk=self.kwargs["exam_id"])
+        return exam.questions.all()
 
 
 class ExamHistoryView(ListAPIView):
@@ -107,7 +121,10 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = [IsAuthenticated, StaffWithRole(["admin", "owner"])]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
 
     def get(self, request, *args, **kwargs):
         """
@@ -131,7 +148,10 @@ class ExamHistoryView(ListAPIView):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsCandidate])
-def candidate_take_exam(request, exam_id):
+def candidate_take_exam(request, exam_id: int):
+    """
+    Allows a candidate to retrieve the questions for a specific exam if they are eligible.
+    """
     candidate = request.user.candidate
     exam = get_object_or_404(Exam, pk=exam_id)
 

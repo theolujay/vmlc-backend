@@ -7,7 +7,7 @@ Includes:
 - CandidateScore and registration serializers
 """
 
-from django.db.models import Sum
+from django.db.models import Avg, Count, Sum
 from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -129,12 +129,6 @@ class MinimalStaffSerializer(serializers.ModelSerializer):
         model = Staff
         fields = ["user"]
 
-    def get_user(self, obj):
-        return {
-            "id": obj.user.id,
-            "username": obj.user.username,
-        }
-
 
 class StaffListSerializer(serializers.ModelSerializer):
     """
@@ -249,11 +243,11 @@ class ExamListSerializer(serializers.ModelSerializer):
             "date_created",
         )
 
-    def get_question_count(self, obj):
+    def get_question_count(self, obj: Exam) -> int:
         """
-        Returns the number of questions in the exam.
+        Returns the number of questions, using annotated value if available.
         """
-        return obj.get_question_count()
+        return getattr(obj, "question_count", obj.questions.count())
 
 
 class ExamDetailSerializer(serializers.ModelSerializer):
@@ -267,7 +261,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         queryset=Question.objects.all(), many=True
     )
     created_by = MinimalStaffSerializer(read_only=True)
-    average_score = serializers.SerializerMethodField()
+    average_score = serializers.SerializerMethodField(
+        help_text="Average score of all submissions for this exam."
+    )
 
     class Meta:
         model = Exam
@@ -288,11 +284,12 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "date_created", "created_by")
 
-    def get_average_score(self, obj):
+    def get_average_score(self, obj: Exam) -> float:
         """
-        Returns average score submitted for this exam.
+        Returns average score, using annotated value if available.
         """
-        return obj.get_average_score()
+        avg = getattr(obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"])
+        return float(avg or 0.0)
 
 
 class CandidateScoreSerializer(serializers.ModelSerializer):

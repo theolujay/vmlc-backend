@@ -3,22 +3,21 @@ API views for managing exam questions, including listing, creation,
 retrieval, updating, and deletion.
 """
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
+import logging
 
-from ..models import Question
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.settings import api_settings
+
+from ..models import Question, Staff
+from ..permissions import HasStaffRole, IsVerifiedStaff
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
-from ..permissions import StaffWithRole
-from ..utils.pagination_helpers import paginate_queryset
 from ..utils.query_filters import filter_questions
 
+logger = logging.getLogger(__name__)
 
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated, StaffWithRole(["moderator", "admin", "owner"])])
-def question_list_api(request):
+
+class QuestionListView(ListCreateAPIView):
     """
     List all questions or create a new question.
 
@@ -26,23 +25,47 @@ def question_list_api(request):
     - POST: Creates a new question from provided data.
 
     Permissions:
-        - Only accessible to staff with role: moderator, admin, or owner.
+        - Only accessible to verified staff with role: moderator, admin, or owner.
     """
-    if request.method == "GET":
-        questions = Question.objects.all().order_by("-date_created")
-        questions = filter_questions(questions, request.query_params)
-        return paginate_queryset(questions, request, QuestionListSerializer)
 
-    serializer = QuestionListSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+
+    def get_serializer_class(self):
+        """
+        Use a more detailed serializer for creation.
+        """
+        if self.request.method == "POST":
+            return QuestionDetailSerializer
+        return QuestionListSerializer
+
+    def get_queryset(self):
+        """
+        Optimizes the queryset by prefetching related user data.
+        """
+        queryset = Question.objects.select_related("created_by__user").order_by(
+            "-date_created"
+        )
+        return filter_questions(queryset, self.request.query_params)
+
+    def perform_create(self, serializer):
+        """
+        Set the `created_by` field to the current staff user.
+        """
+        # IsVerifiedStaff permission ensures staff_profile exists
+        serializer.save(created_by=self.request.user.staff_profile)
+        logger.info(
+            "Question created by %s",
+            self.request.user.username,
+            extra={"question_id": serializer.instance.id},
+        )
 
 
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
-@permission_classes([IsAuthenticated, StaffWithRole(["moderator", "admin", "owner"])])
-def question_detail_api(request, question_id):
+class QuestionDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or delete a specific question.
 
@@ -50,25 +73,38 @@ def question_detail_api(request, question_id):
     - PUT/PATCH: Updates the question data.
     - DELETE: Deletes the question.
 
-    Args:
-        question_id (int): The ID of the question to operate on.
-
     Permissions:
         - Only accessible to staff with role: moderator, admin, or owner.
     """
-    question = get_object_or_404(Question, id=question_id)
 
-    if request.method == "GET":
-        return Response(QuestionDetailSerializer(question).data)
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+    serializer_class = QuestionDetailSerializer
+    queryset = Question.objects.select_related(
+        "created_by__user", "updated_by__user"
+    ).all()
+    lookup_url_kwarg = "question_id"
 
-    if request.method in ["PUT", "PATCH"]:
-        serializer = QuestionDetailSerializer(
-            question, data=request.data, partial=(request.method == "PATCH")
+    def perform_update(self, serializer):
+        """
+        Set the `updated_by` field to the current staff user.
+        """
+        # HasStaffRole permission ensures staff_profile exists
+        serializer.save(updated_by=self.request.user.staff_profile)
+        logger.info(
+            "Question %s updated by %s",
+            serializer.instance.id,
+            self.request.user.username,
         )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    question.delete()
-    return Response({"message": "Question deleted successfully"})
+    def perform_destroy(self, instance):
+        """
+        Log the deletion action.
+        """
+        question_id = instance.id
+        instance.delete()
+        logger.info(
+            "Question %s deleted by %s", question_id, self.request.user.username
+        )

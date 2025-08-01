@@ -121,10 +121,10 @@ urlpatterns = [
         name="api-submit-exam-answers",
     ),
     # === QUESTIONS ===
-    path("questions/", question.question_list_api, name="api-question-list"),
+    path("questions/", question.QuestionListView.as_view(), name="api-question-list"),
     path(
         "questions/<int:question_id>/",
-        question.question_detail_api,
+        question.QuestionDetailView.as_view(),
         name="api-question-detail",
     ),
     # === DASHBOARDS ===
