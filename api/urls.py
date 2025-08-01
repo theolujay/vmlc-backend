@@ -67,22 +67,22 @@ urlpatterns = [
         "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
     ),
     path(
-        "candidates/<int:candidate_id>/",
+        "candidates/<uuid:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
         name="api-candidate-detail",
     ),
     path(
-        "candidates/<int:candidate_id>/roles/assign/",
+        "candidates/<uuid:candidate_id>/roles/assign/",
         candidate.AssignCandidateRoleView.as_view(),
         name="api-candidate-role-assign",
     ),
     path(
-        "candidates/<int:candidate_id>/scores/",
+        "candidates/<uuid:candidate_id>/scores/",
         score.CandidateScoreListView.as_view(),
         name="api-candidate-scores",
     ),
     path(
-        "candidates/<int:candidate_id>/exam-history/",
+        "candidates/<uuid:candidate_id>/exam-history/",
         exam.ExamHistoryView.as_view(),
         name="api-candidate-exam-history",
     ),
@@ -90,12 +90,12 @@ urlpatterns = [
     path("staff/", staff.StaffListView.as_view(), name="api-staff-list"),
     path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
     path(
-        "staff/<int:staff_id>/",
+        "staff/<uuid:staff_id>/",
         staff.StaffDetailView.as_view(),
         name="api-staff-detail",
     ),
     path(
-        "staff/<int:staff_id>/roles/assign/",
+        "staff/<uuid:staff_id>/roles/assign/",
         staff.AssignStaffRoleView.as_view(),
         name="api-staff-role-assign",
     ),
@@ -147,7 +147,7 @@ urlpatterns = [
         name="api-account-management",
     ),
     path(
-        "account-management/<int:user_id>/",
+        "account-management/<uuid:user_id>/",
         dashboard.AccountManagementView.as_view(),
         name="api-account-management-detail",
     ),

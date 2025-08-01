@@ -47,7 +47,7 @@ class QuestionListView(ListCreateAPIView):
         """
         Optimizes the queryset by prefetching related user data.
         """
-        queryset = Question.objects.select_related("created_by__user").order_by(
+        queryset = Question.objects.filter(is_active=True).select_related("created_by__user").order_by(
             "-date_created"
         )
         return filter_questions(queryset, self.request.query_params)
@@ -82,7 +82,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = QuestionDetailSerializer
-    queryset = Question.objects.select_related(
+    queryset = Question.objects.filter(is_active=True).select_related(
         "created_by__user", "updated_by__user"
     ).all()
     lookup_url_kwarg = "question_id"
@@ -101,10 +101,11 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         """
-        Log the deletion action.
+        Soft-delete the question by setting `is_active` to False and log the action.
         """
         question_id = instance.id
-        instance.delete()
+        instance.is_active = False
+        instance.save()
         logger.info(
             "Question %s deleted by user %s", question_id, self.request.user.id
         )

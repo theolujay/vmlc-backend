@@ -76,7 +76,7 @@ class ToggleFeatureFlagView(APIView):
     Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
 
-    permission_classes = [IsAuthenticated]  # Base permission
+    permission_classes = [HasAPIKey, IsAuthenticated]  # Base permission
     feature_flag_key = None
 
     def post(self, request, *args, **kwargs):
@@ -106,12 +106,12 @@ class ToggleFeatureFlagView(APIView):
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [HasAPIKey, IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
     feature_flag_key = "candidate_registration_open"
 
 
 class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
+    permission_classes = [HasAPIKey, IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
     feature_flag_key = "staff_registration_open"

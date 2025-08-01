@@ -27,6 +27,8 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+AUTH_USER_MODEL = 'api.User'
+
 # Grouping apps by origin (Django, third-party, local) improves clarity.
 INSTALLED_APPS = [
     # Django Core Apps
@@ -147,7 +149,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-AUTH_USER_MODEL = "api.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
@@ -175,8 +176,8 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 10,
+    "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardResultsSetPagination",
+    "PAGE_SIZE": 20,
 }
 
 SIMPLE_JWT = {

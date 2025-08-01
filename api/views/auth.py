@@ -4,39 +4,7 @@ Authentication-related API views for login, logout, and registration.
 import logging
 
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.throttling import SimpleRateThrottle
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
-
-from ..serializers import UserSerializer
-
-logger = logging.getLogger(__name__)
-
-class LoginRateThrottle(SimpleRateThrottle):
-    """Throttle for login attempts to prevent brute force attacks."""
-
-    scope = "login"
-
-    def get_cache_key(self, request, view):
-        if request.user and request.user.is_authenticated:
-            return self.cache_format % {
-                "scope": self.scope,
-                "ident": request.user.pk
-            }
-        return self.cache_format % {
-            "scope": self.scope,
-            "ident": self.get_ident(request)
-        }
-
-import logging
-
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
@@ -45,7 +13,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from ..serializers import UserSerializer
-
 logger = logging.getLogger(__name__)
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

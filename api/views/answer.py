@@ -1,7 +1,6 @@
 """
 API view for handling candidate answer submissions for an exam.
 """
-
 import logging
 
 from django.db import transaction
@@ -15,11 +14,9 @@ from rest_framework.views import APIView
 from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import IsCandidate
 from ..serializers import CandidateAnswerBulkSerializer
-from ..utils.helpers import auto_score
 
 logger = logging.getLogger(__name__)
-
-
+    
 class SubmitAnswersView(APIView):
     """
     Handles the submission of a candidate's answers for a specific exam.
@@ -83,7 +80,7 @@ class SubmitAnswersView(APIView):
                 for answer_data in answers_data
             ]
             CandidateAnswer.objects.bulk_create(answers_to_create)
-            auto_score(candidate_score)
+            candidate_score.calculate_and_save_auto_score(answers_to_create)
 
         logger.info(
             "Candidate %s successfully submitted answers for exam %s.",

@@ -30,12 +30,8 @@ class CandidateListSerializer(serializers.ModelSerializer):
         model = Candidate
         fields = (
             "user",
-            "phone",
             "school",
             "role",
-            # "profile_photo",
-            # "is_verified",
-            # "date_created",
         )
 
 
@@ -56,7 +52,6 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         model = Candidate
         fields = (
             "user",
-            "phone",
             "school",
             "profile_photo",
             "role",
@@ -74,4 +69,3 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         annotated and prefetched data from the model's `get_score_dict` method.
         """
         return obj.get_score_dict()
-

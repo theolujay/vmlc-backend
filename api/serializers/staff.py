@@ -50,7 +50,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         model = Staff
         fields = (
             "user",
-            "phone",
             "occupation",
             "profile_photo",
             "role",
@@ -60,4 +59,3 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "date_updated",
         )
         read_only_fields = ("date_created", "date_updated", "user")
-

@@ -19,8 +19,7 @@ from rest_framework.settings import api_settings
 
 from ..models import Staff
 from ..permissions import HasStaffRole, IsStaff
-from ..serializers import StaffDetailSerializer, StaffListSerializer
-from ..utils.user import validate_role
+from ..serializers import StaffDetailSerializer, StaffListSerializer, StaffRoleSerializer
 from ..utils.query_filters import filter_staffs
 
 logger = logging.getLogger(__name__)
@@ -114,31 +113,16 @@ class AssignStaffRoleView(UpdateAPIView):
     """
 
     permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
-    serializer_class = StaffDetailSerializer
+    serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"
-    http_method_names = ["put"]  # Restrict to PUT only
+    http_method_names = ["put", "patch"]
 
-    def update(self, request, *args, **kwargs):
-        """
-        Update the role of a staff member.
-
-        Returns:
-            200 OK with updated staff data.
-            400 BAD REQUEST if the role is invalid.
-        """
-        staff = self.get_object()
-        new_role = request.data.get("role")
-
-        if error := validate_role(new_role, Staff):
-            return error
-
-        staff.role = new_role
-        staff.save()
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
         logger.info(
             "Assigned role '%s' to staff %s by user %s.",
-            new_role,
-            staff.pk,
-            request.user.id,
+            serializer.instance.role,
+            serializer.instance.pk,
+            self.request.user.id,
         )
-        return Response(self.get_serializer(staff).data)

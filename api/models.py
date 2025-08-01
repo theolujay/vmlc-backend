@@ -9,13 +9,14 @@ Includes models for:
 - Candidate scores with submission metadata
 """
 
+from datetime import timedelta
 from typing import Optional
 import uuid
 
 from django.db import models
 from django.db.models import Sum, Avg, Count
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -49,7 +50,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
 
-    username = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    username = models.CharField(max_length=255, unique=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -232,7 +233,6 @@ class Staff(models.Model):
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
-    phone = models.CharField(max_length=20, blank=True)
     occupation = models.CharField(max_length=50, blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -296,6 +296,7 @@ class Question(models.Model):
         choices=Difficulty.choices,
         default=Difficulty.MEDIUM,
     )
+    is_active = models.BooleanField(default=True, db_index=True)
 
     def __str__(self):
         return f"Q{self.id}: {self.text[:50]}..."
@@ -354,9 +355,6 @@ class Exam(models.Model):
         - exam_date is None (always open)
         - or current time is within open window
         """
-        from django.utils import timezone
-        from datetime import timedelta
-
         if not self.is_active:
             return False
         if self.exam_date is None:
@@ -400,6 +398,32 @@ class CandidateScore(models.Model):
     class Meta:
         unique_together = ("candidate", "exam")
         ordering = ["-date_recorded"]
+
+    def calculate_and_save_auto_score(self, submitted_answers):
+        """
+        Scores an exam based on a list of submitted answers, updates the
+        instance, and saves it.
+
+        Args:
+            submitted_answers (list[CandidateAnswer]): A list of unsaved
+                CandidateAnswer objects. This avoids a race condition by not
+                re-querying the database within the transaction.
+        """
+        total_questions = self.exam.questions.count()
+        if not total_questions:
+            self.score = 0
+        else:
+            correct_count = sum(
+                1
+                for answer in submitted_answers
+                if answer.selected_option == answer.question.correct_answer
+            )
+            score = (correct_count / total_questions) * 100
+            self.score = round(score, 2)
+
+        self.auto_score = True
+        self.date_recorded = timezone.now()
+        self.save()
 
 
 class CandidateAnswer(models.Model):

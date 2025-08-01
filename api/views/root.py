@@ -16,18 +16,19 @@ from rest_framework.reverse import reverse
 @permission_classes([AllowAny])
 def api_root(request, format=None):
     """API entry point with discoverable endpoints"""
-
-    def generate_url_with_placeholder(name, placeholder, param):
+ 
+    def generate_url_with_placeholder(name, param_name, is_uuid=False):
         """Generate URL with placeholder for dynamic endpoints"""
         try:
-            dummy_id = 99999
+            # Use a dummy UUID for uuid params, otherwise use an integer.
+            dummy_id = "00000000-0000-0000-0000-000000000000" if is_uuid else 99999
             url = reverse(
                 name,
-                kwargs={param: dummy_id},
+                kwargs={param_name: dummy_id},
                 request=request,
                 format=format,
             )
-            return url.replace(str(dummy_id), placeholder)
+            return url.replace(str(dummy_id), f"<{param_name}>")
         except NoReverseMatch:
             return None
 
@@ -43,10 +44,7 @@ def api_root(request, format=None):
             "authentication": {
                 "login": safe_reverse("v1:api-login"),
                 "logout": safe_reverse("v1:api-logout"),
-                "token": {
-                    "obtain": safe_reverse("v1:token-obtain-pair"),
-                    "refresh": safe_reverse("v1:token-refresh"),
-                },
+                "token_refresh": safe_reverse("v1:token-refresh"),
             },
             "registration": {
                 "toggle_candidate": safe_reverse(
@@ -59,59 +57,55 @@ def api_root(request, format=None):
             "candidates": {
                 "collection": safe_reverse("v1:api-candidate-list"),
                 "me": safe_reverse("v1:api-candidate-me"),
-                "detail": generate_url_with_placeholder(
-                    "v1:api-candidate-detail", "<candidate_id>", "candidate_id"
-                ),
+                "detail": generate_url_with_placeholder("v1:api-candidate-detail", "candidate_id", is_uuid=True),
                 "actions": {
                     "assign-role": generate_url_with_placeholder(
-                        "v1:api-candidate-role-assign", "<candidate_id>", "candidate_id"
+                        "v1:api-candidate-role-assign", "candidate_id", is_uuid=True
                     ),
                     "scores": generate_url_with_placeholder(
-                        "v1:api-candidate-scores", "<candidate_id>", "candidate_id"
+                        "v1:api-candidate-scores", "candidate_id", is_uuid=True
                     ),
                     "exam-history": generate_url_with_placeholder(
                         "v1:api-candidate-exam-history",
-                        "<candidate_id>",
                         "candidate_id",
+                        is_uuid=True,
                     ),
                 },
             },
             "staff": {
                 "collection": safe_reverse("v1:api-staff-list"),
                 "me": safe_reverse("v1:api-staff-me"),
-                "detail": generate_url_with_placeholder(
-                    "v1:api-staff-detail", "<staff_id>", "staff_id"
-                ),
+                "detail": generate_url_with_placeholder("v1:api-staff-detail", "staff_id", is_uuid=True),
                 "actions": {
                     "assign_role": generate_url_with_placeholder(
-                        "v1:api-staff-role-assign", "<staff_id>", "staff_id"
+                        "v1:api-staff-role-assign", "staff_id", is_uuid=True
                     ),
                 },
             },
             "exams": {
                 "collection": safe_reverse("v1:api-exam-list"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-exam-detail", "<exam_id>", "exam_id"
+                    "v1:api-exam-detail", "exam_id"
                 ),
                 "questions": generate_url_with_placeholder(
-                    "v1:api-exam-questions", "<exam_id>", "exam_id"
+                    "v1:api-exam-questions", "exam_id"
                 ),
                 "candidate-take-exam": generate_url_with_placeholder(
-                    "v1:api-take-exam", "<exam_id>", "exam_id"
+                    "v1:api-take-exam", "exam_id"
                 ),
                 "submission": {
                     "submit-exam-score": generate_url_with_placeholder(
-                        "v1:api-submit-exam-score", "<exam_id>", "exam_id"
+                        "v1:api-submit-exam-score", "exam_id"
                     ),
                     "submit-exam-answers": generate_url_with_placeholder(
-                        "v1:api-submit-exam-answers", "<exam_id>", "exam_id"
+                        "v1:api-submit-exam-answers", "exam_id"
                     ),
                 },
             },
             "questions": {
                 "collection": safe_reverse("v1:api-question-list"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-question-detail", "<question_id>", "question_id"
+                    "v1:api-question-detail", "question_id"
                 ),
             },
             "dashboard": {
@@ -121,7 +115,7 @@ def api_root(request, format=None):
             "user-accounts": {
                 "account-management": safe_reverse("v1:api-account-management"),
                 "account-management-detail": generate_url_with_placeholder(
-                    "v1:api-account-management-detail", "<user_id>", "user_id"
+                    "v1:api-account-management-detail", "user_id", is_uuid=True
                 ),
             },
             "leaderboard": {

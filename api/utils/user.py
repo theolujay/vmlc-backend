@@ -1,49 +1,18 @@
 """
-Generic utilities for update/delete operations and role validation.
-Used to reduce duplication across view logic.
+User-related utility functions.
 """
 
-from rest_framework.response import Response
+from rest_framework import serializers
 
 
-# def handle_update_delete(request, obj, serializer_class):
-#     """
-#     Generic helper for handling update and delete operations (PUT, PATCH, DELETE)
-#     on a model instance using a DRF serializer.
-
-#     Args:
-#         request (HttpRequest): The incoming request object.
-#         obj (Model): The model instance to update or delete.
-#         serializer_class (Serializer): The DRF serializer class to validate and save data.
-
-#     Returns:
-#         Response: DRF Response containing serialized data, error messages, or status code.
-#     """
-#     if request.method == "DELETE":
-#         obj.delete()
-#         return Response(status=204)
-
-#     serializer = serializer_class(
-#         obj, data=request.data, partial=(request.method == "PATCH")
-#     )
-#     if serializer.is_valid():
-#         serializer.save()
-#         return Response(serializer.data)
-
-#     return Response(serializer.errors, status=400)
-
-
-def validate_role(role, model_class):
+def validate_role_for_serializer(value: str, model_class) -> None:
     """
-    Validate a given role against the allowed ROLE_CHOICES for a model.
-
-    Args:
-        role (str): The role string to validate.
-        model_class (Model): The model class containing ROLE_CHOICES.
-
-    Returns:
-        None if valid, or Response with error message if invalid.
+    Validator for a role field on a serializer.
+    Raises serializers.ValidationError if the role is not a valid choice.
     """
-    if role not in dict(model_class.ROLE_CHOICES):
-        return Response({"error": "Invalid role"}, status=400)
-    return None
+    valid_roles = [role[0] for role in model_class.Roles.choices]
+    if value not in valid_roles:
+        raise serializers.ValidationError(
+            f"'{value}' is not a valid role. "
+            f"Valid choices are: {', '.join(valid_roles)}."
+        )

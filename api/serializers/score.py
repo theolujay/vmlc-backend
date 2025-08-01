@@ -6,7 +6,8 @@ from ..models import (
     CandidateScore,
 )
 
-from .candidate import CandidateListSerializer, ExamListSerializer
+from .candidate import CandidateListSerializer
+from .exam import ExamListSerializer
 
 
 class CandidateScoreSerializer(serializers.ModelSerializer):
@@ -28,7 +29,7 @@ class SubmitScoreSerializer(serializers.Serializer):
     Serializer for validating the submission of a candidate's score for an exam.
     """
 
-    candidate_id = serializers.IntegerField(required=True)
+    candidate_id = serializers.UUIDField(required=True)
     score = serializers.DecimalField(required=True, max_digits=5, decimal_places=2)
 
     def validate_candidate_id(self, value):
@@ -40,3 +41,14 @@ class SubmitScoreSerializer(serializers.Serializer):
 
     class Meta:
         fields = ["candidate_id", "score"]
+
+
+class CandidateExamScoreSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying an exam title and the score a candidate achieved.
+    """
+    exam = serializers.CharField(source="exam.title", read_only=True)
+
+    class Meta:
+        model = CandidateScore
+        fields = ["exam", "score"]

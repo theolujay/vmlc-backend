@@ -22,6 +22,7 @@ from ..serializers import (
     ExamDetailSerializer,
     QuestionDetailSerializer,
     CandidateExamSerializer,
+    CandidateExamScoreSerializer,
 )
 from ..permissions import HasStaffRole, IsCandidate, IsLeagueCandidate, IsVerifiedStaff
 from ..utils.query_filters import ExamFilter
@@ -57,12 +58,17 @@ class ExamListView(ListCreateAPIView):
 
     def get_queryset(self):
         """Returns a queryset of all Exam objects."""
-
+        return (
+            Exam.objects.annotate(question_count=Count("questions"))
+            .select_related("created_by__user")
+            .order_by("-date_created")
+        )
+ 
     def perform_create(self, serializer):
         """
         Saves the staff member who created the exam
         """
-        serializer.save(created_by=self.request.user.staff)
+        serializer.save(created_by=self.request.user.staff_profile)
 
 
 class ExamDetailView(RetrieveUpdateDestroyAPIView):
@@ -115,7 +121,7 @@ class ExamQuestionsView(ListAPIView):
             Exam.objects.prefetch_related("questions__created_by__user"),
             pk=self.kwargs["exam_id"],
         )
-        return exam.questions.all()
+        return exam.questions.filter(is_active=True)
 
 
 class ExamHistoryView(ListAPIView):
@@ -125,29 +131,23 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = [
-        IsAuthenticated,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
-    ]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    serializer_class = CandidateExamScoreSerializer
+    lookup_url_kwarg = "candidate_id"
 
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self):
         """
-        Returns a list of exams taken by the candidate and their respective scores.
+        Returns a queryset of scores for the specified candidate,
+        optimized with prefetching.
         """
-        candidate = get_object_or_404(Candidate, pk=self.kwargs["candidate_id"])
-        scores = CandidateScore.objects.filter(candidate=candidate).select_related(
-            "exam"
+        candidate_id = self.kwargs[self.lookup_url_kwarg]
+        # Ensure the candidate exists before proceeding.
+        get_object_or_404(Candidate, pk=candidate_id)
+        return (
+            CandidateScore.objects.filter(candidate_id=candidate_id)
+            .select_related("exam")
+            .order_by("-date_recorded")
         )
-
-        data = [
-            {
-                "exam": s.exam.title,
-                "score": float(s.score),
-            }
-            for s in scores
-        ]
-
-        return Response(data)
 
 
 @api_view(["GET"])
@@ -156,7 +156,7 @@ def candidate_take_exam(request, exam_id: int):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
-    candidate = request.user.candidate
+    candidate = request.user.candidate_profile
     exam = get_object_or_404(Exam, pk=exam_id)
 
     if candidate.role != exam.stage:

@@ -5,7 +5,7 @@ from ..models import (
     Question,
 )
 
-from .user import MinimalStaffSerializer
+from .staff import MinimalStaffSerializer
 
 
 class QuestionListSerializer(serializers.ModelSerializer):
@@ -54,14 +54,6 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "created_by",
         )
         read_only_fields = ("id", "date_created", "created_by")
-
-
-
-from rest_framework import serializers
-
-from ..models import (
-    Question,
-)
 
 
 class CandidateQuestionSerializer(serializers.ModelSerializer):

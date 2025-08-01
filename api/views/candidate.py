@@ -18,10 +18,13 @@ from rest_framework.settings import api_settings
 
 from ..models import Candidate, CandidateScore, Staff
 from ..permissions import HasStaffRole, IsCandidate
-from ..serializers import CandidateDetailSerializer, CandidateListSerializer
-from ..utils.user import validate_role
+from ..serializers import (
+    CandidateDetailSerializer,
+    CandidateListSerializer,
+    CandidateRoleSerializer,
+)
+
 from ..utils.query_filters import filter_candidates
-from ..utils.helpers import get_candidate_with_scores
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +97,6 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             )
         )
 
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Retrieves candidate profile along with detailed score information.
-        """
-        candidate = self.get_object()
-        return Response(get_candidate_with_scores(candidate))
-
     def perform_update(self, serializer) -> None:
         """
         Save updates to candidate and log the action.
@@ -109,7 +105,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             f"Updating candidate {serializer.instance.pk}",
             extra={"user": self.request.user.id},
         )
-        serializer.save(updated_by=self.request.user.staff)
+        serializer.save(updated_by=self.request.user.staff_profile)
 
     def perform_destroy(self, instance) -> None:
         """
@@ -135,25 +131,11 @@ class AssignCandidateRoleView(UpdateAPIView):
         IsAuthenticated,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
-    serializer_class = CandidateDetailSerializer
+    serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
-    http_method_names = ["put"]
+    http_method_names = ["put", "patch"]
 
-    def update(self, request, *args, **kwargs):
-        """
-        Updates the role of the specified candidate.
-
-        Returns:
-            - 200 OK with updated candidate data if role is valid.
-            - 400/403 response if invalid or unauthorized.
-        """
-        candidate = self.get_object()
-        new_role = request.data.get("role")
-
-        if error := validate_role(new_role, Candidate):
-            return error
-
-        candidate.role = new_role
-        candidate.save()
-        return Response(self.get_serializer(candidate).data)
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        logger.info("Assigned role '%s' to candidate %s by user %s.", serializer.instance.role, serializer.instance.pk, self.request.user.id)

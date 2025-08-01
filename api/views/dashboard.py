@@ -109,18 +109,7 @@ class AccountManagementView(APIView):
         """
         Retrieve the account and profile data of the target user.
         """
-        try:
-            target_user = self._get_target_user(request, user_id)
-        except (PermissionDenied, User.DoesNotExist) as e:
-            return Response(
-                {"error": str(e)},
-                status=(
-                    status.HTTP_403_FORBIDDEN
-                    if isinstance(e, PermissionDenied)
-                    else status.HTTP_404_NOT_FOUND
-                ),
-            )
-
+        target_user = self._get_target_user(request, user_id)
         user_data = UserSerializer(target_user).data
         profile, profile_serializer_class = self._get_profile_and_serializer(
             target_user
@@ -137,15 +126,7 @@ class AccountManagementView(APIView):
         """
         Handles the update logic for both user and profile data.
         """
-        try:
-            target_user = self._get_target_user(request, user_id)
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
+        target_user = self._get_target_user(request, user_id)
         user_data = request.data.get("user", {})
         profile_data = request.data.get("profile", {})
 

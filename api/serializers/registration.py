@@ -54,6 +54,21 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             phone=user_data.get("phone", ""),
         )
 
+    def create(self, validated_data):
+        """
+        Handles the creation of a User and its associated profile
+        (Candidate or Staff).
+        """
+        user_data = validated_data.pop("user")
+        password = validated_data.pop("password")
+        validated_data.pop("password2")
+
+        with transaction.atomic():
+            user = self.create_user(user_data, password)
+            # self.Meta.model will be either Candidate or Staff
+            profile = self.Meta.model.objects.create(user=user, **validated_data)
+            return profile
+
 
 class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
@@ -63,16 +78,6 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     class Meta:
         model = Candidate
         fields = ("user", "password", "password2", "school", "profile_photo")
-
-    def create(self, validated_data):
-        user_data = validated_data.pop("user")
-        password = validated_data.pop("password")
-        validated_data.pop("password2")
-
-        with transaction.atomic():
-            user = self.create_user(user_data, password)
-            candidate = Candidate.objects.create(user=user, **validated_data)
-            return candidate
 
 
 class StaffRegistrationSerializer(BaseRegistrationSerializer):
@@ -89,13 +94,3 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
             "occupation",
             "profile_photo",
         )
-
-    def create(self, validated_data):
-        user_data = validated_data.pop("user")
-        password = validated_data.pop("password")
-        validated_data.pop("password2")
-
-        with transaction.atomic():
-            user = self.create_user(user_data, password)
-            staff = Staff.objects.create(user=user, **validated_data)
-            return staff

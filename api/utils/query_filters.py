@@ -20,7 +20,7 @@ def filter_candidates(queryset, params):
         - role: Candidate role (e.g., 'league', 'school')
         - league: League ID or identifier
         - is_active: 'true' or 'false' (filters based on user's active status)
-        - search: Partial match on username
+        - search: Partial match on email, first name, or last name
 
     Args:
         queryset (QuerySet): The initial Candidate queryset.
@@ -47,7 +47,11 @@ def filter_candidates(queryset, params):
             queryset = queryset.filter(user__is_active=False)
 
     if search:
-        queryset = queryset.filter(user__username__icontains=search)
+        queryset = queryset.filter(
+            Q(user__email__icontains=search)
+            | Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+        )
 
     return queryset
 

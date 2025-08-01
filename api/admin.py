@@ -20,8 +20,36 @@ from .models import (
     CandidateAnswer,
     LeaderboardSnapshot,
     FeatureFlag,
+    User,
 )
 
+
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    list_display = (
+        "email",
+        "first_name",
+        "last_name",
+        "get_user_profile",
+        "is_active",
+        "date_joined",
+    )
+    list_filter = ("is_active", "date_joined")
+    search_fields = ("email", "first_name")
+
+    @admin.display(description="User Profile")
+    def get_user_profile(self, obj):
+        # Assuming a OneToOne relationship like: user -> candidate or staff
+        # Adjust as per your model relationships
+        try:
+            if hasattr(obj, "candidate"):
+                return "Candidate"
+            elif hasattr(obj, "staff"):
+                return "Staff"
+            else:
+                return "—"
+        except:
+            return "—"
 
 @admin.register(Candidate)
 class CandidateAdmin(admin.ModelAdmin):
@@ -31,7 +59,7 @@ class CandidateAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "get_username",
+        "get_email",
         "get_full_name",
         "school",
         "role",
@@ -42,14 +70,14 @@ class CandidateAdmin(admin.ModelAdmin):
     readonly_fields = ("date_created", "date_updated")
     list_filter = ("role", "is_verified", "is_active")
     search_fields = (
-        "user__username", "user__email", "user__first_name", "user__last_name", "school"
+        "user__email", "user__first_name", "user__last_name", "school"
     )
     list_select_related = ("user",)
     date_hierarchy = "date_created"
 
-    @admin.display(description="Username", ordering="user__username")
-    def get_username(self, obj):
-        return obj.user.username
+    @admin.display(description="email", ordering="user__email")
+    def get_email(self, obj):
+        return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
     def get_full_name(self, obj):
@@ -64,7 +92,7 @@ class StaffAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "get_username",
+        "get_email",
         "get_full_name",
         "role",
         "occupation",
@@ -75,14 +103,14 @@ class StaffAdmin(admin.ModelAdmin):
     readonly_fields = ("date_created", "date_updated")
     list_filter = ("role", "is_verified", "is_active")
     search_fields = (
-        "user__username", "user__email", "user__first_name", "user__last_name", "occupation"
+        "user__email", "user__first_name", "user__last_name", "occupation"
     )
     list_select_related = ("user",)
     date_hierarchy = "date_created"
 
-    @admin.display(description="Username", ordering="user__username")
-    def get_username(self, obj):
-        return obj.user.username
+    @admin.display(description="email", ordering="user__email")
+    def get_email(self, obj):
+        return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
     def get_full_name(self, obj):
@@ -133,7 +161,7 @@ class QuestionAdmin(admin.ModelAdmin):
     list_display = ("id", "text", "difficulty", "get_creator_name", "date_created")
     readonly_fields = ("date_created", "date_updated")
     list_filter = ("difficulty", "created_by")
-    search_fields = ("text", "created_by__user__username")
+    search_fields = ("text", "created_by__user__email")
     list_select_related = ("created_by__user",)
     date_hierarchy = "date_created"
 
@@ -153,7 +181,7 @@ class CandidateScoreAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "get_candidate_name",
+        "get_candidate_email",
         "get_exam_title",
         "score",
         "date_recorded",
@@ -161,13 +189,13 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("date_recorded", "date_updated")
     list_filter = ("exam", "auto_score")
-    search_fields = ("candidate__user__username", "exam__title")
+    search_fields = ("candidate__user__email", "exam__title")
     list_select_related = ("candidate__user", "exam")
     date_hierarchy = "date_recorded"
 
-    @admin.display(description="Candidate", ordering="candidate__user__username")
-    def get_candidate_name(self, obj):
-        return obj.candidate.user.username
+    @admin.display(description="Candidate", ordering="candidate__user__email")
+    def get_candidate_email(self, obj):
+        return obj.candidate.user.email
 
     @admin.display(description="Exam", ordering="exam__title")
     def get_exam_title(self, obj):
@@ -182,7 +210,7 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "get_candidate_username",
+        "get_candidate_email",
         "get_exam_title",
         "get_question_text",
         "selected_option",
@@ -190,14 +218,14 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("answered_at",)
     list_filter = ("candidate_score__exam", "answered_at")
-    search_fields = ("candidate_score__candidate__user__username", "question__text")
+    search_fields = ("candidate_score__candidate__user__email", "question__text")
     autocomplete_fields = ("question", "candidate_score")
     list_select_related = ("candidate_score__candidate__user", "candidate_score__exam", "question")
     date_hierarchy = "answered_at"
 
-    @admin.display(description="Candidate", ordering="candidate_score__candidate__user__username")
-    def get_candidate_username(self, obj):
-        return obj.candidate_score.candidate.user.username
+    @admin.display(description="Candidate", ordering="candidate_score__candidate__user__email")
+    def get_candidate_email(self, obj):
+        return obj.candidate_score.candidate.user.email
 
     @admin.display(description="Exam", ordering="candidate_score__exam__title")
     def get_exam_title(self, obj):
@@ -223,11 +251,11 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("created_at",)
     list_filter = ("created_at", "published_by")
-    search_fields = ("published_by__user__username",)
+    search_fields = ("published_by__user__email",)
     list_select_related = ("published_by__user",)
     date_hierarchy = "created_at"
 
-    @admin.display(description="Published By", ordering="published_by__user__username")
+    @admin.display(description="Published By", ordering="published_by__user__email")
     def get_published_by_name(self, obj):
         if obj.published_by:
             return obj.published_by.user.get_full_name()
