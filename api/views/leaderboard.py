@@ -1,85 +1,101 @@
 """
-API view for retrieving the leaderboard of league candidates.
+API views for retrieving and managing the leaderboard.
 """
 
-from django.db.models import Sum
+import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 
-from ..models import Candidate, LeaderboardSnapshot
+from ..models import Candidate, FeatureFlag, LeaderboardSnapshot, Staff
+from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff
 from ..serializers import MinimalCandidateSerializer
-from ..permissions import IsLeagueCandidateOrStaff, StaffWithRole
-from ..models import FeatureFlag
+from .registration import ToggleFeatureFlagView
+
+logger = logging.getLogger(__name__)
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, StaffWithRole(["admin", "owner"])])
-def publish_leaderboard(request):
+class PublishLeaderboardView(APIView):
     """
     Refreshes and publishes the leaderboard snapshot. Admin/Owner only.
     """
-    staff = request.user.staff
-    league_candidates = (
-        Candidate.candidates_by_role("league")
-        .annotate(total_score=Sum("scores__score"))
-        .order_by("-total_score")
-    )
 
-    leaderboard = [
-        {
-            "rank": index + 1,
-            "candidate": MinimalCandidateSerializer(candidate).data,
-            "total_score": candidate.total_score or 0,
-        }
-        for index, candidate in enumerate(league_candidates)
-    ]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
 
-    snapshot = LeaderboardSnapshot.objects.create(
-        data=leaderboard,
-        published_by=staff,
-    )
+    def post(self, request):
+        """
+        Generates a new leaderboard from current candidate scores and saves it.
+        """
+        staff = request.user.staff_profile
 
-    return Response(
-        {"message": "Leaderboard published!", "published_at": snapshot.created_at}
-    )
+        # Use the optimized manager method to get candidates with scores
+        league_candidates = (
+            Candidate.objects.with_scores()
+            .filter(role=Candidate.Roles.LEAGUE, is_active=True)
+            .order_by("-total_score")
+        )
+
+        leaderboard_data = [
+            {
+                "rank": index + 1,
+                "candidate": MinimalCandidateSerializer(candidate).data,
+                "total_score": float(candidate.total_score or 0.0),
+            }
+            for index, candidate in enumerate(league_candidates)
+        ]
+
+        snapshot = LeaderboardSnapshot.objects.create(
+            data=leaderboard_data,
+            published_by=staff,
+        )
+
+        logger.info(
+            "Leaderboard published by staff %s. Snapshot ID: %s",
+            staff.pk,
+            snapshot.pk,
+        )
+
+        return Response(
+            {
+                "message": "Leaderboard published successfully!",
+                "published_at": snapshot.created_at,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated, IsLeagueCandidateOrStaff])
-def load_leaderboard_api(request):
+class LoadLeaderboardView(APIView):
     """
     Returns the most recently published leaderboard snapshot.
     """
-    if not FeatureFlag.get_bool("leaderboard_open", default=True):
-        return Response(
-            {"detail": "Leaderboard is currently unavailable."}, status=status.HTTP_403_FORBIDDEN
-        )
-    snapshot = LeaderboardSnapshot.objects.order_by("-created_at").first()
-    if not snapshot:
-        return Response({"detail": "Leaderboard not published yet."}, status=404)
-    return Response(snapshot.data)
 
-@api_view(["POST"])
-@permission_classes([StaffWithRole(["admin", "owner"])])
-def toggle_leaderboard(request):
-    """
-    Toggle the leaderboard status for candidates and staff.
+    permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
 
-    Requires staff with 'admin' or 'owner' role.
+    def get(self, request):
+        if not FeatureFlag.get_bool("leaderboard_open", default=False):
+            return Response(
+                {"detail": "The leaderboard is currently not available."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        snapshot = LeaderboardSnapshot.objects.order_by("-created_at").first()
+
+        if not snapshot:
+            return Response(
+                {"detail": "The leaderboard has not been published yet."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(snapshot.data)
+
+
+class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     """
-    visible_flag = request.data.get("visible", False)
-    obj, created = FeatureFlag.objects.get_or_create(
-        key="leaderboard_visible",
-        defaults={"value": visible_flag}
-    )
-    if not created:
-        obj.value = visible_flag
-        obj.save()
-    return Response(
-        {"message": f"leaderboard_visible: {obj.value}"}
-    )
-        
-    
+    Toggles the 'leaderboard_open' feature flag.
+    Accessible only by staff with 'admin' or 'owner' roles.
+    """
+
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    feature_flag_key = "leaderboard_open"

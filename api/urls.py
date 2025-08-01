@@ -13,7 +13,7 @@ All views are organized and grouped by functionality for clarity.
 """
 
 from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 from .views import (
@@ -148,17 +148,17 @@ urlpatterns = [
     # === LEADERBOARD ===
     path(
         "toggle-leaderboard/",
-        leaderboard.toggle_leaderboard,
+        leaderboard.ToggleLeaderboardVisibilityView.as_view(),
         name="api-toggle-leaderboard",
     ),
     path(
         "publish-leaderboard/",
-        leaderboard.publish_leaderboard,
+        leaderboard.PublishLeaderboardView.as_view(),
         name="api-publish-leaderboard",
     ),
     path(
         "load-leaderboard/",
-        leaderboard.load_leaderboard_api,
+        leaderboard.LoadLeaderboardView.as_view(),
         name="api-load-leaderboard",
     ),
 ]
