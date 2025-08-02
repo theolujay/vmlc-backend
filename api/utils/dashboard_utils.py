@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.db.models import Avg, Max, Min, Sum
 from django.utils import timezone
 
-from ..models import Candidate, CandidateScore, Exam, Question
+from ..models import Candidate, CandidateScore, Exam, Question, CandidateScoreSnapshot
 
 
 def get_candidate_dashboard_data(candidate):
@@ -28,7 +28,18 @@ def get_candidate_dashboard_data(candidate):
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent scores, and upcoming exams.
     """
-    scores = CandidateScore.objects.filter(candidate=candidate)
+    latest_snapshot = (
+        CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
+        .order_by("-published_at")
+        .first()
+    )
+
+    if latest_snapshot:
+        scores = CandidateScore.objects.filter(
+            candidate=candidate, date_recorded__lte=latest_snapshot.published_at
+        )
+    else:
+        scores = CandidateScore.objects.none()
 
     total_exams_taken = scores.count()
     latest_score = scores.latest("date_recorded") if total_exams_taken > 0 else None

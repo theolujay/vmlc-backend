@@ -5,15 +5,26 @@ API views for retrieving and submitting candidate scores.
 import logging
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from ..models import Candidate, CandidateScore, Exam, Staff
+from ..models import (
+    Candidate,
+    CandidateScore,
+    CandidateScoreSnapshot,
+    Exam,
+    Staff,
+)
 from ..permissions import HasStaffRole, IsVerifiedStaff
-from ..serializers import CandidateScoreSerializer, SubmitScoreSerializer
+from ..serializers import (
+    CandidateScoreSerializer,
+    MinimalCandidateSerializer,
+    SubmitScoreSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,4 +114,56 @@ class SubmitScoreView(APIView):
                 },
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class PublishScoresView(APIView):
+    """
+    Refreshes and publishes the scores.
+    Admin/Owner only.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+
+    def post(self, request):
+        """
+        Generates a new score snapshot from current candidate scores and saves it.
+        """
+        staff = request.user.staff_profile
+
+        # Use the optimized manager method to get candidates with scores
+        candidates = Candidate.objects.with_scores().filter(is_active=True)
+
+        scores_data = []
+        for candidate in candidates:
+            scores_data.append(
+                {
+                    "candidate": MinimalCandidateSerializer(candidate).data,
+                    "total_score": float(candidate.total_score or 0.0),
+                    "average_score": float(candidate.average_score or 0.0),
+                    "exams_taken": candidate.exams_taken or 0,
+                }
+            )
+
+        snapshot = CandidateScoreSnapshot.objects.create(
+            data=scores_data,
+            published_by=staff,
+            published_at=timezone.now(),
+        )
+
+        logger.info(
+            "Scores published by staff %s. Snapshot ID: %s",
+            staff.pk,
+            snapshot.pk,
+        )
+
+        return Response(
+            {
+                "message": "Scores published successfully!",
+                "published_at": snapshot.published_at,
+            },
+            status=status.HTTP_201_CREATED,
         )

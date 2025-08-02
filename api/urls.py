@@ -63,9 +63,9 @@ urlpatterns = [
     path(
         "candidates/", candidate.CandidateListView.as_view(), name="api-candidate-list"
     ),
-    # path(
-    #     "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
-    # ),
+    path(
+        "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
+    ),
     path(
         "candidates/<uuid:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
@@ -88,7 +88,7 @@ urlpatterns = [
     ),
     # === STAFF ===
     path("staff/", staff.StaffListView.as_view(), name="api-staff-list"),
-    # path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
+    path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
     path(
         "staff/<uuid:staff_id>/",
         staff.StaffDetailView.as_view(),
@@ -161,6 +161,11 @@ urlpatterns = [
         "publish-leaderboard/",
         leaderboard.PublishLeaderboardView.as_view(),
         name="api-publish-leaderboard",
+    ),
+    path(
+        "publish-scores/",
+        score.PublishScoresView.as_view(),
+        name="api-publish-scores",
     ),
     path(
         "load-leaderboard/",

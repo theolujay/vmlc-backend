@@ -477,6 +477,7 @@ class LeaderboardSnapshot(models.Model):
 
 class CandidateScoreSnapshot(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     data = models.JSONField()
 
     published_by = models.ForeignKey(
@@ -486,6 +487,9 @@ class CandidateScoreSnapshot(models.Model):
         blank=True,
         related_name="candidate_score_snapshots",
     )
+
+    class Meta:
+        ordering = ["-created_at"]
 
 class FeatureFlag(models.Model):
     key = models.CharField(max_length=50, unique=True)
