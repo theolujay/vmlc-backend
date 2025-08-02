@@ -396,8 +396,8 @@ class CandidateScore(models.Model):
         "Candidate", on_delete=models.CASCADE, related_name="scores"
     )
     exam = models.ForeignKey("Exam", on_delete=models.PROTECT, related_name="scores")
-    score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    date_recorded = models.DateTimeField(auto_now_add=True)
+    score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
+    date_recorded = models.DateTimeField(default=timezone.now)
     date_updated = models.DateTimeField(auto_now=True)
     submitted_by = models.ForeignKey(
         "Staff", on_delete=models.SET_NULL, null=True, blank=True

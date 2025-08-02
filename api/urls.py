@@ -118,6 +118,11 @@ urlpatterns = [
         name="api-submit-exam-score",
     ),
     path(
+        "publish-scores/",
+        score.PublishScoresView.as_view(),
+        name="api-publish-scores",
+    ),
+    path(
         "exams/<int:exam_id>/submit-exam-answers/",
         answer.SubmitAnswersView.as_view(),
         name="api-submit-exam-answers",
@@ -161,11 +166,6 @@ urlpatterns = [
         "publish-leaderboard/",
         leaderboard.PublishLeaderboardView.as_view(),
         name="api-publish-leaderboard",
-    ),
-    path(
-        "publish-scores/",
-        score.PublishScoresView.as_view(),
-        name="api-publish-scores",
     ),
     path(
         "load-leaderboard/",

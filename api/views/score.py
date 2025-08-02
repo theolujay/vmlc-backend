@@ -92,7 +92,12 @@ class SubmitScoreView(APIView):
         score_obj, created = CandidateScore.objects.update_or_create(
             candidate=candidate,
             exam=exam,
-            defaults={"score": score, "submitted_by": staff, "auto_score": False},
+            defaults={
+                "score": score,
+                "submitted_by": staff,
+                "auto_score": False,
+                "date_recorded": timezone.now(),
+            },
         )
 
         action = "submitted" if created else "updated"

@@ -6,7 +6,9 @@ and relevant activity for frontend display.
 """
 
 from datetime import timedelta
-from django.db.models import Avg, Max, Min, Sum
+from django.db.models import Avg, Max, Min, Sum, Q, Count, F
+from django.db.models.functions import Rank
+from django.db.models import Window
 from django.utils import timezone
 
 from ..models import Candidate, CandidateScore, Exam, Question, CandidateScoreSnapshot
@@ -41,34 +43,57 @@ def get_candidate_dashboard_data(candidate):
     else:
         scores = CandidateScore.objects.none()
 
-    total_exams_taken = scores.count()
-    latest_score = scores.latest("date_recorded") if total_exams_taken > 0 else None
-    average_score = scores.aggregate(avg=Avg("score"))["avg"] or 0
-    highest_score = scores.aggregate(max=Max("score"))["max"] or 0
-    lowest_score = scores.aggregate(min=Min("score"))["min"] or 0
+    score_stats = scores.aggregate(
+        total_exams_taken=Count("id"),
+        average_score=Avg("score"),
+        highest_score=Max("score"),
+        lowest_score=Min("score"),
+    )
+
+    total_exams_taken = score_stats["total_exams_taken"]
+    average_score = score_stats["average_score"] or 0
+    highest_score = score_stats["highest_score"] or 0
+    lowest_score = score_stats["lowest_score"] or 0
+
+    recent_scores = scores.order_by("-date_recorded")[:5]
+    latest_score = recent_scores.first()
 
     available_exams = [
         exam
         for exam in Exam.objects.filter(stage=candidate.role, is_active=True)
         if exam.is_currently_open
     ]
-    recent_scores = scores.order_by("-date_recorded")[:5]
 
-    # Ranking logic for league candidates
+    # Use Window function for efficient ranking ---
     candidate_rank = None
     total_league_candidates = 0
-    if candidate.role == "league":
-        league_candidates = (
+    if candidate.role == "league" and latest_snapshot:
+        # Base queryset for all league candidates with their published total score
+        league_candidates_qs = (
             Candidate.candidates_by_role("league")
-            .annotate(total_score=Sum("scores__score"))
-            .order_by("-total_score")
+            .annotate(
+                total_score=Sum(
+                    "scores__score",
+                    filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
+                    default=0.0,
+                )
+            )
         )
 
-        for index, c in enumerate(league_candidates, 1):
-            if c.pk == candidate.pk:
-                candidate_rank = index
-                break
-        total_league_candidates = league_candidates.count()
+        # Use a window function to rank them in the database
+        ranked_candidates_qs = league_candidates_qs.annotate(
+            rank=Window(
+                expression=Rank(),
+                order_by=F("total_score").desc(nulls_last=True),
+            )
+        )
+
+        # Retrieve just our specific candidate from this ranked list
+        ranked_candidate = ranked_candidates_qs.filter(pk=candidate.pk).first()
+        if ranked_candidate:
+            candidate_rank = ranked_candidate.rank
+
+        total_league_candidates = league_candidates_qs.count()
 
     return {
         "candidate_info": {

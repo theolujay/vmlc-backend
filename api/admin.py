@@ -21,6 +21,7 @@ from .models import (
     LeaderboardSnapshot,
     FeatureFlag,
     User,
+    CandidateScoreSnapshot,
 )
 
 
@@ -258,6 +259,39 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
+        "data_summary",
+        "get_published_by_name",
+        "created_at",
+    )
+    readonly_fields = ("created_at",)
+    list_filter = ("created_at", "published_by")
+    search_fields = ("published_by__user__email",)
+    list_select_related = ("published_by__user",)
+    date_hierarchy = "created_at"
+
+    @admin.display(description="Published By", ordering="published_by__user__email")
+    def get_published_by_name(self, obj):
+        if obj.published_by:
+            return obj.published_by.user.get_full_name()
+        return None
+
+    @admin.display(description="Data Summary")
+    def data_summary(self, obj):
+        import json
+        summary = str(json.dumps(obj.data))
+        return (summary[:75] + "...") if len(summary) > 75 else summary
+
+
+@admin.register(CandidateScoreSnapshot)
+class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
+    """
+    Admin interface for the CandidateScoreSnapshot model.
+    Displays key details about each snapshot for the candidate scores.
+    """
+
+    list_display = (
+        "id",
+        "published_at",
         "data_summary",
         "get_published_by_name",
         "created_at",
