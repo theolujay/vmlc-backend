@@ -49,16 +49,15 @@ class User(AbstractUser):
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
     email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=30)
-    last_name = models.CharField(max_length=30)
+    first_name = models.CharField(max_length=30, blank=False)
+    last_name = models.CharField(max_length=30, blank=False)
     phone_regex = RegexValidator(
         regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
         message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
     )
     phone = models.CharField(
         validators=[phone_regex],
-        max_length=17,  # Fixed: Now matches the regex (allows +234XXXXXXXXXX)
-        unique=True,
+        max_length=17,
         help_text="Nigerian phone number for SMS notifications and contact",
     )
     username = models.CharField(max_length=255, unique=True)
@@ -476,6 +475,17 @@ class LeaderboardSnapshot(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+class CandidateScoreSnapshot(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    data = models.JSONField()
+
+    published_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="candidate_score_snapshots",
+    )
 
 class FeatureFlag(models.Model):
     key = models.CharField(max_length=50, unique=True)

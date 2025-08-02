@@ -30,6 +30,7 @@ class UserAdmin(admin.ModelAdmin):
         "email",
         "first_name",
         "last_name",
+        "id",
         "get_user_profile",
         "is_active",
         "date_joined",
@@ -51,6 +52,7 @@ class UserAdmin(admin.ModelAdmin):
         except:
             return "—"
 
+
 @admin.register(Candidate)
 class CandidateAdmin(admin.ModelAdmin):
     """
@@ -63,6 +65,7 @@ class CandidateAdmin(admin.ModelAdmin):
         "get_full_name",
         "school",
         "role",
+        "get_primary_key",  # Changed from "id" to custom method
         "is_verified",
         "is_active",
         "date_created",
@@ -83,6 +86,10 @@ class CandidateAdmin(admin.ModelAdmin):
     def get_full_name(self, obj):
         return obj.user.get_full_name()
 
+    @admin.display(description="ID")
+    def get_primary_key(self, obj):
+        return obj.pk
+
 
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
@@ -96,6 +103,7 @@ class StaffAdmin(admin.ModelAdmin):
         "get_full_name",
         "role",
         "occupation",
+        "get_primary_key",  # Changed from "id" to custom method
         "is_verified",
         "is_active",
         "date_created",
@@ -115,6 +123,10 @@ class StaffAdmin(admin.ModelAdmin):
     @admin.display(description="Full Name", ordering="user__first_name")
     def get_full_name(self, obj):
         return obj.user.get_full_name()
+
+    @admin.display(description="ID")
+    def get_primary_key(self, obj):
+        return obj.pk
 
 
 @admin.register(Exam)
@@ -201,6 +213,7 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     def get_exam_title(self, obj):
         return obj.exam.title
 
+
 @admin.register(CandidateAnswer)
 class CandidateAnswerAdmin(admin.ModelAdmin):
     """
@@ -266,6 +279,7 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
         import json
         summary = str(json.dumps(obj.data))
         return (summary[:75] + "...") if len(summary) > 75 else summary
+
 
 @admin.register(FeatureFlag)
 class FeatureFlagAdmin(admin.ModelAdmin):

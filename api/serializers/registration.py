@@ -9,6 +9,7 @@ from ..models import (
     Staff,
     User,
 )
+from .user import UserSerializer
 
 
 class BaseRegistrationSerializer(serializers.ModelSerializer):
@@ -16,13 +17,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     Abstract base serializer for user registration.
     Handles common user creation and password validation logic.
     """
-
-    email = serializers.EmailField(
-        validators=[UniqueValidator(queryset=User.objects.all())]
-    )
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
-    phone = serializers.CharField()
+    user = UserSerializer()
     password = serializers.CharField(
         write_only=True,
         required=True,
@@ -38,58 +33,46 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     )
 
     def validate(self, attrs):
+        """Validate that passwords match"""
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password2": "Passwords do not match."})
         return attrs
 
-    def create_user(self, validated_data):
-        """
-        Creates a user using the custom user manager.
-        The manager expects email and password, and will automatically
-        set the username from the email.
-        """
-        # The custom user manager's create_user expects email and password,
-        # with other user fields passed as extra_fields.
+    def create_user(self, user_data, password):
         return User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-            phone=validated_data.get("phone", ""),
+            email=user_data["email"],
+            password=password,
+            first_name=user_data["first_name"],
+            last_name=user_data["last_name"],
+            phone=user_data["phone"],
         )
 
     def create(self, validated_data):
         """
-        Handles the creation of a User and its associated profile
-        (Candidate or Staff).
+        Handles the creation of a User and its associated profile.
         """
         password = validated_data.pop("password")
         validated_data.pop("password2")
+        user_data = validated_data.pop("user")
         
-        user_fields = {
-            field: validated_data.pop(field)
-            for field in ["email", "first_name", "last_name", "phone"]
-        }
-
-        with transaction.atomic():
-            user = self.create_user({**user_fields, "password": password})
-            profile = self.Meta.model.objects.create(user=user, **validated_data)
-            return profile
+        try:
+            with transaction.atomic():
+                user = self.create_user(user_data, password)
+                profile = self.Meta.model.objects.create(user=user, **validated_data)
+                return profile
+        except Exception as e:
+            raise serializers.ValidationError(f"Registration failed: {str(e)}")
 
 
 class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new candidates.
     """
-
     class Meta:
         model = Candidate
         fields = (
-            "email",
-            "first_name",
-            "last_name",
-            "phone",
-            "password",
+            "user",
+            "password", 
             "password2",
             "school",
         )
@@ -97,17 +80,13 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
 
 class StaffRegistrationSerializer(BaseRegistrationSerializer):
     """
-    Serializer for registering new staff (creates User and Staff).
+    Serializer for registering new staff.
     """
-
     class Meta:
         model = Staff
         fields = (
-            "email",
-            "first_name",
-            "last_name",
-            "phone",
+            "user",
             "password",
-            "password2",
+            "password2", 
             "occupation",
         )

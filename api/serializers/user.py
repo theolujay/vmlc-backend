@@ -18,7 +18,11 @@ class UserSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
-
+    def validate_phone(self, value):
+        import re
+        if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
+            raise serializers.ValidationError("Enter a valid Nigerian phone number.")
+        return value
 
     class Meta:
         model = User

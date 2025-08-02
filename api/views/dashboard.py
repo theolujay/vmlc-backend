@@ -120,7 +120,7 @@ class AccountManagementView(APIView):
         else:
             profile_data = None
 
-        return Response({"user": user_data, "profile": profile_data})
+        return Response({"profile": profile_data})
 
     def _update_account(self, request, partial, user_id=None):
         """
@@ -155,16 +155,16 @@ class AccountManagementView(APIView):
         return Response(
             {
                 "message": "Account updated successfully.",
-                "user": user_serializer.data,
+                # "user": user_serializer.data,
                 "profile": profile_serializer.data if profile_serializer else None,
             }
         )
 
-    def put(self, request, user_id=None):
-        """
-        Fully update both user and profile data.
-        """
-        return self._update_account(request, partial=False, user_id=user_id)
+    # def put(self, request, user_id=None):
+    #     """
+    #     Fully update both user and profile data.
+    #     """
+    #     return self._update_account(request, partial=False, user_id=user_id)
 
     def patch(self, request, user_id=None):
         """

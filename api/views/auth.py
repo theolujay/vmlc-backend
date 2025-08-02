@@ -11,6 +11,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_api_key.permissions import HasAPIKey  # type: ignore
 
 from ..serializers import UserSerializer
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class LoginView(TokenObtainPairView):
     """
     
     serializer_class = CustomTokenObtainPairSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [HasAPIKey]
     throttle_scope = "login"
     
     def post(self, request, *args, **kwargs):
@@ -51,12 +52,14 @@ class LoginView(TokenObtainPairView):
 class LogoutView(APIView):
     """
     Handles user logout by blacklisting the provided refresh token.
+    Uses AllowAny permission to handle expired access tokens.
     """
     
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     def post(self, request):
         """
         Expects a 'refresh' token in the request body.
+        Extracts user info from the refresh token for logging.
         """
         refresh_token = request.data.get("refresh")
         if not refresh_token:
@@ -67,11 +70,26 @@ class LogoutView(APIView):
         
         try:
             token = RefreshToken(refresh_token)
+            user_id = token.payload.get("user_id")
             token.blacklist()
-            logger.info("User %s logged out successfully.", request.user.id)
+            
+            if user_id:
+                logger.info("User %s logged out successfully.", user_id)
+            else:
+                logger.info("User logged out successfully (no user_id in token")
             return Response(
                 {"detail": "Successfully logged out."},
                 status=status.HTTP_204_NO_CONTENT,
             )
         except TokenError as e:
-            logger.warning("Logout failed for user %s: %s", request.user.id, e)
+            logger.warning("Logout failed with invalid refresh token: %s", str(e))
+            return Response(
+                {"error": "Invalid or expired refresh token"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error("Logout failed with an unexpected error: %s", str(e))
+            return Response(
+                {"error": "Logout failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

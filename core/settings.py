@@ -182,7 +182,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     # A shorter access token lifetime enhances security. 15 minutes is a common standard.
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=6),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,

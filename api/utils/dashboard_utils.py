@@ -88,7 +88,7 @@ def get_candidate_dashboard_data(candidate):
                 else None
             ),
         },
-        "ranking": (
+        "leaderboard_ranking": (
             {
                 "current_rank": candidate_rank,
                 "total_candidates": total_league_candidates,

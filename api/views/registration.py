@@ -60,14 +60,14 @@ class CandidateRegistrationView(BaseRegistrationView):
     """Register a new candidate"""
 
     serializer_class = CandidateRegistrationSerializer
-    feature_flag_key = "candidate_registration_open"
+    feature_flag_key = "candidate_registration"
 
 
 class StaffRegistrationView(BaseRegistrationView):
     """Register a new staff member"""
 
     serializer_class = StaffRegistrationSerializer
-    feature_flag_key = "staff_registration_open"
+    feature_flag_key = "staff_registration"
 
 
 class ToggleFeatureFlagView(APIView):
@@ -97,21 +97,45 @@ class ToggleFeatureFlagView(APIView):
         logger.info(
             "Feature flag '%s' toggled to %s by user %s.", self.feature_flag_key, obj.value, request.user.id
         )
+
+        FEATURE_FLAG_MESSAGES = {
+            "candidate_registration_open": {
+                True: "Candidate registration is now open.",
+                False: "Candidate registration is now closed."
+            },
+            "staff_registration_open": {
+                True: "Candidate registration is now open.",
+                True: "Candidate registration is now enabled.", 
+                False: "Candidate mode is now closed."
+            },
+            "leaderboard_visible": {
+                True: "Leaderboard is now visible.", 
+                False: "Leaderboard is now hidden."
+            },
+        }
+
+        message_config = FEATURE_FLAG_MESSAGES.get(self.feature_flag_key)
+        if message_config:
+            message = message_config[obj.value]
+        else:
+            feature_name = self.feature_flag_key.replace('_', ' ').title()
+            status_text = 'enabled' if obj.value else 'disabled'
+            message = f"'{feature_name}' is now {status_text}."
+
         return Response(
-            {"message": f"'{self.feature_flag_key}' is now {'open' if obj.value else 'closed'}."},
+            {"message": message},
             status=status.HTTP_200_OK,
         )
-
 
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [HasAPIKey, IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
     feature_flag_key = "candidate_registration_open"
 
 
 class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
-    permission_classes = [HasAPIKey, IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
+    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
     feature_flag_key = "staff_registration_open"

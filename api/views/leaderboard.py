@@ -77,7 +77,7 @@ class LoadLeaderboardView(APIView):
     permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
 
     def get(self, request):
-        if not FeatureFlag.get_bool("leaderboard_open", default=False):
+        if not FeatureFlag.get_bool("leaderboard_visible", default=False):
             return Response(
                 {"detail": "The leaderboard is currently not available."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -104,4 +104,4 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
         IsAuthenticated,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
-    feature_flag_key = "leaderboard_open"
+    feature_flag_key = "leaderboard_visible"
