@@ -10,8 +10,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media
-
-
+# If you are using Django's staticfiles app, you may want to ignore the following files:
+static/
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
 # in your Git repository. Update and uncomment the following line accordingly.
@@ -180,3 +180,4 @@ api/tests/
 models_erd.dot
 models_erd.png
 *.pyc
+staticfiles/
