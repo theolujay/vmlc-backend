@@ -3,10 +3,10 @@ services:
     name: verboheit-django
     env: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn core.wsgi:application"
+    startCommand: "gunicorn config.wsgi:application"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: core.settings
+        value: config.settings.prod
       - key: SECRET_KEY
         sync: false
       - key: DEBUG

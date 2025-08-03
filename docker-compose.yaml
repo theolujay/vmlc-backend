@@ -2,7 +2,7 @@ version: "3"
 services:
   web:
     build: .
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
       - ./staticfiles:/app/staticfiles

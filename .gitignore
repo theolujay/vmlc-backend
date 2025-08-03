@@ -181,3 +181,7 @@ models_erd.dot
 models_erd.png
 *.pyc
 staticfiles/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
