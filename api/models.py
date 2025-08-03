@@ -15,7 +15,7 @@ import uuid
 import os
 
 from django.db import models
-from django.db.models import Sum, Avg, Count
+from django.db.models import Sum, Avg, Count, Q
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
 from django.core.validators import RegexValidator
@@ -76,12 +76,21 @@ class CandidateManager(models.Manager):
 
     def with_scores(self):
         """
-        Annotate candidates with total, average, and count of exam scores.
+        Annotate candidates with total, average, and count of exam scores,
+        excluding scores from exams at the 'screening' stage.
         """
         return self.annotate(
-            total_score=Sum("scores__score"),
-            average_score=Avg("scores__score"),
-            exams_taken=Count("scores", distinct=True),
+            total_score=Sum(
+                "scores__score", filter=Q(scores__exam__stage=Exam.Stages.LEAGUE)
+            ),
+            average_score=Avg(
+                "scores__score", filter=Q(scores__exam__stage=Exam.Stages.LEAGUE)
+            ),
+            exams_taken=Count(
+                "scores",
+                filter=Q(scores__exam__stage=Exam.Stages.LEAGUE),
+                distinct=True,
+            ),
         )
 
     def with_complete_data(self):

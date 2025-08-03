@@ -105,7 +105,9 @@ class CandidateAdmin(admin.ModelAdmin):
         "get_full_name",
         "school",
         "role",
+        "total_score",
         "get_primary_key",
+        "exams_taken",
         "is_verified",
         "is_active", 
         "date_created",
@@ -123,7 +125,15 @@ class CandidateAdmin(admin.ModelAdmin):
     )
     list_select_related = ("user", "user__verification")
     date_hierarchy = "date_created"
+    
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.with_scores()
 
+    @admin.display(description="Total Score", ordering="total_score")
+    def total_score(self, obj):
+        return obj.total_score
+    
     @admin.display(description="Email", ordering="user__email")
     def get_email(self, obj):
         return obj.user.email
@@ -143,6 +153,10 @@ class CandidateAdmin(admin.ModelAdmin):
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):
         return obj.is_active
+    
+    @admin.display(description="Exams Taken")
+    def exams_taken(self, obj):
+        return obj.exams_taken.count() if hasattr(obj, 'exams_taken') else 0
 
 
 @admin.register(Staff)
@@ -211,6 +225,7 @@ class ExamAdmin(admin.ModelAdmin):
         "exam_date",
         "get_question_count",
         "is_active",
+        "view_results_link",
         "date_created",
     )
     readonly_fields = ("date_created", "date_updated")
@@ -229,6 +244,14 @@ class ExamAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         return queryset.annotate(question_count=Count("questions"))
+    
+    @admin.display(description="Results")
+    def view_results_link(self, obj):
+        from django.utils.html import format_html
+        from django.urls import reverse
+
+        url = reverse("api:api-exam-results", args=[obj.pk])
+        return format_html('<a href="{}" target="_blank">View Results</a>', url)
 
 
 @admin.register(Question)

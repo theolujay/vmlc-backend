@@ -128,6 +128,11 @@ urlpatterns = [
         answer.SubmitAnswersView.as_view(),
         name="api-submit-exam-answers",
     ),
+    path(
+        "exams/<int:exam_id>/results/",
+        exam.ExamResultsView.as_view(),
+        name="api-exam-results",
+    ),
     # === QUESTIONS ===
     path("questions/", question.QuestionListView.as_view(), name="api-question-list"),
     path(

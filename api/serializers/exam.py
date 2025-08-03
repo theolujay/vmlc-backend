@@ -3,12 +3,14 @@ from django.db.models import Avg
 from rest_framework import serializers
 
 from ..models import (
+    CandidateScore,
     Question,
     Exam,
 )
 
 from .question import CandidateQuestionSerializer
 from .staff import MinimalStaffSerializer
+from .user import UserSerializer
 
 
 class ExamListSerializer(serializers.ModelSerializer):
@@ -25,14 +27,7 @@ class ExamListSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "stage",
-            # "description",
-            "exam_date",
-            # "countdown_minutes",
-            # "open_duration_hours",
-            # "is_active",
-            # "is_currently_open",
             "question_count",
-            # "created_by",
             "date_created",
         )
 
@@ -102,3 +97,14 @@ class CandidateExamSerializer(serializers.ModelSerializer):
             "countdown_minutes",
             "questions",
         )
+
+class ExamResultSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying the results of an exam.
+    """
+    candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
+    candidate_school = serializers.CharField(source="candidate.school", read_only=True)
+
+    class Meta:
+        model = CandidateScore
+        fields = ("candidate_name", "candidate_school", "score", "auto_score", "submitted_by", "date_recorded")

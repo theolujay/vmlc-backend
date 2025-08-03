@@ -20,6 +20,7 @@ from ..models import Exam, CandidateScore, Candidate, Question, Staff
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
+    ExamResultSerializer,
     QuestionDetailSerializer,
     CandidateExamSerializer,
     CandidateExamScoreSerializer,
@@ -98,6 +99,34 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
 
     # `perform_destroy` is handled by the parent class, no need to override.
 
+
+class ExamResultsView(ListAPIView):
+    """
+    API view to retrieve the results of a specific exam.
+
+    Requires exam_id in the URL path.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
+    serializer_class = ExamResultSerializer
+    lookup_url_kwarg = "exam_id"
+
+    def get_queryset(self):
+        """
+        Returns a queryset of scores for the specified exam,
+        optimized with prefetching.
+        """
+        exam_id = self.kwargs[self.lookup_url_kwarg]
+        # Ensure the exam exists before proceeding.
+        get_object_or_404(Exam, pk=exam_id)
+        return (
+            CandidateScore.objects.filter(exam_id=exam_id)
+            .select_related("candidate__user")
+            .order_by("-score")
+        )
 
 class ExamQuestionsView(ListAPIView):
     """
