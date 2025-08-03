@@ -5,9 +5,9 @@ set -o errexit
 echo "ï¿½ï¿½ Installing dependencies..."
 pip install -r requirements.txt 
 
-echo "í»  Running migrations..."
+echo "ï¿½ï¿½ï¿½ Running migrations..."
 python manage.py migrate
 
-echo "í³ Collecting static files..."
+echo "ï¿½ï¿½ï¿½ Collecting static files..."
 python manage.py collectstatic --noinput
 
