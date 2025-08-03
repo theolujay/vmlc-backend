@@ -85,3 +85,4 @@ uritemplate==4.2.0
 urllib3==2.5.0
 vulture==2.14
 whitenoise==6.9.0
+dj-database-url==2.2.0

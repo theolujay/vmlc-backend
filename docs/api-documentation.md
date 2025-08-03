@@ -87,7 +87,7 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "username": "your_username",
+  "email": "your_email@example.com",
   "password": "your_password"
 }
 ```
@@ -102,7 +102,6 @@ Content-Type: application/json
   },
   "user": {
     "id": 123,
-    "username": "john_doe",
     "email": "john@example.com",
     "first_name": "John",
     "last_name": "Doe",
@@ -223,12 +222,12 @@ Control registration availability for new users.
   ```json
   {
     "user": {
-      "username": "john_doe",
       "email": "john@example.com",
       "first_name": "John",
-      "last_name": "Doe"
+      "last_name": "Doe",
+      "phone": "+23490xxxxxxxx" or "090xxxxxxxx"
     },
-    "password1": "secure_password_123",
+    "password": "secure_password_123",
     "password2": "secure_password_123",
     "school": "Mathematics High School"
   }
@@ -248,12 +247,12 @@ Control registration availability for new users.
   ```json
   {
     "user": {
-      "username": "jane_smith",
       "email": "jane@example.com",
       "first_name": "Jane",
-      "last_name": "Smith"
+      "last_name": "Smith",
+      "phone": "+23490xxxxxxxx" or "090xxxxxxxx"
     },
-    "password1": "secure_password_123",
+    "password": "secure_password_123",
     "password2": "secure_password_123",
     "occupation": "Mathematics Teacher"
   }
@@ -346,7 +345,7 @@ Control registration availability for new users.
   ```
 - **Valid Roles:** `screening`, `league`, `final`, `winner`
 
-#### Performance Data
+#### Scores
 
 **Get Candidate Scores**
 
@@ -585,7 +584,7 @@ Control registration availability for new users.
   }
   ```
 
-**Submit Manual Score** (Staff only)
+**Submit Score (manual)** (Staff only)
 
 - **Endpoint:** `POST /exams/{exam_id}/submit-exam-score/`
 - **Required Role:** `admin`, `owner`
@@ -594,6 +593,18 @@ Control registration availability for new users.
   {
     "candidate_id": 123,
     "score": 95.5
+  }
+  ```
+
+**Publish Scores (Staff only)**
+
+- **Endpoint:** `POST /publish-scores/`
+- **Required Role:** `admin`, `owner`
+- **Requets:** `201 CREATED`
+  ```json
+  {
+      "message": "Scores published successfully!",
+      "published_at": "2025-08-02T12:45:06.058245Z"
   }
   ```
 
@@ -628,6 +639,8 @@ Control registration availability for new users.
   ]
 }
 ```
+
+#### Publish Scores
 
 #### Question Details
 
