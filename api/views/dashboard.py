@@ -118,7 +118,10 @@ class AccountManagementView(APIView):
         if profile and profile_serializer_class:
             profile_data = profile_serializer_class(profile).data
         else:
-            profile_data = None
+            return Response(
+                {"detail": "User does not have a profile."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         return Response({"profile": profile_data})
 

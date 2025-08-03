@@ -12,12 +12,14 @@ Includes models for:
 from datetime import timedelta
 from typing import Optional
 import uuid
+import os
 
 from django.db import models
 from django.db.models import Sum, Avg, Count
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -70,8 +72,6 @@ class User(AbstractUser):
 class CandidateManager(models.Manager):
     """
     Custom manager for the Candidate model.
-
-    Provides annotation methods for scores and prefetch optimization.
     """
 
     def with_scores(self):
@@ -93,6 +93,14 @@ class CandidateManager(models.Manager):
             .prefetch_related("scores__exam", "scores__submitted_by__user")
             .select_related("user")
         )
+    
+    def active(self):
+        """Get only active candidates"""
+        return self.filter(user__is_active=True)
+    
+    def by_role(self, role):
+        """Get active candidates by role"""
+        return self.filter(role=role, user__is_active=True)
 
 
 class Candidate(models.Model):
@@ -114,17 +122,8 @@ class Candidate(models.Model):
         related_name="candidate_profile",
     )
     school = models.CharField(max_length=150)
-    profile_photo = models.ImageField(
-        upload_to="candidate_profile_photos/",
-        default="candidate_profile_photos/default.png",
-        null=True,
-        blank=True,
-    )
-    id_card = models.ImageField(upload_to="candidate_id_cards/", blank=True, null=True)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True, db_index=True)
     role = models.CharField(
         max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True
     )
@@ -133,12 +132,40 @@ class Candidate(models.Model):
     total_score: Optional[float]
     average_score: Optional[float]
     exams_taken: Optional[int]
+        
+    @property
+    def is_active(self):
+        """Reference the user's is_active status"""
+        return self.user.is_active
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["role", "is_active"]),
-            models.Index(fields=["school"]),
-        ]
+    @property
+    def profile_photo(self):
+        """Get profile photo from UserVerification with error handling"""
+        try:
+            return self.user.verification.profile_photo
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+    
+    @property
+    def id_card(self):
+        """Get ID card from UserVerification with error handling"""
+        try:
+            return self.user.verification.id_card
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+        
+    @property
+    def school_result(self):
+        """Get school result from UserVerification with error handling"""
+        try:
+            return self.user.verification.verification_document
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+
+    @property
+    def is_verified(self):
+        """Check if user has verification and is verified"""
+        return hasattr(self.user, "verification") and self.user.verification.is_verified
 
     @property
     def score_data(self):
@@ -167,14 +194,14 @@ class Candidate(models.Model):
         """
         Returns all currently active candidates.
         """
-        return cls.objects.filter(is_active=True)
+        return cls.objects.filter(user__is_active=True)
 
     @classmethod
     def candidates_by_role(cls, role):
         """
         Returns active candidates filtered by role.
         """
-        return cls.objects.filter(role=role, is_active=True)
+        return cls.objects.filter(role=role, user__is_active=True)
 
     def get_latest_score(self):
         """
@@ -225,6 +252,12 @@ class Candidate(models.Model):
                 for s in scores
             ],
         }
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["role"]),
+            models.Index(fields=["school"]),
+        ]
 
 
 class Staff(models.Model):
@@ -245,18 +278,43 @@ class Staff(models.Model):
     occupation = models.CharField(max_length=50, blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    profile_photo = models.ImageField(
-        upload_to="staff_profile_photos/",
-        default="staff_profile_photos/default.png",
-        blank=True,
-        null=True,
-    )
-    id_card = models.ImageField(upload_to="staff_id_cards/", blank=True, null=True)
-    is_verified = models.BooleanField(default=False)
     role = models.CharField(
         max_length=20, choices=Roles.choices, default=Roles.VOLUNTEER, db_index=True
     )
-    is_active = models.BooleanField(default=True, db_index=True)
+    
+    @property
+    def is_active(self):
+        """Reference the user's is_active status"""
+        return self.user.is_active
+
+    @property
+    def profile_photo(self):
+        """Get profile photo from UserVerification with error handling"""
+        try:
+            return self.user.verification.profile_photo
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+    
+    @property
+    def id_card(self):
+        """Get ID card from UserVerification with error handling"""
+        try:
+            return self.user.verification.id_card
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+        
+    @property
+    def utility_bill(self):
+        """Get utility bill from UserVerification with error handling"""
+        try:
+            return self.user.verification.verification_document
+        except (AttributeError, UserVerification.DoesNotExist):
+            return None
+
+    @property
+    def is_verified(self):
+        """Check if user has verification and is verified"""
+        return hasattr(self.user, "verification") and self.user.verification.is_verified
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.role})"
@@ -504,3 +562,77 @@ class FeatureFlag(models.Model):
 
     def __str__(self):
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
+
+def validate_id_card_file(value):
+    """Validate that the uploaded file is an image or PDF"""
+    if not value:
+        return
+    
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf']
+    if ext not in valid_extensions:
+        raise ValidationError(f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}')
+    
+    # Check file size (max 10MB)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError('File size cannot exceed 10MB.')
+
+def validate_profile_photo(value):
+    """Validate profile photo file"""
+    if not value:
+        return
+    
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.jpg', '.jpeg', '.png']
+    if ext not in valid_extensions:
+        raise ValidationError(f'Unsupported image format. Allowed: {", ".join(valid_extensions)}')
+    
+    # Check file size (max 5MB for images)
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError('Image size cannot exceed 5MB.')
+
+def validate_document_file(value):
+    """Validate verification document file"""
+    if not value:
+        return
+    
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+    if ext not in valid_extensions:
+        raise ValidationError(f'Unsupported document format. Allowed: {", ".join(valid_extensions)}')
+    
+    # Check file size (max 15MB for documents)
+    if value.size > 15 * 1024 * 1024:
+        raise ValidationError('Document size cannot exceed 15MB.')
+
+class UserVerification(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="verification")
+    is_pending = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False)
+    profile_photo = models.ImageField(
+        upload_to="user_profile_photos/", 
+        blank=True, 
+        null=True,
+        validators=[validate_profile_photo]
+    )
+    id_card = models.FileField(
+        upload_to="user_id_cards/", 
+        blank=True, 
+        null=True,
+        validators=[validate_id_card_file]
+    )
+    verification_document = models.FileField(
+        upload_to="user_verification_docs/", 
+        blank=True, 
+        null=True,
+        validators=[validate_document_file]
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Verification for {self.user.get_full_name()}"
+
+    class Meta:
+        verbose_name = "User Verification"
+        verbose_name_plural = "User Verifications"

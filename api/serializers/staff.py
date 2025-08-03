@@ -32,10 +32,7 @@ class StaffListSerializer(serializers.ModelSerializer):
         fields = (
             "user",
             "role",
-            # "profile_photo",
             "occupation",
-            # "is_verified",
-            # "date_created"
         )
 
 
@@ -53,8 +50,10 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "occupation",
             "profile_photo",
             "role",
-            "is_verified",
             "is_active",
+            "is_verified",
+            "id_card",
+            "utility_bill",
             "date_created",
             "date_updated",
         )

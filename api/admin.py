@@ -22,6 +22,7 @@ from .models import (
     FeatureFlag,
     User,
     CandidateScoreSnapshot,
+    UserVerification,
 )
 
 
@@ -41,17 +42,55 @@ class UserAdmin(admin.ModelAdmin):
 
     @admin.display(description="User Profile")
     def get_user_profile(self, obj):
-        # Assuming a OneToOne relationship like: user -> candidate or staff
-        # Adjust as per your model relationships
         try:
-            if hasattr(obj, "candidate"):
+            if hasattr(obj, "candidate_profile"):
                 return "Candidate"
-            elif hasattr(obj, "staff"):
+            elif hasattr(obj, "staff_profile"):
                 return "Staff"
             else:
                 return "—"
         except:
             return "—"
+
+
+@admin.register(UserVerification)
+class UserVerificationAdmin(admin.ModelAdmin):
+    """Admin interface for UserVerification model."""
+    list_display = (
+        "get_user_email",
+        "get_user_full_name", 
+        "is_pending",
+        "is_verified",
+        "has_profile_photo",
+        "has_id_card",
+        "has_verification_document",
+        "date_created",
+    )
+    list_filter = ("is_pending", "is_verified", "date_created")
+    search_fields = ("user__email", "user__first_name", "user__last_name")
+    list_select_related = ("user",)
+    readonly_fields = ("date_created", "date_updated")
+    date_hierarchy = "date_created"
+
+    @admin.display(description="Email", ordering="user__email")
+    def get_user_email(self, obj):
+        return obj.user.email
+
+    @admin.display(description="Full Name", ordering="user__first_name")
+    def get_user_full_name(self, obj):
+        return obj.user.get_full_name()
+
+    @admin.display(description="Profile Photo", boolean=True)
+    def has_profile_photo(self, obj):
+        return bool(obj.profile_photo)
+
+    @admin.display(description="ID Card", boolean=True)
+    def has_id_card(self, obj):
+        return bool(obj.id_card)
+
+    @admin.display(description="Verification Doc", boolean=True)
+    def has_verification_document(self, obj):
+        return bool(obj.verification_document)
 
 
 @admin.register(Candidate)
@@ -66,20 +105,26 @@ class CandidateAdmin(admin.ModelAdmin):
         "get_full_name",
         "school",
         "role",
-        "get_primary_key",  # Changed from "id" to custom method
+        "get_primary_key",
         "is_verified",
-        "is_active",
+        "is_active", 
         "date_created",
     )
     readonly_fields = ("date_created", "date_updated")
-    list_filter = ("role", "is_verified", "is_active")
+    # Fixed: Use actual database fields for filtering
+    list_filter = (
+        "role", 
+        "user__is_active",  # Filter by user's is_active field
+        "user__verification__is_verified",  # Filter by verification status
+        "date_created"
+    )
     search_fields = (
         "user__email", "user__first_name", "user__last_name", "school"
     )
-    list_select_related = ("user",)
+    list_select_related = ("user", "user__verification")
     date_hierarchy = "date_created"
 
-    @admin.display(description="email", ordering="user__email")
+    @admin.display(description="Email", ordering="user__email")
     def get_email(self, obj):
         return obj.user.email
 
@@ -90,6 +135,14 @@ class CandidateAdmin(admin.ModelAdmin):
     @admin.display(description="ID")
     def get_primary_key(self, obj):
         return obj.pk
+
+    @admin.display(description="Verified", boolean=True, ordering="user__verification__is_verified")
+    def is_verified(self, obj):
+        return obj.is_verified
+
+    @admin.display(description="Active", boolean=True, ordering="user__is_active")
+    def is_active(self, obj):
+        return obj.is_active
 
 
 @admin.register(Staff)
@@ -104,20 +157,26 @@ class StaffAdmin(admin.ModelAdmin):
         "get_full_name",
         "role",
         "occupation",
-        "get_primary_key",  # Changed from "id" to custom method
+        "get_primary_key",
         "is_verified",
         "is_active",
         "date_created",
     )
     readonly_fields = ("date_created", "date_updated")
-    list_filter = ("role", "is_verified", "is_active")
+    # Fixed: Use actual database fields for filtering
+    list_filter = (
+        "role", 
+        "user__is_active",  # Filter by user's is_active field
+        "user__verification__is_verified",  # Filter by verification status
+        "date_created"
+    )
     search_fields = (
         "user__email", "user__first_name", "user__last_name", "occupation"
     )
-    list_select_related = ("user",)
+    list_select_related = ("user", "user__verification")
     date_hierarchy = "date_created"
 
-    @admin.display(description="email", ordering="user__email")
+    @admin.display(description="Email", ordering="user__email")
     def get_email(self, obj):
         return obj.user.email
 
@@ -128,6 +187,14 @@ class StaffAdmin(admin.ModelAdmin):
     @admin.display(description="ID")
     def get_primary_key(self, obj):
         return obj.pk
+
+    @admin.display(description="Verified", boolean=True, ordering="user__verification__is_verified")
+    def is_verified(self, obj):
+        return obj.is_verified
+
+    @admin.display(description="Active", boolean=True, ordering="user__is_active")
+    def is_active(self, obj):
+        return obj.is_active
 
 
 @admin.register(Exam)

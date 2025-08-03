@@ -27,20 +27,20 @@ from ..utils.query_filters import filter_candidates
 
 logger = logging.getLogger(__name__)
 
+# class CandidateMeView(RetrieveAPIView):
+#     """
+#     Retrieve the authenticated candidate's own profile.
+#     """
+#     permission_classes = [IsAuthenticated, IsCandidate]
+#     serializer_class = CandidateDetailSerializer
 
-class CandidateMeView(RetrieveAPIView):
-    """
-    Retrieve the authenticated candidate's own profile.
-    """
-    permission_classes = [IsAuthenticated, IsCandidate]
-
-    def get(self, request, *args, **kwargs):
-        """
-        Returns a structured data payload for the authenticated candidate.
-        """
-        # The IsCandidate permission already ensures the profile exists.
-        data = get_candidate_dashboard_data(request.user.candidate_profile)
-        return Response(data)
+#     def get(self, request, *args, **kwargs):
+#         """
+#         Returns a structured data payload for the authenticated candidate.
+#         """
+#         # The IsCandidate permission already ensures the profile exists.
+#         data = get_candidate_dashboard_data(request.user.candidate_profile)
+#         return Response(data)
 
 
 class CandidateListView(ListAPIView):

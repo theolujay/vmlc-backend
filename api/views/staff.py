@@ -25,20 +25,20 @@ from ..utils.query_filters import filter_staffs
 logger = logging.getLogger(__name__)
 
 
-class StaffMeView(RetrieveAPIView):
-    """
-    Retrieve the authenticated staff member's own profile.
-    """
+# class StaffMeView(RetrieveAPIView):
+#     """
+#     Retrieve the authenticated staff member's own profile.
+#     """
 
-    permission_classes = [IsAuthenticated, IsStaff]
-    serializer_class = StaffDetailSerializer
+#     permission_classes = [IsAuthenticated, IsStaff]
+#     serializer_class = StaffDetailSerializer
 
-    def get_object(self):
-        """
-        Return the staff profile for the currently authenticated user.
-        """
-        # The IsStaff permission already ensures the profile exists.
-        return self.request.user.staff_profile
+#     def get_object(self):
+#         """
+#         Return the staff profile for the currently authenticated user.
+#         """
+#         # The IsStaff permission already ensures the profile exists.
+#         return self.request.user.staff_profile
 
 
 class StaffListView(ListAPIView):

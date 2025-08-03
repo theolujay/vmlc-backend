@@ -28,6 +28,7 @@ from .views import (
     root,
     score,
     staff,
+    verification,
 )
 
 app_name = "api"
@@ -63,9 +64,9 @@ urlpatterns = [
     path(
         "candidates/", candidate.CandidateListView.as_view(), name="api-candidate-list"
     ),
-    path(
-        "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
-    ),
+    # path(
+    #     "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
+    # ),
     path(
         "candidates/<uuid:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
@@ -88,7 +89,7 @@ urlpatterns = [
     ),
     # === STAFF ===
     path("staff/", staff.StaffListView.as_view(), name="api-staff-list"),
-    path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
+    # path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
     path(
         "staff/<uuid:staff_id>/",
         staff.StaffDetailView.as_view(),
@@ -155,6 +156,11 @@ urlpatterns = [
         "account-management/<uuid:user_id>/",
         dashboard.AccountManagementView.as_view(),
         name="api-account-management-detail",
+    ),
+    path(
+        "verification/",
+        verification.VerificationView.as_view(),
+        name="api-verification",
     ),
     # === LEADERBOARD ===
     path(
