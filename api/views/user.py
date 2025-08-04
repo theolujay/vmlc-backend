@@ -10,12 +10,11 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework_api_key.permissions import HasAPIKey
 
 from ..models import UserVerification
-from ..permissions import HasStaffRole, IsCandidate, IsOwnerOrAdmin
+from ..permissions import IsOwnerOrAdmin
 from ..serializers import (
-    UserVerificationSerializer,
+    UserVerificationSerializer,   
 )
 
 User = get_user_model()

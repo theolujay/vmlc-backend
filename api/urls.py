@@ -41,6 +41,23 @@ urlpatterns = [
     path("auth/logout/", auth.LogoutView.as_view(), name="api-logout"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     
+    # Password Change
+    path(
+        "auth/password-change/request/",
+        auth.RequestPasswordChangeView.as_view(),
+        name="api-request-password-change"
+    ),
+    path(
+        "auth/password-change/",
+        auth.PasswordChangeView.as_view(),
+        name="api-password-change"
+    ),
+    path(
+        "auth/password-change/resend-otp/",
+        auth.ResendPasswordChangeOTPView.as_view(),
+        name="api-resend-password-change-otp"
+    ),
+
     # =============================================================================
     # REGISTRATION & VERIFICATION
     # =============================================================================
@@ -71,13 +88,13 @@ urlpatterns = [
     # Email Verification
     path(
         "verify-email-otp/",
-        registration.VerifyOTPView.as_view(),
+        auth.VerifyEmailOTPView.as_view(),
         name="verify-email-otp"
     ),
     path(
-    "resend-email-otp/",
-    registration.ResendOTPView.as_view(),
-    name="resend-email-otp"
+        "resend-email-otp/",
+        auth.ResendEmailOTPView.as_view(),
+        name="resend-email-otp"
     ),
 
     # =============================================================================

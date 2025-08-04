@@ -1,5 +1,5 @@
 """
-User-related utility functions.
+Auth-related utility functions.
 """
 
 import logging
@@ -14,7 +14,7 @@ from ..models import EmailOTP
 
 logger = logging.getLogger(__name__)
 
-      
+
 def generate_otp() -> str:
     """
     Generates a 6-digit OTP.
@@ -55,7 +55,7 @@ def can_resend_otp(user, cooldown_minutes: int = 2) -> tuple[bool, int]:
             return False, seconds_remaining
             
     except Exception as e:
-        logger.error("Error checking OTP resend eligibility for user %s: %s", user.id, str(e))
+        logger.error(f"Error checking OTP resend eligibility for user {user.id}: {str(e)}")
         # In case of error, allow resend to avoid blocking users
         return True, 0
 
@@ -128,4 +128,95 @@ def resend_otp_to_email(user):
         user: User object with email attribute
     """
     send_otp_to_email(user, is_resend=True)
+
+def send_password_change_otp(user):
+    """
+    Sends OTP specifically for password change requests.
     
+    Args:
+        user: User object with email attribute
+    """
+    try:
+        # Check rate limiting
+        can_resend, seconds_remaining = can_resend_otp(user)
+        if not can_resend:
+            logger.warning(f"Password change OTP blocked for user {user.id} - {seconds_remaining}s remaining")
+            raise serializers.ValidationError(
+                f"Please wait {seconds_remaining} seconds before requesting another OTP."
+            )
+        
+        # Invalidate existing OTPs
+        EmailOTP.objects.filter(user=user, expires_at__gt=timezone.now()).update(
+            expires_at=timezone.now()
+        )
+        logger.info(f"Invalidated existing OTPs for password change - user {user.id}")
+        
+        # Generate new OTP
+        otp = generate_otp()
+        expiration = timezone.now() + timedelta(minutes=10)
+        
+        # Save to database
+        EmailOTP.objects.create(
+            user=user,
+            otp=otp,
+            created_at=timezone.now(),
+            expires_at=expiration
+        )
+        
+        logger.info(f"Password change OTP created for user {user.id}")
+
+        # Send email with password-specific message
+        send_mail(
+            subject="Password Change Verification",
+            message=(
+                f"Your verification code for password change is {otp}. "
+                f"This code expires in 10 minutes. "
+                f"If you didn't request this, please ignore this email."
+            ),
+            from_email="no-reply@verboheit.org",
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        
+        logger.info(f"Password change OTP email sent to user {user.id}")
+        
+    except serializers.ValidationError:
+        # Re-raise validation errors (rate limiting)
+        raise
+    except Exception as e:
+        logger.error(f"Failed sending password change OTP to user {user.id}: {str(e)}")
+        raise
+
+def verify_otp_for_password_change(user, otp_code):
+    """
+    Verify OTP for password change and mark it as used.
+    
+    Args:
+        user: User object
+        otp_code: OTP code to verify
+        
+    Returns:
+        bool: True if OTP is valid, False otherwise
+    """
+    try:
+        # Find valid OTP for this user
+        otp_record = EmailOTP.objects.filter(
+            user=user,
+            otp=otp_code,
+            expires_at__gt=timezone.now()
+        ).first()
+        
+        if not otp_record:
+            logger.warning(f"Invalid/expired OTP attempt for password change - user {user.id}")
+            return False
+        
+        # Mark OTP as used by expiring it
+        otp_record.expires_at = timezone.now()
+        otp_record.save()
+        
+        logger.info(f"OTP verified successfully for password change - user {user.id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error verifying password change OTP for user {user.id}: {str(e)}")
+        return False

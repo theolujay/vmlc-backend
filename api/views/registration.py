@@ -5,23 +5,18 @@ API views for user registration and managing registration status.
 import logging
 
 from django.core.exceptions import ImproperlyConfigured
-from django.shortcuts import get_object_or_404
-from rest_framework import status, serializers
+from rest_framework import status
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
 
-from api.utils.registration import resend_otp_to_email  # type: ignore
-
-from ..models import FeatureFlag, Staff, User
+from ..models import FeatureFlag, Staff
 from ..permissions import HasStaffRole
 from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
-    VerifyOTPSerializer,
-    ResendOTPSerializer,
 )
 
 
@@ -144,79 +139,3 @@ class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.OWNER)]
     feature_flag_key = "staff_registration_open"
 
-
-class VerifyOTPView(APIView):
-    """
-    Handles OTP verification for user registration.
-    """
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        serializer = VerifyOTPSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            logger.info("Email verification successful for user %s", serializer.validated_data['user'].id)
-            return Response(
-                {'message': 'Email verified successfully.'}, 
-                status=status.HTTP_200_OK
-            )
-        
-        logger.warning(f"Email verification failed: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ResendOTPView(APIView):
-    """
-    Resend OTP to user's email with rate limiting.
-    """
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        try:
-            email = request.data.get('email')
-            if not email:
-                return Response(
-                    {"error": "Email is required"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if '@' not in email:
-                return Response(
-                    {"error": "Please provide a valid email address"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            user = get_object_or_404(User, email=email)
-            
-            # Resend OTP
-            resend_otp_to_email(user)
-            
-            # Mask email for response
-            email_parts = email.split('@')
-            masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
-            
-            return Response(
-                {
-                    "message": "OTP has been resent to your email address",
-                    "email": masked_email,
-                    "expires_in_minutes": 10
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except serializers.ValidationError as e:
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
-        except User.DoesNotExist:
-            # Return generic message (don't reveal if email exists)
-            logger.warning(f"OTP resend attempted for non-existent email: {email[:3]}***")
-            return Response(
-                {"message": "If this email is registered, an OTP has been sent"}, 
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error in resend OTP for {email[:3]}***: {str(e)}")
-            return Response(
-                {"error": "Failed to resend OTP. Please try again later."}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )

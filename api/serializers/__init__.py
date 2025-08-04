@@ -1,4 +1,5 @@
 from .answer import *
+from .auth import *
 from .candidate import *
 from .exam import *
 from .question import *

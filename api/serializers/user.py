@@ -1,3 +1,7 @@
+
+
+import logging
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -5,6 +9,10 @@ from ..models import (
     User,
     UserVerification,
 )
+
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class UserSerializer(serializers.ModelSerializer):
     """
