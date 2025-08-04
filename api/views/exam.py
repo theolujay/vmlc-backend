@@ -83,6 +83,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = ExamDetailSerializer
@@ -109,6 +110,7 @@ class ExamResultsView(ListAPIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = ExamResultSerializer
@@ -137,6 +139,7 @@ class ExamQuestionsView(ListAPIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = QuestionDetailSerializer
@@ -160,7 +163,11 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)]
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+    ]
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"
 
@@ -188,8 +195,14 @@ def candidate_take_exam(request, exam_id: int):
     candidate = request.user.candidate_profile
     exam = get_object_or_404(Exam, pk=exam_id)
 
+    if not candidate.is_verified:
+        return Response({"detail": "Candidate must be verified to take this exam."}, status=status.HTTP_403_FORBIDDEN)
+
     if candidate.role != exam.stage:
         return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+    if not exam.is_currently_open:
+        return Response({"detail": "Exam is not currently open."}, status=status.HTTP_403_FORBIDDEN)
 
     serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)

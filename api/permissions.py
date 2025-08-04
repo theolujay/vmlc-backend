@@ -49,23 +49,6 @@ class IsStaff(BasePermission):
         return _get_staff_profile(request) is not None
 
 
-class IsOwnerOrStaff(BasePermission):
-    """
-    Object-level permission: grants access if the user is the object's owner (obj.user)
-    or has a staff profile.
-    """
-
-    def has_object_permission(self, request, view, obj):
-        # The object could be a Candidate, Staff, or User instance.
-        # Check if the request.user is the owner of the object.
-        is_owner = False
-        if hasattr(obj, "user"):
-            is_owner = request.user == obj.user
-        elif isinstance(obj, request.user.__class__):
-            is_owner = request.user == obj
-        return is_owner or _get_staff_profile(request) is not None
-
-
 def HasStaffRole(*roles):
     """
     Permission factory that grants access to staff users with specific roles.
@@ -133,12 +116,13 @@ class IsVerifiedStaff(BasePermission):
         return staff_profile is not None and staff_profile.is_verified
 
 
-class IsOwnerOrAdmin(BasePermission):
+class IsObjectOwnerOrAdminRole(BasePermission):
     """
-    Object-level permission: grants access if the user is the object's owner
-    or a staff member with 'admin' or 'owner' role.
+    Object-level permission that grants access if the user is either:
+    1. The owner of the object (e.g., `request.user == obj.user`).
+    2. A verified staff member with the 'admin' or 'owner' role.
     """
-
+ 
     message = "You do not have permission to perform this action on this object."
 
     def has_object_permission(self, request, view, obj):
@@ -148,8 +132,12 @@ class IsOwnerOrAdmin(BasePermission):
         elif isinstance(obj, request.user.__class__):
             is_owner = request.user == obj
 
-        is_admin = HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER)().has_permission(
-            request, view
+        # Check if the user is a *verified* admin or owner
+        staff_profile = _get_staff_profile(request)
+        is_admin = (
+            staff_profile is not None
+            and staff_profile.is_verified
+            and staff_profile.role in (Staff.Roles.ADMIN, Staff.Roles.OWNER)
         )
 
         return is_owner or is_admin

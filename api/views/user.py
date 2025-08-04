@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from ..models import UserVerification
-from ..permissions import IsOwnerOrAdmin
+from ..permissions import IsObjectOwnerOrAdminRole
 from ..serializers import (
     UserVerificationSerializer,   
 )
@@ -36,7 +36,7 @@ class UserVerificationView(APIView):
             return request.user
         
         target_user = get_object_or_404(User, id=user_id)
-        if not IsOwnerOrAdmin().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrAdminRole().has_object_permission(request, self, target_user):
             raise PermissionDenied("You are not authorized to this user's verification process.")
         
         return target_user

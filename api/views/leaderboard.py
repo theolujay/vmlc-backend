@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import Candidate, FeatureFlag, LeaderboardSnapshot, Staff
-from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff
+from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff, IsVerifiedStaff
 from ..serializers import MinimalCandidateSerializer
 from .registration import ToggleFeatureFlagView
 
@@ -24,6 +24,7 @@ class PublishLeaderboardView(APIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
 
@@ -77,6 +78,18 @@ class LoadLeaderboardView(APIView):
     permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
 
     def get(self, request):
+        if hasattr(request.user, "candidate_profile"):
+            if not request.user.candidate_profile.is_verified:
+                return Response(
+                    {"detail": "Candidate must be verified to view the leaderboard."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif hasattr(request.user, "staff_profile"):
+            if not request.user.staff_profile.is_verified:
+                return Response(
+                    {"detail": "Staff must be verified to view the leaderboard."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         if not FeatureFlag.get_bool("leaderboard_visible", default=False):
             return Response(
                 {"detail": "The leaderboard is currently not available."},
@@ -102,6 +115,7 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     feature_flag_key = "leaderboard_visible"

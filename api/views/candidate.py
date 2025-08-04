@@ -14,9 +14,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
+from rest_framework.exceptions import ValidationError
 
 from ..models import Candidate, Staff
-from ..permissions import HasStaffRole, IsCandidate
+from ..permissions import HasStaffRole, IsCandidate, IsVerifiedStaff
 from ..serializers import (
     CandidateDetailSerializer,
     CandidateListSerializer,
@@ -52,6 +53,7 @@ class CandidateListView(ListAPIView):
     """
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = CandidateListSerializer
@@ -74,6 +76,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     """
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = CandidateDetailSerializer
@@ -125,6 +128,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     """
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = CandidateRoleSerializer
@@ -136,9 +140,12 @@ class AssignCandidateRoleView(UpdateAPIView):
         """
         Update candidate role and log the action.
         """
+        if not serializer.instance.is_verified:
+            raise ValidationError("Cannot assign role to unverified candidate.")
+
         old_role = serializer.instance.role
         super().perform_update(serializer)
-        
+
         logger.info(
             "Changed candidate %s role from '%s' to '%s' by user %s",
             serializer.instance.pk,

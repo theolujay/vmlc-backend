@@ -79,6 +79,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = QuestionDetailSerializer

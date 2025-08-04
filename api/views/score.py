@@ -38,6 +38,7 @@ class CandidateScoreListView(ListAPIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
     serializer_class = CandidateScoreSerializer
@@ -130,6 +131,7 @@ class PublishScoresView(APIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
     ]
 

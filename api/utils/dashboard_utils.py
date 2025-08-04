@@ -57,12 +57,14 @@ def get_candidate_dashboard_data(candidate):
 
     recent_scores = scores.order_by("-date_recorded")[:5]
     latest_score = recent_scores.first()
-
-    available_exams = [
-        exam
-        for exam in Exam.objects.filter(stage=candidate.role, is_active=True)
-        if exam.is_currently_open
-    ]
+    if candidate.is_verified:
+        available_exams = [
+            exam
+            for exam in Exam.objects.filter(stage=candidate.role, is_active=True)
+            if exam.is_currently_open
+        ]
+    else:
+        available_exams = []
 
     # Use Window function for efficient ranking ---
     candidate_rank = None
