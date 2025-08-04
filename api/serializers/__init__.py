@@ -7,4 +7,4 @@ from .registration import *
 from .score import *
 from .staff import *
 from .user import *
-from .verification import *
+from .user import *

@@ -27,7 +27,7 @@ from .views import (
     root,
     score,
     staff,
-    verification,
+    user,
 )
 
 app_name = "api"
@@ -240,7 +240,7 @@ urlpatterns = [
     ),
     path(
     "user-verification/",
-    verification.UserVerificationView.as_view(),
+    user.UserVerificationView.as_view(),
     name="api-verification",
     ),
     # path(
