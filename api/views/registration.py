@@ -109,9 +109,8 @@ class ToggleFeatureFlagView(APIView):
                 False: "Candidate registration is now closed."
             },
             "staff_registration_open": {
-                True: "Candidate registration is now open.",
-                True: "Candidate registration is now enabled.", 
-                False: "Candidate mode is now closed."
+                True: "Staff registration is now open.",
+                False: "Staff registration is now closed."
             },
             "leaderboard_visible": {
                 True: "Leaderboard is now visible.", 

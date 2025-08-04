@@ -80,7 +80,7 @@ class AccountManagementView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    # parser_classes = [MultiPartParser, FormParser]
 
     def _get_target_user(self, request, user_id=None):
         """

@@ -97,9 +97,10 @@ def get_candidate_dashboard_data(candidate):
 
     return {
         "candidate_info": {
-            "id": candidate.user.id,
+            # "id": candidate.user.id,
             "name": candidate.user.get_full_name(),
             "email": candidate.user.email,
+            "phone": candidate.user.phone,
             "school": candidate.school,
             "role": candidate.get_role_display(),
             "is_verified": candidate.is_verified,
@@ -128,7 +129,7 @@ def get_candidate_dashboard_data(candidate):
             {
                 "current_rank": candidate_rank,
                 "total_candidates": total_league_candidates,
-                "role": candidate.role,
+                # "role": candidate.role,
             }
             if candidate.role == "league"
             else None
@@ -216,7 +217,7 @@ def get_staff_dashboard_data(staff):
     )[:5]
 
     staff_info = {
-        "id": staff.user.id,
+        # "id": staff.user.id,
         "name": staff.user.get_full_name(),
         "email": staff.user.email,
         "role": staff.get_role_display(),
@@ -254,21 +255,22 @@ def get_staff_dashboard_data(staff):
             "average_score": round(float(avg_score), 2),
             "highest_score": float(highest_score),
         },
-        "recent_activity": [
-            {
-                "candidate_name": activity.candidate.user.get_full_name(),
-                "exam_title": activity.exam.title,
-                "score": float(activity.score),
-                "date": activity.date_recorded,
-                "candidate_school": activity.candidate.school,
-            }
-            for activity in recent_activity
-        ],
+        # "recent_activity": [
+        #     {
+        #         "candidate_name": activity.candidate.user.get_full_name(),
+        #         "exam_title": activity.exam.title,
+        #         "score": float(activity.score),
+        #         "date": activity.date_recorded,
+        #         "candidate_school": activity.candidate.school,
+        #     }
+        #     for activity in recent_activity
+        # ],
         "upcoming_exams": [
             {
                 "id": exam.id,
                 "title": exam.title,
                 "exam_date": exam.exam_date,
+                "is_active": exam.is_active,
                 "stage": exam.get_stage_display(),
                 "question_count": exam.get_question_count(),
                 "countdown_minutes": exam.countdown_minutes,

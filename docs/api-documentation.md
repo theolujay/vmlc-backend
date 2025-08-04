@@ -1,6 +1,4 @@
-# Verboheit Mathematics League Competition (VMLC) API Documentation
-
-A comprehensive REST API for managing Verboheit Mathematics League Competition candidates, staff, exams, and leaderboards.
+# VMLC API Documentation
 
 ## Table of Contents
 
@@ -68,7 +66,7 @@ Authorization: Api-Key <your_api_key>
 
 ### Bearer Token Authentication (Protected Endpoints)
 
-Required for all authenticated endpoints:
+Required for other authenticated endpoints:
 
 ```text
 Authorization: Bearer <access_token>
@@ -94,21 +92,18 @@ Content-Type: application/json
 
 **Response:** `200 OK`
 ```json
-{
-  "message": "Login successful",
-  "tokens": {
-    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-  },
+{    
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+
   "user": {
-    "id": 123,
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "john@example.com",
     "first_name": "John",
     "last_name": "Doe",
+    "phone": "+23490xxxxxxxx",
     "date_joined": "2024-01-15T10:30:00Z"
-  },
-  "user_type": "candidate",
-  "user_route": "/api/v1/candidates/me/"
+  }
 }
 ```
 
@@ -145,7 +140,7 @@ Authorization: Bearer <access_token>
 **Request Body:**
 ```json
 {
-  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
@@ -159,7 +154,7 @@ Authorization: Bearer <access_token>
 | Role | Description | Permissions |
 |------|-------------|-------------|
 | `screening` | Default role for new candidates | Dashboard access, screening exams, own profile |
-| `league` | Advanced candidates (staff-assigned) | All screening + league exams + leaderboards |
+| `league` | Advanced candidates (staff-assigned) | League exams + leaderboards |
 | `final` | Top performers (staff-assigned) | All league permissions + final stage access |
 | `winner` | Competition winner (staff-assigned) | Ceremonial role with all permissions |
 
@@ -167,8 +162,8 @@ Authorization: Bearer <access_token>
 
 | Role | Description | Permissions |
 |------|-------------|-------------|
-| `volunteer` | Basic staff member | Limited read access |
-| `sponsor` | Competition sponsor | Volunteer permissions + sponsor badge |
+| `volunteer` | Basic staff member | User verification |
+| `sponsor` | Competition sponsor | Vanity role |
 | `moderator` | Content moderator | View candidates/staff, manage questions |
 | `admin` | System administrator | Full management except staff roles |
 | `owner` | Platform owner | All permissions including staff management |
@@ -202,7 +197,7 @@ Control registration availability for new users.
 - **Response:** `200 OK`
   ```json
   {
-    "message": "candidate_registration_open: False"
+    "message": "Candidate registration is now closed"
   }
   ```
 
@@ -258,6 +253,62 @@ Control registration availability for new users.
   }
   ```
 
+Here’s a clean and well-structured version of your **Email Verification** API documentation, using consistent formatting for clarity and professionalism:
+
+---
+
+### Email Verification
+
+After registration, users receive a One-Time Password (OTP) to verify their email address.
+
+---
+
+#### Verify Email with OTP
+
+- **Endpoint:** `POST /verify-email-otp/`
+- **Headers:** `Authorization: Api-Key <your_api_key>`
+- **Request Body:**
+
+  ```json
+  {
+    "email": "john@example.com",
+    "otp": "123456"
+  }
+  ```
+
+- **Response:** `200 OK`
+
+  ```json
+  {
+    "message": "Email verified successfully."
+  }
+  ```
+
+---
+
+#### Resend Email OTP
+
+If a user did not receive the OTP or it has expired, they can request a new one.
+
+- **Endpoint:** `POST /resend-email-otp/`
+- **Headers:** `Authorization: Api-Key <your_api_key>`
+- **Request Body:**
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+- **Response:** `200 OK`
+  ```json
+  {
+    "message": "OTP has been resent to your email address",
+    "email": "joh***@example.com",
+    "expires_in_minutes": 10
+  }
+  ```
+
 ### Candidate Management
 
 #### List Candidates
@@ -282,23 +333,19 @@ Control registration availability for new users.
   "results": [
     {
       "user": {
-        "id": 123,
-        "username": "john_doe",
         "email": "john@example.com",
         "first_name": "John",
         "last_name": "Doe",
-        "date_joined": "2024-01-15T10:30:00Z"
+        "phone": "+23490xxxxxxxx",
       },
-      "phone": "+1-555-0123",
       "school": "Mathematics High School",
       "role": "league",
       "is_verified": true,
-      "latest_score": 95.5
     }
   ]
 }
 ```
-
+<!-- 
 #### Get Candidate Profile
 
 **Own Profile**
@@ -329,7 +376,7 @@ Control registration availability for new users.
 
 - **Endpoint:** `GET /candidates/{candidate_id}/`
 - **Required Role:** `admin`, `owner`
-- **Methods:** `GET`, `PATCH`, `DELETE`
+- **Methods:** `GET`, `PATCH`, `DELETE` -->
 
 #### Role Management
 
@@ -379,6 +426,19 @@ Control registration availability for new users.
     ]
   }
   ```
+
+**Publish Scores (Staff only)**
+
+- **Endpoint:** `POST /publish-scores/`
+- **Required Role:** `admin`, `owner`
+- **Requets:** `201 CREATED`
+  ```json
+  {
+      "message": "Scores published successfully!",
+      "published_at": "2025-08-02T12:45:06.058245Z"
+  }
+  ```
+
 
 **Get Exam History**
 
@@ -477,7 +537,7 @@ Control registration availability for new users.
 **Get Exam Information**
 
 - **Endpoint:** `GET /exams/{exam_id}/`
-- **Required Role:** Role depends on exam stage
+- **Required Role:** `admin` or `owner`
 - **Response:** `200 OK`
   ```json
   {
@@ -509,7 +569,7 @@ Control registration availability for new users.
 **View Exam Questions**
 
 - **Endpoint:** `GET /exams/{exam_id}/questions/`
-- **Required Role:** Appropriate role for exam stage
+- **Required Role:** `admin` or `owner`
 - **Response:** `200 OK`
   ```json
   {
@@ -528,7 +588,41 @@ Control registration availability for new users.
   }
   ```
 
-**Take Exam**
+**Get Candidate Exam History**
+
+Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
+
+- **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
+
+- **Required Role:** `admin` or `owner`
+
+- **Response:** `200 OK`
+```json
+[
+  {
+    "exam": {
+      "id": 1,
+      "title": "Algebra Screening",
+      "stage": "screening"
+    },
+    "score": 88.0,
+    "date_recorded": "2024-01-20T15:30:00Z",
+    "auto_score": true
+  },
+  {
+    "exam": {
+      "id": 3,
+      "title": "League Week 1",
+      "stage": "league"
+    },
+    "score": 92.5,
+    "date_recorded": "2024-02-05T11:20:15Z",
+    "auto_score": false
+  }
+]
+```
+
+**Candidate Take Exam**
 
 - **Endpoint:** `POST /exams/{exam_id}/take-exam/`
 - **Required Role:** Candidate with appropriate stage access
@@ -596,18 +690,6 @@ Control registration availability for new users.
   }
   ```
 
-**Publish Scores (Staff only)**
-
-- **Endpoint:** `POST /publish-scores/`
-- **Required Role:** `admin`, `owner`
-- **Requets:** `201 CREATED`
-  ```json
-  {
-      "message": "Scores published successfully!",
-      "published_at": "2025-08-02T12:45:06.058245Z"
-  }
-  ```
-
 ### Question Management
 
 #### List Questions
@@ -639,8 +721,6 @@ Control registration availability for new users.
   ]
 }
 ```
-
-#### Publish Scores
 
 #### Question Details
 
@@ -683,9 +763,10 @@ Control registration availability for new users.
 ```json
 {
   "candidate_info": {
-    "id": 8,
+    // "id": 8,
     "name": "Harvey Spectre",
     "email": "harvey@gmail.com",
+    "phone": "+23490xxxxxxxx",
     "school": "Real Harvard Law",
     "role": "Screening",
     "is_verified": false,
@@ -700,26 +781,35 @@ Control registration availability for new users.
     "lowest_score": 78.0,
     "latest_score": 88.0
   },
-  "ranking": {
+  "leaderboard_ranking": {
     "position": 15,
     "total_candidates": 150,
-    "percentile": 90
+    // "percentile": 90
   },
   "recent_scores": [
     {
       "exam": "Algebra Screening",
       "score": 88.0,
-      "date": "2024-01-20T15:30:00Z"
+      "date": "2024-01-20T15:30:00Z",
+      "exam_stage": "league"
+    },
+    {
+      "exam": "Geometry Screening",
+      "score": 92.0,
+      "date": "2024-01-18T14:00:00Z",
+      "exam_stage": "league"
     }
   ],
   "available_exams": [
     {
       "id": 2,
       "title": "Geometry Screening",
-      "stage": "screening",
+      "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
+      "open_duration_hours": "12",
+      "exam_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
-      "exam_date": "2024-01-25T14:00:00Z"
+      "stage": "screening"
     }
   ]
 }
@@ -735,13 +825,14 @@ Control registration availability for new users.
 ```json
 {
   "staff_info": {
-    "id": 7,
+    // "id": 7,
     "name": "Emmanuel Obama",
     "email": "emmaob@gmail.com",
-    "role": "Owner",
+    "role": "Moderator",
     "occupation": "Automation Engineer",
     "is_verified": true,
-    "date_joined": "2024-01-01T08:00:00Z"
+    "date_joined": "2024-01-01T08:00:00Z",
+    "profile_photo": "https://verboheit.s3.eu-north-1.amazonaws.com/staff_profile_photos/7.jpg"
   },
   "candidates": {
     "total": 150,
@@ -775,15 +866,27 @@ Control registration availability for new users.
     "average_score": 78.5,
     "highest_score": 98.0
   },
-  "recent_activity": [
+  // "recent_activity": [
+  //   {
+  //     "candidate_name": "Alice Johnson",
+  //     "exam_title": "Algebra Screening",
+  //     "score": 92.0,
+  //     "date": "2024-01-20T16:30:00Z",
+  //     "candidate_school": "Riverdale High"
+  //   }
+  // ],
+  "upcoming_exams": [
     {
-      "candidate_name": "Alice Johnson",
-      "exam_title": "Algebra Screening",
-      "score": 92.0,
-      "date": "2024-01-20T16:30:00Z",
-      "candidate_school": "Riverdale High"
+      "id": 3,
+      "title": "Geometry Screening",
+      "exam_date": "2024-01-25T14:00:00Z",
+      "is_active": true,
+      "stage": "screening",
+      "question_count": 25,
+      "countdown_minutes": 90,
     }
   ]
+    }
 }
 ```
 
@@ -818,9 +921,8 @@ Control registration availability for new users.
 **Response:** `200 OK`
 ```json
 {
-  "message": "Leaderboard published!",
-  "published_at": "2024-01-20T18:00:00Z",
-  "total_candidates": 150
+  "message": "Leaderboard published successfully!",
+  "published_at": "2024-01-20T18:00:00Z"
 }
 ```
 
@@ -844,25 +946,20 @@ Control registration availability for new users.
       "rank": 1,
       "candidate": {
         "user": {
-          "id": 12,
+          "email": "alice@example.com",
           "first_name": "Alice",
           "last_name": "Johnson",
-          "email": "alice@example.com"
         },
         "school": "Riverdale High",
-        "profile_photo": "https://verboheit.s3.eu-north-1.amazonaws.com/candidate_profile_photos/12.jpg"
       },
       "total_score": 98.0,
-      "exam_count": 4,
-      "average_score": 24.5,
-      "latest_exam_date": "2024-01-18T14:00:00Z"
     }
   ]
 }
 ```
 
 ### Account Management
-
+<!-- 
 #### Get Account Information
 
 **Endpoint:** `GET /account-management/`
@@ -938,7 +1035,71 @@ Control registration availability for new users.
     "redoc": "/redoc/"
   }
 }
-```
+``` -->
+
+---
+
+#### User Verification
+
+Allows users to submit documents for identity verification. Admins can also manage verification for other users.
+
+**Submit/Update Own Verification Documents**
+
+- **Endpoint:** `POST /user-verification/` or `PATCH /user-verification/`
+- **Required Role:** Any authenticated user.
+- **Headers:**
+  ```text
+  Authorization: Bearer <access_token>
+  Content-Type: multipart/form-data
+  ```
+- **Request Body (form-data):**
+  - `profile_photo` (file): An image file for the user's profile picture. (Required on first submission)
+  - `id_card` (file): An image or PDF of an identification card. (Required on first submission)
+  - `verification_document` (file): An optional supporting document (e.g., school result for candidates, utility bill for staff).
+- **Response:** `200 OK`
+  ```json
+  {
+      "detail": "Verification data submitted successfully.",
+      "verification_data": {
+          "user": {
+              "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+              "email": "john@example.com",
+              "first_name": "John",
+              "last_name": "Doe",
+              "phone": "+23490xxxxxxxx",
+              "date_joined": "2024-01-15T10:30:00Z"
+          },
+          "is_pending": true,
+          "is_verified": false,
+          "profile_photo": "https://.../user_profile_photos/photo.jpg",
+          "id_card": "https://.../user_id_cards/id.pdf",
+          "verification_document": null,
+          "date_created": "2024-07-25T10:00:00Z",
+          "date_updated": "2024-07-25T10:00:00Z"
+      }
+  }
+  ```
+
+**Get Own Verification Status**
+
+- **Endpoint:** `GET /user-verification/`
+- **Required Role:** Any authenticated user.
+- **Response:** `200 OK`
+  ```json
+  {
+      "verification_data": {
+          // ... same structure as above
+      }
+  }
+  ```
+
+**Manage Another User's Verification (Admin/Owner only)**
+
+- **Endpoints:**
+  - `GET /user-verification/{user_id}/`
+  - `POST /user-verification/{user_id}/`
+  - `PATCH /user-verification/{user_id}/`
+- **Required Role:** `admin`, `owner`
 
 ---
 

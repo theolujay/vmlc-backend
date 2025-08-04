@@ -5,14 +5,14 @@ from ..models import (
     Candidate,
 )
 
-from .user import UserSerializer
+from .user import UserSerializer, MinimalUserSerializer
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for listing candidate info.
     """
 
-    user = UserSerializer(read_only=True)
+    user = MinimalUserSerializer(read_only=True)
 
     class Meta:
         model = Candidate
@@ -24,7 +24,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing candidate info.
     """
 
-    user = UserSerializer(read_only=True)
+    user = MinimalUserSerializer(read_only=True)
 
     class Meta:
         model = Candidate
@@ -32,6 +32,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "user",
             "school",
             "role",
+            "is_verified",
         )
 
 

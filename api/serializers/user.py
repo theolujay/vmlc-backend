@@ -31,6 +31,14 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "date_joined")
 
+class MinimalUserSerializer(serializers.ModelSerializer):
+    """
+    Minimal serializer for listing user info.
+    """
+    class Meta:
+        model = User
+        fields = ("email", "first_name", "last_name", "phone")
+
 class UserVerificationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
 

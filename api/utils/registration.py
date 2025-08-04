@@ -128,3 +128,4 @@ def resend_otp_to_email(user):
         user: User object with email attribute
     """
     send_otp_to_email(user, is_resend=True)
+    

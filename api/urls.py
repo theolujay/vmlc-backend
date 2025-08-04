@@ -152,7 +152,7 @@ urlpatterns = [
         exam.ExamResultsView.as_view(),
         name="api-exam-results",
     ),
-    
+
     # Exam Taking & Submission
     path(
         "exams/<int:exam_id>/take-exam/",
@@ -242,6 +242,11 @@ urlpatterns = [
     "user-verification/",
     user.UserVerificationView.as_view(),
     name="api-verification",
+    ),
+    path(
+        "user-verification/<uuid:user_id>/",
+        user.UserVerificationView.as_view(),
+        name="api-verification-detail",
     ),
     # path(
     #     "candidates/me/",
