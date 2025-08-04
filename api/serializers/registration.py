@@ -8,6 +8,7 @@ from ..models import (
     Candidate,
     Staff,
     User,
+    EmailOTP,
 )
 from .user import UserSerializer
 
@@ -90,3 +91,48 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
             "password2", 
             "occupation",
         )
+        
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, data):
+        try:
+            user = User.objects.get(email=data['email'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Invalid email.')
+
+        try:
+            otp_obj = EmailOTP.objects.filter(user=user, otp=data['otp']).order_by('-created_at').first()
+        except EmailOTP.DoesNotExist:
+            raise serializers.ValidationError('Invalid OTP.')
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError('OTP expired.')
+
+        data['user'] = user
+        otp_obj.delete()  # One-time use
+        return data
+
+    def save(self):
+        user = self.validated_data['user']
+        user.is_email_verified = True
+        user.save()
+        
+
+class ResendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, value):
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No user with this email.")
+
+        if user.is_email_verified:
+            raise serializers.ValidationError("Email is already verified.")
+
+        self.context['user'] = user
+        return value

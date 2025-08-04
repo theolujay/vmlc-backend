@@ -33,6 +33,7 @@ class UserAdmin(admin.ModelAdmin):
         "first_name",
         "last_name",
         "id",
+        "is_email_verified",
         "get_user_profile",
         "is_active",
         "date_joined",

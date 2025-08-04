@@ -11,10 +11,6 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Basic serializer for the Django User model.
     """
-
-    # username = serializers.CharField(
-    #     max_length=14, validators=[UniqueValidator(queryset=User.objects.all())]
-    # )
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
     )

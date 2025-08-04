@@ -51,6 +51,7 @@ class User(AbstractUser):
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
     email = models.EmailField(unique=True)
+    is_email_verified = models.BooleanField(default=False)
     first_name = models.CharField(max_length=30, blank=False)
     last_name = models.CharField(max_length=30, blank=False)
     phone_regex = RegexValidator(
@@ -645,3 +646,17 @@ class UserVerification(models.Model):
     class Meta:
         verbose_name = "User Verification"
         verbose_name_plural = "User Verifications"
+        
+class EmailOTP(models.Model):
+    """One-time password for email verification"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    def is_expired(self):
+        """Check if the OTP has expired"""
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"OTP for {self.user.email}"

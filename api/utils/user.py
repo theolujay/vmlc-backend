@@ -2,7 +2,12 @@
 User-related utility functions.
 """
 
+import logging
+
 from rest_framework import serializers
+
+
+logger = logging.getLogger(__name__)
 
 
 def validate_role_for_serializer(value: str, model_class) -> None:

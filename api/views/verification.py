@@ -21,7 +21,7 @@ from ..serializers import (
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-class VerificationView(APIView):
+class UserVerificationView(APIView):
     """
     Handles verification of candidates and staff members.
     - Allows candidates and staff to submit their verification data.

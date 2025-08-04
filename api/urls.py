@@ -15,7 +15,6 @@ All views are organized and grouped by functionality for clarity.
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-
 from .views import (
     answer,
     auth,
@@ -34,12 +33,18 @@ from .views import (
 app_name = "api"
 
 urlpatterns = [
-    # === ROOT & AUTH ===
+    # =============================================================================
+    # ROOT & AUTHENTICATION
+    # =============================================================================
     path("", root.api_root, name="api-root"),
     path("auth/login/", auth.LoginView.as_view(), name="api-login"),
     path("auth/logout/", auth.LogoutView.as_view(), name="api-logout"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
-    # === REGISTRATION ===
+    
+    # =============================================================================
+    # REGISTRATION & VERIFICATION
+    # =============================================================================
+    # Candidate Registration
     path(
         "register/candidate/",
         registration.CandidateRegistrationView.as_view(),
@@ -50,6 +55,8 @@ urlpatterns = [
         registration.ToggleCandidateRegistrationView.as_view(),
         name="api-toggle-candidate-registration",
     ),
+    
+    # Staff Registration
     path(
         "register/staff/",
         registration.StaffRegistrationView.as_view(),
@@ -60,13 +67,27 @@ urlpatterns = [
         registration.ToggleStaffRegistrationView.as_view(),
         name="api-toggle-staff-registration",
     ),
-    # === CANDIDATES ===
+    
+    # Email Verification
     path(
-        "candidates/", candidate.CandidateListView.as_view(), name="api-candidate-list"
+        "verify-email-otp/",
+        registration.VerifyOTPView.as_view(),
+        name="verify-email-otp"
     ),
-    # path(
-    #     "candidates/me/", candidate.CandidateMeView.as_view(), name="api-candidate-me"
-    # ),
+    path(
+    "resend-email-otp/",
+    registration.ResendOTPView.as_view(),
+    name="resend-email-otp"
+    ),
+
+    # =============================================================================
+    # CANDIDATE MANAGEMENT
+    # =============================================================================
+    path(
+        "candidates/",
+        candidate.CandidateListView.as_view(),
+        name="api-candidate-list"
+    ),
     path(
         "candidates/<uuid:candidate_id>/",
         candidate.CandidateDetailView.as_view(),
@@ -87,9 +108,15 @@ urlpatterns = [
         exam.ExamHistoryView.as_view(),
         name="api-candidate-exam-history",
     ),
-    # === STAFF ===
-    path("staff/", staff.StaffListView.as_view(), name="api-staff-list"),
-    # path("staff/me/", staff.StaffMeView.as_view(), name="api-staff-me"),
+    
+    # =============================================================================
+    # STAFF MANAGEMENT
+    # =============================================================================
+    path(
+        "staff/",
+        staff.StaffListView.as_view(),
+        name="api-staff-list"
+    ),
     path(
         "staff/<uuid:staff_id>/",
         staff.StaffDetailView.as_view(),
@@ -100,28 +127,37 @@ urlpatterns = [
         staff.AssignStaffRoleView.as_view(),
         name="api-staff-role-assign",
     ),
-    # === EXAMS ===
-    path("exams/", exam.ExamListView.as_view(), name="api-exam-list"),
-    path("exams/<int:exam_id>/", exam.ExamDetailView.as_view(), name="api-exam-detail"),
+    
+    # =============================================================================
+    # EXAM MANAGEMENT
+    # =============================================================================
+    # Exam CRUD Operations
+    path(
+        "exams/",
+        exam.ExamListView.as_view(),
+        name="api-exam-list"
+    ),
+    path(
+        "exams/<int:exam_id>/",
+        exam.ExamDetailView.as_view(),
+        name="api-exam-detail"
+    ),
     path(
         "exams/<int:exam_id>/questions/",
         exam.ExamQuestionsView.as_view(),
         name="api-exam-questions",
     ),
     path(
+        "exams/<int:exam_id>/results/",
+        exam.ExamResultsView.as_view(),
+        name="api-exam-results",
+    ),
+    
+    # Exam Taking & Submission
+    path(
         "exams/<int:exam_id>/take-exam/",
         exam.candidate_take_exam,
         name="api-take-exam",
-    ),
-    path(
-        "exams/<int:exam_id>/submit-exam-score/",
-        score.SubmitScoreView.as_view(),
-        name="api-submit-exam-score",
-    ),
-    path(
-        "publish-scores/",
-        score.PublishScoresView.as_view(),
-        name="api-publish-scores",
     ),
     path(
         "exams/<int:exam_id>/submit-exam-answers/",
@@ -129,45 +165,37 @@ urlpatterns = [
         name="api-submit-exam-answers",
     ),
     path(
-        "exams/<int:exam_id>/results/",
-        exam.ExamResultsView.as_view(),
-        name="api-exam-results",
+        "exams/<int:exam_id>/submit-exam-score/",
+        score.SubmitScoreView.as_view(),
+        name="api-submit-exam-score",
     ),
-    # === QUESTIONS ===
-    path("questions/", question.QuestionListView.as_view(), name="api-question-list"),
+    
+    # =============================================================================
+    # QUESTION MANAGEMENT
+    # =============================================================================
+    path(
+        "questions/",
+        question.QuestionListView.as_view(),
+        name="api-question-list"
+    ),
     path(
         "questions/<int:question_id>/",
         question.QuestionDetailView.as_view(),
         name="api-question-detail",
     ),
-    # === DASHBOARDS ===
+    
+    # =============================================================================
+    # SCORING & RESULTS
+    # =============================================================================
     path(
-        "dashboard/candidate/",
-        dashboard.CandidateDashboardView.as_view(),
-        name="api-candidate-dashboard",
+        "publish-scores/",
+        score.PublishScoresView.as_view(),
+        name="api-publish-scores",
     ),
-    path(
-        "dashboard/staff/",
-        dashboard.StaffDashboardView.as_view(),
-        name="api-staff-dashboard",
-    ),
-    # === ACCOUNT MANAGEMENT ===
-    path(
-        "account-management/",
-        dashboard.AccountManagementView.as_view(),
-        name="api-account-management",
-    ),
-    path(
-        "account-management/<uuid:user_id>/",
-        dashboard.AccountManagementView.as_view(),
-        name="api-account-management-detail",
-    ),
-    path(
-        "verification/",
-        verification.VerificationView.as_view(),
-        name="api-verification",
-    ),
-    # === LEADERBOARD ===
+    
+    # =============================================================================
+    # LEADERBOARD
+    # =============================================================================
     path(
         "toggle-leaderboard/",
         leaderboard.ToggleLeaderboardVisibilityView.as_view(),
@@ -183,4 +211,46 @@ urlpatterns = [
         leaderboard.LoadLeaderboardView.as_view(),
         name="api-load-leaderboard",
     ),
+    
+    # =============================================================================
+    # DASHBOARDS & ACCOUNT MANAGEMENT
+    # =============================================================================
+    # User Dashboards
+    path(
+        "dashboard/candidate/",
+        dashboard.CandidateDashboardView.as_view(),
+        name="api-candidate-dashboard",
+    ),
+    path(
+        "dashboard/staff/",
+        dashboard.StaffDashboardView.as_view(),
+        name="api-staff-dashboard",
+    ),
+    
+    # Account Management
+    path(
+        "account-management/",
+        dashboard.AccountManagementView.as_view(),
+        name="api-account-management",
+    ),
+    path(
+        "account-management/<uuid:user_id>/",
+        dashboard.AccountManagementView.as_view(),
+        name="api-account-management-detail",
+    ),
+    path(
+    "user-verification/",
+    verification.UserVerificationView.as_view(),
+    name="api-verification",
+    ),
+    # path(
+    #     "candidates/me/",
+    #     candidate.CandidateMeView.as_view(),
+    #     name="api-candidate-me"
+    # ),
+    # path(
+    #     "staff/me/",
+    #     staff.StaffMeView.as_view(),
+    #     name="api-staff-me"
+    # ),
 ]
