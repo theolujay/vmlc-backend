@@ -12,7 +12,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from ..models import EmailOTP
-from ..tasks import send_otp_to_email_task
+from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ def send_otp_to_email(user, is_resend: bool = False):
         #     fail_silently=False,
         # )
 
-        send_otp_to_email_task.delay(
+        send_mail_task.delay(
             subject=subject,
             message=message,
             recipient_list=[user.email],
@@ -174,16 +174,14 @@ def send_password_change_otp(user):
         logger.info(f"Password change OTP created for user {user.id}")
 
         # Send email with password-specific message
-        send_mail(
+        send_mail_task.delay(
             subject="Password Change Verification",
             message=(
                 f"Your verification code for password change is {otp}. "
                 f"This code expires in 10 minutes. "
                 f"If you didn't request this, please ignore this email."
             ),
-            from_email="no-reply@verboheit.org",
             recipient_list=[user.email],
-            fail_silently=False,
         )
         
         logger.info(f"Password change OTP email sent to user {user.id}")

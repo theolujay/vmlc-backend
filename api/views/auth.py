@@ -4,7 +4,6 @@ Authentication-related API views for login, logout, and registration.
 import logging
 
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 
 from rest_framework import status, serializers
 from rest_framework.permissions import AllowAny
@@ -16,7 +15,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_api_key.permissions import HasAPIKey
 
-from ..utils.auth import resend_otp_to_email
+from ..tasks import send_mail_task
 from ..serializers import (
     UserSerializer,
     RequestPasswordChangeSerializer,
@@ -41,6 +40,13 @@ class VerifyEmailOTPView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
+                
+                send_mail_task.delay(
+                    subject="Email Verified Successfully",
+                    message="Your email has been successfully verified.",
+                    recipient_list=[user.email]
+                )
+                logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
                     {'message': 'Email verified successfully.'}, 
                     status=status.HTTP_200_OK
@@ -73,7 +79,7 @@ class ResendEmailOTPView(APIView):
                 email = user.email
                 email_parts = email.split('@')
                 masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
-                
+                logger.info(f"Resending OTP to user {user.id}")
                 return Response(
                     {
                         "message": "OTP has been resent to your email address",
@@ -199,7 +205,13 @@ class PasswordChangeView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
-                
+                from ..tasks import send_mail_task
+                # Send notification email about password change
+                send_mail_task.delay(
+                    subject="Your Password Has Been Changed",
+                    message="This is to inform you that your password has been successfully changed.",
+                    recipient_list=[user.email]
+                )
                 logger.info(f"Password changed successfully for user {user.id}")
                 return Response(
                     {
@@ -259,11 +271,9 @@ class ResendPasswordChangeOTPView(APIView):
                     {"message": "If this email is registered, a verification code has been sent"}, 
                     status=status.HTTP_200_OK
                 )
-            
-            # Send OTP
-            from ..utils.auth import send_password_change_otp
-            send_password_change_otp(user)
-            
+            from ..utils.auth import resend_otp_to_email
+            resend_otp_to_email(user)
+            logger.info(f"Password change OTP resent to user {user.id}")
             # Mask email for response
             email_parts = email.split('@')
             masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
