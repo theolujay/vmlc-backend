@@ -149,14 +149,28 @@ Content-Type: application/json
 }
 ```
 
-**Reset Password with OTP**
+**Confirm User for Password Change with OTP**
+**Endpoint:** `POST /auth/password-change/confirm-otp/`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456"
+}**Response:** `200 OK`
+```json
+{
+  "message": "OTP verified. User confirmed for password change. Proceed to change password."
+}
+
+**Change Password with OTP**
 **Endpoint:** `POST /auth/password-change/`
 
 **Request Body:**
 ```json
 {
   "email": "user@example.com",
-  "otp_code": "123456",
+  "otp": "123456",
   "new_password": "your_new_secure_password",
   "confirm_password": "your_new_secure_password"
 }

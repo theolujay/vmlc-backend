@@ -48,6 +48,11 @@ urlpatterns = [
         name="api-request-password-change"
     ),
     path(
+        "auth/password-change/confirm-otp/",
+        auth.PasswordChangeOTPConfirmView.as_view(),
+        name="api-verify-password-change-otp"
+    ),
+    path(
         "auth/password-change/",
         auth.PasswordChangeView.as_view(),
         name="api-password-change"

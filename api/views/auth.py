@@ -20,6 +20,7 @@ from ..utils.auth import resend_otp_to_email
 from ..serializers import (
     UserSerializer,
     RequestPasswordChangeSerializer,
+    PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     VerifyEmailOTPSerializer,
     ResendEmailOTPSerializer,
@@ -148,6 +149,32 @@ class RequestPasswordChangeView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class PasswordChangeOTPConfirmView(APIView):
+    """
+    Confirm password change request with OTP.
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        """
+        Change user password after OTP verification.
+        
+        Expected payload:
+        {
+            "email": "user@example.com",
+            "otp": "123456"
+        }
+        """
+        serializer = PasswordChangeOTPConfirmSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            return Response(
+                {
+                    "message": "OTP verified. User confirmed for password change. Proceed to change password.",
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PasswordChangeView(APIView):
     """
@@ -162,7 +189,7 @@ class PasswordChangeView(APIView):
         Expected payload:
         {
             "email": "user@example.com",
-            "otp_code": "123456",
+            "otp": "123456",
             "new_password": "newpassword123",
             "confirm_password": "newpassword123"
         }

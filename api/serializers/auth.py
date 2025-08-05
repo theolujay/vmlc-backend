@@ -100,6 +100,7 @@ class ResendEmailOTPSerializer(serializers.Serializer):
         resend_otp_to_email(user)
         return user
 
+
 class RequestPasswordChangeSerializer(serializers.Serializer):
     """
     Serializer for requesting password change OTP.
@@ -123,13 +124,51 @@ class RequestPasswordChangeSerializer(serializers.Serializer):
         send_password_change_otp(user)
         return user
 
+class PasswordChangeOTPConfirmSerializer(serializers.Serializer):
+    """
+    Serializer for confirming user's password change request with OTP.
+    """
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
+
+    def validate_otp(self, value):
+        """
+        Validate OTP format (6 digits).
+        """
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        return value
+    
+    def validate(self, data):
+        """
+        Verify email and OTP combination.
+        """
+        try:
+            user = User.objects.get(email=data['email'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid email or OTP.")
+        
+        try:
+            otp_obj = EmailOTP.objects.filter(
+                user=user,
+                otp=data['otp']
+            ).order_by('-created_at').first()
+            
+            if not otp_obj:
+                raise serializers.ValidationError("Invalid email or OTP.")
+        except EmailOTP.DoesNotExist:
+            raise serializers.ValidationError("Invalid email or OTP.")
+        
+        if otp_obj.is_expired():
+            raise serializers.ValidationError("OTP has expired. Please request a new one.")
+        return True
 
 class PasswordChangeSerializer(serializers.Serializer):
     """
     Serializer for changing password with OTP verification.
     """
     email = serializers.EmailField()
-    otp_code = serializers.CharField(max_length=6, min_length=6)
+    otp = serializers.CharField(max_length=6, min_length=6)
     new_password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
     
@@ -141,7 +180,7 @@ class PasswordChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError("No account found with this email address.")
         return value
     
-    def validate_otp_code(self, value):
+    def validate_otp(self, value):
         """
         Validate OTP format (6 digits).
         """
@@ -169,7 +208,7 @@ class PasswordChangeSerializer(serializers.Serializer):
         
         # Verify OTP
         user = User.objects.get(email=data['email'])
-        if not verify_otp_for_password_change(user, data['otp_code']):
+        if not verify_otp_for_password_change(user, data['otp']):
             raise serializers.ValidationError("Invalid or expired OTP code.")
         
         return data
