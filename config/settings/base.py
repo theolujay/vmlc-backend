@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "drf_yasg",
     "django_filters",
     "storages",
+    "django_celery_results",
 
     "api",
 ]
@@ -155,3 +156,4 @@ SIMPLE_JWT = {
 }
 
 SWAGGER_USE_COMPAT_RENDERERS = False
+

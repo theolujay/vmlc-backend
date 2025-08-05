@@ -8,9 +8,11 @@ from datetime import timedelta
 
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.conf import settings
 from rest_framework import serializers
 
 from ..models import EmailOTP
+from ..tasks import send_otp_to_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +104,18 @@ def send_otp_to_email(user, is_resend: bool = False):
         subject = "Your OTP Code" + (" (Resent)" if is_resend else "")
         message = f"Your OTP code is {otp}. It expires in 10 minutes."
         
-        send_mail(
+        # send_mail(
+        #     subject=subject,
+        #     message=message,
+        #     from_email="no-reply@verboheit.org",
+        #     recipient_list=[user.email],
+        #     fail_silently=False,
+        # )
+
+        send_otp_to_email_task.delay(
             subject=subject,
             message=message,
-            from_email="no-reply@verboheit.org",
             recipient_list=[user.email],
-            fail_silently=False,
         )
         
         logger.info(f"OTP email {action} successfully to user {user.id}")
