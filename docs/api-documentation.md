@@ -162,6 +162,7 @@ Content-Type: application/json
 {
   "message": "OTP verified. User confirmed for password change. Proceed to change password."
 }
+```
 
 **Change Password with OTP**
 **Endpoint:** `POST /auth/password-change/`
