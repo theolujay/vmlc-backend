@@ -18,6 +18,12 @@ INTERNAL_IPS = [
 
 ADMIN_URL = "admin/"
 
+# import dj_database_url
+# DATABASE_URL = os.environ.get("DATABASE_URL")
+# DATABASES = {
+#     "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+# }
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -91,7 +97,3 @@ STORAGES = {
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@verboheit.org"
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"

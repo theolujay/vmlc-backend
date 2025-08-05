@@ -23,7 +23,7 @@ DATABASES = {
     "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
 }
 
-LOG_DIR = Path("/var/log/api")
+LOG_DIR = Path("/home/app/web/logs")
 LOG_DIR.mkdir(exist_ok=True)
 LOGGING = {
     "version": 1,
@@ -97,7 +97,7 @@ STORAGES = {
         },
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.StaticFilesStorage",
     },
 }
 
@@ -118,7 +118,3 @@ if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not all(
         "When using the SMTP email backend, you must set EMAIL_HOST, EMAIL_HOST_USER, and EMAIL_HOST_PASSWORD in your .env file."
     )
     
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
