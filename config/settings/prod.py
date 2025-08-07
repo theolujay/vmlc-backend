@@ -1,3 +1,6 @@
+"""
+Production settings for the VMLC API project.
+These settings are used in the production environment and should not be used in development."""
 
 from .base import *
 import dj_database_url

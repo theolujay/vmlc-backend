@@ -1,3 +1,6 @@
+"""
+Development settings for the VMLC API project.
+These settings are used during local development and should not be used in production."""
 
 from .base import *
 
@@ -33,7 +36,14 @@ DATABASES = {
 
 SIMPLE_JWT.update({"ACCESS_TOKEN_LIFETIME": timedelta(days=3)})
 
-LOG_DIR = BASE_DIR / "logs"
+if os.getenv('ENVIRONMENT') == 'production':
+    LOG_DIR = Path("/home/app/web/logs")  # Docker path
+else:
+    LOG_DIR = BASE_DIR / "logs"
+    
+# LOG_DIR = BASE_DIR / "logs"
+
+LOG_DIR.mkdir(exist_ok=True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

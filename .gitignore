@@ -128,3 +128,4 @@ target/
 api/tests/
 models_erd.dot
 models_erd.png
+*.dot

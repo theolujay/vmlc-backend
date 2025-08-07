@@ -1,5 +1,5 @@
 """
-Django settings for core project.
+Base Django settings to be shared across all environments.
 """
 
 import os
