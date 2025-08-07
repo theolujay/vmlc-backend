@@ -24,7 +24,6 @@ DATABASES = {
 }
 
 LOG_DIR = Path("/home/app/web/logs")
-LOG_DIR.mkdir(exist_ok=True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -43,7 +42,7 @@ LOGGING = {
         "file": {
             "level": "INFO",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": LOG_DIR / "vmlc_api.log",
+            "filename": str(LOG_DIR / "vmlc_api.log"),
             "formatter": "verbose",
             "maxBytes": 5 * 1024 * 1024,  # 5MB
             "backupCount": 3,  # Keep 3 backups

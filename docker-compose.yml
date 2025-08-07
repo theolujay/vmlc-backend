@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    image: vmlc_api:1.0
+    # image: vmlc_api:1.0
     volumes:
       - .:/home/app/web
       - ./media:/home/app/web/media

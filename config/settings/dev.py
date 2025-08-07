@@ -34,7 +34,6 @@ DATABASES = {
 SIMPLE_JWT.update({"ACCESS_TOKEN_LIFETIME": timedelta(days=3)})
 
 LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -53,7 +52,7 @@ LOGGING = {
         "file": {
             "level": "DEBUG",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": LOG_DIR / "vmlc_api_dev.log",
+            "filename": str(LOG_DIR / "vmlc_api_dev.log"),
             "formatter": "verbose",
             "maxBytes": 5 * 1024 * 1024,  # 5MB
             "backupCount": 3,  # Keep 3 backups
