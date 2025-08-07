@@ -67,16 +67,16 @@ urlpatterns = [
     # REGISTRATION & VERIFICATION
     # =============================================================================
     # Candidate Registration
-    path(
-        "register/candidate/",
-        registration.CandidateRegistrationView.as_view(),
-        name="api-register-candidate",
-    ),
-    path(
-        "register/candidate/toggle/",
-        registration.ToggleCandidateRegistrationView.as_view(),
-        name="api-toggle-candidate-registration",
-    ),
+    # path(
+    #     "register/candidate/",
+    #     registration.CandidateRegistrationView.as_view(),
+    #     name="api-register-candidate",
+    # ),
+    # path(
+    #     "register/candidate/toggle/",
+    #     registration.ToggleCandidateRegistrationView.as_view(),
+    #     name="api-toggle-candidate-registration",
+    # ),
     
     # Staff Registration
     path(

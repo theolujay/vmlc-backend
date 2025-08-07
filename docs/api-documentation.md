@@ -231,7 +231,7 @@ Content-Type: application/json
 
 ## API Endpoints
 ### Registration & System Controls
-#### Toggle Registration Status
+<!-- #### Toggle Registration Status
 **Candidate Registration Toggle**
 **Endpoint:** `POST /toggle-candidate-registration/`  
 **Required Role:** `admin`, `owner`  
@@ -252,7 +252,7 @@ Content-Type: application/json
 **Staff Registration Toggle**  
 **Endpoint:** `POST /toggle-staff-registration/`  
 **Required Role:** `owner`  
-**Request Body:** Same as candidate toggle
+**Request Body:** Same as candidate toggle -->
 
 #### Register New Users
 **Candidate Registration**  
