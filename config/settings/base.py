@@ -157,12 +157,22 @@ SIMPLE_JWT = {
 
 SWAGGER_USE_COMPAT_RENDERERS = False
 
+CELERY_TIMEZONE = "Europe/London"
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_WORKER_LOG_COLOR = False
+# CELERY_TASK_ROUTES = {
+#     'api.tasks.send_email': {'queue': 'emails'},
+#     'api.tasks.process_payment': {'queue': 'payments'},
+#     'api.tasks.generate_report': {'queue': 'reports'},
+# }
+
+# API Documentation settings
+

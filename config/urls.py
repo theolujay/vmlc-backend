@@ -20,23 +20,23 @@ from drf_yasg import openapi
 # === Swagger Schema Configuration ===
 schema_view = get_schema_view(
     openapi.Info(
-        title="Verboheit Math League API",
+        title="Verboheit Math League Competition API",
         default_version="v1",
-        description="API documentation for the VML Competition Web Platform",
-        terms_of_service=settings.TOS_URL,
+        description="API documentation for the Verboheit Math League Competition Web Platform",
+        # terms_of_service=settings.TOS_URL,
         contact=openapi.Contact(
-            name="VML Support",
+            name="API Support",
             email=settings.CONTACT_EMAIL,
             url=settings.CONTACT_URL,
         ),
-        license=openapi.License(
-            name="Proprietary License",
-            url=settings.LICENSE_URL,
-        ),
+        # license=openapi.License(
+        #     name="Proprietary License",
+        #     url=settings.LICENSE_URL,
+        # ),
         x_logo={
             "url": settings.LOGO_URL,
             "backgroundColor": "#FFFFFF",
-            "altText": "VML Logo",
+            "altText": "Verboheit Logo",
         },
     ),
     public=True,
@@ -45,7 +45,6 @@ schema_view = get_schema_view(
     url=settings.BASE_URL,
 )
 
-# Group API and docs URLs for clarity
 api_urlpatterns = [
     path("v1/", include("api.urls", namespace="v1")),
 ]

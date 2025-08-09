@@ -7,6 +7,9 @@ Uses PostgreSQL container instead of SQLite.
 
 from .base import *
 import dj_database_url
+from dotenv import load_dotenv
+
+load_dotenv(BASE_DIR / ".env")
 
 DEBUG = True
 
@@ -26,7 +29,7 @@ INTERNAL_IPS = [
 ADMIN_URL = "admin/"
 
 # Use PostgreSQL container instead of SQLite
-DATABASE_URL = os.environ.get(
+DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://postgres:password@db:5432/vmlc_dev"
 )
@@ -82,12 +85,12 @@ GRAPH_MODELS = {
 }
 
 # API Documentation settings
-BASE_URL = os.environ.get("BASE_URL")
-TOS_URL = os.environ.get("TOS_URL")
-CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL")
-CONTACT_URL = os.environ.get("CONTACT_URL")
-LICENSE_URL = os.environ.get("LICENSE_URL")
-LOGO_URL = os.environ.get("LOGO_URL")
+BASE_URL = os.getenv("BASE_URL")
+TOS_URL = os.getenv("TOS_URL")
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
+CONTACT_URL = os.getenv("CONTACT_URL")
+LICENSE_URL = os.getenv("LICENSE_URL")
+LOGO_URL = os.getenv("LOGO_URL")
 
 
 STORAGES = {
@@ -103,15 +106,15 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "dev@vmlc.local"
 
 # Celery Configuration for Docker development
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 CELERY_CACHE_BACKEND = 'django-cache'
 
 # Redis cache configuration
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://redis:6379/1'),
+        'LOCATION': os.getenv('CACHE_REDIS_URL', 'redis://redis:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }

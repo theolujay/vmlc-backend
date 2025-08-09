@@ -64,13 +64,7 @@ LOGGING = {
 
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS").split(",")
 
-# API Documentation settings
-BASE_URL = os.environ.get("BASE_URL")
-TOS_URL = os.environ.get("TOS_URL")
-CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL")
-CONTACT_URL = os.environ.get("CONTACT_URL")
-LICENSE_URL = os.environ.get("LICENSE_URL")
-LOGO_URL = os.environ.get("LOGO_URL")
+
 
 for var in [
     "AWS_ACCESS_KEY_ID",
@@ -120,3 +114,31 @@ if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not all(
         "When using the SMTP email backend, you must set EMAIL_HOST, EMAIL_HOST_USER, and EMAIL_HOST_PASSWORD in your .env file."
     )
     
+BASE_URL = os.environ.get("BASE_URL")
+TOS_URL = os.environ.get("TOS_URL")
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL")
+CONTACT_URL = os.environ.get("CONTACT_URL")
+LICENSE_URL = os.environ.get("LICENSE_URL")
+LOGO_URL = os.environ.get("LOGO_URL")
+
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_CACHE_BACKEND = 'django-cache'
+
+# Production Redis cache
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'vmlc_api',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    }
+}
+
+# Production-specific Celery settings
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
