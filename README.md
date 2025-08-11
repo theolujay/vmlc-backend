@@ -8,27 +8,36 @@ The need for this project arose from the vision of scaling the VMLC into a natio
 
 ## Features
 
-- **JWT Authentication**: Secure login and access token management
-- **Role-Based Access Control**:
-  - Candidate roles: `screening`, `league`, `final`, `winner`
-  - Staff roles: `volunteer`, `moderator`, `admin`, `owner`
-- **Exam & Question Management**:
-  - Multi-stage exam creation
-  - Question upload & retrieval
-  - Permission-based exams
-- **Candidate Scoring System**:
-  - Manual and automated scoring systems
-  - Track scores, histories, and rankings
-- **Leaderboard Snapshots**:
-  - Toggle visibility and publish updated standings
-- **Feature Flags**:
-  - Toggle registration
-- **API Documentation**:
-  - Auto-generated via Swagger/Redoc
-  - Human-written docs hosted on Read the Docs
-- **Deployment**: Live and stable on [Render](https://render.com/)
-- **Visual Schema**:
-  - Database Entity Relationship Diagram (ERD) included in docs
+The VMLC API is built with a rich set of features to manage the entire competition lifecycle:
+
+### User Management & Security
+- **Secure Authentication**: JWT-based authentication with access/refresh tokens, API key protection for public endpoints, and a secure OTP-based password reset flow.
+- **Role-Based Access Control (RBAC)**: Granular permissions for different user types.
+  - **Candidate Roles**: `screening`, `league`, `final`, `winner`
+  - **Staff Roles**: `volunteer`, `moderator`, `admin`, `owner`
+- **User Registration & Verification**: Separate registration flows for candidates and staff, with a document upload system for user verification.
+- **Account Management**: Endpoints for users to manage their own profile data.
+- **Admin Controls**: Feature flags to toggle candidate and staff registration.
+
+### Competition & Exam Engine
+- **Comprehensive Exam Management**: Create, update, and manage multi-stage exams (`screening`, `league`).
+- **Detailed Question Bank**: A robust system for managing questions with difficulty levels, options, and correct answers.
+- **Automated & Manual Scoring**:
+  - Candidates can take exams and submit answers for automated grading.
+  - Staff can manually submit or override scores.
+- **Exam History**: Track each candidate's performance and exam history.
+
+### Data & Insights
+- **Personalized Dashboards**: Separate dashboard views for candidates and staff, providing relevant stats and information at a glance.
+- **Dynamic Leaderboard**: A real-time leaderboard system with controls for publishing and visibility.
+- **Score Publishing**: System to take a snapshot of all scores for official publication.
+
+### Developer Experience
+- **Rich API Documentation**:
+  - Interactive documentation via Swagger UI and ReDoc.
+  - Comprehensive, human-written guides hosted on Read the Docs.
+- **Containerized & Deployment Ready**: Dockerized for consistent environments and pre-configured for deployment on platforms like Render.
+- **Visual Database Schema**: An Entity Relationship Diagram (ERD) is included in the documentation to visualize data models.
 
 ---
 
@@ -42,7 +51,7 @@ verboheit_mlc/
 ├── staticfiles/        # Collected static files for deployment
 ├── manage.py           # Django entry point
 ├── requirements.txt    # All project dependencies
-├── render.yaml         # Render deployment configuration
+├── Dockerfile          # Containerization configuration
 ````
 
 ---
@@ -51,28 +60,64 @@ verboheit_mlc/
 
 Visit the official API documentation for detailed usage instructions, endpoint listings, and role behavior guides:
 
-Read the Docs: **[vlmc-api.readthedocs.io](https://vlmc-api.readthedocs.io/)**
+Read the Docs: **[vlmc-api.readthedocs.io](https://vlmc-api.readthedocs.io/)**s
 
 ---
 
-## Getting Started (Locally)
+## Getting Started
 
-To run the project locally:
+There are two ways to run the project locally: using Docker (recommended for consistency) or setting up a manual Python environment.
+
+### With Docker (Recommended)
+
+This project is fully containerized using Docker and Docker Compose, which is the recommended way to run it locally. This setup includes the web server, a PostgreSQL database, Redis for caching/messaging, and Celery for background tasks.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/joseph-ezekiel/vlmc-api.git
+    cd vlmc-api
+    ```
+
+2.  **Set up environment variables:**
+    Copy the example environment file. The default values are configured to work with the `docker-compose` setup out of the box.
+    ```bash
+    cp .env.example .env
+    ```
+
+3.  **Build and run the services:**
+    ```bash
+    docker-compose up --build
+    ```
+    This will build the images and start all the services. The API will be available at `http://localhost:8000`.
+
+4.  **Run database migrations (in a separate terminal):**
+    Once the containers are running, open a new terminal and run the initial database migrations.
+    ```bash
+    docker-compose exec web python manage.py migrate
+    ```
+
+#### Running Management Commands
+To run any `manage.py` command, use `docker-compose exec web`:
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Manual Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/joseph-ezekiel/vlmc-api.git
 cd vlmc-api
 
-# Create virtual environment and activate it
+# Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure database in settings
-# Run migrations
+# Set up your .env file and configure settings in config/settings/dev.py
+# Run database migrations
 python manage.py migrate
 
 # Start the server
@@ -88,23 +133,24 @@ python manage.py runserver
 * Django REST Framework
 * PostgreSQL (via AWS RDS)
 * Amazon S3 (for media file storage)
-* Render (for deployment)
+* Docker (for containerization)
+* Render (for deployment & hosting)
 * Read the Docs (for documentation)
 * Pytest (for testing)
 
 ---
 
-<!-- ## License
+## License
 
 This project is currently under a **proprietary license** intended for use within the Verboheit competition ecosystem. All rights reserved.
 
 ---
 
-### Collaboration
+## Contributing
 
- 
+As this project is for a specific organization, the repository is private and contributions are managed internally. If you are a team member, please follow the standard fork-and-pull-request workflow on our private repository.
 
---- -->
+Ensure your code adheres to the existing style (checked with `black` and `isort`) and that all tests pass before submitting a pull request.
 
 ---
 
@@ -112,7 +158,7 @@ This project is currently under a **proprietary license** intended for use withi
 
 For support or API key requests, contact:
 
-- Email: `ezekieloluj@gmail.com`
+- Email: `olujay.dev@gmail.com`
 - Discord: `@olujay`
 
 ---
