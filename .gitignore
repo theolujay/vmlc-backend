@@ -34,6 +34,7 @@ MANIFEST
 # Virtual Environments
 .env
 .venv
+.vmlc
 env/
 venv/
 ENV/
@@ -121,12 +122,13 @@ instance/
 target/
 
 # Environment Files
+.env
 .env.*
-!.env.example
+.env.example
 
 # Project Specific
 api/tests/
-models_erd.dot
-models_erd.png
+# models_erd.dot
+# models_erd.png
 *.dot
 *.png
