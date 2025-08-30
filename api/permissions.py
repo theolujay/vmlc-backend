@@ -116,11 +116,11 @@ class IsVerifiedStaff(BasePermission):
         return staff_profile is not None and staff_profile.is_verified
 
 
-class IsObjectOwnerOrAdminRole(BasePermission):
+class IsObjectOwnerOrSuperAdminRole(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object (e.g., `request.user == obj.user`).
-    2. A verified staff member with the 'admin' or 'superadmin' role.
+    2. A verified staff member with the 'superadmin' role.
     """
  
     message = "You do not have permission to perform this action on this object."
@@ -132,12 +132,12 @@ class IsObjectOwnerOrAdminRole(BasePermission):
         elif isinstance(obj, request.user.__class__):
             is_owner = request.user == obj
 
-        # Check if the user is a *verified* admin or superadmin
+        # Check if the user is a superadmin
         staff_profile = _get_staff_profile(request)
-        is_admin = (
+        is_superadmin = (
             staff_profile is not None
             and staff_profile.is_verified
-            and staff_profile.role in (Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN)
+            and staff_profile.role in (Staff.Roles.SUPERADMIN)
         )
 
-        return is_owner or is_admin
+        return is_owner or is_superadmin

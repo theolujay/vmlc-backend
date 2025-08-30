@@ -14,7 +14,7 @@ The VMLC API is built with a rich set of features to manage the entire competiti
 - **Secure Authentication**: JWT-based authentication with access/refresh tokens, API key protection for public endpoints, and a secure OTP-based password reset flow.
 - **Role-Based Access Control (RBAC)**: Granular permissions for different user types.
   - **Candidate Roles**: `screening`, `league`, `final`, `winner`
-  - **Staff Roles**: `volunteer`, `moderator`, `admin`, `owner`
+  - **Staff Roles**: `volunteer`, `moderator`, `admin`, `superadmin`
 - **User Registration & Verification**: Separate registration flows for candidates and staff, with a document upload system for user verification.
 - **Account Management**: Endpoints for users to manage their own profile data.
 - **Admin Controls**: Feature flags to toggle candidate and staff registration.
