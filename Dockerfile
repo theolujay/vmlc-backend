@@ -1,16 +1,16 @@
 # Multi-stage build with uv for faster Python package installation
 FROM python:3.13.1-slim-bookworm AS builder
 
-# Install system dependencies needed for building Python packages
+# Install system dependencies with cleanup in same layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
         build-essential && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install uv - much faster than pip
-RUN pip install --no-cache-dir uv
+# Install uv with pinned version for reproducibility
+RUN pip install --no-cache-dir uv==0.4.30
 
 # Create virtual environment
 ENV VIRTUAL_ENV=/opt/venv
@@ -20,35 +20,41 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install Python dependencies with uv
+# Install Python dependencies with uv and optimizations
 RUN uv pip install \
-    --no-cache \
-    -r requirements.txt
+        --no-cache \
+        --compile-bytecode \
+        -r requirements.txt
 
 # Production stage
 FROM python:3.13.1-slim-bookworm
 
-# Install runtime dependencies only
+# Install runtime dependencies and gosu in single layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpq5 \
         curl && \
-    rm -rf /var/lib/apt/lists/*
+    # Install gosu
+    curl -o /usr/local/bin/gosu -sL "https://github.com/tianon/gosu/releases/download/1.17/gosu-$(dpkg --print-architecture)" && \
+    chmod +x /usr/local/bin/gosu && \
+    gosu --version && \
+    # Cleanup in same layer
+    apt-get remove -y curl && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install gosu for proper user switching
-RUN set -eux; \
-    curl -o /usr/local/bin/gosu -sL "https://github.com/tianon/gosu/releases/download/1.17/gosu-$(dpkg --print-architecture)"; \
-    chmod +x /usr/local/bin/gosu; \
-    gosu --version
+# Python environment settings (consolidated for fewer layers)
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONOPTIMIZE=2 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
-# Python environment settings
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Create non-root user
-RUN addgroup --system app && adduser --system --group app
+# Create non-root user and directories in single layer
+RUN addgroup --system app && \
+    adduser --system --group app && \
+    mkdir -p /home/app/web/staticfiles /home/app/web/media && \
+    chown -R app:app /home/app/web
 
 # Copy virtual environment from builder stage
 COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
@@ -56,17 +62,32 @@ COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
 # Set working directory
 WORKDIR /home/app/web
 
-# Copy application code with proper ownership
+# Copy application code with proper ownership (exclude files via .dockerignore)
 COPY --chown=app:app . .
 
-# Make entrypoint executable
-RUN chmod +x ./entrypoint.sh
+# Make entrypoint executable and validate it exists
+RUN chmod +x ./entrypoint.sh && \
+    test -f ./entrypoint.sh
 
-# Directories will be created by entrypoint.sh at runtime
+# Add health check for Django
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD gosu app python -c "import requests; requests.get('http://localhost:8000/', timeout=5)" || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Use entrypoint script
-ENTRYPOINT ["/home/app/web/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Use entrypoint script with optimized gunicorn settings
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "4", \
+     "--worker-class", "gthread", \
+     "--threads", "2", \
+     "--worker-connections", "1000", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "100", \
+     "--timeout", "30", \
+     "--keepalive", "2", \
+     "--preload", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

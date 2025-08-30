@@ -1,0 +1,39 @@
+# This file is automatically loaded by docker-compose for development
+# For production, use: docker-compose -f docker-compose.yml up
+
+services:
+  web:
+    build:
+      target: builder  # Use builder stage for development with tools
+    volumes:
+      - .:/home/app/web  # Mount source code for hot reloading
+      - /home/app/web/__pycache__  # Exclude pycache
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DEBUG=True
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+  db:
+    ports:
+      - "5432:5432"  # Expose for local development tools
+
+  redis:
+    ports:
+      - "6379:6379"  # Expose for local development tools
+
+  celery_worker:
+    build:
+      target: builder
+    volumes:
+      - .:/home/app/web
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+    command: ["celery", "-A", "config", "worker", "-l", "debug", "--events"]
+
+  flower:
+    build:
+      target: builder
+    volumes:
+      - .:/home/app/web
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
