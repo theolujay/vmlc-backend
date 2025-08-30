@@ -71,14 +71,11 @@ def get_candidate_dashboard_data(candidate):
     total_league_candidates = 0
     if candidate.role == "league" and latest_snapshot:
         # Base queryset for all league candidates with their published total score
-        league_candidates_qs = (
-            Candidate.candidates_by_role("league")
-            .annotate(
-                total_score=Sum(
-                    "scores__score",
-                    filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
-                    default=0.0,
-                )
+        league_candidates_qs = Candidate.candidates_by_role("league").annotate(
+            total_score=Sum(
+                "scores__score",
+                filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
+                default=0.0,
             )
         )
 

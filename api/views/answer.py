@@ -1,6 +1,7 @@
 """
 API view for handling candidate answer submissions for an exam.
 """
+
 import logging
 
 from django.db import transaction
@@ -16,7 +17,8 @@ from ..permissions import IsCandidate
 from ..serializers import CandidateAnswerBulkSerializer
 
 logger = logging.getLogger(__name__)
-    
+
+
 class SubmitAnswersView(APIView):
     """
     Handles the submission of a candidate's answers for a specific exam.

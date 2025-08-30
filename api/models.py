@@ -23,6 +23,7 @@ from django.core.exceptions import ValidationError
 
 from .storage_backends import PublicMediaStorage, PrivateMediaStorage
 
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -47,6 +48,7 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
+
 
 class User(AbstractUser):
     id = models.UUIDField(
@@ -105,11 +107,11 @@ class CandidateManager(models.Manager):
             .prefetch_related("scores__exam", "scores__submitted_by__user")
             .select_related("user")
         )
-    
+
     def active(self):
         """Get only active candidates"""
         return self.filter(user__is_active=True)
-    
+
     def by_role(self, role):
         """Get active candidates by role"""
         return self.filter(role=role, user__is_active=True)
@@ -144,7 +146,7 @@ class Candidate(models.Model):
     total_score: Optional[float]
     average_score: Optional[float]
     exams_taken: Optional[int]
-        
+
     @property
     def is_active(self):
         """Reference the user's is_active status"""
@@ -157,7 +159,7 @@ class Candidate(models.Model):
             return self.user.verification.profile_photo
         except (AttributeError, UserVerification.DoesNotExist):
             return None
-    
+
     @property
     def id_card(self):
         """Get ID card from UserVerification with error handling"""
@@ -165,7 +167,7 @@ class Candidate(models.Model):
             return self.user.verification.id_card
         except (AttributeError, UserVerification.DoesNotExist):
             return None
-        
+
     @property
     def school_result(self):
         """Get school result from UserVerification with error handling"""
@@ -264,7 +266,7 @@ class Candidate(models.Model):
                 for s in scores
             ],
         }
-    
+
     class Meta:
         indexes = [
             models.Index(fields=["role"]),
@@ -293,7 +295,7 @@ class Staff(models.Model):
     role = models.CharField(
         max_length=20, choices=Roles.choices, default=Roles.VOLUNTEER, db_index=True
     )
-    
+
     @property
     def is_active(self):
         """Reference the user's is_active status"""
@@ -306,7 +308,7 @@ class Staff(models.Model):
             return self.user.verification.profile_photo
         except (AttributeError, UserVerification.DoesNotExist):
             return None
-    
+
     @property
     def id_card(self):
         """Get ID card from UserVerification with error handling"""
@@ -314,7 +316,7 @@ class Staff(models.Model):
             return self.user.verification.id_card
         except (AttributeError, UserVerification.DoesNotExist):
             return None
-        
+
     @property
     def utility_bill(self):
         """Get utility bill from UserVerification with error handling"""
@@ -545,6 +547,7 @@ class LeaderboardSnapshot(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+
 class CandidateScoreSnapshot(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -561,6 +564,7 @@ class CandidateScoreSnapshot(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+
 class FeatureFlag(models.Model):
     key = models.CharField(max_length=50, unique=True)
     value = models.BooleanField(default=True)
@@ -575,72 +579,84 @@ class FeatureFlag(models.Model):
     def __str__(self):
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
 
+
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""
     if not value:
         return
-    
+
     ext = os.path.splitext(value.name)[1].lower()
-    valid_extensions = ['.jpg', '.jpeg', '.png', '.pdf']
+    valid_extensions = [".jpg", ".jpeg", ".png", ".pdf"]
     if ext not in valid_extensions:
-        raise ValidationError(f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}')
-    
+        raise ValidationError(
+            f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
+        )
+
     # Check file size (max 10MB)
     if value.size > 10 * 1024 * 1024:
-        raise ValidationError('File size cannot exceed 10MB.')
+        raise ValidationError("File size cannot exceed 10MB.")
+
 
 def validate_profile_photo(value):
     """Validate profile photo file"""
     if not value:
         return
-    
+
     ext = os.path.splitext(value.name)[1].lower()
-    valid_extensions = ['.jpg', '.jpeg', '.png']
+    valid_extensions = [".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
-        raise ValidationError(f'Unsupported image format. Allowed: {", ".join(valid_extensions)}')
-    
+        raise ValidationError(
+            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+        )
+
     # Check file size (max 5MB for images)
     if value.size > 5 * 1024 * 1024:
-        raise ValidationError('Image size cannot exceed 5MB.')
+        raise ValidationError("Image size cannot exceed 5MB.")
+
 
 def validate_document_file(value):
     """Validate verification document file"""
     if not value:
         return
-    
+
     ext = os.path.splitext(value.name)[1].lower()
-    valid_extensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+    valid_extensions = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
-        raise ValidationError(f'Unsupported document format. Allowed: {", ".join(valid_extensions)}')
-    
+        raise ValidationError(
+            f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
+        )
+
     # Check file size (max 15MB for documents)
     if value.size > 15 * 1024 * 1024:
-        raise ValidationError('Document size cannot exceed 15MB.')
+        raise ValidationError("Document size cannot exceed 15MB.")
+
 
 class UserVerification(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="verification")
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="verification"
+    )
     is_pending = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     profile_photo = models.ImageField(
-        upload_to="profile_photos/", 
-        blank=True, 
+        upload_to="profile_photos/",
+        blank=True,
         null=True,
         storage=PublicMediaStorage(),
-        validators=[validate_profile_photo]
+        validators=[validate_profile_photo],
     )
     id_card = models.FileField(
-        upload_to="id_cards/", 
-        blank=True, 
+        upload_to="id_cards/",
+        blank=True,
         null=True,
         storage=PrivateMediaStorage(),
-        validators=[validate_id_card_file]
+        validators=[validate_id_card_file],
     )
     verification_document = models.FileField(
-        upload_to="verification_docs/", 
-        blank=True, 
+        upload_to="verification_docs/",
+        blank=True,
         null=True,
         storage=PrivateMediaStorage(),
-        validators=[validate_document_file]
+        validators=[validate_document_file],
     )
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -654,28 +670,33 @@ class UserVerification(models.Model):
         if self.profile_photo:
             return self.profile_photo.url
         return None
-    
+
     def get_secure_id_card_url(self):
         """Returns a signed URL for ID card that expires in 1 hour"""
         if self.id_card:
             return self.id_card.url  # Automatically signed by PrivateMediaStorage
         return None
-    
+
     def get_secure_verification_doc_url(self):
         """Returns a signed URL for verification document that expires in 1 hour"""
         if self.verification_document:
-            return self.verification_document.url  # Automatically signed by PrivateMediaStorage
+            return (
+                self.verification_document.url
+            )  # Automatically signed by PrivateMediaStorage
         return None
 
     class Meta:
         verbose_name = "User Verification"
+
+
 class EmailOTP(models.Model):
     """One-time password for email verification"""
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
-    
+
     def is_expired(self):
         """Check if the OTP has expired"""
         return timezone.now() > self.expires_at

@@ -16,7 +16,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from ..models import Candidate, Staff
-from ..permissions import HasStaffRole, IsCandidate, IsObjectOwnerOrSuperAdminRole, IsVerifiedStaff
+from ..permissions import (
+    HasStaffRole,
+    IsCandidate,
+    IsObjectOwnerOrSuperAdminRole,
+    IsVerifiedStaff,
+)
 from ..serializers import (
     CandidateDetailSerializer,
     StaffDetailSerializer,
@@ -92,7 +97,9 @@ class AccountManagementView(APIView):
 
         # If a user_id is provided, check if the requester has permission.
         target_user = get_object_or_404(User, id=user_id)
-        if not IsObjectOwnerOrSuperAdminRole().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrSuperAdminRole().has_object_permission(
+            request, self, target_user
+        ):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 

@@ -1,6 +1,7 @@
 """
 Production settings for the VMLC API project.
-These settings are used in the production environment and should not be used in development."""
+These settings are used in the production environment and should not be used in development.
+"""
 
 from .base import *
 import dj_database_url
@@ -14,9 +15,7 @@ DEBUG = False
 
 # === SECURITY SETTINGS ===
 INTERNAL_IPS = [
-    ip.strip()
-    for ip in os.environ.get("INTERNAL_IPS", "").split(",")
-    if ip.strip()
+    ip.strip() for ip in os.environ.get("INTERNAL_IPS", "").split(",") if ip.strip()
 ]
 
 ALLOWED_HOSTS = [
@@ -34,7 +33,7 @@ if not DATABASE_URL:
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=DATABASE_URL, 
+        default=DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -44,7 +43,7 @@ DATABASES = {
 # Validate required AWS environment variables
 REQUIRED_AWS_VARS = [
     "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY", 
+    "AWS_SECRET_ACCESS_KEY",
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_REGION_NAME",
 ]
@@ -62,20 +61,22 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
 AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
 
 # S3 Settings
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+AWS_S3_CUSTOM_DOMAIN = (
+    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+)
 AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
-    'ServerSideEncryption': 'AES256',
-    'ACL': 'bucket-owner-full-control',
+    "CacheControl": "max-age=86400",
+    "ServerSideEncryption": "AES256",
+    "ACL": "bucket-owner-full-control",
 }
 AWS_S3_VERIFY = True
 
 # Security and performance settings
 AWS_S3_FILE_OVERWRITE = False  # Prevent accidental overwrites
-AWS_QUERYSTRING_AUTH = True    # Use signed URLs for private files
+AWS_QUERYSTRING_AUTH = True  # Use signed URLs for private files
 AWS_QUERYSTRING_EXPIRE = 3600  # 1 hour expiry for signed URLs
-AWS_S3_SIGNATURE_VERSION = 's3v4'  # Use latest signature version
-AWS_PRELOAD_METADATA = True    # Better performance
+AWS_S3_SIGNATURE_VERSION = "s3v4"  # Use latest signature version
+AWS_PRELOAD_METADATA = True  # Better performance
 AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB max memory usage
 
 STORAGES = {
@@ -141,7 +142,7 @@ LOGGING = {
             "propagate": False,
         },
         "botocore": {
-            "level": "WARNING", 
+            "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
@@ -152,7 +153,9 @@ LOGGING = {
 # === CORS CONFIGURATION ===
 cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 if cors_origins:
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() for origin in cors_origins.split(",") if origin.strip()
+    ]
 else:
     CORS_ALLOWED_ORIGINS = []
 
@@ -167,7 +170,12 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
 # Validate email settings
 if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
-    required_email_vars = [EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL]
+    required_email_vars = [
+        EMAIL_HOST,
+        EMAIL_HOST_USER,
+        EMAIL_HOST_PASSWORD,
+        DEFAULT_FROM_EMAIL,
+    ]
     if not all(required_email_vars):
         raise ImproperlyConfigured(
             "When using SMTP email backend, you must set EMAIL_HOST, EMAIL_HOST_USER, "
@@ -183,12 +191,12 @@ LICENSE_URL = os.environ.get("LICENSE_URL")
 LOGO_URL = os.environ.get("LOGO_URL")
 
 # === REDIS AND CELERY CONFIGURATION ===
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 # Celery Configuration
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_CACHE_BACKEND = "django-cache"
 
 # Production-specific Celery settings
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -199,20 +207,20 @@ CELERY_BROKER_CONNECTION_RETRY = True
 
 # Redis Cache Configuration
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 20,
-                'retry_on_timeout': True,
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 20,
+                "retry_on_timeout": True,
             },
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
-        'KEY_PREFIX': 'vmlc_api',
-        'TIMEOUT': 300,  # 5 minutes default timeout
+        "KEY_PREFIX": "vmlc_api",
+        "TIMEOUT": 300,  # 5 minutes default timeout
     }
 }
 
@@ -223,7 +231,7 @@ CONN_MAX_AGE = 600
 # Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed

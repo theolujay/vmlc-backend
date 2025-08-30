@@ -16,7 +16,7 @@ from rest_framework.reverse import reverse
 @permission_classes([AllowAny])
 def api_root(request, format=None):
     """API entry point with discoverable endpoints"""
- 
+
     def generate_url_with_placeholder(name, param_name, is_uuid=False):
         """Generate URL with placeholder for dynamic endpoints"""
         try:
@@ -57,7 +57,9 @@ def api_root(request, format=None):
             "candidates": {
                 "collection": safe_reverse("v1:api-candidate-list"),
                 "me": safe_reverse("v1:api-candidate-me"),
-                "detail": generate_url_with_placeholder("v1:api-candidate-detail", "candidate_id", is_uuid=True),
+                "detail": generate_url_with_placeholder(
+                    "v1:api-candidate-detail", "candidate_id", is_uuid=True
+                ),
                 "actions": {
                     "assign-role": generate_url_with_placeholder(
                         "v1:api-candidate-role-assign", "candidate_id", is_uuid=True
@@ -75,7 +77,9 @@ def api_root(request, format=None):
             "staff": {
                 "collection": safe_reverse("v1:api-staff-list"),
                 "me": safe_reverse("v1:api-staff-me"),
-                "detail": generate_url_with_placeholder("v1:api-staff-detail", "staff_id", is_uuid=True),
+                "detail": generate_url_with_placeholder(
+                    "v1:api-staff-detail", "staff_id", is_uuid=True
+                ),
                 "actions": {
                     "assign_role": generate_url_with_placeholder(
                         "v1:api-staff-role-assign", "staff_id", is_uuid=True

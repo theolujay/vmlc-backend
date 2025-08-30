@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 
 from ..models import (
@@ -47,6 +46,7 @@ class CandidateExamScoreSerializer(serializers.ModelSerializer):
     """
     Serializer for displaying an exam title and the score a candidate achieved.
     """
+
     exam = serializers.CharField(source="exam.title", read_only=True)
 
     class Meta:

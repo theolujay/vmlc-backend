@@ -51,6 +51,7 @@ class CandidateListView(ListAPIView):
     Accessible by staff users with roles: moderator, admin, or superadmin.
     Supports pagination and query param filtering.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
@@ -74,6 +75,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
 
     Only accessible to staff with 'owner' or 'admin' roles.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
@@ -102,7 +104,10 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             "Updating candidate %s by user %s",
             serializer.instance.pk,
             self.request.user.id,
-            extra={"user_id": self.request.user.id, "candidate_id": serializer.instance.pk}
+            extra={
+                "user_id": self.request.user.id,
+                "candidate_id": serializer.instance.pk,
+            },
         )
         serializer.save(updated_by=self.request.user.staff_profile)
 
@@ -114,7 +119,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             "Soft-deleting candidate %s by user %s",
             instance.pk,
             self.request.user.id,
-            extra={"user_id": self.request.user.id, "candidate_id": instance.pk}
+            extra={"user_id": self.request.user.id, "candidate_id": instance.pk},
         )
         instance.is_active = False
         instance.save()
@@ -126,6 +131,7 @@ class AssignCandidateRoleView(UpdateAPIView):
 
     Only staff with 'owner' or 'admin' roles are permitted.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
@@ -156,6 +162,6 @@ class AssignCandidateRoleView(UpdateAPIView):
                 "user_id": self.request.user.id,
                 "candidate_id": serializer.instance.pk,
                 "old_role": old_role,
-                "new_role": serializer.instance.role
-            }
+                "new_role": serializer.instance.role,
+            },
         )

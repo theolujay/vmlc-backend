@@ -64,7 +64,7 @@ class ExamListView(ListCreateAPIView):
             .select_related("created_by__user")
             .order_by("-date_created")
         )
- 
+
     def perform_create(self, serializer):
         """
         Saves the staff member who created the exam
@@ -129,6 +129,7 @@ class ExamResultsView(ListAPIView):
             .select_related("candidate__user")
             .order_by("-score")
         )
+
 
 class ExamQuestionsView(ListAPIView):
     """
@@ -196,13 +197,18 @@ def candidate_take_exam(request, exam_id: int):
     exam = get_object_or_404(Exam, pk=exam_id)
 
     if not candidate.is_verified:
-        return Response({"detail": "Candidate must be verified to take this exam."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"detail": "Candidate must be verified to take this exam."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     if candidate.role != exam.stage:
         return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
 
     if not exam.is_currently_open:
-        return Response({"detail": "Exam is not currently open."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"detail": "Exam is not currently open."}, status=status.HTTP_403_FORBIDDEN
+        )
 
     serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)

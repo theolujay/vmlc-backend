@@ -30,12 +30,9 @@ ADMIN_URL = "admin/"
 
 # Use PostgreSQL container instead of SQLite
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:password@db:5432/vmlc_dev"
+    "DATABASE_URL", "postgresql://postgres:password@db:5432/vmlc_dev"
 )
-DATABASES = {
-    "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
-}
+DATABASES = {"default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
 
 SIMPLE_JWT.update({"ACCESS_TOKEN_LIFETIME": timedelta(days=3)})
 
@@ -106,17 +103,17 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "dev@vmlc.local"
 
 # Celery Configuration for Docker development
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://redis:6379/0')
-CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://redis:6379/0")
+CELERY_CACHE_BACKEND = "django-cache"
 
 # Redis cache configuration
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('CACHE_REDIS_URL', 'redis://redis:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }

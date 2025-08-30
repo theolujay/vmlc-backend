@@ -18,6 +18,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     Abstract base serializer for user registration.
     Handles common user creation and password validation logic.
     """
+
     user = UserSerializer()
     password = serializers.CharField(
         write_only=True,
@@ -55,7 +56,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
         validated_data.pop("password2")
         user_data = validated_data.pop("user")
-        
+
         try:
             with transaction.atomic():
                 user = self.create_user(user_data, password)
@@ -69,11 +70,12 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new candidates.
     """
+
     class Meta:
         model = Candidate
         fields = (
             "user",
-            "password", 
+            "password",
             "password2",
             "school",
         )
@@ -83,11 +85,12 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new staff.
     """
+
     class Meta:
         model = Staff
         fields = (
             "user",
             "password",
-            "password2", 
+            "password2",
             "occupation",
         )

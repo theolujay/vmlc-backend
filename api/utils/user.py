@@ -2,9 +2,7 @@
 User-related utility functions.
 """
 
-
 from rest_framework import serializers
-
 
 
 def validate_role_for_serializer(value: str, model_class) -> None:

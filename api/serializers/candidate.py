@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 
 from ..models import (
@@ -6,6 +5,7 @@ from ..models import (
 )
 
 from .user import UserSerializer, MinimalUserSerializer
+
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):
     """

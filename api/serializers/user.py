@@ -12,15 +12,19 @@ from ..models import (
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 class UserSerializer(serializers.ModelSerializer):
     """
     Basic serializer for the Django User model.
     """
+
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
+
     def validate_phone(self, value):
         import re
+
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
             raise serializers.ValidationError("Enter a valid Nigerian phone number.")
         return value
@@ -37,19 +41,23 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "date_joined")
 
+
 class MinimalUserSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for listing user info.
     """
+
     class Meta:
         model = User
         fields = ("email", "first_name", "last_name", "phone")
+
 
 class UserVerificationStatusSerializer(serializers.ModelSerializer):
     """
     Secure serializer for user verification status.
     Only exposes the status and which documents have been uploaded.
     """
+
     documents_uploaded = serializers.SerializerMethodField()
 
     class Meta:
@@ -69,10 +77,12 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "verification_document": bool(obj.verification_document),
         }
 
+
 class UserVerificationUploadSerializer(serializers.ModelSerializer):
     """
     Serializer for uploading verification documents.
     """
+
     class Meta:
         model = UserVerification
         fields = (

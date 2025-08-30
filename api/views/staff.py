@@ -19,7 +19,11 @@ from rest_framework.settings import api_settings
 
 from ..models import Staff
 from ..permissions import HasStaffRole, IsStaff, IsVerifiedStaff
-from ..serializers import StaffDetailSerializer, StaffListSerializer, StaffRoleSerializer
+from ..serializers import (
+    StaffDetailSerializer,
+    StaffListSerializer,
+    StaffRoleSerializer,
+)
 from ..utils.query_filters import filter_staffs
 
 logger = logging.getLogger(__name__)
@@ -76,7 +80,11 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Soft delete the staff (marks as inactive).
     """
 
-    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.SUPERADMIN)]
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.SUPERADMIN),
+    ]
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.select_related("user").all()
     lookup_url_kwarg = "staff_id"
@@ -113,7 +121,11 @@ class AssignStaffRoleView(UpdateAPIView):
     - Only accepts PUT requests.
     """
 
-    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.SUPERADMIN)]
+    permission_classes = [
+        IsAuthenticated,
+        IsVerifiedStaff,
+        HasStaffRole(Staff.Roles.SUPERADMIN),
+    ]
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"

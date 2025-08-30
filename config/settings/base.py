@@ -17,19 +17,16 @@ if not SECRET_KEY:
     raise ValueError("The SECRET_KEY environment variable is not set.")
 
 
-
-AUTH_USER_MODEL = 'api.User'
+AUTH_USER_MODEL = "api.User"
 
 # Grouping apps by origin (Django, third-party, local) improves clarity.
 INSTALLED_APPS = [
-
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "rest_framework",
     "rest_framework_api_key",
     "rest_framework_simplejwt",
@@ -39,7 +36,6 @@ INSTALLED_APPS = [
     "django_filters",
     "storages",
     "django_celery_results",
-
     "api",
 ]
 
@@ -48,7 +44,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "corsheaders.middleware.CorsMiddleware", # Should be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",  # Should be before CommonMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -175,4 +171,3 @@ CELERY_WORKER_LOG_COLOR = False
 # }
 
 # API Documentation settings
-

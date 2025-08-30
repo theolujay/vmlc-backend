@@ -119,11 +119,11 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = core.settings
+DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 addopts = ["--tb=short", "--cov=paystack", "--cov-report=term-missing"]
 testpaths = ["tests"]
 
 [tool.black]
 line-length = 88
-target-version = ['py39'] 
+target-version = ["py312"]

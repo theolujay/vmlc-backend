@@ -8,32 +8,61 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0001_initial'),
+        ("api", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='userverification',
-            options={'verbose_name': 'User Verification'},
+            name="userverification",
+            options={"verbose_name": "User Verification"},
         ),
         migrations.AlterField(
-            model_name='staff',
-            name='role',
-            field=models.CharField(choices=[('superadmin', 'Superadmin'), ('admin', 'Admin'), ('moderator', 'Moderator'), ('sponsor', 'Sponsor'), ('volunteer', 'Volunteer')], db_index=True, default='volunteer', max_length=20),
+            model_name="staff",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("superadmin", "Superadmin"),
+                    ("admin", "Admin"),
+                    ("moderator", "Moderator"),
+                    ("sponsor", "Sponsor"),
+                    ("volunteer", "Volunteer"),
+                ],
+                db_index=True,
+                default="volunteer",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='userverification',
-            name='id_card',
-            field=models.FileField(blank=True, null=True, storage=api.storage_backends.PrivateMediaStorage(), upload_to='private_vmlc_assets/id_cards/', validators=[api.models.validate_id_card_file]),
+            model_name="userverification",
+            name="id_card",
+            field=models.FileField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PrivateMediaStorage(),
+                upload_to="private_vmlc_assets/id_cards/",
+                validators=[api.models.validate_id_card_file],
+            ),
         ),
         migrations.AlterField(
-            model_name='userverification',
-            name='profile_photo',
-            field=models.ImageField(blank=True, null=True, storage=api.storage_backends.PublicMediaStorage(), upload_to='public_vmlc_assets/profile_photos/', validators=[api.models.validate_profile_photo]),
+            model_name="userverification",
+            name="profile_photo",
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PublicMediaStorage(),
+                upload_to="public_vmlc_assets/profile_photos/",
+                validators=[api.models.validate_profile_photo],
+            ),
         ),
         migrations.AlterField(
-            model_name='userverification',
-            name='verification_document',
-            field=models.FileField(blank=True, null=True, storage=api.storage_backends.PrivateMediaStorage(), upload_to='vmlc_assets/users/verification_docs/', validators=[api.models.validate_document_file]),
+            model_name="userverification",
+            name="verification_document",
+            field=models.FileField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PrivateMediaStorage(),
+                upload_to="vmlc_assets/users/verification_docs/",
+                validators=[api.models.validate_document_file],
+            ),
         ),
     ]

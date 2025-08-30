@@ -47,8 +47,10 @@ class QuestionListView(ListCreateAPIView):
         """
         Optimizes the queryset by prefetching related user data.
         """
-        queryset = Question.objects.filter(is_active=True).select_related("created_by__user").order_by(
-            "-date_created"
+        queryset = (
+            Question.objects.filter(is_active=True)
+            .select_related("created_by__user")
+            .order_by("-date_created")
         )
         return filter_questions(queryset, self.request.query_params)
 
@@ -83,9 +85,11 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = QuestionDetailSerializer
-    queryset = Question.objects.filter(is_active=True).select_related(
-        "created_by__user", "updated_by__user"
-    ).all()
+    queryset = (
+        Question.objects.filter(is_active=True)
+        .select_related("created_by__user", "updated_by__user")
+        .all()
+    )
     lookup_url_kwarg = "question_id"
 
     def perform_update(self, serializer):
@@ -107,6 +111,4 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         question_id = instance.id
         instance.is_active = False
         instance.save()
-        logger.info(
-            "Question %s deleted by user %s", question_id, self.request.user.id
-        )
+        logger.info("Question %s deleted by user %s", question_id, self.request.user.id)

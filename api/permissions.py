@@ -122,7 +122,7 @@ class IsObjectOwnerOrSuperAdminRole(BasePermission):
     1. The owner of the object (e.g., `request.user == obj.user`).
     2. A verified staff member with the 'superadmin' role.
     """
- 
+
     message = "You do not have permission to perform this action on this object."
 
     def has_object_permission(self, request, view, obj):

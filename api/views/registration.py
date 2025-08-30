@@ -32,7 +32,9 @@ class BaseRegistrationView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return Response(
-                {"error": "Already authenticated. Please log out to register a new account."},
+                {
+                    "error": "Already authenticated. Please log out to register a new account."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -41,7 +43,9 @@ class BaseRegistrationView(CreateAPIView):
             self.feature_flag_key, default=False
         ):
             return Response(
-                {"detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."},
+                {
+                    "detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -95,21 +99,24 @@ class ToggleFeatureFlagView(APIView):
             obj.save()
 
         logger.info(
-            "Feature flag '%s' toggled to %s by user %s.", self.feature_flag_key, obj.value, request.user.id
+            "Feature flag '%s' toggled to %s by user %s.",
+            self.feature_flag_key,
+            obj.value,
+            request.user.id,
         )
 
         FEATURE_FLAG_MESSAGES = {
             "candidate_registration_open": {
                 True: "Candidate registration is now open.",
-                False: "Candidate registration is now closed."
+                False: "Candidate registration is now closed.",
             },
             "staff_registration_open": {
                 True: "Staff registration is now open.",
-                False: "Staff registration is now closed."
+                False: "Staff registration is now closed.",
             },
             "leaderboard_visible": {
-                True: "Leaderboard is now visible.", 
-                False: "Leaderboard is now hidden."
+                True: "Leaderboard is now visible.",
+                False: "Leaderboard is now hidden.",
             },
         }
 
@@ -117,8 +124,8 @@ class ToggleFeatureFlagView(APIView):
         if message_config:
             message = message_config[obj.value]
         else:
-            feature_name = self.feature_flag_key.replace('_', ' ').title()
-            status_text = 'enabled' if obj.value else 'disabled'
+            feature_name = self.feature_flag_key.replace("_", " ").title()
+            status_text = "enabled" if obj.value else "disabled"
             message = f"'{feature_name}' is now {status_text}."
 
         return Response(
@@ -126,10 +133,14 @@ class ToggleFeatureFlagView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN)]
+    permission_classes = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+    ]
     feature_flag_key = "candidate_registration_open"
 
 
@@ -138,4 +149,3 @@ class ToggleStaffRegistrationView(ToggleFeatureFlagView):
 
     permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.SUPERADMIN)]
     feature_flag_key = "staff_registration_open"
-

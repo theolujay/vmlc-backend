@@ -27,12 +27,11 @@ INTERNAL_IPS = [
 ADMIN_URL = "admin/"
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", 
-    "postgresql://postgres:password@db:5432/vmlc_dev"
+    "DATABASE_URL", "postgresql://postgres:password@db:5432/vmlc_dev"
 )
 DATABASES = {
     "default": dj_database_url.config(
-        default=DATABASE_URL, 
+        default=DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -108,7 +107,7 @@ LOGO_URL = os.environ.get("LOGO_URL")
 # Validate required AWS environment variables
 REQUIRED_AWS_VARS = [
     "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY", 
+    "AWS_SECRET_ACCESS_KEY",
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_REGION_NAME",
 ]
@@ -126,20 +125,22 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
 AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
 
 # S3 Settings
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+AWS_S3_CUSTOM_DOMAIN = (
+    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+)
 AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
-    'ServerSideEncryption': 'AES256',
-    'ACL': 'bucket-owner-full-control',
+    "CacheControl": "max-age=86400",
+    "ServerSideEncryption": "AES256",
+    "ACL": "bucket-owner-full-control",
 }
 AWS_S3_VERIFY = True
 
 # Security and performance settings
 AWS_S3_FILE_OVERWRITE = False  # Prevent accidental overwrites
-AWS_QUERYSTRING_AUTH = True    # Use signed URLs for private files
+AWS_QUERYSTRING_AUTH = True  # Use signed URLs for private files
 AWS_QUERYSTRING_EXPIRE = 3600  # 1 hour expiry for signed URLs
-AWS_S3_SIGNATURE_VERSION = 's3v4'  # Use latest signature version
-AWS_PRELOAD_METADATA = True    # Better performance
+AWS_S3_SIGNATURE_VERSION = "s3v4"  # Use latest signature version
+AWS_PRELOAD_METADATA = True  # Better performance
 AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB max memory usage
 
 STORAGES = {
@@ -165,20 +166,20 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "dev@vmlc.local"
 
 # Celery Configuration for Docker development
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_CACHE_BACKEND = "django-cache"
 
 # Redis cache configuration
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
-} # remember to run `sudo systemctl start redis-server`
+}  # remember to run `sudo systemctl start redis-server`
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB (default is 2.5MB)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB (default is 2.5MB)

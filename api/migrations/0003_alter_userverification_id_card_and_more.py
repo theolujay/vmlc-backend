@@ -8,23 +8,41 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0002_alter_userverification_options_alter_staff_role_and_more'),
+        ("api", "0002_alter_userverification_options_alter_staff_role_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userverification',
-            name='id_card',
-            field=models.FileField(blank=True, null=True, storage=api.storage_backends.PrivateMediaStorage(), upload_to='id_cards/', validators=[api.models.validate_id_card_file]),
+            model_name="userverification",
+            name="id_card",
+            field=models.FileField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PrivateMediaStorage(),
+                upload_to="id_cards/",
+                validators=[api.models.validate_id_card_file],
+            ),
         ),
         migrations.AlterField(
-            model_name='userverification',
-            name='profile_photo',
-            field=models.ImageField(blank=True, null=True, storage=api.storage_backends.PublicMediaStorage(), upload_to='profile_photos/', validators=[api.models.validate_profile_photo]),
+            model_name="userverification",
+            name="profile_photo",
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PublicMediaStorage(),
+                upload_to="profile_photos/",
+                validators=[api.models.validate_profile_photo],
+            ),
         ),
         migrations.AlterField(
-            model_name='userverification',
-            name='verification_document',
-            field=models.FileField(blank=True, null=True, storage=api.storage_backends.PrivateMediaStorage(), upload_to='verification_docs/', validators=[api.models.validate_document_file]),
+            model_name="userverification",
+            name="verification_document",
+            field=models.FileField(
+                blank=True,
+                null=True,
+                storage=api.storage_backends.PrivateMediaStorage(),
+                upload_to="verification_docs/",
+                validators=[api.models.validate_document_file],
+            ),
         ),
     ]

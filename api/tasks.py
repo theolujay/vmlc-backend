@@ -1,6 +1,7 @@
 """
 Celery tasks for the API application.
 """
+
 import logging
 from celery import shared_task
 from django.conf import settings
