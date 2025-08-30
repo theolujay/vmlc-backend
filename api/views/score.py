@@ -33,13 +33,13 @@ class CandidateScoreListView(ListAPIView):
     """
     Retrieve all scores for a given candidate.
 
-    Accessible by staff with 'admin' or 'owner' roles.
+    Accessible by staff with 'admin' or 'superadmin' roles.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = CandidateScoreSerializer
 
@@ -66,7 +66,7 @@ class SubmitScoreView(APIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = SubmitScoreSerializer
 
@@ -126,13 +126,13 @@ class SubmitScoreView(APIView):
 class PublishScoresView(APIView):
     """
     Refreshes and publishes the scores.
-    Admin/Owner only.
+    Admin/Superadmin only.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
     def post(self, request):

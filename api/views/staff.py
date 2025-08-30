@@ -45,13 +45,13 @@ class StaffListView(ListAPIView):
     """
     List all staff members with pagination and optional filtering.
 
-    Only accessible to users with roles: moderator, admin, or owner.
+    Only accessible to users with roles: moderator, admin, or superadmin.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = StaffListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -69,14 +69,14 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff member.
 
-    Only owners are allowed to access this endpoint.
+    Only superadmins are allowed to access this endpoint.
 
     - GET: Retrieve staff details.
     - PUT/PATCH: Update staff profile.
     - DELETE: Soft delete the staff (marks as inactive).
     """
 
-    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.OWNER)]
+    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.SUPERADMIN)]
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.select_related("user").all()
     lookup_url_kwarg = "staff_id"
@@ -109,11 +109,11 @@ class AssignStaffRoleView(UpdateAPIView):
     """
     Assign a new role to a staff member.
 
-    - Only owners can change roles.
+    - Only superadmins can change roles.
     - Only accepts PUT requests.
     """
 
-    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.OWNER)]
+    permission_classes = [IsAuthenticated, IsVerifiedStaff, HasStaffRole(Staff.Roles.SUPERADMIN)]
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"

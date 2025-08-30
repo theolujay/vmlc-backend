@@ -56,7 +56,7 @@ class StaffDashboardView(APIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
     def get(self, request):
@@ -77,7 +77,7 @@ class AccountManagementView(APIView):
     - PUT/PATCH: Update account and profile.
 
     Regular users can manage their own accounts.
-    Staff with 'admin' or 'owner' roles can manage other users' accounts.
+    Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
     """
 
     permission_classes = [IsAuthenticated]

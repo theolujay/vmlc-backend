@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 class PublishLeaderboardView(APIView):
     """
-    Refreshes and publishes the leaderboard snapshot. Admin/Owner only.
+    Refreshes and publishes the leaderboard snapshot. Admin/Superadmin only.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
     def post(self, request):
@@ -110,12 +110,12 @@ class LoadLeaderboardView(APIView):
 class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     """
     Toggles the 'leaderboard_open' feature flag.
-    Accessible only by staff with 'admin' or 'owner' roles.
+    Accessible only by staff with 'admin' or 'superadmin' roles.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     feature_flag_key = "leaderboard_visible"

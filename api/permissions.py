@@ -79,7 +79,7 @@ class IsLeagueCandidate(BasePermission):
 # Pre-instantiate permission classes for efficiency in composed permissions.
 _is_league_candidate_perm = IsLeagueCandidate()
 _is_elevated_staff_perm = HasStaffRole(
-    Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER
+    Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN
 )()
 
 
@@ -120,7 +120,7 @@ class IsObjectOwnerOrAdminRole(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object (e.g., `request.user == obj.user`).
-    2. A verified staff member with the 'admin' or 'owner' role.
+    2. A verified staff member with the 'admin' or 'superadmin' role.
     """
  
     message = "You do not have permission to perform this action on this object."
@@ -132,12 +132,12 @@ class IsObjectOwnerOrAdminRole(BasePermission):
         elif isinstance(obj, request.user.__class__):
             is_owner = request.user == obj
 
-        # Check if the user is a *verified* admin or owner
+        # Check if the user is a *verified* admin or superadmin
         staff_profile = _get_staff_profile(request)
         is_admin = (
             staff_profile is not None
             and staff_profile.is_verified
-            and staff_profile.role in (Staff.Roles.ADMIN, Staff.Roles.OWNER)
+            and staff_profile.role in (Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN)
         )
 
         return is_owner or is_admin

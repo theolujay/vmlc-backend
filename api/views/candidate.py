@@ -48,13 +48,13 @@ class CandidateListView(ListAPIView):
     """
     List all candidates.
 
-    Accessible by staff users with roles: moderator, admin, or owner.
+    Accessible by staff users with roles: moderator, admin, or superadmin.
     Supports pagination and query param filtering.
     """
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = CandidateListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -77,7 +77,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = CandidateDetailSerializer
     lookup_url_kwarg = "candidate_id"
@@ -129,7 +129,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()

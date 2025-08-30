@@ -220,12 +220,12 @@ Content-Type: application/json
 | `volunteer` | Basic staff member | User verification |
 | `sponsor` | Competition sponsor | Vanity role |
 | `moderator` | Content moderator | View candidates/staff, manage questions |
-| `admin` | System administrator | Full management except staff roles |
-| `owner` | Platform owner | All permissions including staff management |
+| `admin` | Operations administrator | Full management except staff roles |
+| `superadmin` | Platform administrator | All permissions including staff management |
 
 ### Role Progression
 - **Candidates**: `screening` → `league` → `final` → `winner`
-- **Staff**: `volunteer` → `moderator` → `admin` → `owner`
+- **Staff**: `volunteer` → `moderator` → `admin` → `superadmin`
 
 ---
 
@@ -234,7 +234,7 @@ Content-Type: application/json
 <!-- #### Toggle Registration Status
 **Candidate Registration Toggle**
 **Endpoint:** `POST /toggle-candidate-registration/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
 {
@@ -251,7 +251,7 @@ Content-Type: application/json
 
 **Staff Registration Toggle**  
 **Endpoint:** `POST /toggle-staff-registration/`  
-**Required Role:** `owner`  
+**Required Role:** `superadmin`  
 **Request Body:** Same as candidate toggle -->
 
 #### Register New Users
@@ -338,7 +338,7 @@ Content-Type: application/json
 ### Candidate Management
 #### List Candidates
 **Endpoint:** `GET /candidates/`  
-**Required Role:** `moderator`, `admin`, `owner`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
 - `page` (integer): Page number for pagination
@@ -372,7 +372,7 @@ Content-Type: application/json
 #### Role Management
 **Assign Role**  
 **Endpoint:** `POST /candidates/{candidate_id}/roles/assign/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
 {
@@ -383,7 +383,7 @@ Content-Type: application/json
 #### Scores
 **Get Candidate Scores**  
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
 {
@@ -415,7 +415,7 @@ Content-Type: application/json
 
 **Publish Scores (Staff only)**  
 **Endpoint:** `POST /publish-scores/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Response:** `201 Created`
 ```json
 {
@@ -426,7 +426,7 @@ Content-Type: application/json
 
 **Get Exam History**  
 **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
 [
@@ -442,7 +442,7 @@ Content-Type: application/json
 ### Staff Management
 #### List Staff
 **Endpoint:** `GET /staff/`  
-**Required Role:** `moderator`, `admin`, `owner`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -452,7 +452,7 @@ Content-Type: application/json
 
 #### Assign Staff Role
 **Endpoint:** `POST /staff/{staff_id}/roles/assign/`  
-**Required Role:** `owner`  
+**Required Role:** `superadmin`  
 **Request Body:**
 ```json
 {
@@ -463,7 +463,7 @@ Content-Type: application/json
 ### Exam Management
 #### List Exams
 **Endpoint:** `GET /exams/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -497,7 +497,7 @@ Content-Type: application/json
 #### Exam Details
 **Get Exam Information**  
 **Endpoint:** `GET /exams/{exam_id}/`  
-**Required Role:** `admin` or `owner`  
+**Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
 {
@@ -527,7 +527,7 @@ Content-Type: application/json
 #### Exam Interaction
 **View Exam Questions**  
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
-**Required Role:** `admin` or `owner`  
+**Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
 {
@@ -552,7 +552,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 - **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
 
-- **Required Role:** `admin` or `owner`
+- **Required Role:** `admin` or `superadmin`
 
 - **Response:** `200 OK`
 ```json
@@ -633,7 +633,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ### Question Management
 #### List Questions
 **Endpoint:** `GET /questions/`  
-**Required Role:** `moderator`, `admin`, `owner`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -662,7 +662,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 #### Question Details
 **Get Question**  
 **Endpoint:** `GET /questions/{question_id}/`  
-**Required Role:** `moderator`, `admin`, `owner`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
 {
@@ -740,7 +740,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 #### Staff Dashboard
 **Endpoint:** `GET /dashboard/staff/`  
-**Required Role:** `moderator`, `admin`, `owner`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
 {
@@ -802,7 +802,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ### Leaderboard
 #### Toggle Leaderboard Visibility
 **Endpoint:** `POST /toggle-leaderboard/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
 {
@@ -819,7 +819,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 #### Publish Leaderboard
 **Endpoint:** `POST /publish-leaderboard/`  
-**Required Role:** `admin`, `owner`  
+**Required Role:** `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
 {

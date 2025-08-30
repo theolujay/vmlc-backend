@@ -25,13 +25,13 @@ class QuestionListView(ListCreateAPIView):
     - POST: Creates a new question from provided data.
 
     Permissions:
-        - Only accessible to verified staff with role: moderator, admin, or owner.
+        - Only accessible to verified staff with role: moderator, admin, or superadmin.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -74,13 +74,13 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Deletes the question.
 
     Permissions:
-        - Only accessible to staff with role: moderator, admin, or owner.
+        - Only accessible to staff with role: moderator, admin, or superadmin.
     """
 
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = QuestionDetailSerializer
     queryset = Question.objects.filter(is_active=True).select_related(

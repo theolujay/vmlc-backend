@@ -40,7 +40,7 @@ class ExamListView(ListCreateAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
@@ -84,7 +84,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
@@ -111,7 +111,7 @@ class ExamResultsView(ListAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
@@ -140,7 +140,7 @@ class ExamQuestionsView(ListAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = QuestionDetailSerializer
 
@@ -166,7 +166,7 @@ class ExamHistoryView(ListAPIView):
     permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.OWNER),
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"

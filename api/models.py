@@ -276,7 +276,7 @@ class Staff(models.Model):
     """
 
     class Roles(models.TextChoices):
-        OWNER = "owner", "Owner"
+        SUPERADMIN = "superadmin", "Superadmin"
         ADMIN = "admin", "Admin"
         MODERATOR = "moderator", "Moderator"
         SPONSOR = "sponsor", "Sponsor"
