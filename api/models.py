@@ -21,6 +21,8 @@ from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 
+from .storage_backends import PublicMediaStorage, PrivateMediaStorage
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -620,21 +622,24 @@ class UserVerification(models.Model):
     is_pending = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     profile_photo = models.ImageField(
-        upload_to="user_profile_photos/", 
+        upload_to="profile_photos/", 
         blank=True, 
         null=True,
+        storage=PublicMediaStorage(),
         validators=[validate_profile_photo]
     )
     id_card = models.FileField(
-        upload_to="user_id_cards/", 
+        upload_to="id_cards/", 
         blank=True, 
         null=True,
+        storage=PrivateMediaStorage(),
         validators=[validate_id_card_file]
     )
     verification_document = models.FileField(
-        upload_to="user_verification_docs/", 
+        upload_to="verification_docs/", 
         blank=True, 
         null=True,
+        storage=PrivateMediaStorage(),
         validators=[validate_document_file]
     )
     date_created = models.DateTimeField(auto_now_add=True)
@@ -643,10 +648,27 @@ class UserVerification(models.Model):
     def __str__(self):
         return f"Verification for {self.user.get_full_name()}"
 
+    # Helper methods to get secure URLs
+    def get_profile_photo_url(self):
+        """Returns public URL for profile photo (no expiration)"""
+        if self.profile_photo:
+            return self.profile_photo.url
+        return None
+    
+    def get_secure_id_card_url(self):
+        """Returns a signed URL for ID card that expires in 1 hour"""
+        if self.id_card:
+            return self.id_card.url  # Automatically signed by PrivateMediaStorage
+        return None
+    
+    def get_secure_verification_doc_url(self):
+        """Returns a signed URL for verification document that expires in 1 hour"""
+        if self.verification_document:
+            return self.verification_document.url  # Automatically signed by PrivateMediaStorage
+        return None
+
     class Meta:
         verbose_name = "User Verification"
-        verbose_name_plural = "User Verifications"
-        
 class EmailOTP(models.Model):
     """One-time password for email verification"""
     user = models.ForeignKey(User, on_delete=models.CASCADE)

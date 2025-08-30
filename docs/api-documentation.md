@@ -859,8 +859,44 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ```
 
 ### User Verification
-**Submit/Update Own Verification Documents**  
-**Endpoint:** `POST /user-verification/` or `PATCH /user-verification/`  
+
+User verification is handled with a focus on security and privacy. Sensitive documents like ID cards are stored in a private storage and can only be accessed via secure, authenticated endpoints that serve the file directly, preventing URL leakage.
+
+---
+
+#### 1. Get Verification Status
+
+Retrieve the verification status of the currently authenticated user.
+
+**Endpoint:** `GET /user/verification/status/`
+
+**Required Role:** Any authenticated user
+
+**Response:** `200 OK`
+
+This response indicates whether documents have been uploaded and the current status of the verification process. It does not contain any sensitive file URLs.
+
+```json
+{
+    "is_pending": true,
+    "is_verified": false,
+    "date_created": "2025-08-30T16:33:19Z",
+    "date_updated": "2025-08-30T17:59:17Z",
+    "documents_uploaded": {
+        "profile_photo": true,
+        "id_card": true,
+        "verification_document": false
+    }
+}
+```
+
+---
+
+#### 2. Submit or Update Verification Documents
+
+This endpoint allows users to submit their documents for the first time (`POST`) or update an existing, unapproved submission (`PATCH`).
+
+**Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`  
 **Required Role:** Any authenticated user  
 **Headers:**
 ```text
@@ -868,40 +904,145 @@ Authorization: Bearer <access_token>
 Content-Type: multipart/form-data
 ```
 
-**Response:** `200 OK`
+**Form Data:**
+- `profile_photo` (file): Your profile picture.
+- `id_card` (file): A valid identification document.
+- `verification_document` Recent school result forcandidates | NIN/Driver's License/Passport for staff
+
+---
+
+##### **A) Initial Submission (`POST`)**
+Use this method to submit your verification documents for the first time. Your status will be set to `pending`.
+
+**Conditions:**
+- Fails if you are already verified.
+- Fails if you already have a verification request pending; in that case, use `PATCH` method to re-upload duing pending verfication.
+
+**Success Response (`200 OK`):**
 ```json
 {
-  "detail": "Verification data submitted successfully.",
-  "verification_data": {
-    "user": {
-      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-      "email": "john@example.com",
-      "first_name": "John",
-      "last_name": "Doe",
-      "phone": "+23490xxxxxxxx",
-      "date_joined": "2024-01-15T10:30:00Z"
-    },
-    "is_pending": true,
-    "is_verified": false,
-    "profile_photo": "https://.../user_profile_photos/photo.jpg",
-    "id_card": "https://.../user_id_cards/id.pdf",
-    "verification_document": null,
-    "date_created": "2024-07-25T10:00:00Z",
-    "date_updated": "2024-07-25T10:00:00Z"
-  }
+    "detail": "Documents uploaded successfully."
 }
 ```
 
-**Get Own Verification Status**  
-**Endpoint:** `GET /user-verification/`  
-**Required Role:** Any authenticated user  
-**Response:** `200 OK`
+**Error Response (`400 Bad Request`):**
 ```json
 {
-  "verification_data": {
-    // ... same structure as above
-  }
+    "detail": "This user has already been verified."
 }
+```
+*or*
+```json
+{
+    "detail": "User already has a verification request pending."
+}
+```
+
+---
+
+##### **B) Updating a Submission (`PATCH`)**
+Use this method to update one or more documents if your initial submission has not yet been approved.
+
+**Conditions:**
+- Fails if you are already verified.
+
+**Success Response (`200 OK`):**
+The response includes the updated status and a list of which documents have been uploaded.
+```json
+{
+    "detail": "Verification data updated successfully.",
+    "verification_data": {
+        "is_pending": true,
+        "is_verified": false,
+        "date_created": "2025-08-30T16:33:19Z",
+        "date_updated": "2025-08-31T10:20:00Z",
+        "documents_uploaded": {
+            "profile_photo": true,
+            "id_card": true,
+            "verification_document": true
+        }
+    }
+}
+```
+
+**Error Response (`400 Bad Request`):**
+```json
+{
+    "detail": "Cannot update verification data for an already verified user."
+}
+```
+
+---
+
+#### 3. Access Verification Documents
+
+Access uploaded documents. The API serves the file content directly to ensure security.
+
+**For Own Documents:**
+
+**Endpoint:** `GET /user/verification/documents/{file_type}/`
+
+**Required Role:** Any authenticated user
+
+**URL Parameters:**
+- `file_type` (string): The type of file to retrieve. Must be one of `id_card`, `verification_document`, or `profile_photo`.
+
+**For Other Users' Documents (SuperAdmin Only):**
+
+**Endpoint:** `GET /user/verification/documents/{file_type}/{user_id}/`
+
+**Required Role:** `superadmin`
+
+**URL Parameters:**
+- `file_type` (string): The type of file to retrieve.
+- `user_id` (uuid): The ID of the user whose document is being accessed.
+
+**Successful Response:**
+- The API will return the raw file content (e.g., an image or a PDF) with the appropriate `Content-Type` header. There is no JSON response body for a successful file retrieval.
+
+**Error Responses:**
+- `404 Not Found`: If the file does not exist or has not been uploaded.
+- `403 Forbidden`: If you do not have permission to access the document.
+
+---
+
+#### 4. List All Verification Requests (Admin)
+
+Retrieve a list of all user verification submissions for administrative review.
+
+**Endpoint:** `GET /user/verification/list/`
+
+**Required Role:** `admin`, `superadmin`
+
+**Response:** `200 OK`
+
+Returns a list of all verification records, indicating which documents have been provided for each user.
+
+```json
+[
+    {
+        "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+        "user_name": "John Doe",
+        "email": "john@example.com",
+        "is_pending": true,
+        "is_verified": false,
+        "has_profile_photo": true,
+        "has_id_card": true,
+        "has_verification_document": false,
+        "date_created": "2025-08-30T16:33:19Z"
+    },
+    {
+        "user_id": "a9xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx",
+        "user_name": "Jane Smith",
+        "email": "jane@example.com",
+        "is_pending": false,
+        "is_verified": true,
+        "has_profile_photo": true,
+        "has_id_card": true,
+        "has_verification_document": true,
+        "date_created": "2025-08-29T11:00:00Z"
+    }
+]
 ```
 
 ---
