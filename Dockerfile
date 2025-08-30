@@ -17,14 +17,14 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN uv venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Copy requirements first for better layer caching
-COPY requirements.txt .
+# Copy dependency files first for better layer caching
+COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies with uv and optimizations
-RUN uv pip install \
+# Install Python dependencies with uv using lock file
+RUN uv sync \
+        --frozen \
         --no-cache \
-        --compile-bytecode \
-        -r requirements.txt
+        --compile-bytecode
 
 # Production stage
 FROM python:3.13.1-slim-bookworm

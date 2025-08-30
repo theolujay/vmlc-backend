@@ -23,25 +23,25 @@ if [ "$1" = 'gunicorn' ]; then
     if [ -n "$DATABASE_URL" ]; then
         log "Waiting for database to be ready..."
         python -c "
-import os, time, psycopg2
+import os, time, psycopg
 from urllib.parse import urlparse
 
 url = urlparse(os.environ['DATABASE_URL'])
 for i in range(30):
     try:
-        conn = psycopg2.connect(
+        conn = psycopg.connect(
             host=url.hostname,
             port=url.port or 5432,
             user=url.username,
             password=url.password,
-            database=url.path[1:],
+            dbname=url.path[1:],
             connect_timeout=1
         )
         conn.close()
         print('Database is ready!')
         break
-    except:
-        print(f'Database not ready, waiting... ({i+1}/30)')
+    except Exception as e:
+        print(f'Database not ready, waiting... ({i+1}/30) - {e}')
         time.sleep(2)
 else:
     print('Database connection timeout!')
