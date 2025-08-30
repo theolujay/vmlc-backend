@@ -260,16 +260,18 @@ urlpatterns = [
         dashboard.AccountManagementView.as_view(),
         name="api-account-management-detail",
     ),
-    path(
-    "user-verification/",
-    user.UserVerificationView.as_view(),
-    name="api-verification",
-    ),
-    path(
-        "user-verification/<uuid:user_id>/",
-        user.UserVerificationView.as_view(),
-        name="api-verification-detail",
-    ),
+    
+    # =============================================================================
+    # USER VERIFICATION
+    # =============================================================================
+    path("user/verification/status/", user.UserVerificationStatusView.as_view(), name="user-verification-status"),
+    path("user/verification/upload/", user.UserVerificationUploadView.as_view(), name="user-verification-upload"),
+    path("user/verification/documents/<str:file_type>/", user.UserVerificationDocumentView.as_view(), name="user-verification-document"),
+    path("user/verification/documents/<str:file_type>/<uuid:user_id>/", 
+        user.UserVerificationDocumentView.as_view(), 
+        name="admin-verification-document"),
+    path("user/verification/list/", user.AdminVerificationListView.as_view(), name="admin-verification-list")
+
     # path(
     #     "candidates/me/",
     #     candidate.CandidateMeView.as_view(),
