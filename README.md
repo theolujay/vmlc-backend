@@ -79,7 +79,7 @@ This project is fully containerized using Docker and Docker Compose. The setup i
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/joseph-ezekiel/vlmc-api.git
+    git clone https://github.com/theolujay/vlmc-api.git
     cd vlmc-api
     ```
 
@@ -116,7 +116,7 @@ docker-compose exec web python manage.py createsuperuser
 
 ```bash
 # Clone the repository
-git clone https://github.com/joseph-ezekiel/vlmc-api.git
+git clone https://github.com/theolujay/vlmc-api.git
 cd vlmc-api
 
 # Create and activate a virtual environment
@@ -168,7 +168,7 @@ Ensure your code adheres to the existing style (checked with `black` and `isort`
 
 For support or API key requests, contact:
 
-- Email: `olujay.dev@gmail.com`
+- Email: `theolujay@gmail.com`
 - Discord: `@olujay`
-
+- X: `@theolujay`
 ---
