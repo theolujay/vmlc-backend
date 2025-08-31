@@ -36,7 +36,7 @@ urlpatterns = [
     # =============================================================================
     # ROOT & AUTHENTICATION
     # =============================================================================
-    path("", root.api_root, name="api-root"),
+    path("root/", root.api_root, name="api-root"),
     path("auth/login/", auth.LoginView.as_view(), name="api-login"),
     path("auth/logout/", auth.LogoutView.as_view(), name="api-logout"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),

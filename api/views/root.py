@@ -40,7 +40,8 @@ def api_root(request, format=None):
             return None
 
     return Response(
-        {
+        {   
+            "api-root": safe_reverse("v1:api-root"),
             "authentication": {
                 "login": safe_reverse("v1:api-login"),
                 "logout": safe_reverse("v1:api-logout"),

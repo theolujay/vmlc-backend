@@ -46,9 +46,9 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ## Base URL
 ```
-https://verboheit-backend.onrender.com/api/v1/
+https://vmlc-api.onrender.com/api/v1/
 ```
-All endpoints are relative to this base URL.
+All endpoints are relative to this base URL. List of endpoints available at `root/` endpoint.
 
 ---
 
