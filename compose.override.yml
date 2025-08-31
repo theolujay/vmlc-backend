@@ -3,8 +3,7 @@
 
 services:
   web:
-    build:
-      target: builder  # Use builder stage for development with tools
+    build: .
     volumes:
       - .:/home/app/web  # Mount source code for hot reloading
       - /home/app/web/__pycache__  # Exclude pycache
@@ -22,8 +21,7 @@ services:
       - "6379:6379"  # Expose for local development tools
 
   celery_worker:
-    build:
-      target: builder
+    build: .
     volumes:
       - .:/home/app/web
     environment:
@@ -32,8 +30,7 @@ services:
     command: ["celery", "-A", "config", "worker", "-l", "debug", "--events", "--pool=solo"]
 
   flower:
-    build:
-      target: builder
+    build: .
     volumes:
       - .:/home/app/web
     environment:

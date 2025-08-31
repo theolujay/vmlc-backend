@@ -58,15 +58,15 @@ else:
     python manage.py collectstatic --noinput --clear
 
     # Optional: Create superuser if credentials are provided
-    if [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+    if [ -n "$SUPERUSER_EMAIL" ] && [ -n "$SUPERUSER_PASSWORD" ]; then
         log "Creating superuser..."
         python manage.py shell -c "
 from django.contrib.auth import get_user_model
 User = get_user_model()
-if not User.objects.filter(email='$DJANGO_SUPERUSER_EMAIL').exists():
-    User.objects.create_superuser('$DJANGO_SUPERUSER_EMAIL', '$DJANGO_SUPERUSER_EMAIL', '$DJANGO_SUPERUSER_PASSWORD')
+if not User.objects.filter(email='$SUPERUSER_EMAIL').exists():
+    User.objects.create_superuser('$SUPERUSER_EMAIL', '$SUPERUSER_PASSWORD')
     print('Superuser created')
-else:
+elif User.objects.filter(email='$SUPERUSER_EMAIL').exists():
     print('Superuser already exists')
 "
     fi
