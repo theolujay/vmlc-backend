@@ -15,7 +15,7 @@ The VMLC API is built with a rich set of features to manage the entire competiti
 - **Role-Based Access Control (RBAC)**: Granular permissions for different user types.
   - **Candidate Roles**: `screening`, `league`, `final`, `winner`
   - **Staff Roles**: `volunteer`, `moderator`, `admin`, `superadmin`
-- **User Registration & Verification**: Separate registration flows for candidates and staff, with a document upload system for user verification.
+- **User Registration & Verification**: Separate registration flows for candidates and staff, with a document upload system for user verification. Sensitive documents are stored in a private storage and can only be accessed via secure, authenticated endpoints.
 - **Account Management**: Endpoints for users to manage their own profile data.
 - **Admin Controls**: Feature flags to toggle candidate and staff registration.
 
@@ -36,7 +36,8 @@ The VMLC API is built with a rich set of features to manage the entire competiti
 - **Rich API Documentation**:
   - Interactive documentation via Swagger UI and ReDoc.
   - Comprehensive, human-written guides hosted on Read the Docs.
-- **Containerized & Deployment Ready**: Dockerized for consistent environments and pre-configured for deployment on platforms like Render.
+  - A local `api-documentation.md` file with detailed endpoint information.
+- **Containerized & Deployment Ready**: Dockerized for consistent environments and pre-configured for deployment on platforms like Render. The Docker setup uses a multi-stage build for optimized production images and `uv` for faster dependency installation.
 - **Visual Database Schema**: An Entity Relationship Diagram (ERD) is included in the documentation to visualize data models.
 
 ---
@@ -44,15 +45,17 @@ The VMLC API is built with a rich set of features to manage the entire competiti
 ## Project Structure
 
 ```bash
-verboheit_mlc/
+vmlc-api/
 ├── api/                # DRF models, views, serializers, permissions, URL paths, and tests
-├── core/               # Project settings and ASGI/WGI configuration
-├── docs/               # Sphinx documentation, database ERD
+├── config/             # Project settings and ASGI/WGI configuration
+├── docs/               # Sphinx documentation, database ERD and local API documentation
 ├── staticfiles/        # Collected static files for deployment
 ├── manage.py           # Django entry point
-├── requirements.txt    # All project dependencies
+├── requirements.txt    # Project dependencies
 ├── Dockerfile          # Containerization configuration
-````
+├── compose.yml         # Production Docker Compose configuration
+├── compose.override.yml # Development Docker Compose configuration
+```
 
 ---
 
@@ -60,7 +63,9 @@ verboheit_mlc/
 
 Visit the official API documentation for detailed usage instructions, endpoint listings, and role behavior guides:
 
-Read the Docs: **[vlmc-api.readthedocs.io](https://vlmc-api.readthedocs.io/)**s
+Read the Docs: **[vlmc-api.readthedocs.io](https://vlmc-api.readthedocs.io/)**
+
+For a quick reference of endpoints and their usage, see the local API documentation file: `docs/api-documentation.md`.
 
 ---
 
@@ -70,7 +75,7 @@ There are two ways to run the project locally: using Docker (recommended for con
 
 ### With Docker (Recommended)
 
-This project is fully containerized using Docker and Docker Compose, which is the recommended way to run it locally. This setup includes the web server, a PostgreSQL database, Redis for caching/messaging, and Celery for background tasks.
+This project is fully containerized using Docker and Docker Compose. The setup is split into a `compose.yml` for production and a `compose.override.yml` for development, which enables features like hot-reloading.
 
 1.  **Clone the repository:**
     ```bash
@@ -85,10 +90,15 @@ This project is fully containerized using Docker and Docker Compose, which is th
     ```
 
 3.  **Build and run the services:**
+    For development with hot-reloading:
     ```bash
-    docker-compose up --build
+    docker compose up --build
     ```
-    This will build the images and start all the services. The API will be available at `http://localhost:8000`.
+    For a production-like environment:
+    ```bash
+    docker compose -f compose.yml up --build
+    ```
+    The API will be available at `http://localhost:8000`.
 
 4.  **Run database migrations (in a separate terminal):**
     Once the containers are running, open a new terminal and run the initial database migrations.
@@ -131,11 +141,11 @@ python manage.py runserver
 * Python 3.13
 * Django 5+
 * Django REST Framework
-* PostgreSQL (via AWS RDS)
-* Amazon S3 (for media file storage)
-* Docker (for containerization)
-* Render (for deployment & hosting)
-* Read the Docs (for documentation)
+* PostgreSQL
+* Redis
+* Celery
+* Docker & Docker Compose
+* `uv` for package installation
 * Pytest (for testing)
 
 ---

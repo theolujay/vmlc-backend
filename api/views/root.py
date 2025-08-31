@@ -127,5 +127,30 @@ def api_root(request, format=None):
                 "publish": safe_reverse("v1:api-publish-leaderboard"),
                 "load": safe_reverse("v1:api-load-leaderboard"),
             },
+            "email_verification": {
+                "verify_otp": safe_reverse("v1:api-verify-email-otp"),
+                "resend_otp": safe_reverse("v1:api-resend-email-otp"),
+            },
+            "password_change": {
+                "request": safe_reverse("v1:api-password-change-request"),
+                "confirm": safe_reverse("v1:api-password-change-confirm-otp"),
+                "change": safe_reverse("v1:api-password-change"),
+                "resend_otp": safe_reverse("v1:api-password-change-resend-otp"),
+            },
+            "user_verification": {
+                "status": safe_reverse("v1:api-user-verification-status"),
+                "upload": safe_reverse("v1:api-user-verification-upload"),
+                "list": safe_reverse("v1:api-user-verification-list"),
+                "documents": {
+                    "own": generate_url_with_placeholder(
+                        "v1:api-user-verification-documents", "file_type"
+                    ),
+                    "other": generate_url_with_placeholder(
+                        "v1:api-user-verification-document-detail",
+                        "file_type",
+                        is_uuid=True,
+                    ).replace("True", "<user_id>"),
+                },
+            },
         }
     )
