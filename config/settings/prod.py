@@ -189,13 +189,13 @@ CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL")
 CONTACT_URL = os.environ.get("CONTACT_URL")
 LICENSE_URL = os.environ.get("LICENSE_URL")
 LOGO_URL = os.environ.get("LOGO_URL")
-
 # === REDIS AND CELERY CONFIGURATION ===
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", "redis://redis:6379/1")
 
 # Celery Configuration
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_CACHE_BACKEND = "django-cache"
 
 # Production-specific Celery settings
@@ -209,7 +209,7 @@ CELERY_BROKER_CONNECTION_RETRY = True
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
+        "LOCATION": CACHE_REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
@@ -219,7 +219,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc_api",
+        "KEY_PREFIX": "vmlc-api",
         "TIMEOUT": 300,  # 5 minutes default timeout
     }
 }

@@ -12,22 +12,20 @@ RUN apt-get update && \
 # Install uv with pinned version for reproducibility
 RUN pip install --no-cache-dir uv==0.4.30
 
-# Create virtual environment
-ENV VIRTUAL_ENV=/opt/venv
-RUN uv venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
 # Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies with uv using lock file
+# Install Python dependencies with uv using project mode
 RUN uv sync \
         --frozen \
         --no-cache \
         --compile-bytecode
 
+# Set PATH to use uv's installed packages
+ENV PATH="/.venv/bin:$PATH"
+
 # Production stage
-FROM python:3.13.1-slim-bookworm
+FROM python:3.13.1-slim-bookworm AS production
 
 # Install runtime dependencies and gosu in single layer
 RUN apt-get update && \
@@ -47,8 +45,7 @@ RUN apt-get update && \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONOPTIMIZE=2 \
-    VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/.venv/bin:$PATH"
 
 # Create non-root user and directories in single layer
 RUN addgroup --system app && \
@@ -57,7 +54,7 @@ RUN addgroup --system app && \
     chown -R app:app /home/app/web
 
 # Copy virtual environment from builder stage
-COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
+COPY --from=builder /.venv /.venv
 
 # Set working directory
 WORKDIR /home/app/web
@@ -78,16 +75,4 @@ EXPOSE 8000
 
 # Use entrypoint script with optimized gunicorn settings
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "4", \
-     "--worker-class", "gthread", \
-     "--threads", "2", \
-     "--worker-connections", "1000", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
-     "--timeout", "30", \
-     "--keepalive", "2", \
-     "--preload", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]

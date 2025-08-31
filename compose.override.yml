@@ -9,7 +9,7 @@ services:
       - .:/home/app/web  # Mount source code for hot reloading
       - /home/app/web/__pycache__  # Exclude pycache
     environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DJANGO_SETTINGS_MODULE=config.settings.docker_dev
       - DEBUG=True
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
@@ -27,8 +27,9 @@ services:
     volumes:
       - .:/home/app/web
     environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
-    command: ["celery", "-A", "config", "worker", "-l", "debug", "--events"]
+      - DJANGO_SETTINGS_MODULE=config.settings.docker_dev
+      - C_FORCE_ROOT=1
+    command: ["celery", "-A", "config", "worker", "-l", "debug", "--events", "--pool=solo"]
 
   flower:
     build:
@@ -36,4 +37,4 @@ services:
     volumes:
       - .:/home/app/web
     environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DJANGO_SETTINGS_MODULE=config.settings.docker_dev
