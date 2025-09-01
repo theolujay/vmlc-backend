@@ -10,7 +10,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
-
 @cache_page(60 * 15)
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -55,9 +54,19 @@ def api_root(request, format=None):
                 "candidate": safe_reverse("v1:api-register-candidate"),
                 "staff": safe_reverse("v1:api-register-staff"),
             },
+            "email_verification": {
+                "verify_otp": safe_reverse("v1:verify-email-otp"),  
+                "resend_otp": safe_reverse("v1:resend-email-otp"),  
+            },
+            "password_change": {
+                "request": safe_reverse("v1:api-request-password-change"),  
+                "confirm": safe_reverse("v1:api-verify-password-change-otp"),  
+                "change": safe_reverse("v1:api-password-change"),
+                "resend_otp": safe_reverse("v1:api-resend-password-change-otp"),  
+            },
             "candidates": {
                 "collection": safe_reverse("v1:api-candidate-list"),
-                "me": safe_reverse("v1:api-candidate-me"),
+                # "me": safe_reverse("v1:api-candidate-me"),
                 "detail": generate_url_with_placeholder(
                     "v1:api-candidate-detail", "candidate_id", is_uuid=True
                 ),
@@ -77,7 +86,7 @@ def api_root(request, format=None):
             },
             "staff": {
                 "collection": safe_reverse("v1:api-staff-list"),
-                "me": safe_reverse("v1:api-staff-me"),
+                # "me": safe_reverse("v1:api-staff-me"),
                 "detail": generate_url_with_placeholder(
                     "v1:api-staff-detail", "staff_id", is_uuid=True
                 ),
@@ -95,6 +104,9 @@ def api_root(request, format=None):
                 "questions": generate_url_with_placeholder(
                     "v1:api-exam-questions", "exam_id"
                 ),
+                "results": generate_url_with_placeholder(
+                    "v1:api-exam-results", "exam_id"
+                ),
                 "candidate-take-exam": generate_url_with_placeholder(
                     "v1:api-take-exam", "exam_id"
                 ),
@@ -107,11 +119,19 @@ def api_root(request, format=None):
                     ),
                 },
             },
+            "scores": {
+                "publish": safe_reverse("v1:api-publish-scores"),
+            },
             "questions": {
                 "collection": safe_reverse("v1:api-question-list"),
                 "detail": generate_url_with_placeholder(
                     "v1:api-question-detail", "question_id"
                 ),
+            },
+            "leaderboard": {
+                "toggle": safe_reverse("v1:api-toggle-leaderboard"),
+                "publish": safe_reverse("v1:api-publish-leaderboard"),
+                "load": safe_reverse("v1:api-load-leaderboard"),
             },
             "dashboard": {
                 "candidate": safe_reverse("v1:api-candidate-dashboard"),
@@ -123,34 +143,18 @@ def api_root(request, format=None):
                     "v1:api-account-management-detail", "user_id", is_uuid=True
                 ),
             },
-            "leaderboard": {
-                "toggle": safe_reverse("v1:api-toggle-leaderboard"),
-                "publish": safe_reverse("v1:api-publish-leaderboard"),
-                "load": safe_reverse("v1:api-load-leaderboard"),
-            },
-            "email_verification": {
-                "verify_otp": safe_reverse("v1:api-verify-email-otp"),
-                "resend_otp": safe_reverse("v1:api-resend-email-otp"),
-            },
-            "password_change": {
-                "request": safe_reverse("v1:api-password-change-request"),
-                "confirm": safe_reverse("v1:api-password-change-confirm-otp"),
-                "change": safe_reverse("v1:api-password-change"),
-                "resend_otp": safe_reverse("v1:api-password-change-resend-otp"),
-            },
             "user_verification": {
-                "status": safe_reverse("v1:api-user-verification-status"),
-                "upload": safe_reverse("v1:api-user-verification-upload"),
-                "list": safe_reverse("v1:api-user-verification-list"),
+                "status": safe_reverse("v1:user-verification-status"),
+                "upload": safe_reverse("v1:user-verification-upload"),
+                "list": safe_reverse("v1:user-verification-list-admin"),  
                 "documents": {
                     "own": generate_url_with_placeholder(
-                        "v1:api-user-verification-documents", "file_type"
+                        "v1:user-verification-document", "file_type"
                     ),
-                    "other": generate_url_with_placeholder(
-                        "v1:api-user-verification-document-detail",
-                        "file_type",
-                        is_uuid=True,
-                    ).replace("True", "<user_id>"),
+                    "admin": generate_url_with_placeholder(
+                        "v1:user-verification-document-admin",  
+                        "file_type", # TODO: accomodate user_id
+                    ),
                 },
             },
         }
