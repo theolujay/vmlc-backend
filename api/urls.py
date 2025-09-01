@@ -70,23 +70,24 @@ urlpatterns = [
         registration.CandidateRegistrationView.as_view(),
         name="api-register-candidate",
     ),
-    path(
-        "register/candidate/toggle/",
-        registration.ToggleCandidateRegistrationView.as_view(),
-        name="api-toggle-candidate-registration",
-    ),
+    # path(
+    #     "register/candidate/toggle/",
+    #     registration.ToggleCandidateRegistrationView.as_view(),
+    #     name="api-toggle-candidate-registration",
+    # ),
     # Staff Registration
     path(
         "register/staff/",
         registration.StaffRegistrationView.as_view(),
         name="api-register-staff",
     ),
-    path(
-        "register/staff/toggle/",
-        registration.ToggleStaffRegistrationView.as_view(),
-        name="api-toggle-staff-registration",
-    ),
-    # Email Verification
+    # path(
+    #     "register/staff/toggle/",
+    #     registration.ToggleStaffRegistrationView.as_view(),
+    #     name="api-toggle-staff-registration",
+    # ),
+    
+    # === Email Verification ===
     path(
         "verify-email-otp/", auth.VerifyEmailOTPView.as_view(), name="verify-email-otp"
     ),
