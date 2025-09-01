@@ -17,7 +17,7 @@ The VMLC API is built with a rich set of features to manage the entire competiti
   - **Staff Roles**: `volunteer`, `moderator`, `admin`, `superadmin`
 - **User Registration & Verification**: Separate registration flows for candidates and staff, with a document upload system for user verification. Sensitive documents are stored in a private storage and can only be accessed via secure, authenticated endpoints.
 - **Account Management**: Endpoints for users to manage their own profile data.
-- **Admin Controls**: Feature flags to toggle candidate and staff registration.
+<!-- - **Admin Controls**: Feature flags to toggle candidate and staff registration. -->
 
 ### Competition & Exam Engine
 - **Comprehensive Exam Management**: Create, update, and manage multi-stage exams (`screening`, `league`).
