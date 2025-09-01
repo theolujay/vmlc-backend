@@ -1176,8 +1176,8 @@ The API is currently at version `v1`. All endpoints are prefixed with `/api/v1/`
 
 ## Interactive Documentation
 Explore the API interactively using our documentation interfaces:
-- **Swagger UI**: `https://verboheit-backend.onrender.com/swagger/`
-- **ReDoc**: `https://verboheit-backend.onrender.com/redoc/`
+- **Swagger UI**: `https://vmlc-api.onrender.com/docs/swagger/`
+- **ReDoc**: `https://vmlc-api.onrender.com/docs/redoc/`
 
 ---
 
@@ -1185,13 +1185,14 @@ Explore the API interactively using our documentation interfaces:
 For technical support, API key requests, or questions:
 - **Email:** `olujay.dev@gmail.com`
 - **Discord:** `@olujay`
+- **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests
 - **API Key Requests:** Include organization name and intended use case
 
 ---
 
 ## Changelog
-### Version 1.0.0 (Current)
+### Version 0.1.0 (Current)
 - Initial API release
 - Complete user management system
 - Exam administration features
