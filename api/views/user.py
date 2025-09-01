@@ -105,12 +105,11 @@ class UserVerificationUploadView(APIView):
         )
         if created:
             logger.info("New user verification object created during upload - likely failed at email verification step prior.")
-        # Check current status before processing
         
-        if not verification.is_email_verified:
+        # Check current status before processing
+        if not verification.user.is_email_verified:
             return Response(
-                
-            {"detail": "Email not verified. Please verify your email before uploading documents."},
+                {"detail": "Email not verified. Please verify your email before uploading documents."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -125,6 +124,7 @@ class UserVerificationUploadView(APIView):
                 {"detail": "User already has a verification request pending."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
         serializer = UserVerificationUploadSerializer(
             verification, data=request.data, partial=True
         )
@@ -136,7 +136,15 @@ class UserVerificationUploadView(APIView):
 
             logger.info("Verification data submitted by user %s.", request.user.id)
             return Response(
-                {"detail": "Documents uploaded successfully."},
+                {
+                    "detail": "Documents uploaded successfully.",
+                    "verification_data": {
+                        "status": "pending",
+                        "has_profile_photo": bool(verification.profile_photo),
+                        "has_id_card": bool(verification.id_card),
+                        "has_verification_document": bool(verification.verification_document),
+                    }
+                },
                 status=status.HTTP_200_OK,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -171,9 +179,12 @@ class UserVerificationUploadView(APIView):
             return Response(
                 {
                     "detail": "Verification data updated successfully.",
-                    "verification_data": UserVerificationUploadSerializer(
-                        verification
-                    ).data,
+                    "verification_data": {
+                        "status": "pending",
+                        "has_profile_photo": bool(verification.profile_photo),
+                        "has_id_card": bool(verification.id_card),
+                        "has_verification_document": bool(verification.verification_document),
+                    }
                 },
                 status=status.HTTP_200_OK,
             )

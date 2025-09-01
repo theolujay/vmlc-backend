@@ -954,10 +954,15 @@ Content-Type: multipart/form-data
 **Success Response (`200 OK`):**
 ```json
 {
-    "detail": "Documents uploaded successfully."
+    "detail": "Documents uploaded successfully.",
+    "verification_data": {
+        "status": "pending",
+        "has_profile_photo": true,
+        "has_id_card": true,
+        "has_verification_document": true
+    }
 }
 ```
-*(For PATCH, the response may include the updated `verification_data`)*
 
 **Error Responses:**
 - `403 Forbidden`: If the user's email is not verified.
