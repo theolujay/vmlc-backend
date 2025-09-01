@@ -63,7 +63,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
         return data
 
     def save(self):
-        """Mark email as verified and invalidate OTP."""
+        """Mark email as verified, invalidate OTP, and create user verification object."""
         user = self.validated_data["user"]
         otp_obj = self.validated_data["otp_obj"]
 
@@ -74,6 +74,10 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
         # Invalidate the OTP (mark as expired instead of deleting for audit)
         otp_obj.expires_at = timezone.now()
         otp_obj.save()
+        
+        # Create user verification object
+        from ..models import UserVerification
+        UserVerification.objects.create(user=user)
 
         logger.info(f"Email verified successfully for user {user.id}")
         return user

@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from ..tasks import send_mail_task
 from ..models import (
     User,
     UserVerification,
@@ -65,6 +66,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
         fields = (
             "is_pending",
             "is_verified",
+            "is_rejected",
             "date_created",
             "date_updated",
             "documents_uploaded",
@@ -90,3 +92,40 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
             "id_card",
             "verification_document",
         )
+
+class UserVerificationActionSerializer(serializers.ModelSerializer):
+    """Serializer for verifying a user."""
+
+    class Meta:
+        model = UserVerification
+        fields = ["is_verified", "is_rejected"]
+    
+    def update(self, instance, validated_data):
+        """Handle verification status updates."""
+        is_verified = validated_data.get("is_verified")
+        is_rejected = validated_data.get("is_rejected")
+        
+        if is_verified is True:
+            # Approve
+            instance.is_verified = True
+            instance.is_pending = False
+            instance.is_rejected = False
+            send_mail_task.delay(
+                subject="User Verification Successful",
+                message="Your account is now verified.",
+                recipient_list=[instance.user.email],
+            )
+            
+        elif is_rejected is True:
+            # Reject
+            instance.is_verified = False
+            instance.is_pending = False
+            instance.is_rejected = True
+            send_mail_task.delay(
+                subject="User Verification Rejected",
+                message="Your account verification has been rejected. Please contact a staf member for enquires.",
+                recipient_list=[instance.user.email],
+            )
+        
+        instance.save()
+        return instance

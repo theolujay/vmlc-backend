@@ -250,9 +250,14 @@ urlpatterns = [
     ),
     path(
         "user/verification/list/",
-        user.AdminVerificationListView.as_view(),
-        name="user-verification-list-admin",
+        user.UserVerificationListView.as_view(),
+        name="user-verification-list",
     ),
+    path(
+        "user/verification/action/<uuid:user_id>/",
+        user.UserVerificationActionView.as_view(),
+        name="user-verification-action",
+    )
     # path(
     #     "candidates/me/",
     #     candidate.CandidateMeView.as_view(),

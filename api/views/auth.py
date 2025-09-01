@@ -42,7 +42,7 @@ class VerifyEmailOTPView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
-
+                
                 send_mail_task.delay(
                     subject="Email Verified Successfully",
                     message="Your email has been successfully verified.",

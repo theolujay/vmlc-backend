@@ -62,227 +62,71 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(UserVerification)
 class UserVerificationAdmin(admin.ModelAdmin):
-    """Admin interface for UserVerification model with enhanced security and functionality."""
+    """Simplified admin interface for UserVerification model."""
 
     list_display = [
-        "user_info",
+        "user",
         "verification_status",
         "has_profile_photo",
-        "has_id_card",
+        "has_id_card", 
         "has_verification_document",
         "date_created",
-        "admin_actions",
     ]
 
-    list_filter = ["is_pending", "is_verified", "date_created", "date_updated"]
-
+    list_filter = ["is_pending", "is_verified", "date_created"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
-
-    readonly_fields = [
-        "user",
-        "date_created",
-        "date_updated",
-        "profile_photo_preview",
-        "secure_file_links",
-    ]
-
+    readonly_fields = ["date_created", "date_updated"]
     list_select_related = ("user",)
     date_hierarchy = "date_created"
 
-    actions = ["approve_selected_verifications", "reject_selected_verifications"]
+    actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        ("User Information", {"fields": ("user", "date_created", "date_updated")}),
-        (
-            "Verification Status",
-            {
-                "fields": ("is_pending", "is_verified"),
-            },
-        ),
-        (
-            "Uploaded Files",
-            {
-                "fields": (
-                    "profile_photo",
-                    "profile_photo_preview",
-                    "id_card",
-                    "verification_document",
-                    "secure_file_links",
-                ),
-                "description": "Profile photo is public. Other documents are private and require secure access.",
-            },
-        ),
+        (None, {
+            "fields": ("user", "is_pending", "is_verified")
+        }),
+        ("Files", {
+            "fields": ("profile_photo", "id_card", "verification_document")
+        }),
+        ("Timestamps", {
+            "fields": ("date_created", "date_updated"),
+            "classes": ("collapse",)
+        }),
     )
-
-    def get_queryset(self, request):
-        """Optimize database queries by pre-fetching related user data."""
-        return super().get_queryset(request).select_related("user")
-
-    # --- Display Methods ---
-
-    @admin.display(description="User", ordering="user__first_name")
-    def user_info(self, obj):
-        """Display user's full name and email with a link to their user admin page."""
-        user_admin_url = reverse("admin:api_user_change", args=[obj.user.id])
-        return format_html(
-            '<a href="{}">{}</a><br><small>{}</small>',
-            user_admin_url,
-            obj.user.get_full_name() or obj.user.email,
-            obj.user.email,
-        )
 
     @admin.display(description="Status")
     def verification_status(self, obj):
-        """Display verification status with intuitive color-coding."""
+        """Display verification status with color coding."""
         if obj.is_verified:
-            return format_html(
-                '<span style="color: green; font-weight: bold;">✓ Verified</span>'
-            )
+            return format_html('<span style="color: green;">✓ Verified</span>')
         elif obj.is_pending:
-            return format_html(
-                '<span style="color: orange; font-weight: bold;">⏳ Pending</span>'
-            )
+            return format_html('<span style="color: orange;">⏳ Pending</span>')
         else:
-            return format_html('<span style="color: red;">❌ Not Verified</span>')
+            return format_html('<span style="color: red;">❌ Rejected</span>')
 
-    @admin.display(description="Profile Photo", boolean=True)
+    @admin.display(description="Photo", boolean=True)
     def has_profile_photo(self, obj):
         return bool(obj.profile_photo)
 
-    @admin.display(description="ID Card", boolean=True)
+    @admin.display(description="ID", boolean=True) 
     def has_id_card(self, obj):
         return bool(obj.id_card)
 
-    @admin.display(description="Verification Doc", boolean=True)
+    @admin.display(description="Doc", boolean=True)
     def has_verification_document(self, obj):
         return bool(obj.verification_document)
 
-    @admin.display(description="Profile Photo Preview")
-    def profile_photo_preview(self, obj):
-        """Show a preview of the profile photo in the admin form."""
-        if obj.profile_photo and obj.profile_photo.url:
-            return format_html(
-                '<a href="{}" target="_blank"><img src="{}" style="max-width: 200px; max-height: 200px; border-radius: 4px;" /></a>',
-                obj.profile_photo.url,
-                obj.profile_photo.url,
-            )
-        return "No photo uploaded."
-
-    @admin.display(description="Private File Access")
-    def secure_file_links(self, obj):
-        """Generate secure, time-sensitive links for private documents."""
-        links = []
-        if obj.id_card:
-            secure_url = self._get_admin_secure_url(obj, "id_card")
-            links.append(
-                format_html(
-                    '<strong>ID Card:</strong> <a href="{}" target="_blank" class="button">View Securely</a>',
-                    secure_url,
-                )
-            )
-        else:
-            links.append("<strong>ID Card:</strong> Not uploaded")
-
-        if obj.verification_document:
-            secure_url = self._get_admin_secure_url(obj, "verification_document")
-            links.append(
-                format_html(
-                    '<strong>Verification Document:</strong> <a href="{}" target="_blank" class="button">View Securely</a>',
-                    secure_url,
-                )
-            )
-        else:
-            links.append("<strong>Verification Document:</strong> Not uploaded")
-
-        return format_html("<br><br>".join(links))
-
-    # --- Action Methods & URL Handling ---
-
-    def _get_admin_secure_url(self, obj, file_type):
-        """Generate a robust, secure access URL for a private file using reverse lookup."""
-        return reverse("admin-verification-document", args=[file_type, obj.user.id])
-
-    @admin.display(description="Actions")
-    def admin_actions(self, obj):
-        """Display approve/reject buttons for pending verifications."""
-        if obj.is_pending and not obj.is_verified:
-            approve_url = reverse("admin:user-verification-approve", args=[obj.pk])
-            reject_url = reverse("admin:user-verification-reject", args=[obj.pk])
-            return format_html(
-                '<a href="{}" class="button" style="background-color: #81C784;">Approve</a>&nbsp;'
-                '<a href="{}" class="button" style="background-color: #E57373;">Reject</a>',
-                approve_url,
-                reject_url,
-            )
-        return "N/A"
-
-    def get_urls(self):
-        """Add custom URLs for the approve/reject actions."""
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                "<path:object_id>/approve/",
-                self.admin_site.admin_view(self.approve_view),
-                name="user-verification-approve",
-            ),
-            path(
-                "<path:object_id>/reject/",
-                self.admin_site.admin_view(self.reject_view),
-                name="user-verification-reject",
-            ),
-        ]
-        return custom_urls + urls
-
-    def approve_view(self, request, object_id):
-        """Handle the 'approve' action for a single verification object."""
-        verification = self.get_object(request, object_id)
-        if verification:
-            verification.is_verified = True
-            verification.is_pending = False
-            verification.save()
-            self.message_user(
-                request,
-                f"User '{verification.user.get_full_name()}' has been verified.",
-                messages.SUCCESS,
-            )
-        return HttpResponseRedirect("../../")
-
-    def reject_view(self, request, object_id):
-        """Handle the 'reject' action for a single verification object."""
-        verification = self.get_object(request, object_id)
-        if verification:
-            verification.is_verified = False
-            verification.is_pending = False
-            verification.save()
-            self.message_user(
-                request,
-                f"Verification for '{verification.user.get_full_name()}' has been rejected.",
-                messages.WARNING,
-            )
-        return HttpResponseRedirect("../../")
-
-    # --- Bulk Actions ---
-
     @admin.action(description="Approve selected verifications")
-    def approve_selected_verifications(self, request, queryset):
-        """Bulk action to approve multiple verification requests."""
-        updated_count = queryset.update(is_verified=True, is_pending=False)
-        self.message_user(
-            request,
-            f"{updated_count} user(s) have been successfully verified.",
-            messages.SUCCESS,
-        )
+    def approve_selected(self, request, queryset):
+        """Approve selected verification requests."""
+        count = queryset.update(is_verified=True, is_pending=False)
+        self.message_user(request, f"{count} verification(s) approved.")
 
-    @admin.action(description="Reject selected verifications")
-    def reject_selected_verifications(self, request, queryset):
-        """Bulk action to reject multiple verification requests."""
-        updated_count = queryset.update(is_verified=False, is_pending=False)
-        self.message_user(
-            request,
-            f"{updated_count} verification(s) have been rejected.",
-            messages.WARNING,
-        )
-
+    @admin.action(description="Reject selected verifications") 
+    def reject_selected(self, request, queryset):
+        """Reject selected verification requests."""
+        count = queryset.update(is_verified=False, is_pending=False)
+        self.message_user(request, f"{count} verification(s) rejected.")
 
 @admin.register(Candidate)
 class CandidateAdmin(admin.ModelAdmin):

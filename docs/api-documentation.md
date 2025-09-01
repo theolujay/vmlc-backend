@@ -860,44 +860,86 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 ### User Verification
 
-User verification is handled with a focus on security and privacy. Sensitive documents like ID cards are stored in a private storage and can only be accessed via secure, authenticated endpoints that serve the file directly, preventing URL leakage.
+User verification is a multi-step process involving email verification, document submission, and admin approval.
 
 ---
 
 #### 1. Get Verification Status
 
-Retrieve the verification status of the currently authenticated user.
+Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
 
-**Endpoint:** `GET /user/verification/status/`
+**Endpoints:**
+- `GET /user/verification/status/` (for self)
+- `GET /user/verification/status/{user_id}/` (for superadmins)
 
-**Required Role:** Any authenticated user
+**Required Role:**
+- Any authenticated user for their own status.
+- `superadmin` to check another user's status.
 
-**Response:** `200 OK`
+**Responses:**
 
-This response indicates whether documents have been uploaded and the current status of the verification process. It does not contain any sensitive file URLs.
+The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
 
-```json
-{
-    "is_pending": true,
-    "is_verified": false,
-    "date_created": "2025-08-30T16:33:19Z",
-    "date_updated": "2025-08-30T17:59:17Z",
-    "documents_uploaded": {
-        "profile_photo": true,
-        "id_card": true,
-        "verification_document": false
-    }
-}
-```
+- **Status: `email_not_verified`**
+  ```json
+  {
+      "status": "email_not_verified",
+      "detail": "Email not verified. Verify email for user verification."
+  }
+  ```
+
+- **Status: `verified`**
+  ```json
+  {
+      "status": "verified",
+      "detail": "User is verified."
+  }
+  ```
+
+- **Status: `pending`**
+  ```json
+  {
+      "status": "pending",
+      "detail": "Verification request is pending review.",
+      "verification_data": {
+          "is_pending": true,
+          "is_verified": false,
+          "is_rejected": false,
+          "date_created": "2025-09-01T10:00:00Z",
+          "date_updated": "2025-09-01T10:00:00Z",
+          "documents_uploaded": {
+              "profile_photo": true,
+              "id_card": true,
+              "verification_document": true
+          }
+      }
+  }
+  ```
+
+- **Status: `rejected`**
+  ```json
+  {
+      "status": "rejected",
+      "detail": "Verification request was rejected. You may resubmit with updated documents."
+  }
+  ```
+
+- **Status: `not_submitted`**
+  ```json
+  {
+      "status": "not_submitted",
+      "detail": "No verification request submitted."
+  }
+  ```
 
 ---
 
 #### 2. Submit or Update Verification Documents
 
-This endpoint allows users to submit their documents for the first time (`POST`) or update an existing, unapproved submission (`PATCH`).
+This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
 
-**Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`  
-**Required Role:** Any authenticated user  
+**Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
+**Required Role:** Any authenticated user
 **Headers:**
 ```text
 Authorization: Bearer <access_token>
@@ -907,16 +949,7 @@ Content-Type: multipart/form-data
 **Form Data:**
 - `profile_photo` (file): Your profile picture.
 - `id_card` (file): A valid identification document.
-- `verification_document` Recent school result forcandidates | NIN/Driver's License/Passport for staff
-
----
-
-##### **A) Initial Submission (`POST`)**
-Use this method to submit your verification documents for the first time. Your status will be set to `pending`.
-
-**Conditions:**
-- Fails if you are already verified.
-- Fails if you already have a verification request pending; in that case, use `PATCH` method to re-upload duing pending verfication.
+- `verification_document` (file): Recent school result for candidates | NIN/Driver's License/Passport for staff.
 
 **Success Response (`200 OK`):**
 ```json
@@ -924,85 +957,37 @@ Use this method to submit your verification documents for the first time. Your s
     "detail": "Documents uploaded successfully."
 }
 ```
+*(For PATCH, the response may include the updated `verification_data`)*
 
-**Error Response (`400 Bad Request`):**
-```json
-{
-    "detail": "This user has already been verified."
-}
-```
-*or*
-```json
-{
-    "detail": "User already has a verification request pending."
-}
-```
-
----
-
-##### **B) Updating a Submission (`PATCH`)**
-Use this method to update one or more documents if your initial submission has not yet been approved.
-
-**Conditions:**
-- Fails if you are already verified.
-
-**Success Response (`200 OK`):**
-The response includes the updated status and a list of which documents have been uploaded.
-```json
-{
-    "detail": "Verification data updated successfully.",
-    "verification_data": {
-        "is_pending": true,
-        "is_verified": false,
-        "date_created": "2025-08-30T16:33:19Z",
-        "date_updated": "2025-08-31T10:20:00Z",
-        "documents_uploaded": {
-            "profile_photo": true,
-            "id_card": true,
-            "verification_document": true
-        }
-    }
-}
-```
-
-**Error Response (`400 Bad Request`):**
-```json
-{
-    "detail": "Cannot update verification data for an already verified user."
-}
-```
+**Error Responses:**
+- `403 Forbidden`: If the user's email is not verified.
+- `400 Bad Request`: If the user is already verified or has a pending request (for `POST`).
 
 ---
 
 #### 3. Access Verification Documents
 
-Access uploaded documents. The API serves the file content directly to ensure security.
+Access uploaded documents. The API serves the file content directly from secure storage.
 
-**For Own Documents:**
+**Endpoints:**
+- `GET /user/verification/documents/{file_type}/` (for self)
+- `GET /user/verification/documents/{file_type}/{user_id}/` (for superadmins)
 
-**Endpoint:** `GET /user/verification/documents/{file_type}/`
-
-**Required Role:** Any authenticated user
-
-**URL Parameters:**
-- `file_type` (string): The type of file to retrieve. Must be one of `id_card`, `verification_document`, or `profile_photo`.
-
-**For Other Users' Documents (SuperAdmin Only):**
-
-**Endpoint:** `GET /user/verification/documents/{file_type}/{user_id}/`
-
-**Required Role:** `superadmin`
+**Required Role:**
+- Any authenticated user for their own documents.
+- `superadmin` to access another user's documents.
 
 **URL Parameters:**
-- `file_type` (string): The type of file to retrieve.
-- `user_id` (uuid): The ID of the user whose document is being accessed.
+- `file_type` (string): `id_card`, `verification_document`, or `profile_photo`.
+- `user_id` (uuid, optional): The ID of the user whose document to access.
 
 **Successful Response:**
-- The API will return the raw file content (e.g., an image or a PDF) with the appropriate `Content-Type` header. There is no JSON response body for a successful file retrieval.
+- The raw file content (e.g., an image) with the correct `Content-Type`.
 
 **Error Responses:**
-- `404 Not Found`: If the file does not exist or has not been uploaded.
-- `403 Forbidden`: If you do not have permission to access the document.
+- `404 Not Found`: If the file does not exist.
+- `403 Forbidden`: If you do not have permission.
+- `502 Bad Gateway`: If there is an issue with file storage.
 
 ---
 
@@ -1012,12 +997,9 @@ Retrieve a list of all user verification submissions for administrative review.
 
 **Endpoint:** `GET /user/verification/list/`
 
-**Required Role:** `admin`, `superadmin`
+**Required Role:** `superadmin`
 
 **Response:** `200 OK`
-
-Returns a list of all verification records, indicating which documents have been provided for each user.
-
 ```json
 [
     {
@@ -1026,23 +1008,55 @@ Returns a list of all verification records, indicating which documents have been
         "email": "john@example.com",
         "is_pending": true,
         "is_verified": false,
+        "is_rejected": false,
         "has_profile_photo": true,
         "has_id_card": true,
         "has_verification_document": false,
         "date_created": "2025-08-30T16:33:19Z"
-    },
-    {
-        "user_id": "a9xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx",
-        "user_name": "Jane Smith",
-        "email": "jane@example.com",
-        "is_pending": false,
-        "is_verified": true,
-        "has_profile_photo": true,
-        "has_id_card": true,
-        "has_verification_document": true,
-        "date_created": "2025-08-29T11:00:00Z"
     }
 ]
+```
+
+---
+
+#### 5. Approve or Reject a Verification Request (Admin)
+
+Allows a superadmin to approve or reject a user's verification submission. This action is final and notifies the user via email.
+
+**Endpoint:** `POST /user/verification/action/{user_id}/`
+
+**Required Role:** `superadmin`
+
+**URL Parameters:**
+- `user_id` (uuid): The ID of the user whose verification is being actioned.
+
+**Request Body:**
+
+To approve a user:
+```json
+{
+    "is_verified": true
+}
+```
+
+To reject a user:
+```json
+{
+    "is_rejected": true
+}
+```
+
+**Success Response (`200 OK`):**
+```json
+{
+    "detail": "User verified successfully."
+}
+```
+*or*
+```json
+{
+    "detail": "User verification rejected."
+}
 ```
 
 ---

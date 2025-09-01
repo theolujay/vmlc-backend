@@ -637,6 +637,7 @@ class UserVerification(models.Model):
     )
     is_pending = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
+    is_rejected = models.BooleanField(default=False)
     profile_photo = models.ImageField(
         upload_to="profile_photos/",
         blank=True,

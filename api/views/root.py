@@ -146,13 +146,16 @@ def api_root(request, format=None):
             "user_verification": {
                 "status": safe_reverse("v1:user-verification-status"),
                 "upload": safe_reverse("v1:user-verification-upload"),
-                "list": safe_reverse("v1:user-verification-list-admin"),  
+                "list": safe_reverse("v1:user-verification-list"),
+                "action": generate_url_with_placeholder(
+                    "v1:user-verification-action", "user_id", is_uuid=True
+                ),
                 "documents": {
                     "own": generate_url_with_placeholder(
                         "v1:user-verification-document", "file_type"
                     ),
                     "admin": generate_url_with_placeholder(
-                        "v1:user-verification-document-admin",  
+                        "v1:user-verification-document-admin",
                         "file_type", # TODO: accomodate user_id
                     ),
                 },

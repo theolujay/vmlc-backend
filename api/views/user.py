@@ -1,12 +1,12 @@
 import logging
+
 import boto3
 from botocore.exceptions import ClientError
-
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse
 
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -19,6 +19,7 @@ from ..permissions import IsObjectOwnerOrSuperAdminRole, HasStaffRole
 from ..serializers import (
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
+    UserVerificationActionSerializer,
 )
 
 User = get_user_model()
@@ -32,12 +33,62 @@ class UserVerificationStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, user_id=None):
+        # Determine target user
+        if user_id is None:
+            target_user = request.user
+        else:
+            target_user = get_object_or_404(User, id=user_id)
+            if (
+                request.user.id != target_user.id
+                and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
+                    request, self, target_user
+                )
+            ):
+                raise PermissionDenied(
+                    "You don't have permission to access this user's verification status."
+                )
+
+        # Check email verification first
+        if not target_user.is_email_verified:
+            return Response({
+                "status": "email_not_verified",
+                "detail": "Email not verified. Verify email for user verification."
+            }, status=status.HTTP_200_OK)
+
+        # Get or create verification record
         verification, created = UserVerification.objects.get_or_create(
-            user=request.user
+            user=target_user
         )
-        serializer = UserVerificationStatusSerializer(verification)
-        return Response(serializer.data)
+
+        # Determine status based on verification record
+        if verification.is_verified:
+            return Response({
+                "status": "verified",
+                "detail": "User is verified."
+            }, status=status.HTTP_200_OK)
+        
+        elif verification.is_pending:
+            # Return detailed verification data for pending cases
+            serializer = UserVerificationStatusSerializer(verification)
+            return Response({
+                "status": "pending",
+                "detail": "Verification request is pending review.",
+                "verification_data": serializer.data
+            }, status=status.HTTP_200_OK)
+        
+        elif verification.is_rejected:
+            return Response({
+                "status": "rejected",
+                "detail": "Verification request was rejected. You may resubmit with updated documents."
+            }, status=status.HTTP_200_OK)
+        
+        else:
+            # Not verified, not pending, not rejected = never submitted
+            return Response({
+                "status": "not_submitted",
+                "detail": "No verification request submitted."
+            }, status=status.HTTP_200_OK)
 
 
 class UserVerificationUploadView(APIView):
@@ -52,9 +103,20 @@ class UserVerificationUploadView(APIView):
         verification, created = UserVerification.objects.get_or_create(
             user=request.user
         )
+        if created:
+            logger.info("New user verification object created during upload - likely failed at email verification step prior.")
+        # Check current status before processing
+        
+        if not verification.is_email_verified:
+            return Response(
+                
+            {"detail": "Email not verified. Please verify your email before uploading documents."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if verification.is_verified:
             return Response(
-                {"detail": "This user has already been verified."},
+                {"detail": "This user is already verified."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -69,8 +131,8 @@ class UserVerificationUploadView(APIView):
 
         if serializer.is_valid():
             with transaction.atomic():
-                # Set as pending when submitting
-                verification = serializer.save(is_pending=True)
+                # Set as pending and clear rejection status when submitting/resubmitting
+                verification = serializer.save(is_pending=True, is_rejected=False)
 
             logger.info("Verification data submitted by user %s.", request.user.id)
             return Response(
@@ -82,17 +144,16 @@ class UserVerificationUploadView(APIView):
     def patch(self, request):
         """Update existing verification data (partial update)."""
         try:
-            verification = UserVerification.objects.get(user=request.user.id)
+            verification = UserVerification.objects.get(user=request.user)
         except UserVerification.DoesNotExist:
             return Response(
-                {"detail": "NO verification data found for this user."},
+                {"detail": "No verification data found for this user."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        
         if verification.is_verified:
             return Response(
-                {
-                    "detail": "Cannot update verification data for an already verified user."
-                },
+                {"detail": "Cannot update verification data for an already verified user."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -102,20 +163,20 @@ class UserVerificationUploadView(APIView):
 
         if serializer.is_valid():
             with transaction.atomic():
-                # keep as pending or set to pending if not already
-                verification = serializer.save(is_pending=True)
+                # Keep as pending or set to pending, clear rejection if updating
+                verification = serializer.save(is_pending=True, is_rejected=False)
 
-                logger.info("Verfication data updated by user %s.", request.user.id)
+            logger.info("Verification data updated by user %s.", request.user.id)
 
-                return Response(
-                    {
-                        "detail": "Verification data updated successfully.",
-                        "verification_data": UserVerificationUploadSerializer(
-                            verification
-                        ).data,
-                    },
-                    status=status.HTTP_200_OK,
-                )
+            return Response(
+                {
+                    "detail": "Verification data updated successfully.",
+                    "verification_data": UserVerificationUploadSerializer(
+                        verification
+                    ).data,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -138,7 +199,7 @@ class UserVerificationDocumentView(APIView):
 
             # Check permissions: only the user themselves or superadmin can access
             if (
-                request.user.id != target_user.id
+                str(request.user.id) != str(user_id)  # Convert both to string for comparison
                 and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
                     request, self, target_user
                 )
@@ -149,9 +210,12 @@ class UserVerificationDocumentView(APIView):
 
             verification = get_object_or_404(UserVerification, user=target_user)
 
-        if user_id and request.user.id != user_id:
+        if user_id and str(request.user.id) != str(user_id):
             logger.info(
-                f"Superadmin {request.user.id} accessing {file_type} for user {user_id}"
+                "Superadmin %s accessing %s for user %s",
+                request.user.id,
+                file_type,
+                user_id,
             )
 
         # Get the file field and determine storage path
@@ -223,16 +287,16 @@ class UserVerificationDocumentView(APIView):
             )
 
 
-class AdminVerificationListView(APIView):
+class UserVerificationListView(APIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(["admin", "superadmin"])]
+    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
     def get(self, request):
-        verifications = UserVerification.objects.select_related("user").all()
+        verification_list = UserVerification.objects.select_related("user").all()
 
         data = []
-        for verification in verifications:
+        for verification in verification_list:
             data.append(
                 {
                     "user_id": verification.user.id,
@@ -240,6 +304,7 @@ class AdminVerificationListView(APIView):
                     "email": verification.user.email,
                     "is_pending": verification.is_pending,
                     "is_verified": verification.is_verified,
+                    "is_rejected": verification.is_rejected,  # Added this field
                     "has_profile_photo": bool(verification.profile_photo),
                     "has_id_card": bool(verification.id_card),
                     "has_verification_document": bool(
@@ -250,3 +315,56 @@ class AdminVerificationListView(APIView):
             )
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class UserVerificationActionView(APIView):
+    """
+    Handle user verification actions (approve/reject).
+    """
+
+    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
+
+    def post(self, request, user_id):
+        target_user = get_object_or_404(User, id=user_id)
+        verification = get_object_or_404(UserVerification, user=target_user)
+        
+        # Check if already processed
+        if verification.is_verified:
+            return Response(
+                {"detail": "This user is already verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        serializer = UserVerificationActionSerializer(
+            verification, data=request.data, partial=True
+        )
+        
+        if serializer.is_valid():
+            # Determine action
+            validated_data = serializer.validated_data
+            if validated_data.get("is_verified"):
+                action = "approved"
+                message = "User verified successfully."
+            elif validated_data.get("is_rejected"):
+                action = "rejected"
+                message = "User verification rejected."
+            else:
+                return Response(
+                    {"detail": "Must specify either is_verified or is_rejected."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            with transaction.atomic():
+                verification = serializer.save()
+            
+            logger.info(
+                "User verification %s for user %s by %s.", 
+                action, target_user.id, request.user.id
+            )
+            
+            return Response(
+                {"detail": message},
+                status=status.HTTP_200_OK,
+            )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
