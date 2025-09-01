@@ -1,7 +1,10 @@
 import logging
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+from PIL import Image
+import magic  # python-magic for proper file type detection
 
 from ..tasks import send_mail_task
 from ..models import (
@@ -79,7 +82,6 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "verification_document": bool(obj.verification_document),
         }
 
-
 class UserVerificationUploadSerializer(serializers.ModelSerializer):
     """
     Serializer for uploading verification documents.
@@ -89,9 +91,80 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
         model = UserVerification
         fields = (
             "profile_photo",
-            "id_card",
+            "id_card", 
             "verification_document",
         )
+
+    def _validate_file_size(self, value, max_size_mb, field_name):
+        """Helper method to validate file size"""
+        if value and value.size > max_size_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"{field_name} must be less than {max_size_mb}MB.")
+
+    def _validate_image_file(self, value, field_name):
+        """Helper method to validate image files"""
+        if not value:
+            return
+        
+        try:
+            # Use PIL to verify it's a real image
+            img = Image.open(value)
+            img.verify()
+            # Reset file pointer after verification
+            value.seek(0)
+        except Exception:
+            raise serializers.ValidationError(f"Invalid {field_name} image file.")
+
+    def _validate_file_type(self, value, allowed_types, field_name):
+        """Helper method to validate file type using python-magic"""
+        if not value:
+            return
+        
+        try:
+            # Get actual file type using magic
+            file_type = magic.from_buffer(value.read(1024), mime=True)
+            value.seek(0)  # Reset file pointer
+            
+            if file_type not in allowed_types:
+                allowed_str = ", ".join(allowed_types)
+                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
+        except Exception:
+            # Fallback to content_type if magic fails
+            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+                allowed_str = ", ".join(allowed_types)
+                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
+
+    def validate_profile_photo(self, value):
+        """Validation for profile photo"""
+        if value:
+            self._validate_file_size(value, 5, "Profile photo")
+            allowed_types = ['image/jpg', 'image/jpeg', 'image/png']
+            self._validate_file_type(value, allowed_types, "Profile photo")
+            self._validate_image_file(value, "profile photo")
+        return value
+
+    def validate_id_card(self, value):
+        """Validation for ID card uploads"""
+        if value:
+            self._validate_file_size(value, 10, "ID card")
+            allowed_types = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_type(value, allowed_types, "ID card")
+            
+            # If it's an image, validate it properly
+            if value.content_type and value.content_type.startswith('image/'):
+                self._validate_image_file(value, "ID card")
+        return value
+
+    def validate_verification_document(self, value):
+        """Validation for verification document uploads"""
+        if value:
+            self._validate_file_size(value, 10, "Verification document") 
+            allowed_types = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_type(value, allowed_types, "Verification document")
+            
+            # If it's an image, validate it properly
+            if value.content_type and value.content_type.startswith('image/'):
+                self._validate_image_file(value, "verification document")
+        return value
 
 class UserVerificationActionSerializer(serializers.ModelSerializer):
     """Serializer for verifying a user."""
