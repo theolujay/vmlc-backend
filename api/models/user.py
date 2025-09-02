@@ -81,7 +81,7 @@ def validate_id_card_file(value):
 
     # Check file size (max 10MB)
     if value.size > 10 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 10MB.")
+        raise ValidationError("File size cannot exceed 10MB.") # TODO: align with S3 configuration in settings.py
 
 
 def validate_profile_photo(value):
@@ -98,7 +98,7 @@ def validate_profile_photo(value):
 
     # Check file size (max 5MB for images)
     if value.size > 5 * 1024 * 1024:
-        raise ValidationError("Image size cannot exceed 5MB.")
+        raise ValidationError("Image size cannot exceed 5MB.") # TODO: align with S3 configuration in settings.py
 
 
 def validate_document_file(value):
@@ -115,7 +115,7 @@ def validate_document_file(value):
 
     # Check file size (max 15MB for documents)
     if value.size > 15 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 15MB.")
+        raise ValidationError("Document size cannot exceed 15MB.") # TODO: align with S3 configuration in settings.py
 
 
 class UserVerification(models.Model):

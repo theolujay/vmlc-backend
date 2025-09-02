@@ -47,8 +47,8 @@ class Staff(models.Model):
             return None
 
     @property
-    def utility_bill(self):
-        """Get utility bill from UserVerification with error handling"""
+    def verification_document(self): # TODO: rename to `verification_document` and reflect in dependants
+        """Get verification document from UserVerification with error handling"""
         try:
             return self.user.verification.verification_document
         except (AttributeError, UserVerification.DoesNotExist):

@@ -101,9 +101,9 @@ class Candidate(models.Model):
             return None
 
     @property
-    def school_result(self):
+    def verification_document(self):
         """
-        Get school result from UserVerification with error handling
+        Get verification document from UserVerification with error handling
         """
         try:
             return self.user.verification.verification_document

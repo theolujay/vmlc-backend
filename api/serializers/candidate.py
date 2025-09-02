@@ -60,7 +60,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "is_verified",
             "id_card",
-            "school_result",
+            "verification_document",
             "date_created",
             "date_updated",
             "scores",

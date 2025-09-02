@@ -52,7 +52,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "is_verified",
             "id_card",
-            "utility_bill",
+            "verification_document",
             "date_created",
             "date_updated",
         ]
