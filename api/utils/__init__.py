@@ -22,7 +22,6 @@ from .query_filters import (
 )
 from .user import (
     validate_role_for_serializer,
-    get_user_profile,
 )
 
 
@@ -44,5 +43,4 @@ __all__ = [
     "ExamFilter",
     # user
     "validate_role_for_serializer",
-    "get_user_profile",
 ]

@@ -53,7 +53,6 @@ from .user import (
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
     UserVerificationActionSerializer,
-    UserVerificationListSerializer,
 )
 
 
@@ -100,5 +99,4 @@ __all__ = [
     "UserVerificationStatusSerializer",
     "UserVerificationUploadSerializer",
     "UserVerificationActionSerializer",
-    "UserVerificationListSerializer",
 ]

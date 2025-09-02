@@ -123,5 +123,4 @@ __all__ = [
     "UserVerificationDocumentView",
     "UserVerificationListView",
     "UserVerificationActionView",
-    "UserProfilePhotoView",
 ]

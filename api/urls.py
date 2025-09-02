@@ -15,7 +15,7 @@ All views are organized and grouped by functionality for clarity.
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from views import *
+from .views import *
 
 app_name = "api"
 
