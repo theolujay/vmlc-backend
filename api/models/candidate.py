@@ -66,9 +66,7 @@ class Candidate(models.Model):
         WINNER = "winner", "Winner"
 
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="candidate_profile",
+        User, primary_key=True, on_delete=models.CASCADE, related_name="candidate_profile"
     )
     school = models.CharField(max_length=150)
     date_created = models.DateTimeField(auto_now_add=True)
