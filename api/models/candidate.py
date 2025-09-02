@@ -1,6 +1,5 @@
 from django.db import models
-from django.db.models import Avg, Count, Q, QuerySet, Sum
-from django.core.files.base import File
+from django.db.models import Avg, Count, Q, Sum
 
 from .user import User, UserVerification
 
