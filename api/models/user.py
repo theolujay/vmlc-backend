@@ -3,7 +3,6 @@ import uuid
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
-from django.core.files.base import File
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone

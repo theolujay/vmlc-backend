@@ -31,6 +31,7 @@ FROM python:3.13.7-slim-bookworm AS production
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpq5 \
+        libmagic1 \
         curl && \
     # Install gosu
     curl -o /usr/local/bin/gosu -sL "https://github.com/tianon/gosu/releases/download/1.17/gosu-$(dpkg --print-architecture)" && \

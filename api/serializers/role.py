@@ -21,7 +21,7 @@ class StaffRoleSerializer(serializers.ModelSerializer):
     """Serializer for updating a Staff member's role."""
 
     class Meta:
-        model: Staff = Staff
+        model = Staff
         fields = ["role"]
 
     def validate_role(self, value):

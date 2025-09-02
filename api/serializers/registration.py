@@ -26,20 +26,20 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         help_text="Required. 8 characters minimum.",
     )
-    password2: serializers.CharField = serializers.CharField(
+    password2 = serializers.CharField(
         write_only=True,
         required=True,
         style={"input_type": "password"},
         label="Confirm password",
     )
 
-    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, attrs):
         """Validate that passwords match"""
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password2": "Passwords do not match."})
         return attrs
 
-    def create_user(self, user_data: Dict[str, Any], password: str) -> User:
+    def create_user(self, user_data, password):
         return User.objects.create_user(
             email=user_data["email"],
             password=password,
@@ -48,18 +48,18 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             phone=user_data["phone"],
         )
 
-    def create(self, validated_data: Dict[str, Any]) -> Any:
+    def create(self, validated_data):
         """
         Handles the creation of a User and its associated profile.
         """
-        password: str = validated_data.pop("password")
+        password = validated_data.pop("password")
         validated_data.pop("password2")
-        user_data: Dict[str, Any] = validated_data.pop("user")
+        user_data = validated_data.pop("user")
 
         try:
             with transaction.atomic():
-                user: User = self.create_user(user_data, password)
-                profile: Any = self.Meta.model.objects.create(
+                user = self.create_user(user_data, password)
+                profile = self.Meta.model.objects.create(
                     user=user, **validated_data
                 )
                 return profile
@@ -73,13 +73,13 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
 
     class Meta:
-        model: Candidate = Candidate
-        fields: List[str] = (
+        model = Candidate
+        fields = [
             "user",
             "password",
             "password2",
             "school",
-        )
+        ]
 
 
 class StaffRegistrationSerializer(BaseRegistrationSerializer):
@@ -88,10 +88,10 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
     """
 
     class Meta:
-        model: Staff = Staff
-        fields: List[str] = (
+        model = Staff
+        fields = [
             "user",
             "password",
             "password2",
             "occupation",
-        )
+        ]

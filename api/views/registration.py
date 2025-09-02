@@ -109,7 +109,7 @@ class ToggleFeatureFlagView(APIView):
             request.user.id,
         )
 
-                FEATURE_FLAG_MESSAGES = {
+        FEATURE_FLAG_MESSAGES = {
             "candidate_registration_open": {
                 True: "Candidate registration is now open.",
                 False: "Candidate registration is now closed.",

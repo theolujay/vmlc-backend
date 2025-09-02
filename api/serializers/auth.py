@@ -23,7 +23,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
 
     class Meta:
         model = User
-        fields = ("email", "otp")
+        fields = ["email", "otp"]
 
     def validate_otp(self, value: str) -> str:
         """Validate OTP format."""
@@ -31,7 +31,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits.")
         return value
 
-    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, data):
         """Validate email and OTP combination."""
         try:
             user = User.objects.get(email=data["email"])
@@ -173,7 +173,7 @@ class PasswordChangeOTPConfirmSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits.")
         return value
 
-    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, data):
         """
         Verify email and OTP combination.
         """
@@ -248,7 +248,7 @@ class PasswordChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError(e.messages)
         return value
 
-    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, data):
         """
         Validate that passwords match and OTP is correct.
         """

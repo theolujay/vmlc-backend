@@ -1,4 +1,3 @@
-from django.core.files.base import File
 from django.db import models
 
 from .user import User, UserVerification

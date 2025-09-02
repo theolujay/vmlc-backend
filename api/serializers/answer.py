@@ -22,7 +22,7 @@ class CandidateAnswerSerializer(serializers.ModelSerializer):
 class CandidateAnswerBulkSerializer(serializers.Serializer):
     answers = CandidateAnswerSerializer(many=True)
 
-    def validate_answers(self, value: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_answers(self, value):
         if not value:
             raise serializers.ValidationError("At least one answer must be provided.")
         return value

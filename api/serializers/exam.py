@@ -20,7 +20,6 @@ class ExamListSerializer(serializers.ModelSerializer):
     question_count = (
         serializers.SerializerMethodField()
     )
-    # created_by = MinimalStaffSerializer(read_only=True)
 
     class Meta:
         model = Exam
@@ -46,11 +45,11 @@ class ExamDetailSerializer(serializers.ModelSerializer):
     - average score
     """
 
-    questions: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+    questions = serializers.PrimaryKeyRelatedField(
         queryset=Question.objects.all(), many=True
     )
-    created_by: MinimalStaffSerializer = MinimalStaffSerializer(read_only=True)
-    average_score: serializers.SerializerMethodField = (
+    created_by = MinimalStaffSerializer(read_only=True)
+    average_score = (
         serializers.SerializerMethodField(
             help_text="Average score of all submissions for this exam."
         )
@@ -86,7 +85,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
 
 class CandidateExamSerializer(serializers.ModelSerializer):
-    questions: CandidateQuestionSerializer = CandidateQuestionSerializer(
+    questions = CandidateQuestionSerializer(
         many=True, read_only=True
     )
 
@@ -109,10 +108,10 @@ class ExamResultSerializer(serializers.ModelSerializer):
     Serializer for displaying the results of an exam.
     """
 
-    candidate_name: serializers.CharField = serializers.CharField(
+    candidate_name = serializers.CharField(
         source="candidate.user.get_full_name", read_only=True
     )
-    candidate_school: serializers.CharField = serializers.CharField(
+    candidate_school = serializers.CharField(
         source="candidate.school", read_only=True
     )
 
