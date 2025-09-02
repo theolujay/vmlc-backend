@@ -6,7 +6,7 @@
 - [Authentication](#authentication)
 - [User Roles & Permissions](#user-roles--permissions)
 - [API Endpoints](#api-endpoints)
-  - [Registration & System Controls](#registration--system-controls)
+  - [Registration](#registration)
   - [Email Verification](#email-verification)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
@@ -15,6 +15,7 @@
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
   - [User Verification](#user-verification)
+  - [Account Management](#account-management)
 - [Query Parameters](#query-parameters)
 - [Error Handling](#error-handling)
 - [Rate Limiting](#rate-limiting)
@@ -218,7 +219,6 @@ Content-Type: application/json
 | Role | Description | Permissions |
 |------|-------------|-------------|
 | `volunteer` | Basic staff member | User verification |
-| `sponsor` | Competition sponsor | Vanity role |
 | `moderator` | Content moderator | View candidates/staff, manage questions |
 | `admin` | Operations administrator | Full management except staff roles |
 | `superadmin` | Platform administrator | All permissions including staff management |
@@ -230,30 +230,7 @@ Content-Type: application/json
 ---
 
 ## API Endpoints
-### Registration & System Controls
-<!-- #### Toggle Registration Status
-**Candidate Registration Toggle**
-**Endpoint:** `POST /toggle-candidate-registration/`  
-**Required Role:** `admin`, `superadmin`  
-**Request Body:**
-```json
-{
-  "open": false
-}
-```
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Candidate registration is now closed"
-}
-```
-
-**Staff Registration Toggle**  
-**Endpoint:** `POST /toggle-staff-registration/`  
-**Required Role:** `superadmin`  
-**Request Body:** Same as candidate toggle -->
-
+### Registration
 #### Register New Users
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
@@ -369,6 +346,25 @@ Content-Type: application/json
 }
 ```
 
+#### Get Candidate Details
+**Endpoint:** `GET /candidates/{candidate_id}/`
+**Required Role:** `moderator`, `admin`, `superadmin`
+
+**Response:** `200 OK`
+```json
+{
+  "user": {
+    "email": "john@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+23490xxxxxxxx"
+  },
+  "school": "Mathematics High School",
+  "role": "league",
+  "is_verified": true
+}
+```
+
 #### Role Management
 **Assign Role**  
 **Endpoint:** `POST /candidates/{candidate_id}/roles/assign/`  
@@ -420,23 +416,8 @@ Content-Type: application/json
 ```json
 {
   "message": "Scores published successfully!",
-  "published_at": "2025-08-02T12:45:06.058245Z"
+  "published_at": "2025-09-02T12:45:06.058245Z"
 }
-```
-
-**Get Exam History**  
-**Endpoint:** `GET /candidates/{candidate_id}/exam-history/`  
-**Required Role:** `admin`, `superadmin`  
-**Response:** `200 OK`
-```json
-[
-  {
-    "exam": "Algebra Screening",
-    "score": 88.0,
-    "date": "2024-01-20T15:30:00Z",
-    "duration_minutes": 87
-  }
-]
 ```
 
 ### Staff Management
@@ -449,6 +430,25 @@ Content-Type: application/json
 - `search` (string): Search by name or email
 - `role` (string): Filter by staff role
 - `occupation` (string): Filter by occupation
+
+#### Get Staff Details
+**Endpoint:** `GET /staff/{staff_id}/`
+**Required Role:** `moderator`, `admin`, `superadmin`
+
+**Response:** `200 OK`
+```json
+{
+  "user": {
+    "email": "jane@example.com",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "phone": "+23490xxxxxxxx"
+  },
+  "occupation": "Mathematics Teacher",
+  "role": "moderator",
+  "is_verified": true
+}
+```
 
 #### Assign Staff Role
 **Endpoint:** `POST /staff/{staff_id}/roles/assign/`  
@@ -627,6 +627,24 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
   "correct_answers": 17,
   "total_questions": 20,
   "submission_time": "2024-01-20T16:27:00Z"
+}
+```
+
+**Submit Exam Score (Manual)**
+**Endpoint:** `POST /exams/{exam_id}/submit-exam-score/`
+**Required Role:** `admin`, `superadmin`
+**Request Body:**
+```json
+{
+    "candidate_id": "uuid_of_candidate",
+    "score": 95.5
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+    "message": "Score submitted successfully."
 }
 ```
 
@@ -1064,6 +1082,35 @@ To reject a user:
 }
 ```
 
+### Account Management
+#### Get Account Details
+**Endpoint:** `GET /account-management/`
+**Required Role:** Any authenticated user
+
+**Response:** `200 OK`
+```json
+{
+    "email": "user@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+23490xxxxxxxx"
+}
+```
+
+#### Get Account Details (Admin)
+**Endpoint:** `GET /account-management/{user_id}/`
+**Required Role:** `superadmin`
+
+**Response:** `200 OK`
+```json
+{
+    "email": "user@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+23490xxxxxxxx"
+}
+```
+
 ---
 
 ## Query Parameters
@@ -1129,7 +1176,7 @@ Use ISO 8601 format for date parameters:
 }
 ```
 
-<!-- ### Common Error Codes
+### Common Error Codes
 | Code | Description |
 |------|-------------|
 | `AUTHENTICATION_REQUIRED` | Valid authentication token required |
@@ -1141,7 +1188,7 @@ Use ISO 8601 format for date parameters:
 | `RATE_LIMIT_EXCEEDED` | Too many requests |
 | `REGISTRATION_CLOSED` | Registration is currently disabled |
 | `EXAM_NOT_AVAILABLE` | Exam is not available for this user |
-| `EXAM_ALREADY_TAKEN` | Candidate has already taken this exam | -->
+| `EXAM_ALREADY_TAKEN` | Candidate has already taken this exam |
 
 ---
 
@@ -1202,7 +1249,7 @@ Explore the API interactively using our documentation interfaces:
 
 ## Support
 For technical support, API key requests, or questions:
-- **Email:** `olujay.dev@gmail.com`
+- **Email:** `theolujay@gmail.com`
 - **Discord:** `@olujay`
 - **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests
@@ -1218,4 +1265,4 @@ For technical support, API key requests, or questions:
 - Leaderboard functionality
 - Role-based access control
 
-_Last Updated: July 2025_
+_Last Updated: September 2025_
