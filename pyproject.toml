@@ -1,7 +1,7 @@
 [project]
-name = "vmlc-api"
+name = "vmlc-backend"
 version = "0.1.0"
-description = "A RESTful API for a competition platform with multi-stage exams, automated scoring, and leaderboard management."
+description = "Backend service for a multi-stage competition platform with exams, scoring, and leaderboards."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

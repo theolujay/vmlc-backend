@@ -1,5 +1,5 @@
 # Multi-stage build with uv for faster Python package installation
-FROM python:3.13.1-slim-bookworm AS builder
+FROM python:3.13.7-slim-bookworm AS builder
 
 # Install system dependencies with cleanup in same layer
 RUN apt-get update && \
@@ -25,7 +25,7 @@ RUN uv sync \
 ENV PATH="/.venv/bin:$PATH"
 
 # Production stage
-FROM python:3.13.1-slim-bookworm AS production
+FROM python:3.13.7-slim-bookworm AS production
 
 # Install runtime dependencies and gosu in single layer
 RUN apt-get update && \
