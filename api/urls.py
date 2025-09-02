@@ -86,7 +86,6 @@ urlpatterns = [
     #     registration.ToggleStaffRegistrationView.as_view(),
     #     name="api-toggle-staff-registration",
     # ),
-    
     # === Email Verification ===
     path(
         "verify-email-otp/", auth.VerifyEmailOTPView.as_view(), name="verify-email-otp"
@@ -258,7 +257,7 @@ urlpatterns = [
         "user/verification/action/<uuid:user_id>/",
         user.UserVerificationActionView.as_view(),
         name="user-verification-action",
-    )
+    ),
     # path(
     #     "candidates/me/",
     #     candidate.CandidateMeView.as_view(),

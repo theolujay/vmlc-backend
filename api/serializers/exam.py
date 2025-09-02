@@ -1,6 +1,7 @@
 from django.db.models import Avg
 
 from rest_framework import serializers
+from typing import List, Optional
 
 from ..models import (
     CandidateScore,
@@ -10,7 +11,6 @@ from ..models import (
 
 from .question import CandidateQuestionSerializer
 from .staff import MinimalStaffSerializer
-from .user import UserSerializer
 
 
 class ExamListSerializer(serializers.ModelSerializer):
@@ -18,12 +18,14 @@ class ExamListSerializer(serializers.ModelSerializer):
     Serializer for listing exams with question count and creator.
     """
 
-    question_count = serializers.SerializerMethodField()
+    question_count: serializers.SerializerMethodField = (
+        serializers.SerializerMethodField()
+    )
     # created_by = MinimalStaffSerializer(read_only=True)
 
     class Meta:
-        model = Exam
-        fields = (
+        model: Exam = Exam
+        fields: List[str] = (
             "id",
             "title",
             "stage",
@@ -45,17 +47,19 @@ class ExamDetailSerializer(serializers.ModelSerializer):
     - average score
     """
 
-    questions = serializers.PrimaryKeyRelatedField(
+    questions: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=Question.objects.all(), many=True
     )
-    created_by = MinimalStaffSerializer(read_only=True)
-    average_score = serializers.SerializerMethodField(
-        help_text="Average score of all submissions for this exam."
+    created_by: MinimalStaffSerializer = MinimalStaffSerializer(read_only=True)
+    average_score: serializers.SerializerMethodField = (
+        serializers.SerializerMethodField(
+            help_text="Average score of all submissions for this exam."
+        )
     )
 
     class Meta:
-        model = Exam
-        fields = (
+        model: Exam = Exam
+        fields: List[str] = (
             "id",
             "title",
             "stage",
@@ -70,24 +74,26 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "average_score",
             "date_created",
         )
-        read_only_fields = ("id", "date_created", "created_by")
+        read_only_fields: List[str] = ("id", "date_created", "created_by")
 
     def get_average_score(self, obj: Exam) -> float:
         """
         Returns average score, using annotated value if available.
         """
-        avg = getattr(
+        avg: Optional[float] = getattr(
             obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"]
         )
         return float(avg or 0.0)
 
 
 class CandidateExamSerializer(serializers.ModelSerializer):
-    questions = CandidateQuestionSerializer(many=True, read_only=True)
+    questions: CandidateQuestionSerializer = CandidateQuestionSerializer(
+        many=True, read_only=True
+    )
 
     class Meta:
-        model = Exam
-        fields = (
+        model: Exam = Exam
+        fields: List[str] = (
             "id",
             "title",
             "stage",
@@ -104,14 +110,16 @@ class ExamResultSerializer(serializers.ModelSerializer):
     Serializer for displaying the results of an exam.
     """
 
-    candidate_name = serializers.CharField(
+    candidate_name: serializers.CharField = serializers.CharField(
         source="candidate.user.get_full_name", read_only=True
     )
-    candidate_school = serializers.CharField(source="candidate.school", read_only=True)
+    candidate_school: serializers.CharField = serializers.CharField(
+        source="candidate.school", read_only=True
+    )
 
     class Meta:
-        model = CandidateScore
-        fields = (
+        model: CandidateScore = CandidateScore
+        fields: List[str] = (
             "candidate_name",
             "candidate_school",
             "score",

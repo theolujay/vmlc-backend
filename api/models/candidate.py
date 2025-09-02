@@ -1,8 +1,8 @@
-
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import models
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Q, QuerySet, Sum
+from django.core.files.base import File
 
 from .user import User, UserVerification
 
@@ -12,7 +12,7 @@ class CandidateManager(models.Manager):
     Custom manager for the Candidate model.
     """
 
-    def with_scores(self):
+    def with_scores(self) -> QuerySet["Candidate"]:
         """
         Annotate candidates with total, average, and count of exam scores,
         excluding scores from exams at the 'screening' stage.
@@ -33,7 +33,7 @@ class CandidateManager(models.Manager):
             ),
         )
 
-    def with_complete_data(self):
+    def with_complete_data(self) -> QuerySet["Candidate"]:
         """
         Annotate candidates with scores and optimize related data fetching.
         """
@@ -43,12 +43,16 @@ class CandidateManager(models.Manager):
             .select_related("user")
         )
 
-    def active(self):
-        """Get only active candidates"""
+    def active(self) -> QuerySet["Candidate"]:
+        """
+        Get only active candidates
+        """
         return self.filter(user__is_active=True)
 
-    def by_role(self, role):
-        """Get active candidates by role"""
+    def by_role(self, role: str) -> QuerySet["Candidate"]:
+        """
+        Get active candidates by role
+        """
         return self.filter(role=role, user__is_active=True)
 
 
@@ -64,31 +68,31 @@ class Candidate(models.Model):
         FINAL = "final", "Final"
         WINNER = "winner", "Winner"
 
-    user = models.OneToOneField(
+    user: models.OneToOneField = models.OneToOneField(
         User,
         primary_key=True,
         on_delete=models.CASCADE,
         related_name="candidate_profile",
     )
-    school = models.CharField(max_length=150)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
-    role = models.CharField(
+    school: models.CharField = models.CharField(max_length=150)
+    date_created: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    date_updated: models.DateTimeField = models.DateTimeField(auto_now=True)
+    role: models.CharField = models.CharField(
         max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True
     )
 
-    objects = CandidateManager()
+    objects: CandidateManager = CandidateManager()
     total_score: Optional[float]
     average_score: Optional[float]
     exams_taken: Optional[int]
 
     @property
-    def is_active(self):
+    def is_active(self) -> bool:
         """Reference the user's is_active status"""
         return self.user.is_active
 
     @property
-    def profile_photo(self):
+    def profile_photo(self) -> Optional[File]:
         """Get profile photo from UserVerification with error handling"""
         try:
             return self.user.verification.profile_photo
@@ -96,28 +100,34 @@ class Candidate(models.Model):
             return None
 
     @property
-    def id_card(self):
-        """Get ID card from UserVerification with error handling"""
+    def id_card(self) -> Optional[File]:
+        """
+        Get ID card from UserVerification with error handling
+        """
         try:
             return self.user.verification.id_card
         except (AttributeError, UserVerification.DoesNotExist):
             return None
 
     @property
-    def school_result(self):
-        """Get school result from UserVerification with error handling"""
+    def school_result(self) -> Optional[File]:
+        """
+        Get school result from UserVerification with error handling
+        """
         try:
             return self.user.verification.verification_document
         except (AttributeError, UserVerification.DoesNotExist):
             return None
 
     @property
-    def is_verified(self):
-        """Check if user has verification and is verified"""
+    def is_verified(self) -> bool:
+        """
+        Check if user has verification and is verified
+        """
         return hasattr(self.user, "verification") and self.user.verification.is_verified
 
     @property
-    def score_data(self):
+    def score_data(self) -> Optional[Dict[str, float]]:
         """
         Returns score summary (total and average) if annotated via `with_scores()`.
         """
@@ -129,52 +139,56 @@ class Candidate(models.Model):
         return None
 
     @property
-    def is_winner(self):
+    def is_winner(self) -> bool:
         """
         Returns True if candidate has 'winner' role.
         """
         return self.role == self.Roles.WINNER
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.get_full_name()} - {self.school}"
 
     @classmethod
-    def active_candidates(cls):
+    def active_candidates(cls) -> QuerySet["Candidate"]:
         """
         Returns all currently active candidates.
         """
         return cls.objects.filter(user__is_active=True)
 
     @classmethod
-    def candidates_by_role(cls, role):
+    def candidates_by_role(cls, role: str) -> QuerySet["Candidate"]:
         """
         Returns active candidates filtered by role.
         """
         return cls.objects.filter(role=role, user__is_active=True)
 
-    def get_latest_score(self):
+    def get_latest_score(self) -> Optional["CandidateScore"]:
         """
         Returns the most recent score submitted for this candidate.
         """
+        from .score import CandidateScore
+
         return self.scores.latest("date_recorded")
 
-    def get_score_dict(self):
+    def get_score_dict(self) -> Dict[str, Any]:
         """
         Returns a dictionary of total, average, and per-exam scores for this candidate.
         Uses annotated and prefetched data if available to avoid extra queries.
         """
         # Use annotated values if they exist
-        total_score = getattr(self, "total_score", None)
-        average_score = getattr(self, "average_score", None)
+        total_score: Optional[float] = getattr(self, "total_score", None)
+        average_score: Optional[float] = getattr(self, "average_score", None)
 
         # Use prefetched scores if they exist, otherwise query
         if (
             hasattr(self, "_prefetched_objects_cache")
             and "scores" in self._prefetched_objects_cache
         ):
-            scores = self._prefetched_objects_cache["scores"]
+            scores: List[Any] = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related("exam", "submitted_by__user").all()
+            scores: List[Any] = self.scores.select_related(
+                "exam", "submitted_by__user"
+            ).all()
 
         # If total/average scores were not annotated, calculate them from the scores list
         if total_score is None and scores:

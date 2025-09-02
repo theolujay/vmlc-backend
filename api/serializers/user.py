@@ -1,16 +1,12 @@
 import logging
-from django.contrib.auth import get_user_model
+from typing import Any, Dict
+
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from ..models import UserVerification, User
 from ..tasks import send_mail_task
-from ..models import (
-    User,
-    UserVerification,
-)
 
-
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -19,11 +15,11 @@ class UserSerializer(serializers.ModelSerializer):
     Basic serializer for the Django User model.
     """
 
-    email = serializers.EmailField(
+    email: serializers.EmailField = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
 
-    def validate_phone(self, value):
+    def validate_phone(self, value: Any) -> str:
         import re
 
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
@@ -31,8 +27,8 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     class Meta:
-        model = User
-        fields = (
+        model: User = User
+        fields: tuple[str, ...] = (
             "id",
             "email",
             "first_name",
@@ -40,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "date_joined",
         )
-        read_only_fields = ("id", "date_joined")
+        read_only_fields: tuple[str, ...] = ("id", "date_joined")
 
 
 class MinimalUserSerializer(serializers.ModelSerializer):
@@ -49,8 +45,8 @@ class MinimalUserSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = User
-        fields = ("email", "first_name", "last_name", "phone")
+        model: User = User
+        fields: tuple[str, ...] = ("email", "first_name", "last_name", "phone")
 
 
 class UserVerificationStatusSerializer(serializers.ModelSerializer):
@@ -59,11 +55,13 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
     Only exposes the status and which documents have been uploaded.
     """
 
-    documents_uploaded = serializers.SerializerMethodField()
+    documents_uploaded: serializers.SerializerMethodField = (
+        serializers.SerializerMethodField()
+    )
 
     class Meta:
-        model = UserVerification
-        fields = (
+        model: UserVerification = UserVerification
+        fields: tuple[str, ...] = (
             "is_pending",
             "is_verified",
             "is_rejected",
@@ -72,7 +70,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "documents_uploaded",
         )
 
-    def get_documents_uploaded(self, obj):
+    def get_documents_uploaded(self, obj: UserVerification) -> Dict[str, bool]:
         return {
             "profile_photo": bool(obj.profile_photo),
             "id_card": bool(obj.id_card),
@@ -86,25 +84,28 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = UserVerification
-        fields = (
+        model: UserVerification = UserVerification
+        fields: tuple[str, ...] = (
             "profile_photo",
             "id_card",
             "verification_document",
         )
 
+
 class UserVerificationActionSerializer(serializers.ModelSerializer):
     """Serializer for verifying a user."""
 
     class Meta:
-        model = UserVerification
-        fields = ["is_verified", "is_rejected"]
-    
-    def update(self, instance, validated_data):
+        model: UserVerification = UserVerification
+        fields: list[str] = ["is_verified", "is_rejected"]
+
+    def update(
+        self, instance: UserVerification, validated_data: Dict[str, Any]
+    ) -> UserVerification:
         """Handle verification status updates."""
-        is_verified = validated_data.get("is_verified")
-        is_rejected = validated_data.get("is_rejected")
-        
+        is_verified: bool = validated_data.get("is_verified")
+        is_rejected: bool = validated_data.get("is_rejected")
+
         if is_verified is True:
             # Approve
             instance.is_verified = True
@@ -115,7 +116,7 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
                 message="Your account is now verified.",
                 recipient_list=[instance.user.email],
             )
-            
+
         elif is_rejected is True:
             # Reject
             instance.is_verified = False
@@ -126,6 +127,6 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
                 message="Your account verification has been rejected. Please contact a staf member for enquires.",
                 recipient_list=[instance.user.email],
             )
-        
+
         instance.save()
         return instance

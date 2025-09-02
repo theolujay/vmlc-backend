@@ -1,7 +1,3 @@
-"""
-API view for handling candidate answer submissions for an exam.
-"""
-
 import logging
 
 from django.db import transaction
@@ -11,8 +7,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.request import Request
+from typing import Any, List
 
-from ..models import CandidateAnswer, CandidateScore, Exam
+from ..models import CandidateAnswer, CandidateScore, Exam, Candidate
 from ..permissions import IsCandidate
 from ..serializers import CandidateAnswerBulkSerializer
 
@@ -24,10 +22,10 @@ class SubmitAnswersView(APIView):
     Handles the submission of a candidate's answers for a specific exam.
     """
 
-    permission_classes = [IsAuthenticated, IsCandidate]
-    serializer_class = CandidateAnswerBulkSerializer
+    permission_classes: List[Any] = [IsAuthenticated, IsCandidate]
+    serializer_class: Any = CandidateAnswerBulkSerializer
 
-    def post(self, request, exam_id: int):
+    def post(self, request: Request, exam_id: int) -> Response:
         """
         Validates and saves a bulk submission of answers for an exam.
 
@@ -36,8 +34,8 @@ class SubmitAnswersView(APIView):
         - Creates all answers within a single database transaction.
         - Triggers auto-scoring upon successful submission.
         """
-        candidate = request.user.candidate_profile
-        exam = get_object_or_404(Exam, pk=exam_id)
+        candidate: Candidate = request.user.candidate_profile
+        exam: Exam = get_object_or_404(Exam, pk=exam_id)
 
         # 1. Business Logic Validation
         if not exam.is_currently_open:
@@ -53,6 +51,8 @@ class SubmitAnswersView(APIView):
             )
 
         # 2. Prevent Re-submission
+        candidate_score: CandidateScore
+        created: bool
         candidate_score, created = CandidateScore.objects.get_or_create(
             candidate=candidate, exam=exam
         )
@@ -67,13 +67,15 @@ class SubmitAnswersView(APIView):
             )
 
         # 3. Data Validation
-        serializer = self.serializer_class(data=request.data)
+        serializer: CandidateAnswerBulkSerializer = self.serializer_class(
+            data=request.data
+        )
         serializer.is_valid(raise_exception=True)
-        answers_data = serializer.validated_data["answers"]
+        answers_data: List[Any] = serializer.validated_data["answers"]
 
         # 4. Atomic Bulk Creation and Scoring
         with transaction.atomic():
-            answers_to_create = [
+            answers_to_create: List[CandidateAnswer] = [
                 CandidateAnswer(
                     candidate_score=candidate_score,
                     question=answer_data["question"],

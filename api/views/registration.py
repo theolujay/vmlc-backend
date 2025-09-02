@@ -1,7 +1,3 @@
-"""
-API views for user registration and managing registration status.
-"""
-
 import logging
 
 from django.core.exceptions import ImproperlyConfigured
@@ -11,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
+from rest_framework.request import Request
+from typing import Any, Dict, List, Optional, Type
 
 from ..models import FeatureFlag, Staff
 from ..permissions import HasStaffRole
@@ -26,10 +24,10 @@ logger = logging.getLogger(__name__)
 class BaseRegistrationView(CreateAPIView):
     """Base registration view with common logic"""
 
-    permission_classes = [HasAPIKey]
-    feature_flag_key = None  # Subclasses must define this
+    permission_classes: List[Any] = [HasAPIKey]
+    feature_flag_key: Optional[str] = None  # Subclasses must define this
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         if request.user.is_authenticated:
             return Response(
                 {
@@ -49,10 +47,10 @@ class BaseRegistrationView(CreateAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = self.get_serializer(data=request.data)
+        serializer: Any = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        headers: Dict[str, Any] = self.get_success_headers(serializer.data)
         return Response(
             {"message": "Registration successful."},
             status=status.HTTP_201_CREATED,
@@ -63,15 +61,19 @@ class BaseRegistrationView(CreateAPIView):
 class CandidateRegistrationView(BaseRegistrationView):
     """Register a new candidate"""
 
-    serializer_class = CandidateRegistrationSerializer
-    feature_flag_key = "candidate_registration"
+    serializer_class: Type[CandidateRegistrationSerializer] = (
+        CandidateRegistrationSerializer
+    )
+    feature_flag_key: str = "candidate_registration"
 
 
 class StaffRegistrationView(BaseRegistrationView):
-    """Register a new staff member"""
+    """
+    Register a new staff member
+    """
 
-    serializer_class = StaffRegistrationSerializer
-    feature_flag_key = "staff_registration"
+    serializer_class: Type[StaffRegistrationSerializer] = StaffRegistrationSerializer
+    feature_flag_key: str = "staff_registration"
 
 
 class ToggleFeatureFlagView(APIView):
@@ -80,16 +82,21 @@ class ToggleFeatureFlagView(APIView):
     Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.SUPERADMIN)]
-    feature_flag_key = None
+    permission_classes: List[Any] = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.SUPERADMIN),
+    ]
+    feature_flag_key: Optional[str] = None
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         if not self.feature_flag_key:
             raise ImproperlyConfigured(
                 f"{self.__class__.__name__} is missing a feature_flag_key."
             )
 
-        visible_flag = request.data.get("open", False)
+        visible_flag: bool = request.data.get("open", False)
+        obj: FeatureFlag
+        created: bool
         obj, created = FeatureFlag.objects.get_or_create(
             key=self.feature_flag_key, defaults={"value": visible_flag}
         )
@@ -105,7 +112,7 @@ class ToggleFeatureFlagView(APIView):
             request.user.id,
         )
 
-        FEATURE_FLAG_MESSAGES = {
+        FEATURE_FLAG_MESSAGES: Dict[str, Dict[bool, str]] = {
             "candidate_registration_open": {
                 True: "Candidate registration is now open.",
                 False: "Candidate registration is now closed.",
@@ -120,13 +127,15 @@ class ToggleFeatureFlagView(APIView):
             },
         }
 
-        message_config = FEATURE_FLAG_MESSAGES.get(self.feature_flag_key)
+        message_config: Optional[Dict[bool, str]] = FEATURE_FLAG_MESSAGES.get(
+            self.feature_flag_key
+        )
         if message_config:
-            message = message_config[obj.value]
+            message: str = message_config[obj.value]
         else:
-            feature_name = self.feature_flag_key.replace("_", " ").title()
-            status_text = "enabled" if obj.value else "disabled"
-            message = f"'{feature_name}' is now {status_text}."
+            feature_name: str = self.feature_flag_key.replace("_", " ").title()
+            status_text: str = "enabled" if obj.value else "disabled"
+            message: str = f"'{feature_name}' is now {status_text}."
 
         return Response(
             {"message": message},
@@ -137,15 +146,18 @@ class ToggleFeatureFlagView(APIView):
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    feature_flag_key = "candidate_registration_open"
+    feature_flag_key: str = "candidate_registration_open"
 
 
 class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(Staff.Roles.SUPERADMIN)]
-    feature_flag_key = "staff_registration_open"
+    permission_classes: List[Any] = [
+        IsAuthenticated,
+        HasStaffRole(Staff.Roles.SUPERADMIN),
+    ]
+    feature_flag_key: str = "staff_registration_open"

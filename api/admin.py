@@ -1,14 +1,3 @@
-"""
-Admin configuration for managing core models in the Django admin interface.
-
-Includes custom display, filtering, and search options for:
-- Candidate
-- Staff
-- Exam
-- Question
-- CandidateScore
-"""
-
 from django.forms import widgets
 from django.db import models
 from django.contrib import admin, messages
@@ -16,7 +5,7 @@ from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.forms import widgets
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 from .models import (
     Candidate,
     Staff,
@@ -30,6 +19,7 @@ from .models import (
     CandidateScoreSnapshot,
     UserVerification,
 )
+from typing import Any, Optional
 
 
 @admin.register(User)
@@ -48,7 +38,7 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ("email", "first_name")
 
     @admin.display(description="User Profile")
-    def get_user_profile(self, obj):
+    def get_user_profile(self, obj: User) -> str:
         try:
             if hasattr(obj, "candidate_profile"):
                 return "Candidate"
@@ -68,7 +58,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "user",
         "verification_status",
         "has_profile_photo",
-        "has_id_card", 
+        "has_id_card",
         "has_verification_document",
         "date_created",
     ]
@@ -82,20 +72,16 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {
-            "fields": ("user", "is_pending", "is_verified")
-        }),
-        ("Files", {
-            "fields": ("profile_photo", "id_card", "verification_document")
-        }),
-        ("Timestamps", {
-            "fields": ("date_created", "date_updated"),
-            "classes": ("collapse",)
-        }),
+        (None, {"fields": ("user", "is_pending", "is_verified")}),
+        ("Files", {"fields": ("profile_photo", "id_card", "verification_document")}),
+        (
+            "Timestamps",
+            {"fields": ("date_created", "date_updated"), "classes": ("collapse",)},
+        ),
     )
 
     @admin.display(description="Status")
-    def verification_status(self, obj):
+    def verification_status(self, obj: UserVerification) -> str:
         """Display verification status with color coding."""
         if obj.is_verified:
             return format_html('<span style="color: green;">✓ Verified</span>')
@@ -105,28 +91,33 @@ class UserVerificationAdmin(admin.ModelAdmin):
             return format_html('<span style="color: red;">❌ Rejected</span>')
 
     @admin.display(description="Photo", boolean=True)
-    def has_profile_photo(self, obj):
+    def has_profile_photo(self, obj: UserVerification) -> bool:
         return bool(obj.profile_photo)
 
-    @admin.display(description="ID", boolean=True) 
-    def has_id_card(self, obj):
+    @admin.display(description="ID", boolean=True)
+    def has_id_card(self, obj: UserVerification) -> bool:
         return bool(obj.id_card)
 
     @admin.display(description="Doc", boolean=True)
-    def has_verification_document(self, obj):
+    def has_verification_document(self, obj: UserVerification) -> bool:
         return bool(obj.verification_document)
 
     @admin.action(description="Approve selected verifications")
-    def approve_selected(self, request, queryset):
+    def approve_selected(
+        self, request: Any, queryset: QuerySet[UserVerification]
+    ) -> None:
         """Approve selected verification requests."""
-        count = queryset.update(is_verified=True, is_pending=False)
+        count: int = queryset.update(is_verified=True, is_pending=False)
         self.message_user(request, f"{count} verification(s) approved.")
 
-    @admin.action(description="Reject selected verifications") 
-    def reject_selected(self, request, queryset):
+    @admin.action(description="Reject selected verifications")
+    def reject_selected(
+        self, request: Any, queryset: QuerySet[UserVerification]
+    ) -> None:
         """Reject selected verification requests."""
-        count = queryset.update(is_verified=False, is_pending=False)
+        count: int = queryset.update(is_verified=False, is_pending=False)
         self.message_user(request, f"{count} verification(s) rejected.")
+
 
 @admin.register(Candidate)
 class CandidateAdmin(admin.ModelAdmin):
@@ -159,38 +150,38 @@ class CandidateAdmin(admin.ModelAdmin):
     list_select_related = ("user", "user__verification")
     date_hierarchy = "date_created"
 
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
+    def get_queryset(self, request: Any) -> QuerySet[Candidate]:
+        queryset: QuerySet[Candidate] = super().get_queryset(request)
         return queryset.with_scores()
 
     @admin.display(description="Total Score", ordering="total_score")
-    def total_score(self, obj):
+    def total_score(self, obj: Candidate) -> Optional[float]:
         return obj.total_score
 
     @admin.display(description="Email", ordering="user__email")
-    def get_email(self, obj):
+    def get_email(self, obj: Candidate) -> str:
         return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
-    def get_full_name(self, obj):
+    def get_full_name(self, obj: Candidate) -> str:
         return obj.user.get_full_name()
 
     @admin.display(description="ID")
-    def get_primary_key(self, obj):
+    def get_primary_key(self, obj: Candidate) -> Any:
         return obj.pk
 
     @admin.display(
         description="Verified", boolean=True, ordering="user__verification__is_verified"
     )
-    def is_verified(self, obj):
+    def is_verified(self, obj: Candidate) -> bool:
         return obj.is_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
-    def is_active(self, obj):
+    def is_active(self, obj: Candidate) -> bool:
         return obj.is_active
 
     @admin.display(description="Exams Taken")
-    def exams_taken(self, obj):
+    def exams_taken(self, obj: Candidate) -> int:
         return obj.exams_taken.count() if hasattr(obj, "exams_taken") else 0
 
 
@@ -224,25 +215,25 @@ class StaffAdmin(admin.ModelAdmin):
     date_hierarchy = "date_created"
 
     @admin.display(description="Email", ordering="user__email")
-    def get_email(self, obj):
+    def get_email(self, obj: Staff) -> str:
         return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
-    def get_full_name(self, obj):
+    def get_full_name(self, obj: Staff) -> str:
         return obj.user.get_full_name()
 
     @admin.display(description="ID")
-    def get_primary_key(self, obj):
+    def get_primary_key(self, obj: Staff) -> Any:
         return obj.pk
 
     @admin.display(
         description="Verified", boolean=True, ordering="user__verification__is_verified"
     )
-    def is_verified(self, obj):
+    def is_verified(self, obj: Staff) -> bool:
         return obj.is_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
-    def is_active(self, obj):
+    def is_active(self, obj: Staff) -> bool:
         return obj.is_active
 
 
@@ -270,22 +261,22 @@ class ExamAdmin(admin.ModelAdmin):
     filter_horizontal = ("questions",)
 
     @admin.display(description="Question Count", ordering="question_count")
-    def get_question_count(self, obj):
+    def get_question_count(self, obj: Exam) -> int:
         # This will be efficient if the queryset is annotated
         if hasattr(obj, "question_count"):
             return obj.question_count
         return obj.questions.count()
 
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
+    def get_queryset(self, request: Any) -> QuerySet[Exam]:
+        queryset: QuerySet[Exam] = super().get_queryset(request)
         return queryset.annotate(question_count=Count("questions"))
 
     @admin.display(description="Results")
-    def view_results_link(self, obj):
+    def view_results_link(self, obj: Exam) -> str:
         from django.utils.html import format_html
         from django.urls import reverse
 
-        url = reverse("api:api-exam-results", args=[obj.pk])
+        url: str = reverse("api:api-exam-results", args=[obj.pk])
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
 
 
@@ -304,7 +295,7 @@ class QuestionAdmin(admin.ModelAdmin):
     date_hierarchy = "date_created"
 
     @admin.display(description="Created By", ordering="created_by__user__first_name")
-    def get_creator_name(self, obj):
+    def get_creator_name(self, obj: Question) -> Optional[str]:
         if obj.created_by:
             return obj.created_by.user.get_full_name()
         return None
@@ -332,11 +323,11 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     date_hierarchy = "date_recorded"
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
-    def get_candidate_email(self, obj):
+    def get_candidate_email(self, obj: CandidateScore) -> str:
         return obj.candidate.user.email
 
     @admin.display(description="Exam", ordering="exam__title")
-    def get_exam_title(self, obj):
+    def get_exam_title(self, obj: CandidateScore) -> str:
         return obj.exam.title
 
 
@@ -369,15 +360,15 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     @admin.display(
         description="Candidate", ordering="candidate_score__candidate__user__email"
     )
-    def get_candidate_email(self, obj):
+    def get_candidate_email(self, obj: CandidateAnswer) -> str:
         return obj.candidate_score.candidate.user.email
 
     @admin.display(description="Exam", ordering="candidate_score__exam__title")
-    def get_exam_title(self, obj):
+    def get_exam_title(self, obj: CandidateAnswer) -> str:
         return obj.candidate_score.exam.title
 
     @admin.display(description="Question", ordering="question__text")
-    def get_question_text(self, obj):
+    def get_question_text(self, obj: CandidateAnswer) -> str:
         return (
             str(obj.question)[:50] + "..."
             if len(str(obj.question)) > 50
@@ -405,16 +396,16 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")
-    def get_published_by_name(self, obj):
+    def get_published_by_name(self, obj: LeaderboardSnapshot) -> Optional[str]:
         if obj.published_by:
             return obj.published_by.user.get_full_name()
         return None
 
     @admin.display(description="Data Summary")
-    def data_summary(self, obj):
+    def data_summary(self, obj: LeaderboardSnapshot) -> str:
         import json
 
-        summary = str(json.dumps(obj.data))
+        summary: str = str(json.dumps(obj.data))
         return (summary[:75] + "...") if len(summary) > 75 else summary
 
 
@@ -439,16 +430,16 @@ class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")
-    def get_published_by_name(self, obj):
+    def get_published_by_name(self, obj: CandidateScoreSnapshot) -> Optional[str]:
         if obj.published_by:
             return obj.published_by.user.get_full_name()
         return None
 
     @admin.display(description="Data Summary")
-    def data_summary(self, obj):
+    def data_summary(self, obj: CandidateScoreSnapshot) -> str:
         import json
 
-        summary = str(json.dumps(obj.data))
+        summary: str = str(json.dumps(obj.data))
         return (summary[:75] + "...") if len(summary) > 75 else summary
 
 

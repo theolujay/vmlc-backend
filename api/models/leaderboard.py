@@ -1,13 +1,15 @@
+from typing import List
+
 from django.db import models
 
 from .staff import Staff
 
 
 class LeaderboardSnapshot(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    data = models.JSONField()
+    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    data: models.JSONField = models.JSONField()
 
-    published_by = models.ForeignKey(
+    published_by: models.ForeignKey = models.ForeignKey(
         Staff,
         on_delete=models.SET_NULL,
         null=True,
@@ -16,15 +18,17 @@ class LeaderboardSnapshot(models.Model):
     )
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering: List[str] = ["-created_at"]
 
 
 class CandidateScoreSnapshot(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    data = models.JSONField()
+    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    published_at: models.DateTimeField = models.DateTimeField(
+        null=True, blank=True, db_index=True
+    )
+    data: models.JSONField = models.JSONField()
 
-    published_by = models.ForeignKey(
+    published_by: models.ForeignKey = models.ForeignKey(
         Staff,
         on_delete=models.SET_NULL,
         null=True,
@@ -33,4 +37,4 @@ class CandidateScoreSnapshot(models.Model):
     )
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering: List[str] = ["-created_at"]

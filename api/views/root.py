@@ -2,26 +2,31 @@
 Authentication-related API views for login, logout, and registration.
 """
 
+from typing import Any, Optional
+
 from django.urls.exceptions import NoReverseMatch
 from django.views.decorators.cache import cache_page
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+
 
 @cache_page(60 * 15)
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def api_root(request, format=None):
+def api_root(request: Request, format: Optional[str] = None) -> Response:
     """API entry point with discoverable endpoints"""
 
-    def generate_url_with_placeholder(name, param_name, is_uuid=False):
+    def generate_url_with_placeholder(
+        name: str, param_name: str, is_uuid: bool = False
+    ) -> Optional[str]:
         """Generate URL with placeholder for dynamic endpoints"""
         try:
             # Use a dummy UUID for uuid params, otherwise use an integer.
-            dummy_id = "00000000-0000-0000-0000-000000000000" if is_uuid else 99999
-            url = reverse(
+            dummy_id: str = "00000000-0000-0000-0000-000000000000" if is_uuid else 99999
+            url: str = reverse(
                 name,
                 kwargs={param_name: dummy_id},
                 request=request,
@@ -31,7 +36,7 @@ def api_root(request, format=None):
         except NoReverseMatch:
             return None
 
-    def safe_reverse(name, **kwargs):
+    def safe_reverse(name: str, **kwargs: Any) -> Optional[str]:
         """Safely generate URLs, return None if route doesn't exist"""
         try:
             return reverse(name, request=request, format=format, **kwargs)
@@ -39,7 +44,7 @@ def api_root(request, format=None):
             return None
 
     return Response(
-        {   
+        {
             "api-root": safe_reverse("v1:api-root"),
             "authentication": {
                 "login": safe_reverse("v1:api-login"),
@@ -55,14 +60,14 @@ def api_root(request, format=None):
                 "staff": safe_reverse("v1:api-register-staff"),
             },
             "email_verification": {
-                "verify_otp": safe_reverse("v1:verify-email-otp"),  
-                "resend_otp": safe_reverse("v1:resend-email-otp"),  
+                "verify_otp": safe_reverse("v1:verify-email-otp"),
+                "resend_otp": safe_reverse("v1:resend-email-otp"),
             },
             "password_change": {
-                "request": safe_reverse("v1:api-request-password-change"),  
-                "confirm": safe_reverse("v1:api-verify-password-change-otp"),  
+                "request": safe_reverse("v1:api-request-password-change"),
+                "confirm": safe_reverse("v1:api-verify-password-change-otp"),
                 "change": safe_reverse("v1:api-password-change"),
-                "resend_otp": safe_reverse("v1:api-resend-password-change-otp"),  
+                "resend_otp": safe_reverse("v1:api-resend-password-change-otp"),
             },
             "candidates": {
                 "collection": safe_reverse("v1:api-candidate-list"),
@@ -156,7 +161,7 @@ def api_root(request, format=None):
                     ),
                     "admin": generate_url_with_placeholder(
                         "v1:user-verification-document-admin",
-                        "file_type", # TODO: accomodate user_id
+                        "file_type",  # TODO: accomodate user_id
                     ),
                 },
             },

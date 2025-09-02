@@ -1,7 +1,3 @@
-"""
-API views for retrieving and submitting candidate scores.
-"""
-
 import logging
 
 from django.shortcuts import get_object_or_404
@@ -11,6 +7,9 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework.request import Request
+from django.db.models import QuerySet
+from typing import Any, List, Type
 
 from ..models import (
     Candidate,
@@ -36,19 +35,19 @@ class CandidateScoreListView(ListAPIView):
     Accessible by staff with 'admin' or 'superadmin' roles.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = CandidateScoreSerializer
+    serializer_class: Type[CandidateScoreSerializer] = CandidateScoreSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[CandidateScore]:
         """
         Returns a queryset of scores for the specified candidate,
         optimized with prefetching.
         """
-        candidate_id = self.kwargs.get("candidate_id")
+        candidate_id: str = self.kwargs.get("candidate_id")
         # Ensure the candidate exists before proceeding
         get_object_or_404(Candidate, pk=candidate_id)
         return (
@@ -63,33 +62,35 @@ class SubmitScoreView(APIView):
     Submit or update a candidate's score for a specific exam.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = SubmitScoreSerializer
+    serializer_class: Type[SubmitScoreSerializer] = SubmitScoreSerializer
 
-    def put(self, request, exam_id: int):
+    def put(self, request: Request, exam_id: int) -> Response:
         """
         Handles the submission of a score for a candidate in a given exam.
 
         Expects `candidate_id` and `score` in the request body.
         """
-        serializer = self.serializer_class(data=request.data)
+        serializer: SubmitScoreSerializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        validated_data = serializer.validated_data
-        candidate_id = validated_data["candidate_id"]
-        score = validated_data["score"]
+        validated_data: dict = serializer.validated_data
+        candidate_id: str = validated_data["candidate_id"]
+        score: float = validated_data["score"]
 
         # get_object_or_404 is fine here as the serializer already validated existence
-        candidate = Candidate.objects.get(pk=candidate_id)
-        exam = get_object_or_404(Exam, pk=exam_id)
+        candidate: Candidate = Candidate.objects.get(pk=candidate_id)
+        exam: Exam = get_object_or_404(Exam, pk=exam_id)
         # IsVerifiedStaff permission ensures staff_profile exists
-        staff = request.user.staff_profile
+        staff: Staff = request.user.staff_profile
 
         # Create or update the score
+        score_obj: CandidateScore
+        created: bool
         score_obj, created = CandidateScore.objects.update_or_create(
             candidate=candidate,
             exam=exam,
@@ -101,7 +102,7 @@ class SubmitScoreView(APIView):
             },
         )
 
-        action = "submitted" if created else "updated"
+        action: str = "submitted" if created else "updated"
         logger.info(
             "Score for candidate %s on exam %s was %s by staff %s.",
             candidate.pk,
@@ -129,22 +130,24 @@ class PublishScoresView(APIView):
     Admin/Superadmin only.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """
         Generates a new score snapshot from current candidate scores and saves it.
         """
-        staff = request.user.staff_profile
+        staff: Staff = request.user.staff_profile
 
         # Use the optimized manager method to get candidates with scores
-        candidates = Candidate.objects.with_scores().filter(is_active=True)
+        candidates: QuerySet[Candidate] = Candidate.objects.with_scores().filter(
+            is_active=True
+        )
 
-        scores_data = []
+        scores_data: List[Any] = []
         for candidate in candidates:
             scores_data.append(
                 {
@@ -155,7 +158,7 @@ class PublishScoresView(APIView):
                 }
             )
 
-        snapshot = CandidateScoreSnapshot.objects.create(
+        snapshot: CandidateScoreSnapshot = CandidateScoreSnapshot.objects.create(
             data=scores_data,
             published_by=staff,
             published_at=timezone.now(),

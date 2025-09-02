@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from typing import List
 
 from ..models import (
     Question,
@@ -15,8 +16,8 @@ class QuestionListSerializer(serializers.ModelSerializer):
     # created_by = MinimalStaffSerializer(read_only=True)
 
     class Meta:
-        model = Question
-        fields = (
+        model: Question = Question
+        fields: List[str] = (
             "id",
             "text",
             # "option_a",
@@ -28,7 +29,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "date_created",
             # "created_by",
         )
-        read_only_fields = ("id", "date_created", "created_by")
+        read_only_fields: List[str] = ("id", "date_created", "created_by")
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
@@ -36,11 +37,11 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
     Serializer for exam questions with created_by staff included.
     """
 
-    created_by = MinimalStaffSerializer(read_only=True)
+    created_by: MinimalStaffSerializer = MinimalStaffSerializer(read_only=True)
 
     class Meta:
-        model = Question
-        fields = (
+        model: Question = Question
+        fields: List[str] = (
             "id",
             "text",
             "option_a",
@@ -52,13 +53,13 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "date_created",
             "created_by",
         )
-        read_only_fields = ("id", "date_created", "created_by")
+        read_only_fields: List[str] = ("id", "date_created", "created_by")
 
 
 class CandidateQuestionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Question
-        fields = (
+        model: Question = Question
+        fields: List[str] = (
             "id",
             "text",
             "option_a",

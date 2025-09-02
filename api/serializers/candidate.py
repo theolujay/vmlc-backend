@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from typing import Any, Dict, List
 
 from ..models import (
     Candidate,
@@ -12,11 +13,11 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
     Minimal serializer for listing candidate info.
     """
 
-    user = MinimalUserSerializer(read_only=True)
+    user: MinimalUserSerializer = MinimalUserSerializer(read_only=True)
 
     class Meta:
-        model = Candidate
-        fields = ["user", "school"]
+        model: Candidate = Candidate
+        fields: List[str] = ["user", "school"]
 
 
 class CandidateListSerializer(serializers.ModelSerializer):
@@ -24,11 +25,11 @@ class CandidateListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing candidate info.
     """
 
-    user = MinimalUserSerializer(read_only=True)
+    user: MinimalUserSerializer = MinimalUserSerializer(read_only=True)
 
     class Meta:
-        model = Candidate
-        fields = (
+        model: Candidate = Candidate
+        fields: List[str] = (
             "user",
             "school",
             "role",
@@ -44,14 +45,14 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     - total and average score
     """
 
-    user = UserSerializer(read_only=True)
-    scores = serializers.SerializerMethodField(
+    user: UserSerializer = UserSerializer(read_only=True)
+    scores: serializers.SerializerMethodField = serializers.SerializerMethodField(
         help_text="Detailed score breakdown for the candidate."
     )
 
     class Meta:
-        model = Candidate
-        fields = (
+        model: Candidate = Candidate
+        fields: List[str] = (
             "user",
             "school",
             "profile_photo",
@@ -64,9 +65,9 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "date_updated",
             "scores",
         )
-        read_only_fields = ("date_created", "date_updated", "user")
+        read_only_fields: List[str] = ("date_created", "date_updated", "user")
 
-    def get_scores(self, obj: Candidate) -> dict:
+    def get_scores(self, obj: Candidate) -> Dict[str, Any]:
         """
         Efficiently returns a dictionary of scores by leveraging the
         annotated and prefetched data from the model's `get_score_dict` method.

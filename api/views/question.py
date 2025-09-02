@@ -1,13 +1,10 @@
-"""
-API views for managing exam questions, including listing, creation,
-retrieval, updating, and deletion.
-"""
-
 import logging
-
+from rest_framework import serializers
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
+from django.db.models import QuerySet
+from typing import Any, Type
 
 from ..models import Question, Staff
 from ..permissions import HasStaffRole, IsVerifiedStaff
@@ -28,14 +25,14 @@ class QuestionListView(ListCreateAPIView):
         - Only accessible to verified staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = [
+    permission_classes: list[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+    pagination_class: Any = api_settings.DEFAULT_PAGINATION_CLASS
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         """
         Use a more detailed serializer for creation.
         """
@@ -43,18 +40,18 @@ class QuestionListView(ListCreateAPIView):
             return QuestionDetailSerializer
         return QuestionListSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Question]:
         """
         Optimizes the queryset by prefetching related user data.
         """
-        queryset = (
+        queryset: QuerySet[Question] = (
             Question.objects.filter(is_active=True)
             .select_related("created_by__user")
             .order_by("-date_created")
         )
         return filter_questions(queryset, self.request.query_params)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: serializers.Serializer) -> None:
         """
         Set the `created_by` field to the current staff user.
         """
@@ -79,20 +76,20 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         - Only accessible to staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = [
+    permission_classes: list[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = QuestionDetailSerializer
-    queryset = (
+    serializer_class: Type[QuestionDetailSerializer] = QuestionDetailSerializer
+    queryset: QuerySet[Question] = (
         Question.objects.filter(is_active=True)
         .select_related("created_by__user", "updated_by__user")
         .all()
     )
-    lookup_url_kwarg = "question_id"
+    lookup_url_kwarg: str = "question_id"
 
-    def perform_update(self, serializer):
+    def perform_update(self, serializer: serializers.Serializer) -> None:
         """
         Set the `updated_by` field to the current staff user.
         """
@@ -104,11 +101,11 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
             self.request.user.id,
         )
 
-    def perform_destroy(self, instance):
+    def perform_destroy(self, instance: Question) -> None:
         """
         Soft-delete the question by setting `is_active` to False and log the action.
         """
-        question_id = instance.id
+        question_id: Any = instance.id
         instance.is_active = False
         instance.save()
         logger.info("Question %s deleted by user %s", question_id, self.request.user.id)

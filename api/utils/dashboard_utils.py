@@ -1,20 +1,21 @@
-"""
-Dashboard utility functions for candidates and staff.
-
-These functions prepare and return summarized dashboard data, statistics,
-and relevant activity for frontend display.
-"""
-
 from datetime import timedelta
 from django.db.models import Avg, Max, Min, Sum, Q, Count, F
 from django.db.models.functions import Rank
-from django.db.models import Window
+from django.db.models import Window, QuerySet
 from django.utils import timezone
+from typing import Any, Dict, List, Optional
 
-from ..models import Candidate, CandidateScore, Exam, Question, CandidateScoreSnapshot
+from ..models import (
+    Candidate,
+    CandidateScore,
+    Exam,
+    Question,
+    CandidateScoreSnapshot,
+    Staff,
+)
 
 
-def get_candidate_dashboard_data(candidate):
+def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     """
     Generate dashboard data for a specific candidate.
 
@@ -30,48 +31,50 @@ def get_candidate_dashboard_data(candidate):
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent scores, and upcoming exams.
     """
-    latest_snapshot = (
+    latest_snapshot: Optional[CandidateScoreSnapshot] = (
         CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
         .order_by("-published_at")
         .first()
     )
 
     if latest_snapshot:
-        scores = CandidateScore.objects.filter(
+        scores: QuerySet[CandidateScore] = CandidateScore.objects.filter(
             candidate=candidate, date_recorded__lte=latest_snapshot.published_at
         )
     else:
-        scores = CandidateScore.objects.none()
+        scores: QuerySet[CandidateScore] = CandidateScore.objects.none()
 
-    score_stats = scores.aggregate(
+    score_stats: Dict[str, Any] = scores.aggregate(
         total_exams_taken=Count("id"),
         average_score=Avg("score"),
         highest_score=Max("score"),
         lowest_score=Min("score"),
     )
 
-    total_exams_taken = score_stats["total_exams_taken"]
-    average_score = score_stats["average_score"] or 0
-    highest_score = score_stats["highest_score"] or 0
-    lowest_score = score_stats["lowest_score"] or 0
+    total_exams_taken: int = score_stats["total_exams_taken"]
+    average_score: float = score_stats["average_score"] or 0
+    highest_score: float = score_stats["highest_score"] or 0
+    lowest_score: float = score_stats["lowest_score"] or 0
 
-    recent_scores = scores.order_by("-date_recorded")[:5]
-    latest_score = recent_scores.first()
+    recent_scores: QuerySet[CandidateScore] = scores.order_by("-date_recorded")[:5]
+    latest_score: Optional[CandidateScore] = recent_scores.first()
     if candidate.is_verified:
-        available_exams = [
+        available_exams: List[Exam] = [
             exam
             for exam in Exam.objects.filter(stage=candidate.role, is_active=True)
             if exam.is_currently_open
         ]
     else:
-        available_exams = []
+        available_exams: List[Exam] = []
 
     # Use Window function for efficient ranking ---
-    candidate_rank = None
-    total_league_candidates = 0
+    candidate_rank: Optional[int] = None
+    total_league_candidates: int = 0
     if candidate.role == "league" and latest_snapshot:
         # Base queryset for all league candidates with their published total score
-        league_candidates_qs = Candidate.candidates_by_role("league").annotate(
+        league_candidates_qs: QuerySet[Candidate] = Candidate.candidates_by_role(
+            "league"
+        ).annotate(
             total_score=Sum(
                 "scores__score",
                 filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
@@ -80,7 +83,7 @@ def get_candidate_dashboard_data(candidate):
         )
 
         # Use a window function to rank them in the database
-        ranked_candidates_qs = league_candidates_qs.annotate(
+        ranked_candidates_qs: QuerySet[Candidate] = league_candidates_qs.annotate(
             rank=Window(
                 expression=Rank(),
                 order_by=F("total_score").desc(nulls_last=True),
@@ -88,7 +91,9 @@ def get_candidate_dashboard_data(candidate):
         )
 
         # Retrieve just our specific candidate from this ranked list
-        ranked_candidate = ranked_candidates_qs.filter(pk=candidate.pk).first()
+        ranked_candidate: Optional[Candidate] = ranked_candidates_qs.filter(
+            pk=candidate.pk
+        ).first()
         if ranked_candidate:
             candidate_rank = ranked_candidate.rank
 
@@ -158,7 +163,7 @@ def get_candidate_dashboard_data(candidate):
     }
 
 
-def get_staff_dashboard_data(staff):
+def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     """
     Generate dashboard data for a staff user.
 
@@ -175,25 +180,27 @@ def get_staff_dashboard_data(staff):
     Returns:
         dict: A dictionary containing candidate stats, exams, scores, recent activity, and upcoming exams.
     """
-    now = timezone.now()
-    last_week = now - timedelta(days=7)
+    now: Any = timezone.now()
+    last_week: timedelta = now - timedelta(days=7)
 
-    total_candidates = Candidate.objects.count()
-    active_candidates = Candidate.active_candidates().count()
-    verified_candidates = Candidate.objects.filter(is_verified=True).count()
+    total_candidates: int = Candidate.objects.count()
+    active_candidates: int = Candidate.active_candidates().count()
+    verified_candidates: int = Candidate.objects.filter(is_verified=True).count()
 
-    candidates_by_role = {
+    candidates_by_role: Dict[str, Dict[str, Any]] = {
         key: {"display": display, "count": Candidate.candidates_by_role(key).count()}
         for key, display in Candidate.ROLE_CHOICES
     }
 
-    recent_candidates = Candidate.objects.filter(date_created__gte=last_week).count()
+    recent_candidates: int = Candidate.objects.filter(
+        date_created__gte=last_week
+    ).count()
 
-    total_exams = Exam.objects.count()
-    recent_exams = Exam.objects.filter(date_created__gte=last_week).count()
+    total_exams: int = Exam.objects.count()
+    recent_exams: int = Exam.objects.filter(date_created__gte=last_week).count()
 
-    total_questions = Question.objects.count()
-    questions_by_difficulty = {
+    total_questions: int = Question.objects.count()
+    questions_by_difficulty: Dict[str, Dict[str, Any]] = {
         key: {
             "display": display,
             "count": Question.objects.filter(difficulty=key).count(),
@@ -201,21 +208,25 @@ def get_staff_dashboard_data(staff):
         for key, display in Question._meta.get_field("difficulty").choices
     }
 
-    total_scores = CandidateScore.objects.count()
-    recent_scores = CandidateScore.objects.filter(date_recorded__gte=last_week).count()
+    total_scores: int = CandidateScore.objects.count()
+    recent_scores: int = CandidateScore.objects.filter(
+        date_recorded__gte=last_week
+    ).count()
 
-    avg_score = CandidateScore.objects.aggregate(avg=Avg("score"))["avg"] or 0
-    highest_score = CandidateScore.objects.aggregate(max=Max("score"))["max"] or 0
+    avg_score: float = CandidateScore.objects.aggregate(avg=Avg("score"))["avg"] or 0
+    highest_score: float = (
+        CandidateScore.objects.aggregate(max=Max("score"))["max"] or 0
+    )
 
-    recent_activity = CandidateScore.objects.select_related(
+    recent_activity: QuerySet[CandidateScore] = CandidateScore.objects.select_related(
         "candidate__user", "exam"
     ).order_by("-date_recorded")[:10]
 
-    upcoming_exams = Exam.objects.filter(exam_date__gte=now, is_active=True).order_by(
-        "exam_date"
-    )[:5]
+    upcoming_exams: QuerySet[Exam] = Exam.objects.filter(
+        exam_date__gte=now, is_active=True
+    ).order_by("exam_date")[:5]
 
-    staff_info = {
+    staff_info: Dict[str, Any] = {
         # "id": staff.user.id,
         "name": staff.user.get_full_name(),
         "email": staff.user.email,

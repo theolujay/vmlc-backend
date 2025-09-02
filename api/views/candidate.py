@@ -1,11 +1,6 @@
-"""
-API views specific to candidates.
-"""
-
 import logging
 
 from rest_framework.generics import (
-    RetrieveAPIView,
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
@@ -15,9 +10,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
+from django.db.models import QuerySet
+from typing import Any, List
 
 from ..models import Candidate, Staff
-from ..permissions import HasStaffRole, IsCandidate, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff
 from ..serializers import (
     CandidateDetailSerializer,
     CandidateListSerializer,
@@ -52,20 +50,22 @@ class CandidateListView(ListAPIView):
     Supports pagination and query param filtering.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = CandidateListSerializer
-    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+    serializer_class: Any = CandidateListSerializer
+    pagination_class: Any = api_settings.DEFAULT_PAGINATION_CLASS
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Candidate]:
         """
         Returns a filtered queryset of candidates based on request query parameters.
         """
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset = Candidate.objects.select_related("user").order_by("-date_created")
+        queryset: QuerySet[Candidate] = Candidate.objects.select_related(
+            "user"
+        ).order_by("-date_created")
         return filter_candidates(queryset, self.request.query_params)
 
 
@@ -76,27 +76,27 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     Only accessible to staff with 'owner' or 'admin' roles.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = CandidateDetailSerializer
-    lookup_url_kwarg = "candidate_id"
+    serializer_class: Any = CandidateDetailSerializer
+    lookup_url_kwarg: str = "candidate_id"
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Candidate]:
         # The dashboard utility function handles all necessary queries.
         return Candidate.objects.select_related("user").all()
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Custom retrieve method to return structured candidate data.
         """
-        candidate = self.get_object()
-        data = get_candidate_dashboard_data(candidate)
+        candidate: Candidate = self.get_object()
+        data: dict = get_candidate_dashboard_data(candidate)
         return Response(data, status=status.HTTP_200_OK)
 
-    def perform_update(self, serializer):
+    def perform_update(self, serializer: Any) -> None:
         """
         Save updates to candidate and log the action.
         """
@@ -111,7 +111,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         )
         serializer.save(updated_by=self.request.user.staff_profile)
 
-    def perform_destroy(self, instance):
+    def perform_destroy(self, instance: Candidate) -> None:
         """
         Soft-delete candidate by setting `is_active` to False.
         """
@@ -132,24 +132,24 @@ class AssignCandidateRoleView(UpdateAPIView):
     Only staff with 'owner' or 'admin' roles are permitted.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class = CandidateRoleSerializer
-    queryset = Candidate.objects.all()
-    lookup_url_kwarg = "candidate_id"
-    http_method_names = ["put", "patch"]
+    serializer_class: Any = CandidateRoleSerializer
+    queryset: QuerySet[Candidate] = Candidate.objects.all()
+    lookup_url_kwarg: str = "candidate_id"
+    http_method_names: List[str] = ["put", "patch"]
 
-    def perform_update(self, serializer):
+    def perform_update(self, serializer: Any) -> None:
         """
         Update candidate role and log the action.
         """
         if not serializer.instance.is_verified:
             raise ValidationError("Cannot assign role to unverified candidate.")
 
-        old_role = serializer.instance.role
+        old_role: str = serializer.instance.role
         super().perform_update(serializer)
 
         logger.info(

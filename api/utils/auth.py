@@ -1,7 +1,3 @@
-"""
-Auth-related utility functions.
-"""
-
 import logging
 import random
 from datetime import timedelta
@@ -10,8 +6,9 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.conf import settings
 from rest_framework import serializers
+from typing import Tuple, Any
 
-from ..models import EmailOTP
+from ..models import EmailOTP, User
 from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
@@ -21,12 +18,12 @@ def generate_otp() -> str:
     """
     Generates a 6-digit OTP.
     """
-    otp = str(random.randint(100000, 999999))
+    otp: str = str(random.randint(100000, 999999))
     logger.debug("OTP generated successfully")
     return otp
 
 
-def can_resend_otp(user, cooldown_minutes: int = 2) -> tuple[bool, int]:
+def can_resend_otp(user: User, cooldown_minutes: int = 2) -> Tuple[bool, int]:
     """
     Check if user can resend OTP based on cooldown period.
 
@@ -39,21 +36,25 @@ def can_resend_otp(user, cooldown_minutes: int = 2) -> tuple[bool, int]:
     """
     try:
         # Get the most recent OTP for this user
-        latest_otp = EmailOTP.objects.filter(user=user).order_by("-created_at").first()
+        latest_otp: EmailOTP = (
+            EmailOTP.objects.filter(user=user).order_by("-created_at").first()
+        )
 
         if not latest_otp:
             logger.debug(f"No previous OTP found for user {user.id}, can resend")
             return True, 0
 
         # Calculate time since last OTP
-        time_since_last = timezone.now() - latest_otp.created_at
-        cooldown_period = timedelta(minutes=cooldown_minutes)
+        time_since_last: timedelta = timezone.now() - latest_otp.created_at
+        cooldown_period: timedelta = timedelta(minutes=cooldown_minutes)
 
         if time_since_last >= cooldown_period:
             logger.debug(f"Cooldown period passed for user {user.id}, can resend")
             return True, 0
         else:
-            seconds_remaining = int((cooldown_period - time_since_last).total_seconds())
+            seconds_remaining: int = int(
+                (cooldown_period - time_since_last).total_seconds()
+            )
             logger.info(
                 f"User {user.id} must wait {seconds_remaining} seconds before resending OTP"
             )
@@ -67,7 +68,7 @@ def can_resend_otp(user, cooldown_minutes: int = 2) -> tuple[bool, int]:
         return True, 0
 
 
-def send_otp_to_email(user, is_resend: bool = False):
+def send_otp_to_email(user: User, is_resend: bool = False) -> None:
     """
     Generates and sends OTP to user's email address.
 
@@ -78,6 +79,8 @@ def send_otp_to_email(user, is_resend: bool = False):
     try:
         # Check rate limiting for resends
         if is_resend:
+            can_resend: bool
+            seconds_remaining: int
             can_resend, seconds_remaining = can_resend_otp(user)
             if not can_resend:
                 logger.warning(
@@ -94,20 +97,20 @@ def send_otp_to_email(user, is_resend: bool = False):
         logger.info(f"Invalidated existing OTPs for user {user.id}")
 
         # Generate new OTP
-        otp = generate_otp()
-        expiration = timezone.now() + timedelta(minutes=10)
+        otp: str = generate_otp()
+        expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database
         EmailOTP.objects.create(
             user=user, otp=otp, created_at=timezone.now(), expires_at=expiration
         )
 
-        action = "resent" if is_resend else "created"
+        action: str = "resent" if is_resend else "created"
         logger.info(f"OTP {action} for user {user.id} (masked: {user.email[:3]}***)")
 
         # Send email
-        subject = "Your OTP Code" + (" (Resent)" if is_resend else "")
-        message = f"Your OTP code is {otp}. It expires in 10 minutes."
+        subject: str = "Your OTP Code" + (" (Resent)" if is_resend else "")
+        message: str = f"Your OTP code is {otp}. It expires in 10 minutes."
 
         # send_mail(
         #     subject=subject,
@@ -129,12 +132,12 @@ def send_otp_to_email(user, is_resend: bool = False):
         # Re-raise validation errors (rate limiting)
         raise
     except Exception as e:
-        action = "resending" if is_resend else "sending"
+        action: str = "resending" if is_resend else "sending"
         logger.error(f"Failed {action} OTP email to user {user.id}: {str(e)}")
         raise
 
 
-def resend_otp_to_email(user):
+def resend_otp_to_email(user: User) -> None:
     """
     Convenience function specifically for resending OTP.
 
@@ -144,7 +147,7 @@ def resend_otp_to_email(user):
     send_otp_to_email(user, is_resend=True)
 
 
-def send_password_change_otp(user):
+def send_password_change_otp(user: User) -> None:
     """
     Sends OTP specifically for password change requests.
 
@@ -153,6 +156,8 @@ def send_password_change_otp(user):
     """
     try:
         # Check rate limiting
+        can_resend: bool
+        seconds_remaining: int
         can_resend, seconds_remaining = can_resend_otp(user)
         if not can_resend:
             logger.warning(
@@ -169,8 +174,8 @@ def send_password_change_otp(user):
         logger.info(f"Invalidated existing OTPs for password change - user {user.id}")
 
         # Generate new OTP
-        otp = generate_otp()
-        expiration = timezone.now() + timedelta(minutes=10)
+        otp: str = generate_otp()
+        expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database
         EmailOTP.objects.create(
@@ -200,7 +205,7 @@ def send_password_change_otp(user):
         raise
 
 
-def verify_otp_for_password_change(user, otp_code):
+def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
     """
     Verify OTP for password change and mark it as used.
 
@@ -213,7 +218,7 @@ def verify_otp_for_password_change(user, otp_code):
     """
     try:
         # Find valid OTP for this user
-        otp_record = EmailOTP.objects.filter(
+        otp_record: EmailOTP = EmailOTP.objects.filter(
             user=user, otp=otp_code, expires_at__gt=timezone.now()
         ).first()
 

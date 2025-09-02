@@ -1,18 +1,14 @@
-"""
-Utility functions for filtering querysets based on request parameters.
-
-Each function applies filters to a specific model's queryset (e.g., Candidate, Staff, Exam, Question)
-based on query parameters typically passed from a GET request.
-"""
-
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 import django_filters
+from typing import Any, List
 
-from ..models import Exam
+from ..models import Exam, Candidate, Staff, Question
 
 
-def filter_candidates(queryset, params):
+def filter_candidates(
+    queryset: QuerySet[Candidate], params: Any
+) -> QuerySet[Candidate]:
     """
     Filter candidate queryset based on optional query parameters.
 
@@ -29,10 +25,10 @@ def filter_candidates(queryset, params):
     Returns:
         QuerySet: Filtered queryset.
     """
-    role = params.get("role")
-    league = params.get("league")
-    is_active = params.get("is_active")
-    search = params.get("search")
+    role: Any = params.get("role")
+    league: Any = params.get("league")
+    is_active: Any = params.get("is_active")
+    search: Any = params.get("search")
 
     if role:
         queryset = queryset.filter(role=role)
@@ -56,7 +52,7 @@ def filter_candidates(queryset, params):
     return queryset
 
 
-def filter_staffs(queryset, params):
+def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
     """
     Filter staff queryset based on optional query parameters.
 
@@ -72,9 +68,9 @@ def filter_staffs(queryset, params):
     Returns:
         QuerySet: Filtered queryset.
     """
-    role = params.get("role")
-    is_active = params.get("is_active")
-    search = params.get("search")
+    role: Any = params.get("role")
+    is_active: Any = params.get("is_active")
+    search: Any = params.get("search")
 
     if role:
         queryset = queryset.filter(role=role)
@@ -95,7 +91,7 @@ def filter_staffs(queryset, params):
     return queryset
 
 
-def filter_questions(queryset, params):
+def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Question]:
     """
     Filter question queryset based on optional query parameters.
 
@@ -110,8 +106,8 @@ def filter_questions(queryset, params):
     Returns:
         QuerySet: Filtered queryset.
     """
-    search = params.get("search")
-    difficulty = params.get("difficulty")
+    search: Any = params.get("search")
+    difficulty: Any = params.get("difficulty")
 
     if search:
         queryset = queryset.filter(Q(description__icontains=search))
@@ -135,16 +131,20 @@ class ExamFilter(django_filters.FilterSet):
         params (QueryDict): The request query parameters.
     """
 
-    search = django_filters.CharFilter(method="filter_search", label="Search")
-    date_created = django_filters.DateFilter(
+    search: django_filters.CharFilter = django_filters.CharFilter(
+        method="filter_search", label="Search"
+    )
+    date_created: django_filters.DateFilter = django_filters.DateFilter(
         field_name="date_created", lookup_expr="date"
     )
 
     class Meta:
-        model = Exam
-        fields = ("search", "date_created")
+        model: Exam = Exam
+        fields: List[str] = ("search", "date_created")
 
-    def filter_search(self, queryset, name, value):
+    def filter_search(
+        self, queryset: QuerySet[Exam], name: str, value: str
+    ) -> QuerySet[Exam]:
         """Custom filter method for search functionality"""
         if value:
             return queryset.filter(

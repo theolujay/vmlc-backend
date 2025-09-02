@@ -1,13 +1,11 @@
-"""
-API views for retrieving and managing the leaderboard.
-"""
-
 import logging
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.request import Request
+from typing import Any, List
 
 from ..models import Candidate, FeatureFlag, LeaderboardSnapshot, Staff
 from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff, IsVerifiedStaff
@@ -22,26 +20,26 @@ class PublishLeaderboardView(APIView):
     Refreshes and publishes the leaderboard snapshot. Admin/Superadmin only.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """
         Generates a new leaderboard from current candidate scores and saves it.
         """
-        staff = request.user.staff_profile
+        staff: Staff = request.user.staff_profile
 
         # Use the optimized manager method to get candidates with scores
-        league_candidates = (
+        league_candidates: List[Candidate] = (
             Candidate.objects.with_scores()
             .filter(role=Candidate.Roles.LEAGUE, is_active=True)
             .order_by("-total_score")
         )
 
-        leaderboard_data = [
+        leaderboard_data: List[Any] = [
             {
                 "rank": index + 1,
                 "candidate": MinimalCandidateSerializer(candidate).data,
@@ -50,7 +48,7 @@ class PublishLeaderboardView(APIView):
             for index, candidate in enumerate(league_candidates)
         ]
 
-        snapshot = LeaderboardSnapshot.objects.create(
+        snapshot: LeaderboardSnapshot = LeaderboardSnapshot.objects.create(
             data=leaderboard_data,
             published_by=staff,
         )
@@ -75,9 +73,9 @@ class LoadLeaderboardView(APIView):
     Returns the most recently published leaderboard snapshot.
     """
 
-    permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
+    permission_classes: List[Any] = [IsAuthenticated, IsLeagueCandidateOrStaff]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         if hasattr(request.user, "candidate_profile"):
             if not request.user.candidate_profile.is_verified:
                 return Response(
@@ -96,7 +94,9 @@ class LoadLeaderboardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        snapshot = LeaderboardSnapshot.objects.order_by("-created_at").first()
+        snapshot: LeaderboardSnapshot = LeaderboardSnapshot.objects.order_by(
+            "-created_at"
+        ).first()
 
         if not snapshot:
             return Response(
@@ -113,9 +113,9 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     Accessible only by staff with 'admin' or 'superadmin' roles.
     """
 
-    permission_classes = [
+    permission_classes: List[Any] = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    feature_flag_key = "leaderboard_visible"
+    feature_flag_key: str = "leaderboard_visible"
