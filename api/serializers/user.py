@@ -1,12 +1,16 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+from PIL import Image
+import magic
 
-from ..models import UserVerification, User
+from ..models import User, UserVerification
 from ..tasks import send_mail_task
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: User = User
-        fields: tuple[str, ...] = (
+        fields: Tuple[str, ...] = (
             "id",
             "email",
             "first_name",
@@ -36,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "date_joined",
         )
-        read_only_fields: tuple[str, ...] = ("id", "date_joined")
+        read_only_fields: Tuple[str, ...] = ("id", "date_joined")
 
 
 class MinimalUserSerializer(serializers.ModelSerializer):
@@ -46,7 +50,7 @@ class MinimalUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: User = User
-        fields: tuple[str, ...] = ("email", "first_name", "last_name", "phone")
+        fields: Tuple[str, ...] = ("email", "first_name", "last_name", "phone")
 
 
 class UserVerificationStatusSerializer(serializers.ModelSerializer):
@@ -61,7 +65,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: UserVerification = UserVerification
-        fields: tuple[str, ...] = (
+        fields: Tuple[str, ...] = (
             "is_pending",
             "is_verified",
             "is_rejected",
@@ -85,11 +89,82 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: UserVerification = UserVerification
-        fields: tuple[str, ...] = (
+        fields: Tuple[str, ...] = (
             "profile_photo",
             "id_card",
             "verification_document",
         )
+
+    def _validate_file_size(self, value: Any, max_size_mb: int, field_name: str) -> None:
+        """Helper method to validate file size"""
+        if value and value.size > max_size_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"{field_name} must be less than {max_size_mb}MB.")
+
+    def _validate_image_file(self, value: Any, field_name: str) -> None:
+        """Helper method to validate image files"""
+        if not value:
+            return
+
+        try:
+            # Use PIL to verify it's a real image
+            img: Image.Image = Image.open(value)
+            img.verify()
+            # Reset file pointer after verification
+            value.seek(0)
+        except Exception:
+            raise serializers.ValidationError(f"Invalid {field_name} image file.")
+
+    def _validate_file_type(self, value: Any, allowed_types: List[str], field_name: str) -> None:
+        """Helper method to validate file type using python-magic"""
+        if not value:
+            return
+
+        try:
+            # Get actual file type using magic
+            file_type: str = magic.from_buffer(value.read(1024), mime=True)
+            value.seek(0)  # Reset file pointer
+
+            if file_type not in allowed_types:
+                allowed_str: str = ", ".join(allowed_types)
+                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
+        except Exception:
+            # Fallback to content_type if magic fails
+            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+                allowed_str = ", ".join(allowed_types)
+                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
+
+    def validate_profile_photo(self, value: Any) -> Any:
+        """Validation for profile photo"""
+        if value:
+            self._validate_file_size(value, 5, "Profile photo")
+            allowed_types: List[str] = ['image/jpg', 'image/jpeg', 'image/png']
+            self._validate_file_type(value, allowed_types, "Profile photo")
+            self._validate_image_file(value, "profile photo")
+        return value
+
+    def validate_id_card(self, value: Any) -> Any:
+        """Validation for ID card uploads"""
+        if value:
+            self._validate_file_size(value, 10, "ID card")
+            allowed_types: List[str] = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_type(value, allowed_types, "ID card")
+
+            # If it's an image, validate it properly
+            if value.content_type and value.content_type.startswith('image/'):
+                self._validate_image_file(value, "ID card")
+        return value
+
+    def validate_verification_document(self, value: Any) -> Any:
+        """Validation for verification document uploads"""
+        if value:
+            self._validate_file_size(value, 10, "Verification document")
+            allowed_types: List[str] = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_type(value, allowed_types, "Verification document")
+
+            # If it's an image, validate it properly
+            if value.content_type and value.content_type.startswith('image/'):
+                self._validate_image_file(value, "verification document")
+        return value
 
 
 class UserVerificationActionSerializer(serializers.ModelSerializer):
@@ -97,7 +172,7 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: UserVerification = UserVerification
-        fields: list[str] = ["is_verified", "is_rejected"]
+        fields: List[str] = ["is_verified", "is_rejected"]
 
     def update(
         self, instance: UserVerification, validated_data: Dict[str, Any]
