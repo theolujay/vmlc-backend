@@ -2,15 +2,15 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
-from typing import List, Any
+
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60)
 def send_mail_task(
-    self: Any, subject: str, message: str, recipient_list: List[str]
-) -> None:
+    self, subject, message, recipient_list
+):
     """
     Celery task to send an email asynchronously.
 

@@ -2,14 +2,12 @@ from django.contrib.auth import password_validation
 from django.db import transaction
 
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
-from typing import Any, Dict, List
+
 
 from ..models import (
     Candidate,
     Staff,
     User,
-    EmailOTP,
 )
 from .user import UserSerializer
 
@@ -20,8 +18,8 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     Handles common user creation and password validation logic.
     """
 
-    user: UserSerializer = UserSerializer()
-    password: serializers.CharField = serializers.CharField(
+    user = UserSerializer()
+    password = serializers.CharField(
         write_only=True,
         required=True,
         validators=[password_validation.validate_password],

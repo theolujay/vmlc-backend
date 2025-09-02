@@ -2,7 +2,7 @@
 Authentication-related API views for login, logout, and registration.
 """
 
-from typing import Any, Optional
+
 
 from django.urls.exceptions import NoReverseMatch
 from django.views.decorators.cache import cache_page
@@ -16,17 +16,17 @@ from rest_framework.reverse import reverse
 @cache_page(60 * 15)
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def api_root(request: Request, format: Optional[str] = None) -> Response:
+def api_root(request, format=None):
     """API entry point with discoverable endpoints"""
 
     def generate_url_with_placeholder(
-        name: str, param_name: str, is_uuid: bool = False
-    ) -> Optional[str]:
+        name, param_name, is_uuid = False
+    ):
         """Generate URL with placeholder for dynamic endpoints"""
         try:
             # Use a dummy UUID for uuid params, otherwise use an integer.
-            dummy_id: str = "00000000-0000-0000-0000-000000000000" if is_uuid else 99999
-            url: str = reverse(
+            dummy_id = "00000000-0000-0000-0000-000000000000" if is_uuid else 99999
+            url = reverse(
                 name,
                 kwargs={param_name: dummy_id},
                 request=request,
@@ -36,7 +36,7 @@ def api_root(request: Request, format: Optional[str] = None) -> Response:
         except NoReverseMatch:
             return None
 
-    def safe_reverse(name: str, **kwargs: Any) -> Optional[str]:
+    def safe_reverse(name, **kwargs):
         """Safely generate URLs, return None if route doesn't exist"""
         try:
             return reverse(name, request=request, format=format, **kwargs)

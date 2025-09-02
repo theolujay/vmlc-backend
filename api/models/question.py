@@ -19,36 +19,36 @@ class Question(models.Model):
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
 
-    text: models.TextField = models.TextField()
-    option_a: models.CharField = models.CharField(max_length=255, blank=True)
-    option_b: models.CharField = models.CharField(max_length=255, blank=True)
-    option_c: models.CharField = models.CharField(max_length=255, blank=True)
-    option_d: models.CharField = models.CharField(max_length=255, blank=True)
-    correct_answer: models.CharField = models.CharField(
+    text = models.TextField()
+    option_a = models.CharField(max_length=255, blank=True)
+    option_b = models.CharField(max_length=255, blank=True)
+    option_c = models.CharField(max_length=255, blank=True)
+    option_d = models.CharField(max_length=255, blank=True)
+    correct_answer = models.CharField(
         max_length=1, choices=Options.choices
     )
-    date_created: models.DateTimeField = models.DateTimeField(auto_now_add=True)
-    date_updated: models.DateTimeField = models.DateTimeField(auto_now=True)
-    created_by: models.ForeignKey = models.ForeignKey(
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
         Staff,
         blank=True,
         null=True,
         related_name="questions_created",
         on_delete=models.SET_NULL,
     )
-    updated_by: models.ForeignKey = models.ForeignKey(
+    updated_by = models.ForeignKey(
         Staff,
         blank=True,
         null=True,
         related_name="questions_updated",
         on_delete=models.SET_NULL,
     )
-    difficulty: models.CharField = models.CharField(
+    difficulty = models.CharField(
         max_length=10,
         choices=Difficulty.choices,
         default=Difficulty.MEDIUM,
     )
-    is_active: models.BooleanField = models.BooleanField(default=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
-    def __str__(self) -> str:
+    def __str__(self):
         return f"Q{self.id}: {self.text[:50]}..."

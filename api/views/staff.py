@@ -7,8 +7,7 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
-from django.db.models import QuerySet
-from typing import Any, List, Type
+
 
 from ..models import Staff
 from ..permissions import HasStaffRole, IsVerifiedStaff
@@ -45,20 +44,20 @@ class StaffListView(ListAPIView):
     Only accessible to users with roles: moderator, admin, or superadmin.
     """
 
-    permission_classes: List[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[StaffListSerializer] = StaffListSerializer
-    pagination_class: Any = api_settings.DEFAULT_PAGINATION_CLASS
+    serializer_class = StaffListSerializer
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
-    def get_queryset(self) -> QuerySet[Staff]:
+    def get_queryset(self):
         """
         Returns a filtered queryset of staff members.
         """
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset: QuerySet[Staff] = Staff.objects.select_related("user").order_by(
+        queryset = Staff.objects.select_related("user").order_by(
             "-date_created"
         )
         return filter_staffs(queryset, self.request.query_params)
@@ -75,16 +74,16 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Soft delete the staff (marks as inactive).
     """
 
-    permission_classes: List[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[StaffDetailSerializer] = StaffDetailSerializer
-    queryset: QuerySet[Staff] = Staff.objects.select_related("user").all()
-    lookup_url_kwarg: str = "staff_id"
+    serializer_class = StaffDetailSerializer
+    queryset = Staff.objects.select_related("user").all()
+    lookup_url_kwarg = "staff_id"
 
-    def perform_update(self, serializer: Any) -> None:
+    def perform_update(self, serializer):
         """
         Save updates to staff member and log the action.
         """
@@ -95,7 +94,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         )
         serializer.save()
 
-    def perform_destroy(self, instance: Staff) -> None:
+    def perform_destroy(self, instance):
         """
         Soft-delete staff by setting `is_active` to False.
         """
@@ -116,17 +115,17 @@ class AssignStaffRoleView(UpdateAPIView):
     - Only accepts PUT requests.
     """
 
-    permission_classes: List[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[StaffRoleSerializer] = StaffRoleSerializer
-    queryset: QuerySet[Staff] = Staff.objects.all()
-    lookup_url_kwarg: str = "staff_id"
-    http_method_names: List[str] = ["put", "patch"]
+    serializer_class = StaffRoleSerializer
+    queryset = Staff.objects.all()
+    lookup_url_kwarg = "staff_id"
+    http_method_names = ["put", "patch"]
 
-    def perform_update(self, serializer: Any) -> None:
+    def perform_update(self, serializer):
         super().perform_update(serializer)
         logger.info(
             "Assigned role '%s' to staff %s by user %s.",

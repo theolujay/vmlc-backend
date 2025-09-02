@@ -12,8 +12,7 @@ from rest_framework.generics import (
     ListCreateAPIView,
 )
 from rest_framework.request import Request
-from django.db.models import QuerySet
-from typing import Any, Type
+
 
 from ..models import Exam, CandidateScore, Candidate, Question, Staff
 from ..serializers import (
@@ -36,15 +35,15 @@ class ExamListView(ListCreateAPIView):
     - POST: Creates a new exam with detailed input data.
     """
 
-    permission_classes: list[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[ExamListSerializer] = ExamListSerializer
-    filterset_class: Type[ExamFilter] = ExamFilter
+    serializer_class = ExamListSerializer
+    filterset_class = ExamFilter
 
-    def get_serializer_class(self) -> Type[serializers.Serializer]:
+    def get_serializer_class(self):
         """
         Returns the appropriate serializer class based on the HTTP method.
         - Uses `ExamDetailSerializer` for POST requests.
@@ -56,7 +55,7 @@ class ExamListView(ListCreateAPIView):
             else ExamListSerializer
         )
 
-    def get_queryset(self) -> QuerySet[Exam]:
+    def get_queryset(self):
         """
         Returns a queryset of all Exam objects.
         """
@@ -66,7 +65,7 @@ class ExamListView(ListCreateAPIView):
             .order_by("-date_created")
         )
 
-    def perform_create(self, serializer: serializers.Serializer) -> None:
+    def perform_create(self, serializer):
         """
         Saves the staff member who created the exam
         """
@@ -82,15 +81,15 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Remove the exam.
     """
 
-    permission_classes: list[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[ExamDetailSerializer] = ExamDetailSerializer
-    lookup_url_kwarg: str = "exam_id"
+    serializer_class = ExamDetailSerializer
+    lookup_url_kwarg = "exam_id"
 
-    def get_queryset(self) -> QuerySet[Exam]:
+    def get_queryset(self):
         """
         Optimizes the queryset by annotating with average score and prefetching
         related data needed by the serializer.
@@ -109,20 +108,20 @@ class ExamResultsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes: list[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[ExamResultSerializer] = ExamResultSerializer
-    lookup_url_kwarg: str = "exam_id"
+    serializer_class = ExamResultSerializer
+    lookup_url_kwarg = "exam_id"
 
-    def get_queryset(self) -> QuerySet[CandidateScore]:
+    def get_queryset(self):
         """
         Returns a queryset of scores for the specified exam,
         optimized with prefetching.
         """
-        exam_id: int = self.kwargs[self.lookup_url_kwarg]
+        exam_id = self.kwargs[self.lookup_url_kwarg]
         # Ensure the exam exists before proceeding.
         get_object_or_404(Exam, pk=exam_id)
         return (
@@ -139,19 +138,19 @@ class ExamQuestionsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes: list[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[QuestionDetailSerializer] = QuestionDetailSerializer
+    serializer_class = QuestionDetailSerializer
 
-    def get_queryset(self) -> QuerySet[Question]:
+    def get_queryset(self):
         """
         Returns the queryset of questions related to a given exam.
         """
         # Use prefetch_related to optimize fetching the question creator's user data.
-        exam: Exam = get_object_or_404(
+        exam = get_object_or_404(
             Exam.objects.prefetch_related("questions__created_by__user"),
             pk=self.kwargs["exam_id"],
         )
@@ -165,20 +164,20 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes: list[Any] = [
+    permission_classes = [
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
-    serializer_class: Type[CandidateExamScoreSerializer] = CandidateExamScoreSerializer
-    lookup_url_kwarg: str = "candidate_id"
+    serializer_class = CandidateExamScoreSerializer
+    lookup_url_kwarg = "candidate_id"
 
-    def get_queryset(self) -> QuerySet[CandidateScore]:
+    def get_queryset(self):
         """
         Returns a queryset of scores for the specified candidate,
         optimized with prefetching.
         """
-        candidate_id: str = self.kwargs[self.lookup_url_kwarg]
+        candidate_id = self.kwargs[self.lookup_url_kwarg]
         # Ensure the candidate exists before proceeding.
         get_object_or_404(Candidate, pk=candidate_id)
         return (
@@ -190,12 +189,12 @@ class ExamHistoryView(ListAPIView):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsCandidate])
-def candidate_take_exam(request: Request, exam_id: int) -> Response:
+def candidate_take_exam(request, exam_id):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
-    candidate: Candidate = request.user.candidate_profile
-    exam: Exam = get_object_or_404(Exam, pk=exam_id)
+    candidate = request.user.candidate_profile
+    exam = get_object_or_404(Exam, pk=exam_id)
 
     if not candidate.is_verified:
         return Response(
@@ -211,5 +210,5 @@ def candidate_take_exam(request: Request, exam_id: int) -> Response:
             {"detail": "Exam is not currently open."}, status=status.HTTP_403_FORBIDDEN
         )
 
-    serializer: CandidateExamSerializer = CandidateExamSerializer(exam)
+    serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)

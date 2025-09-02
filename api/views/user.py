@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+
 
 import boto3
 from botocore.exceptions import ClientError
@@ -30,14 +30,14 @@ class UserVerificationStatusView(APIView):
     Get the verification status of the authenticated user.
     """
 
-    permission_classes: List[Any] = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request, user_id: Optional[str] = None) -> Response:
+    def get(self, request, user_id=None):
         # Determine target user
         if user_id is None:
-            target_user: User = request.user
+            target_user = request.user
         else:
-            target_user: User = get_object_or_404(User, id=user_id)
+            target_user = get_object_or_404(User, id=user_id)
             if (
                 request.user.id != target_user.id
                 and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
@@ -59,8 +59,6 @@ class UserVerificationStatusView(APIView):
             )
 
         # Get or create verification record
-        verification: UserVerification
-        created: bool
         verification, created = UserVerification.objects.get_or_create(user=target_user)
 
         # Determine status based on verification record
@@ -107,12 +105,10 @@ class UserVerificationUploadView(APIView):
     Upload verification documents for the authenticated user.
     """
 
-    permission_classes: List[Any] = [IsAuthenticated]
-    parser_classes: List[Any] = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request: Request) -> Response:
-        verification: UserVerification
-        created: bool
+    def post(self, request):
         verification, created = UserVerification.objects.get_or_create(
             user=request.user
         )
@@ -168,10 +164,10 @@ class UserVerificationUploadView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request: Request) -> Response:
+    def patch(self, request):
         """Update existing verification data (partial update)."""
         try:
-            verification: UserVerification = UserVerification.objects.get(
+            verification = UserVerification.objects.get(
                 user=request.user
             )
         except UserVerification.DoesNotExist:
@@ -222,20 +218,20 @@ class UserVerificationDocumentView(APIView):
     Access verification documents for authenticated user or any user (if superadmin).
     """
 
-    permission_classes: List[Any] = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(
-        self, request: Request, file_type: str, user_id: Optional[str] = None
-    ) -> HttpResponse:
+        self, request, file_type, user_id=None
+    ):
         # If no user_id provided, default to current user
         if user_id is None:
-            target_user: User = request.user
-            verification: UserVerification = get_object_or_404(
+            target_user = request.user
+            verification = get_object_or_404(
                 UserVerification, user=request.user
             )
         else:
             # user_id provided - superadmin accessing another user's files
-            target_user: User = get_object_or_404(User, id=user_id)
+            target_user = get_object_or_404(User, id=user_id)
 
             # Check permissions: only the user themselves or superadmin can access
             if str(request.user.id) != str(
@@ -247,7 +243,7 @@ class UserVerificationDocumentView(APIView):
                     "You don't have permission to access this user's documents."
                 )
 
-            verification: UserVerification = get_object_or_404(
+            verification = get_object_or_404(
                 UserVerification, user=target_user
             )
 
@@ -261,14 +257,14 @@ class UserVerificationDocumentView(APIView):
 
         # Get the file field and determine storage path
         if file_type == "id_card":
-            file: Any = verification.id_card
-            storage_prefix: str = "media/private"  # PrivateMediaStorage
+            file = verification.id_card
+            storage_prefix = "media/private"  # PrivateMediaStorage
         elif file_type == "verification_document":
-            file: Any = verification.verification_document
-            storage_prefix: str = "media/private"  # PrivateMediaStorage
+            file = verification.verification_document
+            storage_prefix = "media/private"  # PrivateMediaStorage
         elif file_type == "profile_photo":
-            file: Any = verification.profile_photo
-            storage_prefix: str = "media/public"  # PublicMediaStorage
+            file = verification.profile_photo
+            storage_prefix = "media/public"  # PublicMediaStorage
         else:
             return Response(
                 {"detail": "Invalid file type."},
@@ -282,29 +278,29 @@ class UserVerificationDocumentView(APIView):
             )
 
         try:
-            s3_client: Any = boto3.client("s3")
-            bucket_name: str = "vmlc-s3"
-            object_key: str = f"{storage_prefix}/{file.name}"
+            s3_client = boto3.client("s3")
+            bucket_name = "vmlc-s3"
+            object_key = f"{storage_prefix}/{file.name}"
 
             logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
 
             # Get the object from S3
-            s3_response: Dict[str, Any] = s3_client.get_object(
+            s3_response = s3_client.get_object(
                 Bucket=bucket_name, Key=object_key
             )
 
             # Get content type
-            content_type: str = s3_response.get(
+            content_type = s3_response.get(
                 "ContentType", "application/octet-stream"
             )
 
             # Stream the content
-            file_content: bytes = s3_response["Body"].read()
+            file_content = s3_response["Body"].read()
 
             return HttpResponse(file_content, content_type=content_type)
 
         except ClientError as e:
-            error_code: str = e.response["Error"]["Code"]
+            error_code = e.response["Error"]["Code"]
             if error_code == "NoSuchKey":
                 logger.error(f"S3 object not found: {object_key}")
                 return Response(
@@ -336,14 +332,14 @@ class UserVerificationDocumentView(APIView):
 class UserVerificationListView(APIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes: List[Any] = [IsAuthenticated, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
-    def get(self, request: Request) -> Response:
-        verification_list: List[UserVerification] = (
+    def get(self, request):
+        verification_list = (
             UserVerification.objects.select_related("user").all()
         )
 
-        data: List[Dict[str, Any]] = []
+        data = []
         for verification in verification_list:
             data.append(
                 {
@@ -370,11 +366,11 @@ class UserVerificationActionView(APIView):
     Handle user verification actions (approve/reject).
     """
 
-    permission_classes: List[Any] = [IsAuthenticated, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
-    def post(self, request: Request, user_id: str) -> Response:
-        target_user: User = get_object_or_404(User, id=user_id)
-        verification: UserVerification = get_object_or_404(
+    def post(self, request, user_id):
+        target_user = get_object_or_404(User, id=user_id)
+        verification = get_object_or_404(
             UserVerification, user=target_user
         )
 
@@ -391,13 +387,13 @@ class UserVerificationActionView(APIView):
 
         if serializer.is_valid():
             # Determine action
-            validated_data: Dict[str, Any] = serializer.validated_data
+            validated_data = serializer.validated_data
             if validated_data.get("is_verified"):
-                action: str = "approved"
-                message: str = "User verified successfully."
+                action = "approved"
+                message = "User verified successfully."
             elif validated_data.get("is_rejected"):
-                action: str = "rejected"
-                message: str = "User verification rejected."
+                action = "rejected"
+                message = "User verification rejected."
             else:
                 return Response(
                     {"detail": "Must specify either is_verified or is_rejected."},

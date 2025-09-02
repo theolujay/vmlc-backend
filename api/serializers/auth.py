@@ -1,7 +1,5 @@
 import logging
-from typing import Any, Dict
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -20,14 +18,14 @@ logger = logging.getLogger(__name__)
 class VerifyEmailOTPSerializer(serializers.Serializer):
     """Serializer for verifying email OTP."""
 
-    email: serializers.EmailField = serializers.EmailField()
-    otp: serializers.CharField = serializers.CharField(max_length=6, min_length=6)
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
 
     class Meta:
-        model: User = User
-        fields: tuple[str, ...] = ("email", "otp")
+        model = User
+        fields = ("email", "otp")
 
-    def validate_otp(self, value: Any) -> str:
+    def validate_otp(self, value: str) -> str:
         """Validate OTP format."""
         if not value.isdigit():
             raise serializers.ValidationError("OTP must contain only digits.")
@@ -36,7 +34,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
     def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate email and OTP combination."""
         try:
-            user: User = User.objects.get(email=data["email"])
+            user = User.objects.get(email=data["email"])
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid email or OTP.")
 
@@ -46,7 +44,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
 
         try:
             # Get the most recent valid OTP for this user
-            otp_obj: EmailOTP = (
+            otp_obj = (
                 EmailOTP.objects.filter(user=user, otp=data["otp"])
                 .order_by("-created_at")
                 .first()
@@ -71,8 +69,8 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
 
     def save(self) -> User:
         """Mark email as verified, invalidate OTP, and create user verification object."""
-        user: User = self.validated_data["user"]
-        otp_obj: EmailOTP = self.validated_data["otp_obj"]
+        user = self.validated_data["user"]
+        otp_obj = self.validated_data["otp_obj"]
 
         # Mark email as verified
         user.is_email_verified = True
@@ -94,16 +92,16 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
 class ResendEmailOTPSerializer(serializers.Serializer):
     """Serializer for resending email OTP."""
 
-    email: serializers.EmailField = serializers.EmailField()
+    email = serializers.EmailField()
 
     class Meta:
-        model: User = User
-        fields: tuple[str, ...] = ("email",)
+        model = User
+        fields = ["email"]
 
-    def validate_email(self, value: Any) -> str:
+    def validate_email(self, value: str) -> str:
         """Validate email and check if user exists."""
         try:
-            user: User = User.objects.get(email=value)
+            user = User.objects.get(email=value)
         except User.DoesNotExist:
             raise serializers.ValidationError(
                 "No account found with this email address."
@@ -118,7 +116,7 @@ class ResendEmailOTPSerializer(serializers.Serializer):
 
     def save(self) -> User:
         """Resend OTP to user's email."""
-        user: User = self.context["user"]
+        user = self.context["user"]
 
         resend_otp_to_email(user)
         return user
@@ -129,13 +127,13 @@ class RequestPasswordChangeSerializer(serializers.Serializer):
     Serializer for requesting password change OTP.
     """
 
-    email: serializers.EmailField = serializers.EmailField()
+    email = serializers.EmailField()
 
     class Meta:
-        model: User = User
-        fields: tuple[str, ...] = ("email",)
+        model = User
+        fields = ["email"]
 
-    def validate_email(self, value: Any) -> str:
+    def validate_email(self, value: str) -> str:
         """
         Check if user exists with this email.
         """
@@ -149,8 +147,8 @@ class RequestPasswordChangeSerializer(serializers.Serializer):
         """
         Send OTP for password change.
         """
-        email: str = self.validated_data["email"]
-        user: User = User.objects.get(email=email)
+        email = self.validated_data["email"]
+        user = User.objects.get(email=email)
         send_password_change_otp(user)
         return user
 
@@ -160,14 +158,14 @@ class PasswordChangeOTPConfirmSerializer(serializers.Serializer):
     Serializer for confirming user's password change request with OTP.
     """
 
-    email: serializers.EmailField = serializers.EmailField()
-    otp: serializers.CharField = serializers.CharField(max_length=6, min_length=6)
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
 
     class Meta:
-        model: User = User
-        fields: tuple[str, ...] = ("email", "otp")
+        model = User
+        fields = ["email", "otp"]
 
-    def validate_otp(self, value: Any) -> str:
+    def validate_otp(self, value: str) -> str:
         """
         Validate OTP format (6 digits).
         """
@@ -175,17 +173,17 @@ class PasswordChangeOTPConfirmSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits.")
         return value
 
-    def validate(self, data: Dict[str, Any]) -> bool:
+    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Verify email and OTP combination.
         """
         try:
-            user: User = User.objects.get(email=data["email"])
+            user = User.objects.get(email=data["email"])
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid email or OTP.")
 
         try:
-            otp_obj: EmailOTP = (
+            otp_obj = (
                 EmailOTP.objects.filter(user=user, otp=data["otp"])
                 .order_by("-created_at")
                 .first()
@@ -208,21 +206,21 @@ class PasswordChangeSerializer(serializers.Serializer):
     Serializer for changing password with OTP verification.
     """
 
-    email: serializers.EmailField = serializers.EmailField()
-    otp: serializers.CharField = serializers.CharField(max_length=6, min_length=6)
-    new_password: serializers.CharField = serializers.CharField(write_only=True)
-    confirm_password: serializers.CharField = serializers.CharField(write_only=True)
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
-        model: User = User
-        fields: tuple[str, ...] = (
+        model = User
+        fields = [
             "email",
             "otp",
             "new_password",
             "confirm_password",
-        )
+        ]
 
-    def validate_email(self, value: Any) -> str:
+    def validate_email(self, value: str) -> str:
         """
         Check if user exists with this email.
         """
@@ -232,7 +230,7 @@ class PasswordChangeSerializer(serializers.Serializer):
             )
         return value
 
-    def validate_otp(self, value: Any) -> str:
+    def validate_otp(self, value: str) -> str:
         """
         Validate OTP format (6 digits).
         """
@@ -240,7 +238,7 @@ class PasswordChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits.")
         return value
 
-    def validate_new_password(self, value: Any) -> str:
+    def validate_new_password(self, value: str) -> str:
         """
         Validate password strength using Django's validators.
         """
@@ -259,7 +257,7 @@ class PasswordChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError("Passwords do not match.")
 
         # Verify OTP
-        user: User = User.objects.get(email=data["email"])
+        user = User.objects.get(email=data["email"])
         if not verify_otp_for_password_change(user, data["otp"]):
             raise serializers.ValidationError("Invalid or expired OTP code.")
 
@@ -269,10 +267,10 @@ class PasswordChangeSerializer(serializers.Serializer):
         """
         Change the user's password.
         """
-        email: str = self.validated_data["email"]
-        new_password: str = self.validated_data["new_password"]
+        email = self.validated_data["email"]
+        new_password = self.validated_data["new_password"]
 
-        user: User = User.objects.get(email=email)
+        user = User.objects.get(email=email)
         user.set_password(new_password)
         user.save()
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from typing import Any, Dict, List
+
 
 from ..models import (
     Candidate,
@@ -13,11 +13,11 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
     Minimal serializer for listing candidate info.
     """
 
-    user: MinimalUserSerializer = MinimalUserSerializer(read_only=True)
+    user = MinimalUserSerializer(read_only=True)
 
     class Meta:
         model: Candidate = Candidate
-        fields: List[str] = ["user", "school"]
+        fields = ["user", "school"]
 
 
 class CandidateListSerializer(serializers.ModelSerializer):
@@ -29,12 +29,12 @@ class CandidateListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: Candidate = Candidate
-        fields: List[str] = (
+        fields = [
             "user",
             "school",
             "role",
             "is_verified",
-        )
+        ]
 
 
 class CandidateDetailSerializer(serializers.ModelSerializer):
@@ -52,7 +52,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: Candidate = Candidate
-        fields: List[str] = (
+        fields = [
             "user",
             "school",
             "profile_photo",
@@ -64,8 +64,8 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "date_created",
             "date_updated",
             "scores",
-        )
-        read_only_fields: List[str] = ("date_created", "date_updated", "user")
+        ]
+        read_only_fields = ["date_created", "date_updated", "user"]
 
     def get_scores(self, obj: Candidate) -> Dict[str, Any]:
         """

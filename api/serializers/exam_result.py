@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from typing import List
 
 from ..models import CandidateScore
 
@@ -18,9 +17,9 @@ class ExamResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model: CandidateScore = CandidateScore
-        fields: List[str] = (
+        fields = [
             "candidate_name",
             "candidate_school",
             "score",
             "date_recorded",
-        )
+        ]

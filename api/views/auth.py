@@ -3,7 +3,7 @@ Authentication-related API views for login, logout, and registration.
 """
 
 import logging
-from typing import Any, Dict
+
 
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
@@ -36,13 +36,13 @@ class VerifyEmailOTPView(APIView):
     Handles OTP verification for user registration.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         serializer = VerifyEmailOTPSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                user: User = serializer.save()
+                user = serializer.save()
 
                 send_mail_task.delay(
                     subject="Email Verified Successfully",
@@ -70,19 +70,19 @@ class ResendEmailOTPView(APIView):
     Resend OTP to user's email with rate limiting.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         serializer = ResendEmailOTPSerializer(data=request.data)
 
         if serializer.is_valid():
             try:
-                user: User = serializer.save()
+                user = serializer.save()
 
                 # Mask email for response
-                email: str = user.email
-                email_parts: list[str] = email.split("@")
-                masked_email: str = f"{email_parts[0][:3]}***@{email_parts[1]}"
+                email = user.email
+                email_parts = email.split("@")
+                masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
                 logger.info(f"Resending OTP to user {user.id}")
                 return Response(
                     {
@@ -113,9 +113,9 @@ class RequestPasswordChangeView(APIView):
     Request OTP for password change.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         """
         Send OTP to user's email for password change verification.
 
@@ -128,12 +128,12 @@ class RequestPasswordChangeView(APIView):
 
         if serializer.is_valid():
             try:
-                user: User = serializer.save()
+                user = serializer.save()
 
                 # Mask email for response
-                email: str = user.email
-                email_parts: list[str] = email.split("@")
-                masked_email: str = f"{email_parts[0][:3]}***@{email_parts[1]}"
+                email = user.email
+                email_parts = email.split("@")
+                masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
 
                 return Response(
                     {
@@ -166,9 +166,9 @@ class PasswordChangeOTPConfirmView(APIView):
     Confirm password change request with OTP.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         """
         Change user password after OTP verification.
 
@@ -195,9 +195,9 @@ class PasswordChangeView(APIView):
     Change user password with OTP verification.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         """
         Change password after OTP verification.
 
@@ -213,7 +213,7 @@ class PasswordChangeView(APIView):
 
         if serializer.is_valid():
             try:
-                user: User = serializer.save()
+                user = serializer.save()
                 from ..tasks import send_mail_task
 
                 # Send notification email about password change
@@ -245,9 +245,9 @@ class ResendPasswordChangeOTPView(APIView):
     Resend OTP for password change with rate limiting.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         """
         Resend password change OTP.
 
@@ -257,7 +257,7 @@ class ResendPasswordChangeOTPView(APIView):
         }
         """
         try:
-            email: str = request.data.get("email")
+            email = request.data.get("email")
 
             if not email:
                 return Response(
@@ -273,7 +273,7 @@ class ResendPasswordChangeOTPView(APIView):
 
             # Check if user exists
             try:
-                user: User = User.objects.get(email=email)
+                user = User.objects.get(email=email)
             except User.DoesNotExist:
                 # Security: Return generic message
                 logger.warning(
@@ -290,8 +290,8 @@ class ResendPasswordChangeOTPView(APIView):
             resend_otp_to_email(user)
             logger.info(f"Password change OTP resent to user {user.id}")
             # Mask email for response
-            email_parts: list[str] = email.split("@")
-            masked_email: str = f"{email_parts[0][:3]}***@{email_parts[1]}"
+            email_parts = email.split("@")
+            masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
 
             return Response(
                 {
@@ -320,9 +320,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Customizes the JWT token response to include user details.
     """
 
-    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, attrs):
         # The default result (access/refres tokens)
-        data: Dict[str, Any] = super().validate(attrs)
+        data = super().validate(attrs)
 
         # Add user information to the response
         user_serializer = UserSerializer(self.user)
@@ -337,13 +337,13 @@ class LoginView(TokenObtainPairView):
     Uses the custom serializer to include user data in the response.
     """
 
-    serializer_class: CustomTokenObtainPairSerializer = CustomTokenObtainPairSerializer
-    permission_classes: list[Any] = [HasAPIKey]
-    throttle_scope: str = "login"
+    serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [HasAPIKey]
+    throttle_scope = "login"
 
-    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        response: Response = super().post(request, *args, **kwargs)
-        email: str = request.data.get("email", "N/A")
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        email = request.data.get("email", "N/A")
         if response.status_code == status.HTTP_200_OK:
             logger.info("User with email '%s' logged in successfully.", email)
         else:
@@ -357,14 +357,14 @@ class LogoutView(APIView):
     Uses AllowAny permission to handle expired access tokens.
     """
 
-    permission_classes: list[Any] = [AllowAny]
+    permission_classes = [AllowAny]
 
-    def post(self, request: Request) -> Response:
+    def post(self, request):
         """
         Expects a 'refresh' token in the request body.
         Extracts user info from the refresh token for logging.
         """
-        refresh_token: str = request.data.get("refresh")
+        refresh_token = request.data.get("refresh")
         if not refresh_token:
             return Response(
                 {"error": "Refresh token is required"},
@@ -373,7 +373,7 @@ class LogoutView(APIView):
 
         try:
             token = RefreshToken(refresh_token)
-            user_id: int = token.payload.get("user_id")
+            user_id = token.payload.get("user_id")
             token.blacklist()
 
             if user_id:
