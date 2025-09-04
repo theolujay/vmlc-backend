@@ -1,15 +1,42 @@
 """
 Production settings for the VMLC API project.
-These settings are used in the production environment and should not be used in development.
 """
 
-from .base import *
+import os
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
-import logging
-from logging.handlers import RotatingFileHandler
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+
+from .base import (  # pylint: disable=unused-import
+    AUTH_PASSWORD_VALIDATORS,
+    AUTH_USER_MODEL,
+    BASE_DIR,
+    CELERY_ACCEPT_CONTENT,
+    CELERY_RESULT_SERIALIZER,
+    CELERY_TASK_SEND_SENT_EVENT,
+    CELERY_TASK_SERIALIZER,
+    CELERY_TIMEZONE,
+    CELERY_WORKER_HIJACK_ROOT_LOGGER,
+    CELERY_WORKER_LOG_COLOR,
+    CELERY_WORKER_SEND_TASK_EVENTS,
+    DEFAULT_AUTO_FIELD,
+    INSTALLED_APPS,
+    LANGUAGE_CODE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    SIMPLE_JWT,
+    STATIC_ROOT,
+    STATIC_URL,
+    SWAGGER_USE_COMPAT_RENDERERS,
+    TEMPLATES,
+    TIME_ZONE,
+    USE_I18N,
+    USE_TZ,
+    WSGI_APPLICATION,
+)
 
 DEBUG = False
 
@@ -235,8 +262,8 @@ X_FRAME_OPTIONS = "DENY"
 
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Maximum file sizes for different upload types

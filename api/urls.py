@@ -15,7 +15,48 @@ All views are organized and grouped by functionality for clarity.
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import *
+from .views import (
+    api_root,
+    LoginView,
+    LogoutView,
+    RequestPasswordChangeView,
+    PasswordChangeOTPConfirmView,
+    PasswordChangeView,
+    ResendPasswordChangeOTPView,
+    CandidateRegistrationView,
+    StaffRegistrationView,
+    VerifyEmailOTPView,
+    ResendEmailOTPView,
+    CandidateListView,
+    CandidateDetailView,
+    AssignCandidateRoleView,
+    CandidateScoreListView,
+    ExamHistoryView,
+    StaffListView,
+    StaffDetailView,
+    AssignStaffRoleView,
+    ExamListView,
+    ExamDetailView,
+    ExamQuestionsView,
+    ExamResultsView,
+    candidate_take_exam,
+    SubmitAnswersView,
+    SubmitScoreView,
+    QuestionListView,
+    QuestionDetailView,
+    PublishScoresView,
+    ToggleLeaderboardVisibilityView,
+    PublishLeaderboardView,
+    LoadLeaderboardView,
+    CandidateDashboardView,
+    StaffDashboardView,
+    AccountManagementView,
+    UserVerificationStatusView,
+    UserVerificationUploadView,
+    UserVerificationDocumentView,
+    UserVerificationListView,
+    UserVerificationActionView,
+)
 
 app_name = "api"
 
@@ -74,18 +115,12 @@ urlpatterns = [
     #     name="api-toggle-staff-registration",
     # ),
     # === Email Verification ===
-    path(
-        "verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"
-    ),
-    path(
-        "resend-email-otp/", ResendEmailOTPView.as_view(), name="resend-email-otp"
-    ),
+    path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
+    path("resend-email-otp/", ResendEmailOTPView.as_view(), name="resend-email-otp"),
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================
-    path(
-        "candidates/", CandidateListView.as_view(), name="api-candidate-list"
-    ),
+    path("candidates/", CandidateListView.as_view(), name="api-candidate-list"),
     path(
         "candidates/<uuid:candidate_id>/",
         CandidateDetailView.as_view(),

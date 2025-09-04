@@ -4,7 +4,6 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from PIL import Image
 import magic
-from django.core.files.uploadedfile import File
 
 from ..models import User, UserVerification
 from ..tasks import send_mail_task
@@ -57,9 +56,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
     Only exposes the status and which documents have been uploaded.
     """
 
-    documents_uploaded = (
-        serializers.SerializerMethodField()
-    )
+    documents_uploaded = serializers.SerializerMethodField()
 
     class Meta:
         model = UserVerification
@@ -96,7 +93,9 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
     def _validate_file_size(self, value, max_size_mb, field_name):
         """Helper method to validate file size"""
         if value and value.size > max_size_mb * 1024 * 1024:
-            raise serializers.ValidationError(f"{field_name} must be less than {max_size_mb}MB.")
+            raise serializers.ValidationError(
+                f"{field_name} must be less than {max_size_mb}MB."
+            )
 
     def _validate_image_file(self, value, field_name):
         """Helper method to validate image files"""
@@ -124,18 +123,25 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
 
             if file_type not in allowed_types:
                 allowed_str = ", ".join(allowed_types)
-                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
-        except Exception:
+                raise serializers.ValidationError(
+                    f"{field_name} must be one of: {allowed_str}"
+                )
+        except (OSError, magic.MagicException):
             # Fallback to content_type if magic fails
-            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+            if (
+                hasattr(value, "content_type")
+                and value.content_type not in allowed_types
+            ):
                 allowed_str = ", ".join(allowed_types)
-                raise serializers.ValidationError(f"{field_name} must be one of: {allowed_str}")
+                raise serializers.ValidationError(
+                    f"{field_name} must be one of: {allowed_str}"
+                )
 
     def validate_profile_photo(self, value):
         """Validation for profile photo"""
         if value:
-            self._validate_file_size(value, 5, "Profile photo")
-            allowed_types = ['image/jpg', 'image/jpeg', 'image/png']
+            self._validate_file_size(value, 2, "Profile photo")
+            allowed_types = ["image/jpg", "image/jpeg", "image/png"]
             self._validate_file_type(value, allowed_types, "Profile photo")
             self._validate_image_file(value, "profile photo")
         return value
@@ -143,24 +149,24 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
     def validate_id_card(self, value):
         """Validation for ID card uploads"""
         if value:
-            self._validate_file_size(value, 10, "ID card")
-            allowed_types = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_size(value, 2, "ID card")
+            allowed_types = ["image/jpg", "image/jpeg", "image/png", "application/pdf"]
             self._validate_file_type(value, allowed_types, "ID card")
 
             # If it's an image, validate it properly
-            if value.content_type and value.content_type.startswith('image/'):
+            if value.content_type and value.content_type.startswith("image/"):
                 self._validate_image_file(value, "ID card")
         return value
 
     def validate_verification_document(self, value):
         """Validation for verification document uploads"""
         if value:
-            self._validate_file_size(value, 10, "Verification document")
-            allowed_types = ['image/jpg', 'image/jpeg', 'image/png', 'application/pdf']
+            self._validate_file_size(value, 2, "Verification document")
+            allowed_types = ["image/jpg", "image/jpeg", "image/png", "application/pdf"]
             self._validate_file_type(value, allowed_types, "Verification document")
 
             # If it's an image, validate it properly
-            if value.content_type and value.content_type.startswith('image/'):
+            if value.content_type and value.content_type.startswith("image/"):
                 self._validate_image_file(value, "verification document")
         return value
 
@@ -172,9 +178,7 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
         model = UserVerification
         fields = ["is_verified", "is_rejected"]
 
-    def update(
-        self, instance, validated_data
-    ):
+    def update(self, instance, validated_data):
         """Handle verification status updates."""
         is_verified = validated_data.get("is_verified")
         is_rejected = validated_data.get("is_rejected")

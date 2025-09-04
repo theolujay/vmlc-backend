@@ -94,9 +94,7 @@ class LoadLeaderboardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        snapshot = LeaderboardSnapshot.objects.order_by(
-            "-created_at"
-        ).first()
+        snapshot = LeaderboardSnapshot.objects.order_by("-created_at").first()
 
         if not snapshot:
             return Response(

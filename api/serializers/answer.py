@@ -10,9 +10,7 @@ class CandidateAnswerSerializer(serializers.ModelSerializer):
     - If a question is unanswered, set 'selected_option' to an empty string "".
     """
 
-    selected_option = serializers.CharField(
-        required=False, allow_blank=True
-    )
+    selected_option = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = CandidateAnswer

@@ -17,9 +17,7 @@ class ExamListSerializer(serializers.ModelSerializer):
     Serializer for listing exams with question count and creator.
     """
 
-    question_count = (
-        serializers.SerializerMethodField()
-    )
+    question_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Exam
@@ -49,10 +47,8 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         queryset=Question.objects.all(), many=True
     )
     created_by = MinimalStaffSerializer(read_only=True)
-    average_score = (
-        serializers.SerializerMethodField(
-            help_text="Average score of all submissions for this exam."
-        )
+    average_score = serializers.SerializerMethodField(
+        help_text="Average score of all submissions for this exam."
     )
 
     class Meta:
@@ -85,9 +81,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
 
 class CandidateExamSerializer(serializers.ModelSerializer):
-    questions = CandidateQuestionSerializer(
-        many=True, read_only=True
-    )
+    questions = CandidateQuestionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Exam
@@ -111,9 +105,7 @@ class ExamResultSerializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(
         source="candidate.user.get_full_name", read_only=True
     )
-    candidate_school = serializers.CharField(
-        source="candidate.school", read_only=True
-    )
+    candidate_school = serializers.CharField(source="candidate.school", read_only=True)
 
     class Meta:
         model = CandidateScore

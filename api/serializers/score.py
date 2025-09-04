@@ -29,9 +29,7 @@ class SubmitScoreSerializer(serializers.Serializer):
     """
 
     candidate_id = serializers.UUIDField(required=True)
-    score  = serializers.DecimalField(
-        required=True, max_digits=5, decimal_places=2
-    )
+    score = serializers.DecimalField(required=True, max_digits=5, decimal_places=2)
 
     def validate_candidate_id(self, value):
         if not Candidate.objects.filter(pk=value).exists():
@@ -49,9 +47,7 @@ class CandidateExamScoreSerializer(serializers.ModelSerializer):
     Serializer for displaying an exam title and the score a candidate achieved.
     """
 
-    exam = serializers.CharField(
-        source="exam.title", read_only=True
-    )
+    exam = serializers.CharField(source="exam.title", read_only=True)
 
     class Meta:
         model = CandidateScore

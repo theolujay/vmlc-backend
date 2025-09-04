@@ -120,6 +120,30 @@ dependencies = [
     "whitenoise==6.9.0",
 ]
 
+[tool.pylint.main]
+load-plugins = ["pylint_django"]
+django-settings-module = "config.settings"
+ignore = ["migrations"]
+generated-members = ["Meta", "verification", "objects", "url"]
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-docstring",
+    "invalid-name",
+    "too-few-public-methods",
+    "line-too-long",
+    "abstract-method",
+    "arguments-renamed",
+    "raise-missing-from",
+    "arguments-differ",
+    "import-outside-toplevel",
+    "logging-fstring-interpolation",
+    "too-many-ancestors"
+]
+
+[tool.pylint.format]
+max-line-length = 120
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]

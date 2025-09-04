@@ -9,20 +9,13 @@ from .staff import MinimalStaffSerializer
 
 class QuestionListSerializer(serializers.ModelSerializer):
     """
-    Serializer for exam questions with created_by staff included.
+    Serializer for exam questions
     """
-
-    # created_by = MinimalStaffSerializer(read_only=True)
 
     class Meta:
         model = Question
-        fields = [
-            "id",
-            "text",
-            "difficulty",
-            "date_created"
-        ]
-        read_only_fields = ["id", "date_created", "created_by"]
+        fields = ["id", "text", "difficulty", "date_created"]
+        read_only_fields = ["id", "date_created"]
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):

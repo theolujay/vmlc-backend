@@ -1,6 +1,7 @@
 """
 This module defines the database models for the VMLC backend application.
 """
+
 import os
 import uuid
 from datetime import timedelta
@@ -17,6 +18,7 @@ from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 class FeatureFlag(models.Model):
     """Feature flag model."""
+
     key = models.CharField(max_length=50, unique=True)
     value = models.BooleanField(default=True)
 
@@ -24,8 +26,8 @@ class FeatureFlag(models.Model):
     def get_bool(cls, key, default=True):
         """Get the boolean value of a feature flag."""
         try:
-            return cls.objects.get(key=key).value # pylint: disable=no-member
-        except cls.DoesNotExist: # pylint: disable=no-member
+            return cls.objects.get(key=key).value
+        except cls.DoesNotExist:
             return default
 
     def __str__(self):
@@ -35,6 +37,7 @@ class FeatureFlag(models.Model):
 
 class CustomUserManager(BaseUserManager):
     """Custom user manager for the User model."""
+
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a User with the given email and password."""
         if not email:
@@ -64,6 +67,7 @@ class CustomUserManager(BaseUserManager):
 
 class User(AbstractUser):
     """Custom user model."""
+
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
@@ -105,9 +109,7 @@ def validate_id_card_file(value):
 
     # Check file size (max 2MB)
     if value.size > 2 * 1024 * 1024:
-        raise ValidationError(
-            "File size cannot exceed 2MB."
-        )
+        raise ValidationError("File size cannot exceed 2MB.")
 
 
 def validate_profile_photo(value):
@@ -124,9 +126,7 @@ def validate_profile_photo(value):
 
     # Check file size (max 2MB for images)
     if value.size > 2 * 1024 * 1024:
-        raise ValidationError(
-            "Image size cannot exceed 2MB."
-        )
+        raise ValidationError("Image size cannot exceed 2MB.")
 
 
 def validate_document_file(value):
@@ -143,13 +143,12 @@ def validate_document_file(value):
 
     # Check file size (max 2MB for documents)
     if value.size > 2 * 1024 * 1024:
-        raise ValidationError(
-            "Document size cannot exceed 2MB."
-        )
+        raise ValidationError("Document size cannot exceed 2MB.")
 
 
 class UserVerification(models.Model):
     """Model for user verification data."""
+
     user = models.OneToOneField(
         "User", on_delete=models.CASCADE, related_name="verification"
     )
@@ -182,35 +181,40 @@ class UserVerification(models.Model):
 
     def __str__(self):
         """Return a string representation of the user verification."""
-        return f"Verification for {self.user.get_full_name()}" # pylint: disable=no-member
+        return (
+            f"Verification for {self.user.get_full_name()}"
+        )
 
     # Helper methods to get secure URLs
     def get_profile_photo_url(self):
         """Returns public URL for profile photo (no expiration)"""
         if self.profile_photo:
-            return self.profile_photo.url # pylint: disable=no-member
+            return self.profile_photo.url
         return None
 
     def get_secure_id_card_url(self):
         """Returns a signed URL for ID card that expires in 1 hour"""
         if self.id_card:
-            return self.id_card.url  # Automatically signed by PrivateMediaStorage # pylint: disable=no-member
+            return (
+                self.id_card.url
+            )  # Automatically signed by PrivateMediaStorage
         return None
 
     def get_secure_verification_doc_url(self):
         """Returns a signed URL for verification document that expires in 1 hour"""
         if self.verification_document:
             return (
-                self.verification_document.url # pylint: disable=no-member
+                self.verification_document.url
             )  # Automatically signed by PrivateMediaStorage
         return None
 
     class Meta:
         """Meta options for the UserVerification model."""
+
         verbose_name = "User Verification"
 
 
-class EmailOTP(models.Model): # pylint: disable=too-few-public-methods
+class EmailOTP(models.Model):  # pylint: disable=too-few-public-methods
     """One-time password for email verification"""
 
     user = models.ForeignKey("User", on_delete=models.CASCADE)
@@ -227,13 +231,14 @@ class EmailOTP(models.Model): # pylint: disable=too-few-public-methods
         return f"OTP for {self.user.email}"
 
 
-class Staff(models.Model): # pylint: disable=too-many-ancestors
+class Staff(models.Model):
     """
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
 
     class Roles(models.TextChoices):
         """Roles for staff members."""
+
         SUPERADMIN = "superadmin", "Superadmin"
         ADMIN = "admin", "Admin"
         MODERATOR = "moderator", "Moderator"
@@ -253,22 +258,28 @@ class Staff(models.Model): # pylint: disable=too-many-ancestors
     @property
     def is_active(self):
         """Reference the user's is_active status"""
-        return self.user.is_active # pylint: disable=no-member
+        return self.user.is_active
 
     @property
     def profile_photo(self):
         """Get profile photo from UserVerification with error handling"""
         try:
-            return self.user.verification.profile_photo # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return self.user.verification.profile_photo
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
 
     @property
     def id_card(self):
         """Get ID card from UserVerification with error handling"""
         try:
-            return self.user.verification.id_card # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return self.user.verification.id_card
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
 
     @property
@@ -277,28 +288,36 @@ class Staff(models.Model): # pylint: disable=too-many-ancestors
     ):
         """Get verification document from UserVerification with error handling"""
         try:
-            return self.user.verification.verification_document # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return (
+                self.user.verification.verification_document
+            )
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
+
 
     @property
     def is_verified(self):
         """Check if user has verification and is verified"""
-        return (hasattr(self.user, "verification") and
-                self.user.verification.is_verified) # pylint: disable=no-member
+        return (
+            hasattr(self.user, "verification") and self.user.verification.is_verified
+        )
 
     def __str__(self):
         """Return a string representation of the staff member."""
-        return f"{self.user.get_full_name()} ({self.role})" # pylint: disable=no-member
+        return f"{self.user.get_full_name()} ({self.role})"
 
 
-class Question(models.Model): # pylint: disable=too-many-ancestors
+class Question(models.Model):
     """
     A question belonging to one or more exams. Includes text, difficulty, and staff author.
     """
 
     class Options(models.TextChoices):
         """Options for a question."""
+
         A = "A", "Option A"
         B = "B", "Option B"
         C = "C", "Option C"
@@ -306,6 +325,7 @@ class Question(models.Model): # pylint: disable=too-many-ancestors
 
     class Difficulty(models.TextChoices):
         """Difficulty levels for a question."""
+
         EASY = "easy", "Easy"
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
@@ -341,16 +361,17 @@ class Question(models.Model): # pylint: disable=too-many-ancestors
 
     def __str__(self):
         """Return a string representation of the question."""
-        return f"Q{self.id}: {self.text[:50]}..." # pylint: disable=no-member, unsubscriptable-object
+        return f"Q{self.id}: {self.text[:50]}..."
 
 
-class Exam(models.Model): # pylint: disable=too-many-ancestors
+class Exam(models.Model):
     """
     Represents a collection of questions scheduled at a specific date for a stage of competition.
     """
 
     class Stages(models.TextChoices):
         """Stages of an exam."""
+
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
 
@@ -383,14 +404,14 @@ class Exam(models.Model): # pylint: disable=too-many-ancestors
 
     def __str__(self):
         """Return a string representation of the exam."""
-        return f"{self.title} ({self.id})" # pylint: disable=no-member
+        return f"{self.title} ({self.id})"
 
     @classmethod
     def active_exams(cls):
         """
         Returns only exams marked as active.
         """
-        return cls.objects.filter(is_active=True) # pylint: disable=no-member
+        return cls.objects.filter(is_active=True)
 
     @property
     def is_currently_open(self):
@@ -411,13 +432,15 @@ class Exam(models.Model): # pylint: disable=too-many-ancestors
         """
         Returns the number of questions in the exam.
         """
-        return self.questions.count() # pylint: disable=no-member
+        return self.questions.count()
 
     def get_average_score(self):
         """
         Calculates the average score for all submissions tied to this exam.
         """
-        return self.scores.aggregate(avg_score=Avg("score"))["avg_score"] # pylint: disable=no-member
+        return self.scores.aggregate(avg_score=Avg("score"))[
+            "avg_score"
+        ]
 
 
 class CandidateManager(models.Manager):
@@ -467,14 +490,16 @@ class CandidateManager(models.Manager):
         return self.filter(role=role, user__is_active=True)
 
 
-class Candidate(models.Model): # pylint: disable=too-many-ancestors
+class Candidate(models.Model):
     """
     Represents a student or participant in the exam system.
     Linked to a User, assigned a role, and tracks their profile and score history.
     """
 
     class Roles(models.TextChoices):
-        """Roles for a candidate."""
+        """
+        Roles for a candidate."""
+
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
         FINAL = "final", "Final"
@@ -498,14 +523,17 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
     @property
     def is_active(self):
         """Reference the user's is_active status"""
-        return self.user.is_active # pylint: disable=no-member
+        return self.user.is_active
 
     @property
     def profile_photo(self):
         """Get profile photo from UserVerification with error handling"""
         try:
-            return self.user.verification.profile_photo # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return self.user.verification.profile_photo
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
 
     @property
@@ -514,8 +542,11 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
         Get ID card from UserVerification with error handling
         """
         try:
-            return self.user.verification.id_card # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return self.user.verification.id_card
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
 
     @property
@@ -524,17 +555,21 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
         Get verification document from UserVerification with error handling
         """
         try:
-            return self.user.verification.verification_document # pylint: disable=no-member
-        except (AttributeError, UserVerification.DoesNotExist): # pylint: disable=no-member
+            return (
+                self.user.verification.verification_document
+            )
+        except (
+            AttributeError,
+            UserVerification.DoesNotExist,
+        ):
             return None
 
     @property
     def is_verified(self):
-        """
-        Check if user has verification and is verified
-        """
-        return (hasattr(self.user, "verification") and
-                self.user.verification.is_verified) # pylint: disable=no-member
+        """Check if user has verification and is verified"""
+        return (
+            hasattr(self.user, "verification") and self.user.verification.is_verified
+        )
 
     @property
     def score_data(self):
@@ -557,7 +592,9 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
 
     def __str__(self):
         """Return a string representation of the candidate."""
-        return f"{self.user.get_full_name()} - {self.school}" # pylint: disable=no-member
+        return (
+            f"{self.user.get_full_name()} - {self.school}"
+        )
 
     @classmethod
     def active_candidates(cls):
@@ -577,7 +614,7 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
         """
         Returns the most recent score submitted for this candidate.
         """
-        return self.scores.latest("date_recorded") # pylint: disable=no-member
+        return self.scores.latest("date_recorded")
 
     def get_score_dict(self):
         """
@@ -595,8 +632,9 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related( # pylint: disable=no-member
-                "exam", "submitted_by__user").all() # pylint: disable=no-member
+            scores = self.scores.select_related(
+                "exam", "submitted_by__user"
+            ).all()
 
         # If total/average scores were not annotated, calculate them from the scores list
         if total_score is None and scores:
@@ -609,12 +647,12 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
             "average_score": float(average_score) if average_score is not None else 0.0,
             "scores": [
                 {
-                    "exam_id": s.exam.id, # pylint: disable=no-member
-                    "exam_title": s.exam.title, # pylint: disable=no-member
+                    "exam_id": s.exam.id,
+                    "exam_title": s.exam.title,
                     "score": float(s.score),
                     "date_recorded": s.date_recorded.isoformat(),
                     "submitted_by": (
-                        s.submitted_by.user.get_full_name() # pylint: disable=no-member
+                        s.submitted_by.user.get_full_name()
                         if s.submitted_by and s.submitted_by.user
                         else None
                     ),
@@ -626,13 +664,14 @@ class Candidate(models.Model): # pylint: disable=too-many-ancestors
 
     class Meta:
         """Meta options for the Candidate model."""
+
         indexes = [
             models.Index(fields=["role"]),
             models.Index(fields=["school"]),
         ]
 
 
-class CandidateScore(models.Model): # pylint: disable=too-many-ancestors
+class CandidateScore(models.Model):
     """
     A score representing a candidate's performance in an exam.
 
@@ -653,6 +692,7 @@ class CandidateScore(models.Model): # pylint: disable=too-many-ancestors
 
     class Meta:
         """Meta options for the CandidateScore model."""
+
         unique_together = ("candidate", "exam")
         ordering = ["-date_recorded"]
 
@@ -666,7 +706,7 @@ class CandidateScore(models.Model): # pylint: disable=too-many-ancestors
                 CandidateAnswer objects. This avoids a race condition by not
                 re-querying the database within the transaction.
         """
-        total_questions = self.exam.questions.count() # pylint: disable=no-member
+        total_questions = self.exam.questions.count()
         if not total_questions:
             self.score = 0
         else:
@@ -683,8 +723,9 @@ class CandidateScore(models.Model): # pylint: disable=too-many-ancestors
         self.save()
 
 
-class CandidateAnswer(models.Model): # pylint: disable=too-many-ancestors
+class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
+
     candidate_score = models.ForeignKey(
         CandidateScore, related_name="answers", on_delete=models.CASCADE
     )
@@ -699,6 +740,7 @@ class CandidateAnswer(models.Model): # pylint: disable=too-many-ancestors
 
     class Meta:
         """Meta options for the CandidateAnswer model."""
+
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate_score", "question"],
@@ -708,11 +750,12 @@ class CandidateAnswer(models.Model): # pylint: disable=too-many-ancestors
 
     def __str__(self):
         """Return a string representation of the candidate's answer."""
-        return f"Answer by {self.candidate_score.candidate.user.username} for Q{self.question.id}" # pylint: disable=no-member
+        return f"Answer by {self.candidate_score.candidate.user.username} for Q{self.question.id}"
 
 
-class LeaderboardSnapshot(models.Model): # pylint: disable=too-few-public-methods
+class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
+
     created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
 
@@ -726,11 +769,13 @@ class LeaderboardSnapshot(models.Model): # pylint: disable=too-few-public-method
 
     class Meta:
         """Meta options for the LeaderboardSnapshot model."""
+
         ordering = ["-created_at"]
 
 
-class CandidateScoreSnapshot(models.Model): # pylint: disable=too-few-public-methods
+class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods 
     """Model for a snapshot of a candidate's score."""
+
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     data = models.JSONField()
@@ -745,4 +790,5 @@ class CandidateScoreSnapshot(models.Model): # pylint: disable=too-few-public-met
 
     class Meta:
         """Meta options for the CandidateScoreSnapshot model."""
+
         ordering = ["-created_at"]

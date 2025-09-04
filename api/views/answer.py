@@ -65,9 +65,7 @@ class SubmitAnswersView(APIView):
             )
 
         # 3. Data Validation
-        serializer = self.serializer_class(
-            data=request.data
-        )
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers_data = serializer.validated_data["answers"]
 

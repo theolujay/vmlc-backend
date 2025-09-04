@@ -57,9 +57,7 @@ class StaffListView(ListAPIView):
         Returns a filtered queryset of staff members.
         """
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset = Staff.objects.select_related("user").order_by(
-            "-date_created"
-        )
+        queryset = Staff.objects.select_related("user").order_by("-date_created")
         return filter_staffs(queryset, self.request.query_params)
 
 

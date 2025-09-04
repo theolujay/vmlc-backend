@@ -8,9 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60)
-def send_mail_task(
-    self, subject, message, recipient_list
-):
+def send_mail_task(self, subject, message, recipient_list):
     """
     Celery task to send an email asynchronously.
 

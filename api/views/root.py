@@ -2,8 +2,6 @@
 Authentication-related API views for login, logout, and registration.
 """
 
-
-
 from django.urls.exceptions import NoReverseMatch
 from django.views.decorators.cache import cache_page
 from rest_framework.decorators import api_view, permission_classes
@@ -19,9 +17,7 @@ from rest_framework.reverse import reverse
 def api_root(request, format=None):
     """API entry point with discoverable endpoints"""
 
-    def generate_url_with_placeholder(
-        name, param_name, is_uuid = False
-    ):
+    def generate_url_with_placeholder(name, param_name, is_uuid=False):
         """Generate URL with placeholder for dynamic endpoints"""
         try:
             # Use a dummy UUID for uuid params, otherwise use an integer.

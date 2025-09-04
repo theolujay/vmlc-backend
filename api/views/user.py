@@ -167,9 +167,7 @@ class UserVerificationUploadView(APIView):
     def patch(self, request):
         """Update existing verification data (partial update)."""
         try:
-            verification = UserVerification.objects.get(
-                user=request.user
-            )
+            verification = UserVerification.objects.get(user=request.user)
         except UserVerification.DoesNotExist:
             return Response(
                 {"detail": "No verification data found for this user."},
@@ -220,15 +218,11 @@ class UserVerificationDocumentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(
-        self, request, file_type, user_id=None
-    ):
+    def get(self, request, file_type, user_id=None):
         # If no user_id provided, default to current user
         if user_id is None:
             target_user = request.user
-            verification = get_object_or_404(
-                UserVerification, user=request.user
-            )
+            verification = get_object_or_404(UserVerification, user=request.user)
         else:
             # user_id provided - superadmin accessing another user's files
             target_user = get_object_or_404(User, id=user_id)
@@ -243,9 +237,7 @@ class UserVerificationDocumentView(APIView):
                     "You don't have permission to access this user's documents."
                 )
 
-            verification = get_object_or_404(
-                UserVerification, user=target_user
-            )
+            verification = get_object_or_404(UserVerification, user=target_user)
 
         if user_id and str(request.user.id) != str(user_id):
             logger.info(
@@ -285,14 +277,10 @@ class UserVerificationDocumentView(APIView):
             logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
 
             # Get the object from S3
-            s3_response = s3_client.get_object(
-                Bucket=bucket_name, Key=object_key
-            )
+            s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
             # Get content type
-            content_type = s3_response.get(
-                "ContentType", "application/octet-stream"
-            )
+            content_type = s3_response.get("ContentType", "application/octet-stream")
 
             # Stream the content
             file_content = s3_response["Body"].read()
@@ -335,9 +323,7 @@ class UserVerificationListView(APIView):
     permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
     def get(self, request):
-        verification_list = (
-            UserVerification.objects.select_related("user").all()
-        )
+        verification_list = UserVerification.objects.select_related("user").all()
 
         data = []
         for verification in verification_list:
@@ -370,9 +356,7 @@ class UserVerificationActionView(APIView):
 
     def post(self, request, user_id):
         target_user = get_object_or_404(User, id=user_id)
-        verification = get_object_or_404(
-            UserVerification, user=target_user
-        )
+        verification = get_object_or_404(UserVerification, user=target_user)
 
         # Check if already processed
         if verification.is_verified:

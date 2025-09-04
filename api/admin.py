@@ -102,17 +102,13 @@ class UserVerificationAdmin(admin.ModelAdmin):
         return bool(obj.verification_document)
 
     @admin.action(description="Approve selected verifications")
-    def approve_selected(
-        self, request, queryset
-    ):
+    def approve_selected(self, request, queryset):
         """Approve selected verification requests."""
         count = queryset.update(is_verified=True, is_pending=False)
         self.message_user(request, f"{count} verification(s) approved.")
 
     @admin.action(description="Reject selected verifications")
-    def reject_selected(
-        self, request, queryset
-    ):
+    def reject_selected(self, request, queryset):
         """Reject selected verification requests."""
         count = queryset.update(is_verified=False, is_pending=False)
         self.message_user(request, f"{count} verification(s) rejected.")

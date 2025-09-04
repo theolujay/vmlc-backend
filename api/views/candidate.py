@@ -62,9 +62,7 @@ class CandidateListView(ListAPIView):
         Returns a filtered queryset of candidates based on request query parameters.
         """
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset = Candidate.objects.select_related(
-            "user"
-        ).order_by("-date_created")
+        queryset = Candidate.objects.select_related("user").order_by("-date_created")
         return filter_candidates(queryset, self.request.query_params)
 
 

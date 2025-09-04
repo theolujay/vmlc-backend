@@ -140,9 +140,7 @@ class PublishScoresView(APIView):
         staff = request.user.staff_profile
 
         # Use the optimized manager method to get candidates with scores
-        candidates = Candidate.objects.with_scores().filter(
-            is_active=True
-        )
+        candidates = Candidate.objects.with_scores().filter(is_active=True)
 
         scores_data = []
         for candidate in candidates:

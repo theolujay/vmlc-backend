@@ -1,13 +1,46 @@
 # config/settings/docker_dev.py
 """
 Docker development settings for the VMLC API project.
-These settings are used when running the application in Docker containers locally.
+This settings configuration is used when running in Docker containers locally.
 Uses PostgreSQL container instead of SQLite.
 """
 
-from .base import *
+import os
+from datetime import timedelta
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
+
+from .base import (  # pylint: disable=unused-import
+    AUTH_PASSWORD_VALIDATORS,
+    AUTH_USER_MODEL,
+    BASE_DIR,
+    CELERY_ACCEPT_CONTENT,
+    CELERY_RESULT_SERIALIZER,
+    CELERY_TASK_SEND_SENT_EVENT,
+    CELERY_TASK_SERIALIZER,
+    CELERY_TIMEZONE,
+    CELERY_WORKER_HIJACK_ROOT_LOGGER,
+    CELERY_WORKER_LOG_COLOR,
+    CELERY_WORKER_SEND_TASK_EVENTS,
+    DEFAULT_AUTO_FIELD,
+    INSTALLED_APPS,
+    LANGUAGE_CODE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    SIMPLE_JWT,
+    STATIC_ROOT,
+    STATIC_URL,
+    SWAGGER_USE_COMPAT_RENDERERS,
+    TEMPLATES,
+    TIME_ZONE,
+    USE_I18N,
+    USE_TZ,
+    WSGI_APPLICATION,
+)
 
 DEBUG = True
 
@@ -181,5 +214,5 @@ CACHES = {
     }
 }  # remember to run `sudo systemctl start redis-server`
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB (default is 2.5MB)
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB (default is 2.5MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB (default is 2.5MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB (default is 2.5MB)

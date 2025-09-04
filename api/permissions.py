@@ -2,9 +2,6 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import Candidate, Staff
 
 
-
-
-
 def _get_candidate_profile(request):
     """Helper to get and cache candidate profile on the request object."""
     if not hasattr(request, "_candidate_profile"):
@@ -14,6 +11,7 @@ def _get_candidate_profile(request):
         except (Candidate.DoesNotExist, AttributeError):
             request._candidate_profile = None
     return request._candidate_profile
+
 
 def _get_staff_profile(request):
     """Helper to get and cache staff profile on the request object."""

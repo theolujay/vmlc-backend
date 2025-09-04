@@ -2,7 +2,6 @@ from storages.backends.s3boto3 import S3Boto3Storage
 from django.conf import settings
 
 
-
 class PublicMediaStorage(S3Boto3Storage):
     """
     Storage for files that can be publicly accessible (like profile photos)

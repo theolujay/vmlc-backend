@@ -59,9 +59,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         try:
             with transaction.atomic():
                 user = self.create_user(user_data, password)
-                profile = self.Meta.model.objects.create(
-                    user=user, **validated_data
-                )
+                profile = self.Meta.model.objects.create(user=user, **validated_data)
                 return profile
         except Exception as e:
             raise serializers.ValidationError(f"Registration failed: {str(e)}")

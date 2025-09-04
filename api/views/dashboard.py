@@ -98,9 +98,7 @@ class AccountManagementView(APIView):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
-    def _get_profile_and_serializer(
-        self, user
-    ):
+    def _get_profile_and_serializer(self, user):
         """
         Gets the user's profile (Candidate or Staff) and the appropriate serializer.
         """
@@ -130,9 +128,7 @@ class AccountManagementView(APIView):
 
         return Response({"profile": profile_data})
 
-    def _update_account(
-        self, request, partial, user_id=None
-    ):
+    def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.
         """
@@ -140,9 +136,7 @@ class AccountManagementView(APIView):
         user_data = request.data.get("user", {})
         profile_data = request.data.get("profile", {})
 
-        user_serializer = UserSerializer(
-            target_user, data=user_data, partial=partial
-        )
+        user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
         user_serializer.is_valid(raise_exception=True)
         profile, profile_serializer_class = self._get_profile_and_serializer(
             target_user

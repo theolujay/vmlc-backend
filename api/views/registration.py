@@ -60,9 +60,7 @@ class BaseRegistrationView(CreateAPIView):
 class CandidateRegistrationView(BaseRegistrationView):
     """Register a new candidate"""
 
-    serializer_class = (
-        CandidateRegistrationSerializer
-    )
+    serializer_class = CandidateRegistrationSerializer
     feature_flag_key = "candidate_registration"
 
 
@@ -124,9 +122,7 @@ class ToggleFeatureFlagView(APIView):
             },
         }
 
-        message_config = FEATURE_FLAG_MESSAGES.get(
-            self.feature_flag_key
-        )
+        message_config = FEATURE_FLAG_MESSAGES.get(self.feature_flag_key)
         if message_config:
             message = message_config[obj.value]
         else:
