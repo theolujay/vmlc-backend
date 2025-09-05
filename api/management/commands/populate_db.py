@@ -4,7 +4,7 @@ import random
 from django.utils import timezone
 from typing import Any
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "competition_api.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
 from api.models import User, Candidate, Staff, Question, Exam, CandidateScore

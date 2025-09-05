@@ -28,4 +28,4 @@ def send_mail_task(self, subject, message, recipient_list):
         logger.error(f"Failed to send email to {recipient_list}: {exc}")
         # The `self.retry` call will re-queue the task.
         # The `bind=True` and `max_retries` arguments in the decorator handle this automatically.
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc, countdown=60)

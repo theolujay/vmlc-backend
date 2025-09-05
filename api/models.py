@@ -112,7 +112,9 @@ def validate_id_card_file(value):
         raise ValidationError("File size cannot exceed 2MB.")
 
 
-def validate_profile_photo(value):
+def validate_profile_photo(
+    value,
+):  # TODO: swap and reconfigure for `avatar` and `face_id`
     """Validate profile photo file"""
     if not value:
         return
@@ -181,9 +183,7 @@ class UserVerification(models.Model):
 
     def __str__(self):
         """Return a string representation of the user verification."""
-        return (
-            f"Verification for {self.user.get_full_name()}"
-        )
+        return f"Verification for {self.user.get_full_name()}"
 
     # Helper methods to get secure URLs
     def get_profile_photo_url(self):
@@ -195,9 +195,7 @@ class UserVerification(models.Model):
     def get_secure_id_card_url(self):
         """Returns a signed URL for ID card that expires in 1 hour"""
         if self.id_card:
-            return (
-                self.id_card.url
-            )  # Automatically signed by PrivateMediaStorage
+            return self.id_card.url  # Automatically signed by PrivateMediaStorage
         return None
 
     def get_secure_verification_doc_url(self):
@@ -288,22 +286,17 @@ class Staff(models.Model):
     ):
         """Get verification document from UserVerification with error handling"""
         try:
-            return (
-                self.user.verification.verification_document
-            )
+            return self.user.verification.verification_document
         except (
             AttributeError,
             UserVerification.DoesNotExist,
         ):
             return None
 
-
     @property
     def is_verified(self):
         """Check if user has verification and is verified"""
-        return (
-            hasattr(self.user, "verification") and self.user.verification.is_verified
-        )
+        return hasattr(self.user, "verification") and self.user.verification.is_verified
 
     def __str__(self):
         """Return a string representation of the staff member."""
@@ -438,9 +431,7 @@ class Exam(models.Model):
         """
         Calculates the average score for all submissions tied to this exam.
         """
-        return self.scores.aggregate(avg_score=Avg("score"))[
-            "avg_score"
-        ]
+        return self.scores.aggregate(avg_score=Avg("score"))["avg_score"]
 
 
 class CandidateManager(models.Manager):
@@ -555,9 +546,7 @@ class Candidate(models.Model):
         Get verification document from UserVerification with error handling
         """
         try:
-            return (
-                self.user.verification.verification_document
-            )
+            return self.user.verification.verification_document
         except (
             AttributeError,
             UserVerification.DoesNotExist,
@@ -567,9 +556,7 @@ class Candidate(models.Model):
     @property
     def is_verified(self):
         """Check if user has verification and is verified"""
-        return (
-            hasattr(self.user, "verification") and self.user.verification.is_verified
-        )
+        return hasattr(self.user, "verification") and self.user.verification.is_verified
 
     @property
     def score_data(self):
@@ -592,9 +579,7 @@ class Candidate(models.Model):
 
     def __str__(self):
         """Return a string representation of the candidate."""
-        return (
-            f"{self.user.get_full_name()} - {self.school}"
-        )
+        return f"{self.user.get_full_name()} - {self.school}"
 
     @classmethod
     def active_candidates(cls):
@@ -632,9 +617,7 @@ class Candidate(models.Model):
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related(
-                "exam", "submitted_by__user"
-            ).all()
+            scores = self.scores.select_related("exam", "submitted_by__user").all()
 
         # If total/average scores were not annotated, calculate them from the scores list
         if total_score is None and scores:
@@ -773,7 +756,7 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         ordering = ["-created_at"]
 
 
-class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods 
+class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's score."""
 
     created_at = models.DateTimeField(auto_now_add=True)
