@@ -31,7 +31,7 @@ vmlc-backend/
 ├── staticfiles/         # Collected static files for production
 ├── manage.py            # Django's command-line utility for administrative tasks
 ├── requirements.txt     # Python application dependencies
-├── build.sh             # Enhanced build script with logging and error handling
+├── build.sh             # Enhanced build script with intelligent error logging
 ├── Dockerfile           # Defines the Docker image for the application
 ├── compose.yml          # Base Docker Compose configuration for all environments
 ├── compose.override.yml # Development-specific Docker Compose overrides
@@ -136,3 +136,13 @@ Proprietary. For internal VMLC use only.
 * X: [@theolujay](https://x.com/theolujay)
 * Email: [theolujay@gmail.com](mailto:theolujay@gmail.com)
 * GitHub Issues: [vmlc-backend](https://github.com/theolujay/vmlc-backend/issues)
+
+---
+
+## Known Build Warnings
+
+The Docker build process may produce the following warnings:
+
+*   `update-alternatives: warning: skip creation of ...`
+
+These warnings are expected and can be safely ignored. The `build.sh` script is configured to handle these warnings and will not fail the build because of them. The build will only be marked as failed if other, unexpected errors occur.

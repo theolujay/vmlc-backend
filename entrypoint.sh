@@ -40,7 +40,7 @@ else:
 create_superuser() {
     if [ -n "${SUPERUSER_EMAIL:-}" ] && [ -n "${SUPERUSER_PASSWORD:-}" ]; then
         log "Creating superuser..."
-        python manage.py shell -c "
+        gosu app python manage.py shell -c "
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='$SUPERUSER_EMAIL').exists():
@@ -56,12 +56,12 @@ else:
 setup_django_env() {
     log "Setting up Django environment..."
     log "Running migrations..."
-    python manage.py makemigrations api --noinput
-    python manage.py makemigrations --noinput
-    python manage.py migrate --noinput
+    gosu app python manage.py makemigrations api --noinput
+    gosu app python manage.py makemigrations --noinput
+    gosu app python manage.py migrate --noinput
 
     log "Collecting static files..."
-    python manage.py collectstatic --noinput --clear
+    gosu app python manage.py collectstatic --noinput --clear
 }
 
 # Ensure required directories exist

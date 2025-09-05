@@ -10,8 +10,28 @@ RUN apt-get update && \
         build-essential && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Create a non-root user with a home directory
+RUN addgroup --system app && \
+    adduser --system --group --home /home/app app
+
+# Switch to the non-root user
+USER app
+
+# Set the working directory to the user's home directory
+WORKDIR /home/app
+
+# Set PATH to include user's local bin
+ENV PATH="/home/app/.local/bin:${PATH}"
+
 # Install uv with pinned version for reproducibility
-RUN pip install --no-cache-dir uv==0.8.15
+RUN pip install --no-cache-dir --user uv==0.8.15
+
+# Switch back to root to create and own the venv
+USER root
+RUN mkdir /.venv && chown -R app:app /.venv
+
+# Switch back to the non-root user
+USER app
 
 # Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock ./
@@ -23,7 +43,7 @@ RUN uv sync \
         --compile-bytecode
 
 # Set PATH to use uv's installed packages
-ENV PATH="/.venv/bin:$PATH"
+ENV PATH="/.venv/bin:${PATH}"
 
 # =============================================================================
 # Base runtime stage - shared between all environments
@@ -47,14 +67,14 @@ RUN apt-get update && \
 # Python environment settings
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/.venv/bin:$PATH" \
+    PATH="/.venv/bin:${PATH}" \
     TERM=xterm-256color
 
 # Create non-root user and directories
 RUN addgroup --system app && \
-    adduser --system --group app && \
+    adduser --system --group --home /home/app app && \
     mkdir -p /home/app/web/staticfiles /home/app/web/media /home/app/web/logs && \
-    chown -R app:app /home/app/web
+    chown -R app:app /home/app
 
 # Copy virtual environment from builder stage
 COPY --from=builder /.venv /.venv
