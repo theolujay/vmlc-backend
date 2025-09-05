@@ -1,16 +1,12 @@
+# Base configuration for staging and production
 services:
   web:
     build: 
       context: .
-      target: production  # Explicitly use production stage
-    # Remove volume mount that overwrites built code
+      target: production
     volumes:
       - media_data:/home/app/web/media
       - static_data:/home/app/web/staticfiles
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./.env
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.prod
     depends_on:
@@ -20,7 +16,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test: ["CMD", "gosu", "app", "python", "-c", "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -30,11 +26,6 @@ services:
     image: postgres:17.5-bookworm
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    env_file:
-      - .env
-    # Remove port exposure for production security
-    # ports:
-    #   - "5432:5432"
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -46,14 +37,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    # Add shared memory for better PostgreSQL performance
     shm_size: 256mb
 
   redis:
     image: redis:8-alpine
-    # Remove port exposure for production security
-    # ports:
-    #   - "6379:6379"
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
@@ -68,21 +55,18 @@ services:
     build: 
       context: .
       target: production
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--pool=solo"]
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--events"]
     volumes:
-      - media_data:/home/app/web/media  # Only mount media for file processing
-    env_file:
-      - ./.env
+      - media_data:/home/app/web/media
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.prod
-      - C_FORCE_ROOT=1  # Allow celery to run as root if needed
+      - C_FORCE_ROOT=1
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    # Increase memory limits for celery workers
     deploy:
       resources:
         limits:
@@ -95,10 +79,6 @@ services:
       context: .
       target: production
     command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555"]
-    ports:
-      - "5555:5555"
-    env_file:
-      - ./.env
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.prod
     depends_on:
@@ -110,10 +90,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   media_data:
-    driver: local
   static_data:
-    driver: local

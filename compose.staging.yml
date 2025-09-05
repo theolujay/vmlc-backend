@@ -1,0 +1,48 @@
+# Minimal staging-specific overrides
+services:
+  web:
+    build:
+      target: staging  # Use staging build with some debug tools
+    ports:
+      - "8000:8000"  # Expose for staging access
+    env_file:
+      - ./.env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.staging
+    # Slightly relaxed resource limits for debugging
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 192M
+
+  db:
+    ports:
+      - "5432:5432"  # Expose for staging database access
+    env_file:
+      - ./.env.staging
+
+  redis:
+    ports:
+      - "6379:6379"  # Expose for staging redis access
+
+  celery_worker:
+    build:
+      target: staging
+    env_file:
+      - ./.env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.staging
+      - C_FORCE_ROOT=1
+    command: ["celery", "-A", "config", "worker", "-l", "debug", "--events"]  # More verbose logging
+
+  flower:
+    build:
+      target: staging
+    ports:
+      - "5555:5555"  # Expose for monitoring
+    env_file:
+      - ./.env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.staging

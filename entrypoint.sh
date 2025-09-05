@@ -7,22 +7,9 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Ensure required directories exist
-log "Setting up application directories..."
-mkdir -p /home/app/web/staticfiles /home/app/web/media
-
-# Only change ownership if running as root
-if [ "$(id -u)" = "0" ]; then
-    chown -R app:app /home/app/web/staticfiles /home/app/web/media
-fi
-
-if [ "$1" = 'gunicorn' ]; then
-    log "Running Django setup..."
-    
-    # Wait for database to be ready (if DATABASE_URL is set)
-    if [ -n "$DATABASE_URL" ]; then
-        log "Waiting for database to be ready..."
-        python -c "
+wait_for_db() {
+    log "Waiting for database to be ready..."
+    python -c "
 import os, time, psycopg
 from urllib.parse import urlparse
 
@@ -47,18 +34,11 @@ else:
     print('Database connection timeout!')
     exit(1)
 "
-    fi
+}
 
-    log "Running migrations..."
-    python manage.py makemigrations api --noinput
-    python manage.py makemigrations --noinput
-    python manage.py migrate --noinput
-
-    log "Collecting static files..."
-    python manage.py collectstatic --noinput --clear
-
-    # Optional: Create superuser if credentials are provided
-    if [ -n "$SUPERUSER_EMAIL" ] && [ -n "$SUPERUSER_PASSWORD" ]; then
+# Create superuser if credentials are provided
+create_superuser() {
+    if [ -n "${SUPERUSER_EMAIL:-}" ] && [ -n "${SUPERUSER_PASSWORD:-}" ]; then
         log "Creating superuser..."
         python manage.py shell -c "
 from django.contrib.auth import get_user_model
@@ -66,11 +46,53 @@ User = get_user_model()
 if not User.objects.filter(email='$SUPERUSER_EMAIL').exists():
     User.objects.create_superuser('$SUPERUSER_EMAIL', '$SUPERUSER_PASSWORD')
     print('Superuser created')
-elif User.objects.filter(email='$SUPERUSER_EMAIL').exists():
+else:
     print('Superuser already exists')
 "
     fi
+}
+
+# Function to handle Django setup, containing the repeated logic
+setup_django_env() {
+    log "Setting up Django environment..."
+    log "Running migrations..."
+    python manage.py makemigrations api --noinput
+    python manage.py makemigrations --noinput
+    python manage.py migrate --noinput
+
+    log "Collecting static files..."
+    python manage.py collectstatic --noinput --clear
+}
+
+# Ensure required directories exist
+log "Setting up application directories..."
+mkdir -p /home/app/web/staticfiles /home/app/web/media
+
+# Only change ownership if running as root
+if [ "$(id -u)" = "0" ]; then
+    chown -R app:app /home/app/web/staticfiles /home/app/web/media
 fi
+
+case "$1" in
+    'gunicorn')
+        log "Setting up for production (gunicorn)..."
+        if [ -n "${DATABASE_URL:-}" ]; then
+            wait_for_db
+            setup_django_env
+            create_superuser
+        fi
+        ;;
+    'python')
+        if [[ "$2" = 'manage.py' && "$3" = 'runserver' ]]; then
+            log "Setting up for development (runserver)..."
+            setup_django_env
+            create_superuser
+        fi
+        ;;
+    *)
+        log "Skipping Django setup for special command."
+        ;;
+esac
 
 log "Starting application as 'app' user: $*"
 exec gosu app "$@"

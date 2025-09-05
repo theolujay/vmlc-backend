@@ -5,12 +5,13 @@ FROM python:3.13.7-slim-bookworm AS builder
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
+        curl \
         libpq-dev \
         build-essential && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install uv with pinned version for reproducibility
-RUN pip install --no-cache-dir uv==0.4.30
+RUN pip install --no-cache-dir uv==0.8.15
 
 # Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock ./
@@ -24,34 +25,35 @@ RUN uv sync \
 # Set PATH to use uv's installed packages
 ENV PATH="/.venv/bin:$PATH"
 
-# Production stage
-FROM python:3.13.7-slim-bookworm AS production
+# =============================================================================
+# Base runtime stage - shared between all environments
+FROM python:3.13.7-slim-bookworm AS base
 
-# Install runtime dependencies and gosu in single layer
+# Install minimal runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpq5 \
         libmagic1 \
         curl && \
-    # Install gosu
+    # Install gosu for user switching
     curl -o /usr/local/bin/gosu -sL "https://github.com/tianon/gosu/releases/download/1.17/gosu-$(dpkg --print-architecture)" && \
     chmod +x /usr/local/bin/gosu && \
     gosu --version && \
-    # Cleanup in same layer
+    # Remove curl and cleanup
     apt-get remove -y curl && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Python environment settings (consolidated for fewer layers)
+# Python environment settings
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONOPTIMIZE=2 \
-    PATH="/.venv/bin:$PATH"
+    PATH="/.venv/bin:$PATH" \
+    TERM=xterm-256color
 
-# Create non-root user and directories in single layer
+# Create non-root user and directories
 RUN addgroup --system app && \
     adduser --system --group app && \
-    mkdir -p /home/app/web/staticfiles /home/app/web/media && \
+    mkdir -p /home/app/web/staticfiles /home/app/web/media /home/app/web/logs && \
     chown -R app:app /home/app/web
 
 # Copy virtual environment from builder stage
@@ -60,20 +62,75 @@ COPY --from=builder /.venv /.venv
 # Set working directory
 WORKDIR /home/app/web
 
-# Copy application code with proper ownership (exclude files via .dockerignore)
+# Copy entrypoint and make executable
+COPY --chown=app:app entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+
+# Copy application code with proper ownership
 COPY --chown=app:app . .
-
-# Make entrypoint executable and validate it exists
-RUN chmod +x ./entrypoint.sh && \
-    test -f ./entrypoint.sh
-
-# Add health check for Django
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD gosu app python -c "import requests; requests.get('http://localhost:8000/', timeout=5)" || exit 1
 
 # Expose port
 EXPOSE 8000
 
+# =============================================================================
+# Development stage - includes development tools and hot-reloading support
+FROM base AS development
+
+# Install development tools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        vim \
+        postgresql-client \
+        redis-tools && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Development-specific environment settings
+ENV PYTHONDEBUG=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.docker_dev
+
+# Development health check (simple check that doesn't require specific endpoints)
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=2 \
+    CMD python -c "import django; django.setup(); from django.db import connection; connection.ensure_connection()" || exit 1
+
+# Use entrypoint script with Django development server
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# =============================================================================
+# Staging stage - production-like but with some debugging capabilities
+FROM base AS staging
+
+# Minimal additional tools for staging debugging
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        postgresql-client && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Staging environment settings
+ENV PYTHONOPTIMIZE=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.staging
+
+# Staging health check (assumes you have a basic health endpoint)
+HEALTHCHECK --interval=45s --timeout=10s --start-period=45s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)" || exit 1
+
+# Use gunicorn but with more debugging-friendly settings
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--log-level", "info"]
+
+# =============================================================================
+# Production stage - optimized for performance and security
+FROM base AS production
+
+# Production environment settings
+ENV PYTHONOPTIMIZE=2 \
+    DJANGO_SETTINGS_MODULE=config.settings.prod
+
+# Production health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)" || exit 1
+
 # Use entrypoint script with optimized gunicorn settings
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "gevent", "--worker-connections", "1000"]
