@@ -1,6 +1,6 @@
-# Verboheit Mathematics League Competition Backend
+# vmlc-backend
 
-This is the backend service for the Verboheit Mathematics League Competition (VMLC).  
+This is the backend service for the Verboheit Mathematics League Competition (VMLC).
 It provides APIs for participant registration, exams, scoring, leaderboards, and role-based workflows.
 
 Built with Django and Django REST Framework, this project is designed to scale and integrates with PostgreSQL, Redis, and Celery. Frontends (web or mobile) will consume this API.
@@ -9,14 +9,14 @@ Built with Django and Django REST Framework, this project is designed to scale a
 
 ## Features
 
-- JWT authentication with refresh tokens  
-- Role-based access control (RBAC) for staff and participants  
-- Secure document storage and verification  
-- Multi-stage competition structure (screening, league, final)  
-- Automated and manual scoring workflows  
-- Real-time leaderboard management  
-- Swagger UI and ReDoc documentation  
-- Dockerized setup for development and production  
+- JWT authentication with refresh tokens
+- Role-based access control (RBAC) for staff and participants
+- Secure document storage and verification
+- Multi-stage competition structure (screening, league, final)
+- Automated and manual scoring workflows
+- Real-time leaderboard management
+- Swagger UI and ReDoc documentation
+- Dockerized setup for development and staging environments.
 
 ---
 
@@ -31,9 +31,11 @@ vmlc-backend/
 ├── staticfiles/         # Collected static files for production
 ├── manage.py            # Django's command-line utility for administrative tasks
 ├── requirements.txt     # Python application dependencies
+├── build.sh             # Enhanced build script with logging and error handling
 ├── Dockerfile           # Defines the Docker image for the application
 ├── compose.yml          # Base Docker Compose configuration for all environments
 ├── compose.override.yml # Development-specific Docker Compose overrides
+├── compose.staging.yml  # Staging-specific Docker Compose configuration
 ````
 
 ---
@@ -41,6 +43,10 @@ vmlc-backend/
 ## Setup
 
 ### Docker (Recommended)
+
+The project is configured to run in multiple environments using Docker Compose.
+
+**For Development:**
 
 ```bash
 git clone https://github.com/theolujay/vmlc-backend.git
@@ -52,6 +58,20 @@ docker compose exec web python manage.py migrate
 ```
 
 App runs at `http://localhost:8000`.
+
+For automating error logging, you can use the `compose_up.sh` script. It starts the containers and logs errors to a file.
+
+**For Staging:**
+
+```bash
+git clone https://github.com/theolujay/vmlc-backend.git
+cd vmlc-backend
+
+cp .env.example .env.staging
+# Update .env.staging with staging-specific settings
+docker compose -f compose.yml -f compose.staging.yml up -d --build
+docker compose -f compose.yml -f compose.staging.yml exec web python manage.py migrate
+```
 
 ---
 
