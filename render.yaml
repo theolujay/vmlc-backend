@@ -1,24 +1,19 @@
-# render.yaml - Infrastructure as Code for Render
-
-# This flag enables Preview Environments for every pull request.
-previews: true
-
-# Create an Environment Group in the Render UI named 'vmlc-secrets'
-# Add your SECRET_KEY and other shared environment variables there.
 envVarGroups:
   - name: vmlc-secrets
 
-services:
+databases:
   # PostgreSQL Database
-  - type: postgres
-    name: vmlc-db
+  - name: vmlc-db
     postgresMajorVersion: 17
+    # You can specify a region, e.g., region: oregon
 
+redis:
   # Redis Instance
-  - type: redis
-    name: vmlc-redis
+  - name: vmlc-redis
     redisMajorVersion: 7
+    # You can specify a region, e.g., region: oregon
 
+services:
   # Django/Gunicorn Web Service
   - type: web
     name: vmlc-backend
@@ -45,7 +40,6 @@ services:
   - type: worker
     name: celery-worker
     env: docker
-    # IMPORTANT: You probably want to use the same image and tag as the web service
     image:
       repo: theolujay/vmlc-backend
       tag: 0.1.0 # Or specify a specific tag
