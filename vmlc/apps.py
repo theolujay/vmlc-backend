@@ -3,7 +3,7 @@ from django.apps import AppConfig
 
 class ApiConfig(AppConfig):
     default_auto_field: str = "django.db.models.BigAutoField"
-    name = "api"
+    name = "vmlc"
 
     def ready(self) -> None:
-        import api.signals
+        import vmlc.signals

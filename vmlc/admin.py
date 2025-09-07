@@ -271,7 +271,7 @@ class ExamAdmin(admin.ModelAdmin):
         from django.utils.html import format_html
         from django.urls import reverse
 
-        url = reverse("api:exam-results", args=[obj.pk])
+        url = reverse("vmlc:exam-results", args=[obj.pk])
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
 
 

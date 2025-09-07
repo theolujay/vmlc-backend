@@ -7,7 +7,7 @@ from typing import Any
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from api.models import User, Candidate, Staff, Question, Exam, CandidateScore
+from vmlc.models import User, Candidate, Staff, Question, Exam, CandidateScore
 from django.core.management.base import BaseCommand
 
 

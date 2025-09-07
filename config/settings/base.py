@@ -15,7 +15,7 @@ if not SECRET_KEY:
     raise ValueError("The SECRET_KEY environment variable is not set.")
 
 
-AUTH_USER_MODEL = "api.User"
+AUTH_USER_MODEL = "vmlc.User"
 
 # Grouping apps by origin (Django, third-party, local) improves clarity.
 INSTALLED_APPS = [
@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     "django_filters",
     "storages",
     "django_celery_results",
-    "api",
+    "vmlc",
 ]
 
 # The order of middleware is important. This order is optimized for security and
@@ -138,7 +138,7 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
-    "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardResultsSetPagination",
+    "DEFAULT_PAGINATION_CLASS": "vmlc.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 20,
 }
 
@@ -163,9 +163,9 @@ CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_WORKER_LOG_COLOR = False
 # CELERY_TASK_ROUTES = {
-#     'api.tasks.send_email': {'queue': 'emails'},
-#     'api.tasks.process_payment': {'queue': 'payments'},
-#     'api.tasks.generate_report': {'queue': 'reports'},
+#     'vmlc.tasks.send_email': {'queue': 'emails'},
+#     'vmlc.tasks.process_payment': {'queue': 'payments'},
+#     'vmlc.tasks.generate_report': {'queue': 'reports'},
 # }
 
 # API Documentation settings

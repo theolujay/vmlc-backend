@@ -47,7 +47,7 @@ from .registration import (
     ToggleCandidateRegistrationView,
     ToggleStaffRegistrationView,
 )
-from .root import api_root
+from .root import root
 from .score import (
     CandidateScoreListView,
     SubmitScoreView,
@@ -108,7 +108,7 @@ __all__ = [
     "ToggleCandidateRegistrationView",
     "ToggleStaffRegistrationView",
     # root
-    "api_root",
+    "root",
     # health
     "health_check",
     # score

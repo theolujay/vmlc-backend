@@ -21,7 +21,7 @@ services:
           name: vmlc-creds
     plan: free
     region: frankfurt
-    healthCheckPath: /api/v1/health/
+    healthCheckPath: /v1/health/
     envVars:
       - fromGroup: vmlc-secrets
       - key: DATABASE_URL

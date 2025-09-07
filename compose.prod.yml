@@ -43,7 +43,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/api/v1/health/ --max-time 5 --silent --show-error || exit 1"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -159,7 +159,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/api/workers", "--max-time", "5"]
+      test: ["CMD", "curl", "-f", "http://localhost:5555/workers", "--max-time", "5"]
       interval: 30s
       timeout: 10s
       retries: 3

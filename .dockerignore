@@ -112,7 +112,7 @@ profile_default/
 ipython_config.py
 
 # Project Specific
-api/tests/
+vmlc/tests/
 models_erd.dot
 models_erd.png
 

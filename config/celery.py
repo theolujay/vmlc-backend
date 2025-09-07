@@ -1,5 +1,5 @@
 from celery import Celery
 
-app = Celery("vmlc-backend")
+app = Celery("vmlc")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()

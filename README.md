@@ -25,7 +25,7 @@ Built with Django and Django REST Framework, this project is designed to scale a
 
 ```bash
 vmlc-backend/
-├── api/                 # Core Django app containing models, views, and serializers
+├── vmlc/                 # Core Django app containing models, views, and serializers
 ├── config/              # Project settings, ASGI/WSGI entrypoints, and URL configurations
 ├── docs/                # Project documentation
 ├── staticfiles/         # Collected static files for production
@@ -67,8 +67,8 @@ For automating error logging, you can use the `compose_up.sh` script. It starts 
 git clone https://github.com/theolujay/vmlc-backend.git
 cd vmlc-backend
 
-cp .env.example .env.staging
-# Update .env.staging with staging-specific settings
+cp .env.example .staging.env
+# Update .stagin.env with staging-specific settings
 docker compose -f compose.yml -f compose.staging.yml up -d --build
 docker compose -f compose.yml -f compose.staging.yml exec web python manage.py migrate
 ```

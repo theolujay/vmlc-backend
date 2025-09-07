@@ -101,7 +101,7 @@ COPY --chown=vmlc:vmlc . .
 RUN test -f ./entrypoint.sh && \
     chmod +x ./entrypoint.sh && \
     # Create a health check script for better monitoring
-    echo "#!/bin/sh\ncurl -f http://localhost:8000/api/health/ -m 10 || exit 1" > /usr/local/bin/healthcheck.sh && \
+    echo "#!/bin/sh\ncurl -f http://localhost:8000/v1/health/ -m 10 || exit 1" > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
 # Switch to non-root user for security

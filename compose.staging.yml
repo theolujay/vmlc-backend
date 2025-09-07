@@ -18,7 +18,7 @@ services:
     cap_add:
       - SYS_PTRACE
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/api/v1/health/ --max-time 10 || exit 1"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
       interval: 45s
       timeout: 15s
       retries: 3

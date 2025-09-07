@@ -16,7 +16,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
-    api_root,
+    root,
     LoginView,
     LogoutView,
     RequestPasswordChangeView,
@@ -59,14 +59,14 @@ from .views import (
     health_check,
 )
 
-app_name = "api"
+app_name = "vmlc"
 
 urlpatterns = [
     # =============================================================================
     # ROOT & AUTHENTICATION
     # =============================================================================
     path("health/", health_check, name="health-check"),
-    path("root/", api_root, name="root"),
+    path("root/", root, name="root"),
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),

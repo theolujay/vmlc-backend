@@ -122,7 +122,7 @@ LOGGING = {
         "handlers": ["console"],
     },
     "loggers": {
-        "api": {
+        "vmlc": {
             "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
@@ -214,7 +214,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc-api",
+        "KEY_PREFIX": "vmlc",
         "TIMEOUT": 300,  # 5 minutes default timeout
     }
 }

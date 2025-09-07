@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0003_alter_userverification_id_card_and_more"),
+        ("vmlc", "0003_alter_userverification_id_card_and_more"),
     ]
 
     operations = [

@@ -46,7 +46,7 @@ schema_view = get_schema_view(
 )
 
 api_urlpatterns = [
-    path("v1/", include("api.urls", namespace="v1")),
+    path("v1/", include("vmlc.urls", namespace="v1")),
 ]
 
 docs_urlpatterns = [
@@ -71,7 +71,7 @@ urlpatterns = [
     # === Admin Panel ===
     path(settings.ADMIN_URL, admin.site.urls),
     # === API ===
-    path("api/", include(api_urlpatterns)),
+    path("", include(api_urlpatterns)),
     # === API Docs ===
     path("docs/", include(docs_urlpatterns)),
     # === Root Redirects ===

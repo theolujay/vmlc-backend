@@ -228,7 +228,7 @@ else:
 #         "file": {
 #             "level": "DEBUG",
 #             "class": "logging.handlers.RotatingFileHandler",
-#             "filename": str(LOG_DIR / "vmlc_api_docker_dev.log"),
+#             "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
 #             "formatter": "verbose",
 #             "maxBytes": 5 * 1024 * 1024,  # 5MB
 #             "backupCount": 3,
@@ -245,7 +245,7 @@ else:
 #             "handlers": ["console", "file"],
 #             "propagate": False,
 #         },
-#         "api": {
+#         "vmlc": {
 #             "level": "DEBUG",
 #             "handlers": ["console", "file"],
 #             "propagate": False,

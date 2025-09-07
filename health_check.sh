@@ -42,7 +42,7 @@ check_web_service() {
     local container_ip
     container_ip=$(docker compose ps "$service_name" --format json | jq -r '.[0].Publishers[0].TargetIP // "localhost"' 2>/dev/null || echo "localhost")
     
-    if timeout "$TIMEOUT" curl -sf "http://${container_ip}:${port}/api/health/" >/dev/null 2>&1; then
+    if timeout "$TIMEOUT" curl -sf "http://${container_ip}:${port}/v1/health/" >/dev/null 2>&1; then
         return 0
     fi
     

@@ -14,7 +14,7 @@ from rest_framework.reverse import reverse
 @cache_page(60 * 15)
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def api_root(request, format=None):
+def root(request, format=None):
     """API entry point with discoverable endpoints"""
 
     def generate_url_with_placeholder(name, param_name, is_uuid=False):

@@ -47,7 +47,7 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ## Base URL
 ```
-https://vmlc-api.onrender.com/api/v1/
+https://vmlc-api.onrender.com/v1/
 ```
 All endpoints are relative to this base URL. List of endpoints available at `root/` endpoint.
 
@@ -328,7 +328,7 @@ Content-Type: application/json
 ```json
 {
   "count": 150,
-  "next": "https://verboheit-backend.onrender.com/api/v1/candidates/?page=2",
+  "next": "https://verboheit-backend.onrender.com/v1/candidates/?page=2",
   "previous": null,
   "results": [
     {
@@ -476,7 +476,7 @@ Content-Type: application/json
 ```json
 {
   "count": 25,
-  "next": "https://verboheit-backend.onrender.com/api/v1/exams/?page=2",
+  "next": "https://verboheit-backend.onrender.com/v1/exams/?page=2",
   "previous": null,
   "results": [
     {
@@ -1230,7 +1230,7 @@ X-RateLimit-Reset: 1640995200
 
 ## Versioning
 ### Current Version
-The API is currently at version `v1`. All endpoints are prefixed with `/api/v1/`.
+The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 
 ### Versioning Strategy
 - **Backwards Compatibility**: Minor changes maintain backwards compatibility
