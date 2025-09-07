@@ -3,14 +3,16 @@ Production environment settings.
 """
 
 import os
+from pathlib import Path
 
-from dotenv import load_dotenv
 import dj_database_url
+from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
-from .base import *
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env.prod")
+
+from .base import *
 
 DEBUG = False
 
@@ -222,9 +224,18 @@ CACHES = {
 CONN_MAX_AGE = 600
 
 # Security headers
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# HSTS - Make browsers stick to HTTPS
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed
@@ -235,3 +246,8 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # Maximum file sizes for different upload types
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+
+
+
+

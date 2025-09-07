@@ -122,3 +122,15 @@ models_erd.png
 *.temp
 .DS_Store
 Thumbs.db
+
+# Build Artifacts
+data/
+logs/
+*.log
+.env
+.env.*
+secrets/
+__pycache__/
+.pytest_cache/
+node_modules/
+.git/
