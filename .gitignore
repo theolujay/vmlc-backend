@@ -131,4 +131,8 @@ api/tests/
 # models_erd.dot
 # models_erd.png
 *.dot
-*.png
+*.png# Secrets and environment files
+secrets/
+data/
+# Docker volumes
+docker-compose.override.local.yml

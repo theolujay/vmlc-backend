@@ -1,98 +1,289 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail # Exit on error, undefined variables, or pipe failures
 
-# Function for logging with timestamps
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+# Color codes for better logging readability (if terminal supports it)
+if [[ -t 1 ]]; then # checks if stdout is connected to a terminal. '1' is stdout file descriptor
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    NC=''
+fi
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1 # The Z means “Zulu time”, which is just UTC.
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1 # '1' is stdout file descriptor
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&2 # '2' is stderr file descriptor
+}
+
+cleanup() {
+    log_info "Received shutdown signal, gracefully bowing out and cleaning up..."
+    jobs -p | xargs -r kill 2>/dev/null || true
+    log_info "Cleanup complete, exiting..."
+    exit 0 # '0' mark as success
+}
+
+# Trap multiple signals for graceful shutdown
+trap cleanup SIGTERM SIGINT SIGQUIT SIGHUP
+
+security_check() {
+    if [[ "$(id -u)" -eq 0 ]]; then
+        log_error "Security violation: Container is running as root user!"
+        log_error "This is a serious security risk. Exiting..."
+        exit 1 # '1' mark as failure
+    fi
+
+    # Verify we're running as the expected non-root user
+    local current_user
+    current_user=$(whoami)
+    if [[ "$current_user" != "vmlc" ]]; then
+        log_warn "Running as unexpected user: '$current_user' instead of 'vmlc' user"
+    fi
+
+    log_info "Security check passed - running as user: $current_user ($(id))"
+}
+
+validate_environment() {
+    log_info "Validating environment variables..."
+
+    # Validate required Django settings
+    if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+        log_error "DJANGO_SETTINGS_MODULE environment variable is required"
+        exit 1
+    fi
+
+    # Validate superuser credentials if provided
+    if [[ -n "${SUPERUSER_EMAIL:-}" ]]; then
+        if [[ ! "${SUPERUSER_EMAIL}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+            log_error "Invalid SUPERUSER_EMAIL format"
+            exit 1
+        fi
+    fi
+
+    # Check if running in production and validate critical settings
+    if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
+        local required_prod_vars=("SECRET_KEY" "DATABASE_URL" "ALLOWED_HOSTS")
+        for var in "${required_prod_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+                log_error "Production environment requires '$var' to be set"
+                exit 1
+            fi
+        done
+    fi
+    log_info "Environment validation passed"
 }
 
 wait_for_db() {
-    log "Waiting for database to be ready..."
-    python -c "
-import os, time, psycopg
-from urllib.parse import urlparse
+    log_info "Waiting for database (production mode)..."
+    if [[ -z "${DATABASE_URL:-}" ]]; then
+        log_error "DATABASE_URL not set. Cannot start in production."
+        exit 1
+    fi
 
-url = urlparse(os.environ['DATABASE_URL'])
-for i in range(30):
-    try:
-        conn = psycopg.connect(
-            host=url.hostname,
-            port=url.port or 5432,
-            user=url.username,
-            password=url.password,
-            dbname=url.path[1:],
-            connect_timeout=1
-        )
-        conn.close()
-        print('Database is ready!')
-        break
-    except Exception as e:
-        print(f'Database not ready, waiting... ({i+1}/30) - {e}')
-        time.sleep(2)
-else:
-    print('Database connection timeout!')
-    exit(1)
-"
-}
+    local max_attempts=30
+    local attempt=1
+    local backoff=2
 
-# Create superuser if credentials are provided
-create_superuser() {
-    if [ -n "${SUPERUSER_EMAIL:-}" ] && [ -n "${SUPERUSER_PASSWORD:-}" ]; then
-        log "Creating superuser..."
-        gosu app python manage.py shell -c "
-from django.contrib.auth import get_user_model
-User = get_user_model()
-if not User.objects.filter(email='$SUPERUSER_EMAIL').exists():
-    User.objects.create_superuser('$SUPERUSER_EMAIL', '$SUPERUSER_PASSWORD')
-    print('Superuser created')
-else:
-    print('Superuser already exists')
-"
+    until pg_isready -d "$DATABASE_URL" >/dev/null 2>&1; do
+        if [[ $attempt -ge $max_attempts ]]; then
+            log_error "Database not ready after $max_attempts attempts. Exiting."
+            exit 1
+        fi
+        log_warn "Database not ready, waiting ${backoff}s before retrying..."
+        sleep $backoff
+        backoff=$(( backoff < 10 ? backoff * 2 : 10 ))
+        ((attempt++))
+    done
+
+    log_info "Database connection established."
+
+    # Now run Django's system check for critical errors only
+    if ! python manage.py check --deploy --fail-level CRITICAL; then
+        log_error "Django system check failed in production mode. Exiting."
+        exit 1
     fi
 }
 
-# Function to handle Django setup, containing the repeated logic
-setup_django_env() {
-    log "Setting up Django environment..."
-    log "Running migrations..."
-    gosu app python manage.py makemigrations api --noinput
-    gosu app python manage.py makemigrations --noinput
-    gosu app python manage.py migrate --noinput
 
-    log "Collecting static files..."
-    gosu app python manage.py collectstatic --noinput --clear
+create_superuser() {
+    if [[ -n "${SUPERUSER_EMAIL:-}" ]] && [[ -n "${SUPERUSER_PASSWORD:-}" ]]; then
+        log_info "Creating superuser if not exists..."
+
+        python manage.py shell << EOF
+import os
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+email = os.environ.get('SUPERUSER_EMAIL')
+password = os.environ.get('SUPERUSER_PASSWORD')
+
+if email and password:
+    if not User.objects.filter(email=email).exists():
+        try:
+            User.objects.create_superuser(email, password)
+            print(f'Superuser created successfully')
+        except Exception as e:
+            print(f'Error creating superuser: {e}')
+            exit(1)
+    else:
+        print('Superuser already exists')
+else:
+    print('Missing superuser credentials')
+EOF
+        log_info "Superuser created or already exists"
+    else
+        log_info "Superuser credentials not provided, skipping superuser creation"
+    fi
 }
 
-# Ensure required directories exist
-log "Setting up application directories..."
-mkdir -p /home/app/web/staticfiles /home/app/web/media
+setup_django_env() {
+    log_info "Setting up Django environment..."
+    
+    # Run Django system checks first
+    log_info "Running Django system checks..."
+    if ! python manage.py check --deploy --fail-level WARNING; then
+        if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
+            log_error "Django system checks failed in production mode"
+            exit 1
+        else
+            log_warn "Django system checks found issues (continuing in non-production mode)"
+        fi
+    fi
+    
+    # Database migrations
+    log_info "Checking for database migrations..."
+    if python manage.py showmigrations --plan | grep -q '\[ \]'; then
+        log_info "Running pending database migrations..."
+        python manage.py migrate --no-input
+        log_info "Database migrations completed"
+    else
+        log_info "No pending migrations found"
+    fi
+    
+    # Static files collection (only in production/staging)
+    if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
+        log_info "Collecting static files..."
+        python manage.py collectstatic --no-input --clear
+        log_info "Static files collection completed"
+    else
+        log_info "Skipping static files collection in development mode"
+    fi
+}
 
-# Only change ownership if running as root
-if [ "$(id -u)" = "0" ]; then
-    chown -R app:app /home/app/web/staticfiles /home/app/web/media
-fi
+setup_directories() {
+    log_info "Setting up application directories..."
+    
+    local directories=(
+        "/home/vmlc/web/staticfiles"
+        "/home/vmlc/web/media"
+        "/home/vmlc/web/logs"
+    )
+    
+    for dir in "${directories[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            log_info "Creating directory: $dir"
+            mkdir -p "$dir"
+        fi
+        
+        # Ensure proper ownership (only if we have write access)
+        if [[ -w "$dir" ]]; then
+            log_info "Directory $dir is writable"
+        else
+            log_warn "Directory $dir is not writable by current user"
+        fi
+    done
+}
 
-case "$1" in
-    'gunicorn')
-        log "Setting up for production (gunicorn)..."
-        if [ -n "${DATABASE_URL:-}" ]; then
+setup_application() {
+    local command="$1"
+    local should_setup=false
+    
+    case "$command" in
+        'gunicorn'|'daphne'|'hypercorn')
+            log_info "Setting up for ASGI/WSGI server ($command)..."
+            should_setup=true
+            ;;
+        'python')
+            if [[ "${2:-}" == 'manage.py' && "${3:-}" == 'runserver' ]]; then
+                log_info "Setting up for Django development server..."
+                should_setup=true
+            fi
+            ;;
+        'celery')
+            log_info "Setting up for Celery worker..."
+            # Celery workers need database access for some tasks
             wait_for_db
-            setup_django_env
-            create_superuser
-        fi
-        ;;
-    'python')
-        if [[ "$2" = 'manage.py' && "$3" = 'runserver' ]]; then
-            log "Setting up for development (runserver)..."
-            setup_django_env
-            create_superuser
-        fi
-        ;;
-    *)
-        log "Skipping Django setup for special command."
-        ;;
-esac
+            ;;
+        *)
+            log_info "Skipping Django setup for command: $command"
+            ;;
+    esac
+    
+    if [[ "$should_setup" == true ]]; then
+        wait_for_db
+        setup_django_env
+        create_superuser
+    fi
+}
 
-log "Starting application as 'app' user: $*"
-exec gosu app "$@"
+preflight_check() {
+    log_info "Running pre-flight checks..."
+    
+    # Check if manage.py exists
+    if [[ ! -f "manage.py" ]]; then
+        log_error "manage.py not found in current directory: $(pwd)"
+        exit 1
+    fi
+    
+    # Check if Python can import Django
+    if ! python -c "import django" 2>/dev/null; then
+        log_error "Django is not installed or not accessible"
+        exit 1
+    fi
+    
+    log_info "Pre-flight checks completed"
+}
+
+# Main execution function
+main() {
+    log_info "Starting secure entrypoint script..."
+    log_info "Command: $*"
+    log_info "Working directory: $(pwd)"
+    log_info "Python executable: $(which python)"
+    
+    # Run all security and validation checks
+    security_check
+    validate_environment
+    preflight_check
+    setup_directories
+    
+    # Handle special case of no arguments
+    if [[ $# -eq 0 ]]; then
+        log_error "No command provided to entrypoint"
+        log_info "Usage: entrypoint.sh <command> [args...]"
+        exit 1
+    fi
+    
+    # Setup application based on command
+    setup_application "$@"
+    
+    log_info "All checks completed successfully"
+    log_info "Executing command: $*"
+    
+    # Execute the command with all arguments
+    exec "$@"
+}
+
+# Call main function with all script arguments
+main "$@"
