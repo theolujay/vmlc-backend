@@ -19,7 +19,6 @@ services:
         fromRegistryCreds:
           name: vmlc-creds
     plan: free
-    previews.generation: automatic
     region: frankfurt
     healthCheckPath: /api/v1/health/
     envVars:
