@@ -1,6 +1,6 @@
 previews:
   generation: automatic
-O
+
 envVarGroups:
   - name: vmlc-secrets
 
