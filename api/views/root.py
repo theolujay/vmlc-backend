@@ -41,107 +41,107 @@ def api_root(request, format=None):
 
     return Response(
         {
-            "api-root": safe_reverse("v1:api-root"),
+            "root": safe_reverse("v1:root"),
             "authentication": {
-                "login": safe_reverse("v1:api-login"),
-                "logout": safe_reverse("v1:api-logout"),
+                "login": safe_reverse("v1:login"),
+                "logout": safe_reverse("v1:logout"),
                 "token_refresh": safe_reverse("v1:token-refresh"),
             },
             "registration": {
                 "toggle_candidate": safe_reverse(
-                    "v1:api-toggle-candidate-registration"
+                    "v1:toggle-candidate-registration"
                 ),
-                "toggle_staff": safe_reverse("v1:api-toggle-staff-registration"),
-                "candidate": safe_reverse("v1:api-register-candidate"),
-                "staff": safe_reverse("v1:api-register-staff"),
+                "toggle_staff": safe_reverse("v1:toggle-staff-registration"),
+                "candidate": safe_reverse("v1:register-candidate"),
+                "staff": safe_reverse("v1:register-staff"),
             },
             "email_verification": {
                 "verify_otp": safe_reverse("v1:verify-email-otp"),
                 "resend_otp": safe_reverse("v1:resend-email-otp"),
             },
             "password_change": {
-                "request": safe_reverse("v1:api-request-password-change"),
-                "confirm": safe_reverse("v1:api-verify-password-change-otp"),
-                "change": safe_reverse("v1:api-password-change"),
-                "resend_otp": safe_reverse("v1:api-resend-password-change-otp"),
+                "request": safe_reverse("v1:request-password-change"),
+                "confirm": safe_reverse("v1:verify-password-change-otp"),
+                "change": safe_reverse("v1:password-change"),
+                "resend_otp": safe_reverse("v1:resend-password-change-otp"),
             },
             "candidates": {
-                "collection": safe_reverse("v1:api-candidate-list"),
-                # "me": safe_reverse("v1:api-candidate-me"),
+                "collection": safe_reverse("v1:candidate-list"),
+                # "me": safe_reverse("v1:candidate-me"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-candidate-detail", "candidate_id", is_uuid=True
+                    "v1:candidate-detail", "candidate_id", is_uuid=True
                 ),
                 "actions": {
                     "assign-role": generate_url_with_placeholder(
-                        "v1:api-candidate-role-assign", "candidate_id", is_uuid=True
+                        "v1:candidate-role-assign", "candidate_id", is_uuid=True
                     ),
                     "scores": generate_url_with_placeholder(
-                        "v1:api-candidate-scores", "candidate_id", is_uuid=True
+                        "v1:candidate-scores", "candidate_id", is_uuid=True
                     ),
                     "exam-history": generate_url_with_placeholder(
-                        "v1:api-candidate-exam-history",
+                        "v1:candidate-exam-history",
                         "candidate_id",
                         is_uuid=True,
                     ),
                 },
             },
             "staff": {
-                "collection": safe_reverse("v1:api-staff-list"),
-                # "me": safe_reverse("v1:api-staff-me"),
+                "collection": safe_reverse("v1:staff-list"),
+                # "me": safe_reverse("v1:staff-me"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-staff-detail", "staff_id", is_uuid=True
+                    "v1:staff-detail", "staff_id", is_uuid=True
                 ),
                 "actions": {
                     "assign_role": generate_url_with_placeholder(
-                        "v1:api-staff-role-assign", "staff_id", is_uuid=True
+                        "v1:staff-role-assign", "staff_id", is_uuid=True
                     ),
                 },
             },
             "exams": {
-                "collection": safe_reverse("v1:api-exam-list"),
+                "collection": safe_reverse("v1:exam-list"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-exam-detail", "exam_id"
+                    "v1:exam-detail", "exam_id"
                 ),
                 "questions": generate_url_with_placeholder(
-                    "v1:api-exam-questions", "exam_id"
+                    "v1:exam-questions", "exam_id"
                 ),
                 "results": generate_url_with_placeholder(
-                    "v1:api-exam-results", "exam_id"
+                    "v1:exam-results", "exam_id"
                 ),
                 "candidate-take-exam": generate_url_with_placeholder(
-                    "v1:api-take-exam", "exam_id"
+                    "v1:take-exam", "exam_id"
                 ),
                 "submission": {
                     "submit-exam-score": generate_url_with_placeholder(
-                        "v1:api-submit-exam-score", "exam_id"
+                        "v1:submit-exam-score", "exam_id"
                     ),
                     "submit-exam-answers": generate_url_with_placeholder(
-                        "v1:api-submit-exam-answers", "exam_id"
+                        "v1:submit-exam-answers", "exam_id"
                     ),
                 },
             },
             "scores": {
-                "publish": safe_reverse("v1:api-publish-scores"),
+                "publish": safe_reverse("v1:publish-scores"),
             },
             "questions": {
-                "collection": safe_reverse("v1:api-question-list"),
+                "collection": safe_reverse("v1:question-list"),
                 "detail": generate_url_with_placeholder(
-                    "v1:api-question-detail", "question_id"
+                    "v1:question-detail", "question_id"
                 ),
             },
             "leaderboard": {
-                "toggle": safe_reverse("v1:api-toggle-leaderboard"),
-                "publish": safe_reverse("v1:api-publish-leaderboard"),
-                "load": safe_reverse("v1:api-load-leaderboard"),
+                "toggle": safe_reverse("v1:toggle-leaderboard"),
+                "publish": safe_reverse("v1:publish-leaderboard"),
+                "load": safe_reverse("v1:load-leaderboard"),
             },
             "dashboard": {
-                "candidate": safe_reverse("v1:api-candidate-dashboard"),
-                "staff": safe_reverse("v1:api-staff-dashboard"),
+                "candidate": safe_reverse("v1:candidate-dashboard"),
+                "staff": safe_reverse("v1:staff-dashboard"),
             },
             "user-accounts": {
-                "account-management": safe_reverse("v1:api-account-management"),
+                "account-management": safe_reverse("v1:account-management"),
                 "account-management-detail": generate_url_with_placeholder(
-                    "v1:api-account-management-detail", "user_id", is_uuid=True
+                    "v1:account-management-detail", "user_id", is_uuid=True
                 ),
             },
             "user_verification": {
