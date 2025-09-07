@@ -8,6 +8,7 @@ databases:
   - name: vmlc-db
     databaseName: private
     ipAllowList: []
+    plan: free
 
 services:
   - name: vmlc-backend
@@ -44,6 +45,7 @@ services:
         fromRegistryCreds:
           name: vmlc-creds
     dockerCommand: "celery -A config worker -l info"
+    plan: free
     envVars:
       - fromGroup: vmlc-secrets
       - key: DATABASE_URL
@@ -66,6 +68,7 @@ services:
       creds:
         fromRegistryCreds:
           name: vmlc-creds
+    plan: free
     dockerCommand: "celery -A config flower --address=0.0.0.0 --port=5555 --basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}"
     envVars:
       - fromGroup: vmlc-secrets
@@ -73,3 +76,4 @@ services:
   - type: keyvalue
     name: vmlc-redis
     ipAllowList: []
+    plan: free
