@@ -1,0 +1,65 @@
+# render.yaml - Infrastructure as Code for Render
+
+# This flag enables Preview Environments for every pull request.
+previews: true
+
+# Create an Environment Group in the Render UI named 'vmlc-secrets'
+# Add your SECRET_KEY and other shared environment variables there.
+envVarGroups:
+  - name: vmlc-secrets
+
+services:
+  # PostgreSQL Database
+  - type: postgres
+    name: vmlc-db
+    postgresMajorVersion: 17
+
+  # Redis Instance
+  - type: redis
+    name: vmlc-redis
+    redisMajorVersion: 7
+
+  # Django/Gunicorn Web Service
+  - type: web
+    name: vmlc-backend
+    env: docker
+    image:
+      repo: theolujay/vmlc-backend
+      tag: 0.1.0 # Or specify a specific tag
+    dockerCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    healthCheck:
+      path: /api/health/
+    envVarGroups:
+      - vmlc-secrets # Link to the group defined above
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vmlc-db
+          property: connectionString
+      - key: REDIS_URL
+        fromRedis:
+          name: vmlc-redis
+          property: connectionString
+
+  # Celery Background Worker
+  - type: worker
+    name: celery-worker
+    env: docker
+    # IMPORTANT: You probably want to use the same image and tag as the web service
+    image:
+      repo: theolujay/vmlc-backend
+      tag: 0.1.0 # Or specify a specific tag
+    dockerCommand: "celery -A config worker -l info"
+    envVarGroups:
+      - vmlc-secrets # Link to the group defined above
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vmlc-db
+          property: connectionString
+      - key: REDIS_URL
+        fromRedis:
+          name: vmlc-redis
+          property: connectionString
+      - key: C_FORCE_ROOT # Celery-specific variable
+        value: "1"
