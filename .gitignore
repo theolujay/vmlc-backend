@@ -122,10 +122,8 @@ instance/
 target/
 
 # Environment Files
-.env
+*.env
 .env.*
-.env.example
-
 # Project Specific
 api/tests/
 # models_erd.dot

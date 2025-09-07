@@ -1,50 +1,37 @@
-# Base configuration for staging and production
 services:
   web:
-    build: 
+    build:
       context: .
-      target: production
+      target: development
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - media_data:/home/app/web/media
-      - static_data:/home/app/web/staticfiles
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.prod
+      - .:/home/vmlc/web
+    ports:
+      - "8000:8000"
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "gosu", "app", "python", "-c", "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
   db:
-    image: postgres:17.5-bookworm
+    image: postgres:17-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    env_file: .env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-    shm_size: 256mb
 
   redis:
-    image: redis:8-alpine
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -52,44 +39,28 @@ services:
       retries: 3
 
   celery_worker:
-    build: 
+    build:
       context: .
-      target: production
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--events"]
+      target: development
+    command: celery -A config worker -l info
     volumes:
-      - media_data:/home/app/web/media
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.prod
-      - C_FORCE_ROOT=1
+      - .:/home/vmlc/web
+    env_file: .env
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
+      - redis
+      - db
 
   flower:
-    build: 
+    build:
       context: .
-      target: production
-    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555"]
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.prod
+      target: development
+    command: celery -A config flower --address=0.0.0.0
+    ports:
+      - "5555:5555"
+    env_file: .env
     depends_on:
-      redis:
-        condition: service_healthy
-      celery_worker:
-        condition: service_started
-    restart: unless-stopped
+      - redis
+      - celery_worker
 
 volumes:
   postgres_data:
-  redis_data:
-  media_data:
-  static_data:

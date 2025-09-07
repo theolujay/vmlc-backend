@@ -71,8 +71,7 @@ media/
 staticfiles/
 
 # Environment Files
-.env
-.env.*
+*.env
 !.env.example
 
 # Logs

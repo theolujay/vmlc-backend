@@ -4,13 +4,13 @@ Production environment settings.
 
 import os
 
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
 
-load_dotenv(BASE_DIR / ".env.prod")
+# load_dotenv(BASE_DIR / ".env.prod")
 
 DEBUG = False
 

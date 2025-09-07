@@ -6,14 +6,15 @@ Uses SQLite
 
 import os
 from datetime import timedelta
+from pathlib import Path
 
 from dotenv import load_dotenv
-import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
-from .base import *
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+from .base import *
 
 DEBUG = True
 

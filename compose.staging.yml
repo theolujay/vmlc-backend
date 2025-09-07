@@ -1,48 +1,140 @@
-# Minimal staging-specific overrides
+# Staging-specific overrides
+
 services:
   web:
     build:
-      target: staging  # Use staging build with some debug tools
+      target: staging
     ports:
-      - "8000:8000"  # Expose for staging access
-    env_file:
-      - ./.env.staging
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.staging
-    # Slightly relaxed resource limits for debugging
+      - "8000:8000"
+    env_file: staging.env
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1.5G
+          cpus: '1.5'
         reservations:
-          memory: 192M
+          memory: 768M
+          cpus: '0.75'
+    cap_add:
+      - SYS_PTRACE
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/api/v1/health/ --max-time 10 || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
 
   db:
     ports:
-      - "5432:5432"  # Expose for staging database access
-    env_file:
-      - ./.env.staging
+      - "127.0.0.1:5432:5432"
+    env_file: staging.env
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.max=10000
+      -c pg_stat_statements.track=top
+      -c log_destination=stderr
+      -c log_statement=ddl
+      -c log_duration=true
+      -c log_min_duration_statement=1000ms
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d '
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   redis:
     ports:
-      - "6379:6379"  # Expose for staging redis access
+      - "127.0.0.1:6379:6379"
+    command: [
+      "redis-server",
+      "--appendonly", "yes",
+      "--maxmemory", "512mb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--save", "900", "1",
+      "--save", "300", "10",
+      "--save", "60", "10000",
+      "--loglevel", "notice"
+    ]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   celery_worker:
     build:
       target: staging
-    env_file:
-      - ./.env.staging
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.staging
-      - C_FORCE_ROOT=1
-    command: ["celery", "-A", "config", "worker", "-l", "debug", "--events"]  # More verbose logging
+    env_file: staging.env
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=500", "--time-limit=600"]
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   flower:
     build:
       target: staging
     ports:
-      - "5555:5555"  # Expose for monitoring
-    env_file:
-      - ./.env.staging
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.staging
+      - "127.0.0.1:5555:5555"
+    env_file: staging.env
+
+  nginx:
+    image: nginx:1.25.3-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/staging.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d/staging:/etc/nginx/conf.d:ro
+      - static_data:/var/www/static:ro
+      - media_data:/var/www/media:ro
+    depends_on:
+      - web
+    networks:
+      - frontend
+    user: nginx
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - nginx
+
+networks:
+  backend:
+    internal: false

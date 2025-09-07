@@ -65,7 +65,7 @@ from .user import (
     UserVerificationListView,
     UserVerificationActionView,
 )
-
+from .health import health_check
 
 __all__ = [
     # answer
@@ -109,6 +109,8 @@ __all__ = [
     "ToggleStaffRegistrationView",
     # root
     "api_root",
+    # health
+    "health_check",
     # score
     "CandidateScoreListView",
     "SubmitScoreView",

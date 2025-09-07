@@ -6,14 +6,16 @@ Uses PostgreSQL container and includes comprehensive development tools.
 
 import os
 from datetime import timedelta
+from pathlib import Path
 
-from dotenv import load_dotenv
 import dj_database_url
+from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
-from .base import *
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+from .base import *
 
 DEBUG = True
 
@@ -300,3 +302,18 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 #         "handlers": ["console"],
 #         "propagate": False,
 #     }
+
+# Security settings (safe to enable in dev)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True  # Optional, adds X-XSS-Protection header
+
+# These are technically "HTTPS-only" settings
+# Setting them True in dev won't break anything if you don't test cookies over HTTP
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# HSTS (leave very low so you don't lock yourself out of localhost)
+SECURE_HSTS_SECONDS = 0  # Means it's effectively disabled, but no warning
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
