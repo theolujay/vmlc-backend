@@ -106,7 +106,7 @@ wait_for_db() {
         ((attempt++))
     done
 
-    log_info "Database connection established."
+    log_info "Database connection established. Checking health..."
 
     # Now run Django's system check for critical errors only
     if ! python manage.py check --deploy --fail-level CRITICAL; then
@@ -137,9 +137,9 @@ if email and password:
             print(f'Error creating superuser: {e}')
             exit(1)
     else:
-        print('Superuser already exists')
+        print('Django: Superuser already exists')
 else:
-    print('Missing superuser credentials')
+    print('Django: Missing superuser credentials')
 EOF
         log_info "Superuser created or already exists"
     else
