@@ -82,8 +82,9 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = "candidate_id"
 
     def get_queryset(self):
-        # The dashboard utility function handles all necessary queries.
-        return Candidate.objects.select_related("user").all()
+        return Candidate.objects.select_related("user").prefetch_related(
+            "scores__exam", "scores__submitted_by__user"
+        ).all()
 
     def retrieve(self, request, *args, **kwargs):
         """

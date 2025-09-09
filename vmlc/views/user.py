@@ -12,6 +12,8 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
+from rest_framework.settings import api_settings
 
 from ..models import User, UserVerification
 from ..permissions import HasStaffRole, IsObjectOwnerOrSuperAdminRole
@@ -19,6 +21,7 @@ from ..serializers import (
     UserVerificationActionSerializer,
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
+    UserVerificationListSerializer,
 )
 from ..tasks import validate_user_verification_files_task
 
@@ -329,34 +332,17 @@ class UserVerificationDocumentView(APIView):
             )
 
 
-class UserVerificationListView(APIView):
+class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
     permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
+    serializer_class = UserVerificationListSerializer
+    queryset = UserVerification.objects.select_related("user").all()
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
-    def get(self, request):
-        verification_list = UserVerification.objects.select_related("user").all()
-
-        data = []
-        for verification in verification_list:
-            data.append(
-                {
-                    "user_id": verification.user.id,
-                    "user_name": verification.user.get_full_name(),
-                    "email": verification.user.email,
-                    "is_pending": verification.is_pending,
-                    "is_verified": verification.is_verified,
-                    "is_rejected": verification.is_rejected,  # Added this field
-                    "has_profile_photo": bool(verification.profile_photo),
-                    "has_id_card": bool(verification.id_card),
-                    "has_verification_document": bool(
-                        verification.verification_document
-                    ),
-                    "date_created": verification.date_created,
-                }
-            )
-
-        return Response(data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        # Ensure related user data is prefetched for efficiency
+        return super().get_queryset().order_by("-date_created")
 
 
 class UserVerificationActionView(APIView):

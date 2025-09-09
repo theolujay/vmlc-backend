@@ -48,6 +48,42 @@ class MinimalUserSerializer(serializers.ModelSerializer):
         fields = ["email", "first_name", "last_name", "phone"]
 
 
+class UserVerificationListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing user verification requests.
+    """
+    user_id = serializers.CharField(source='user.id', read_only=True)
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    has_profile_photo = serializers.SerializerMethodField()
+    has_id_card = serializers.SerializerMethodField()
+    has_verification_document = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserVerification
+        fields = [
+            "user_id",
+            "user_name",
+            "email",
+            "is_pending",
+            "is_verified",
+            "is_rejected",
+            "has_profile_photo",
+            "has_id_card",
+            "has_verification_document",
+            "date_created",
+        ]
+
+    def get_has_profile_photo(self, obj):
+        return bool(obj.profile_photo)
+
+    def get_has_id_card(self, obj):
+        return bool(obj.id_card)
+
+    def get_has_verification_document(self, obj):
+        return bool(obj.verification_document)
+
+
 class UserVerificationStatusSerializer(serializers.ModelSerializer):
     """
     Secure serializer for user verification status.
@@ -98,7 +134,8 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
         fields = ["is_verified", "is_rejected"]
 
     def update(self, instance, validated_data):
-        """Handle verification status updates."""
+        """
+        Handle verification status updates."""
         is_verified = validated_data.get("is_verified")
         is_rejected = validated_data.get("is_rejected")
 

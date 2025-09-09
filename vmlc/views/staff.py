@@ -78,7 +78,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         HasStaffRole(Staff.Roles.SUPERADMIN),
     ]
     serializer_class = StaffDetailSerializer
-    queryset = Staff.objects.select_related("user").all()
+    queryset = Staff.objects.select_related("user", "user__verification").all()
     lookup_url_kwarg = "staff_id"
 
     def perform_update(self, serializer):

@@ -194,7 +194,7 @@ def candidate_take_exam(request, exam_id):
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
     candidate = request.user.candidate_profile
-    exam = get_object_or_404(Exam, pk=exam_id)
+    exam = get_object_or_404(Exam.objects.prefetch_related("questions"), pk=exam_id)
 
     if not candidate.is_verified:
         return Response(

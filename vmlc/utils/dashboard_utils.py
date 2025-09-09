@@ -38,50 +38,71 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     if cached_data:
         return cached_data
 
+    # Optimize fetching candidate's user data
+    candidate = Candidate.objects.select_related('user').get(pk=candidate.pk)
+
     latest_snapshot: Optional[CandidateScoreSnapshot] = (
         CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
         .order_by("-published_at")
         .first()
     )
 
+    # Combine score stats and recent scores into one query if possible, or minimize separate hits
+    scores_qs = CandidateScore.objects.filter(candidate=candidate)
     if latest_snapshot:
-        scores: QuerySet[CandidateScore] = CandidateScore.objects.filter(
-            candidate=candidate, date_recorded__lte=latest_snapshot.published_at
-        )
-    else:
-        scores: QuerySet[CandidateScore] = CandidateScore.objects.none()
+        scores_qs = scores_qs.filter(date_recorded__lte=latest_snapshot.published_at)
 
-    score_stats: Dict[str, Any] = scores.aggregate(
+    score_stats = scores_qs.aggregate(
         total_exams_taken=Count("id"),
         average_score=Avg("score"),
         highest_score=Max("score"),
         lowest_score=Min("score"),
     )
 
-    total_exams_taken: int = score_stats["total_exams_taken"]
-    average_score: float = score_stats["average_score"] or 0
-    highest_score: float = score_stats["highest_score"] or 0
-    lowest_score: float = score_stats["lowest_score"] or 0
+    recent_scores_list = list(scores_qs.order_by("-date_recorded").select_related('exam').values(
+        'score', 'exam__title', 'date_recorded', 'exam__stage'
+    )[:5]) # Convert to list to avoid re-querying
 
-    recent_scores: QuerySet[CandidateScore] = scores.order_by("-date_recorded")[:5]
-    latest_score: Optional[CandidateScore] = recent_scores.first()
+    latest_score_data = None
+    if recent_scores_list:
+        latest_score_data = {
+            "score": float(recent_scores_list[0]['score']),
+            "exam_title": recent_scores_list[0]['exam__title'],
+            "date": recent_scores_list[0]['date_recorded'],
+        }
+
+    # Optimize available_exams
+    available_exams_list = []
     if candidate.is_verified:
-        available_exams: List[Exam] = [
-            exam
-            for exam in Exam.objects.filter(stage=candidate.role, is_active=True)
-            if exam.is_currently_open
-        ]
-    else:
-        available_exams: List[Exam] = []
+        # Fetch all relevant exams in one go
+        all_relevant_exams = Exam.objects.filter(
+            stage=candidate.role, is_active=True
+        ).annotate(
+            question_count=Count('questions') # Annotate question count here
+        ).order_by('exam_date')[:5] # Limit to 5 as per original logic
 
-    # Use Window function for efficient ranking ---
+        now = timezone.now()
+        for exam in all_relevant_exams:
+            # is_currently_open logic is still in Python, but we've reduced initial queries
+            if exam.is_currently_open: # This property needs to be evaluated
+                available_exams_list.append({
+                    "id": exam.id,
+                    "title": exam.title,
+                    "description": exam.description,
+                    "open_duration_hours": exam.open_duration_hours,
+                    "exam_date": exam.exam_date,
+                    "countdown_minutes": exam.countdown_minutes,
+                    "question_count": exam.question_count, # Use annotated value
+                    "stage": exam.stage,
+                })
+
+
+    # Optimize leaderboard ranking
     candidate_rank: Optional[int] = None
     total_league_candidates: int = 0
     if candidate.role == "league" and latest_snapshot:
-        # Base queryset for all league candidates with their published total score
-        league_candidates_qs: QuerySet[Candidate] = Candidate.candidates_by_role(
-            "league"
-        ).annotate(
+        # This part is already quite optimized with Window functions
+        league_candidates_qs = Candidate.candidates_by_role("league").annotate(
             total_score=Sum(
                 "scores__score",
                 filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
@@ -89,26 +110,21 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             )
         )
 
-        # Use a window function to rank them in the database
-        ranked_candidates_qs: QuerySet[Candidate] = league_candidates_qs.annotate(
+        ranked_candidates_qs = league_candidates_qs.annotate(
             rank=Window(
                 expression=Rank(),
                 order_by=F("total_score").desc(nulls_last=True),
             )
         )
 
-        # Retrieve just our specific candidate from this ranked list
-        ranked_candidate: Optional[Candidate] = ranked_candidates_qs.filter(
-            pk=candidate.pk
-        ).first()
+        ranked_candidate = ranked_candidates_qs.filter(pk=candidate.pk).first()
         if ranked_candidate:
             candidate_rank = ranked_candidate.rank
 
-        total_league_candidates = league_candidates_qs.count()
+        total_league_candidates = league_candidates_qs.count() # This is a separate query
 
     dashboard_data = {
         "candidate_info": {
-            # "id": candidate.user.id,
             "name": candidate.user.get_full_name(),
             "email": candidate.user.email,
             "phone": candidate.user.phone,
@@ -121,52 +137,31 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             ),
         },
         "exam_stats": {
-            "total_exams_taken": total_exams_taken,
-            "available_exams_count": len(available_exams),
-            "average_score": round(float(average_score), 2),
-            "highest_score": float(highest_score),
-            "lowest_score": float(lowest_score),
-            "latest_score": (
-                {
-                    "score": float(latest_score.score),
-                    "exam_title": latest_score.exam.title,
-                    "date": latest_score.date_recorded,
-                }
-                if latest_score
-                else None
-            ),
+            "total_exams_taken": score_stats["total_exams_taken"],
+            "available_exams_count": len(available_exams_list),
+            "average_score": round(float(score_stats["average_score"] or 0), 2),
+            "highest_score": float(score_stats["highest_score"] or 0),
+            "lowest_score": float(score_stats["lowest_score"] or 0),
+            "latest_score": latest_score_data,
         },
         "leaderboard_ranking": (
             {
                 "current_rank": candidate_rank,
                 "total_candidates": total_league_candidates,
-                # "role": candidate.role,
             }
             if candidate.role == "league"
             else None
         ),
         "recent_scores": [
             {
-                "exam_title": score.exam.title,
-                "score": float(score.score),
-                "date": score.date_recorded,
-                "exam_stage": score.exam.stage,
+                "exam_title": score['exam__title'],
+                "score": float(score['score']),
+                "date": score['date_recorded'],
+                "exam_stage": score['exam__stage'],
             }
-            for score in recent_scores
+            for score in recent_scores_list
         ],
-        "available_exams": [
-            {
-                "id": exam.id,
-                "title": exam.title,
-                "description": exam.description,
-                "open_duration_hours": exam.open_duration_hours,
-                "exam_date": exam.exam_date,
-                "countdown_minutes": exam.countdown_minutes,
-                "question_count": exam.get_question_count(),
-                "stage": exam.stage,
-            }
-            for exam in available_exams[:5]
-        ],
+        "available_exams": available_exams_list,
     }
 
     cache.set(cache_key, dashboard_data, timeout=3600)  # Cache for 1 hour
@@ -199,23 +194,37 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     now: Any = timezone.now()
     last_week: timedelta = now - timedelta(days=7)
 
-    total_candidates: int = Candidate.objects.count()
-    active_candidates: int = Candidate.active_candidates().count()
-    verified_candidates: int = Candidate.objects.filter(is_verified=True).count()
+    # Combine multiple counts into a single query
+    candidate_stats = Candidate.objects.aggregate(
+        total_candidates=Count('id'),
+        active_candidates=Count('id', filter=Q(is_active=True)),
+        verified_candidates=Count('id', filter=Q(is_verified=True)),
+        recent_registrations=Count('id', filter=Q(date_created__gte=last_week))
+    )
 
+    total_candidates = candidate_stats['total_candidates']
+    active_candidates = candidate_stats['active_candidates']
+    verified_candidates = candidate_stats['verified_candidates']
+    recent_candidates = candidate_stats['recent_registrations']
+
+    # This still requires iterating through roles, but the count is per role
     candidates_by_role: Dict[str, Dict[str, Any]] = {
         key: {"display": display, "count": Candidate.candidates_by_role(key).count()}
         for key, display in Candidate.ROLE_CHOICES
     }
 
-    recent_candidates: int = Candidate.objects.filter(
-        date_created__gte=last_week
-    ).count()
+    exam_stats = Exam.objects.aggregate(
+        total_exams=Count('id'),
+        recent_exams=Count('id', filter=Q(date_created__gte=last_week))
+    )
+    total_exams = exam_stats['total_exams']
+    recent_exams = exam_stats['recent_exams']
 
-    total_exams: int = Exam.objects.count()
-    recent_exams: int = Exam.objects.filter(date_created__gte=last_week).count()
+    question_stats = Question.objects.aggregate(
+        total_questions=Count('id')
+    )
+    total_questions = question_stats['total_questions']
 
-    total_questions: int = Question.objects.count()
     questions_by_difficulty: Dict[str, Dict[str, Any]] = {
         key: {
             "display": display,
@@ -224,26 +233,33 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         for key, display in Question._meta.get_field("difficulty").choices
     }
 
-    total_scores: int = CandidateScore.objects.count()
-    recent_scores: int = CandidateScore.objects.filter(
-        date_recorded__gte=last_week
-    ).count()
-
-    avg_score: float = CandidateScore.objects.aggregate(avg=Avg("score"))["avg"] or 0
-    highest_score: float = (
-        CandidateScore.objects.aggregate(max=Max("score"))["max"] or 0
+    score_stats = CandidateScore.objects.aggregate(
+        total_submissions=Count('id'),
+        recent_submissions=Count('id', filter=Q(date_recorded__gte=last_week)),
+        average_score=Avg("score"),
+        highest_score=Max("score")
     )
+    total_scores = score_stats['total_submissions']
+    recent_scores = score_stats['recent_submissions']
+    avg_score = score_stats['average_score'] or 0
+    highest_score = score_stats['highest_score'] or 0
 
-    recent_activity: QuerySet[CandidateScore] = CandidateScore.objects.select_related(
+    recent_activity_list = list(CandidateScore.objects.select_related(
         "candidate__user", "exam"
-    ).order_by("-date_recorded")[:10]
+    ).order_by("-date_recorded").values(
+        'score', 'date_recorded', 'candidate__user__first_name', 'candidate__user__last_name',
+        'exam__title', 'candidate__school'
+    )[:10])
 
-    upcoming_exams: QuerySet[Exam] = Exam.objects.filter(
+    upcoming_exams_list = list(Exam.objects.filter(
         exam_date__gte=now, is_active=True
-    ).order_by("exam_date")[:5]
+    ).order_by("exam_date").values(
+        'id', 'title', 'exam_date', 'is_active', 'stage', 'countdown_minutes'
+    ).annotate(
+        question_count=Count('questions') # Annotate question count here
+    )[:5])
 
     staff_info: Dict[str, Any] = {
-        # "id": staff.user.id,
         "name": staff.user.get_full_name(),
         "email": staff.user.email,
         "role": staff.get_role_display(),
@@ -281,27 +297,27 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
             "average_score": round(float(avg_score), 2),
             "highest_score": float(highest_score),
         },
-        # "recent_activity": [
-        #     {
-        #         "candidate_name": activity.candidate.user.get_full_name(),
-        #         "exam_title": activity.exam.title,
-        #         "score": float(activity.score),
-        #         "date": activity.date_recorded,
-        #         "candidate_school": activity.candidate.school,
-        #     }
-        #     for activity in recent_activity
-        # ],
+        "recent_activity": [
+            {
+                "candidate_name": f"{activity['candidate__user__first_name']} {activity['candidate__user__last_name']}",
+                "exam_title": activity['exam__title'],
+                "score": float(activity['score']),
+                "date": activity['date_recorded'],
+                "candidate_school": activity['candidate__school'], # Assuming school is directly accessible
+            }
+            for activity in recent_activity_list
+        ],
         "upcoming_exams": [
             {
-                "id": exam.id,
-                "title": exam.title,
-                "exam_date": exam.exam_date,
-                "is_active": exam.is_active,
-                "stage": exam.get_stage_display(),
-                "question_count": exam.get_question_count(),
-                "countdown_minutes": exam.countdown_minutes,
+                "id": exam['id'],
+                "title": exam['title'],
+                "exam_date": exam['exam_date'],
+                "is_active": exam['is_active'],
+                "stage": Exam.objects.get(pk=exam['id']).get_stage_display(), # Need to get object to use get_stage_display
+                "question_count": exam['question_count'],
+                "countdown_minutes": exam['countdown_minutes'],
             }
-            for exam in upcoming_exams
+            for exam in upcoming_exams_list
         ],
     }
 
