@@ -47,8 +47,8 @@ security_check() {
     # Verify we're running as the expected non-root user
     local current_user
     current_user=$(whoami)
-    if [[ "$current_user" != "vmlc" ]]; then
-        log_warn "Running as unexpected user: '$current_user' instead of 'vmlc' user"
+    if [[ "$current_user" != "verboheit" ]]; then
+        log_warn "Running as unexpected user: '$current_user' instead of 'verboheit' user"
     fi
 
     log_info "Security check passed - running as user: $current_user ($(id))"
