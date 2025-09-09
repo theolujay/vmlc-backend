@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django_filters",
     "storages",
     "django_celery_results",
+    "django_celery_beat",
     "vmlc",
 ]
 

@@ -10,7 +10,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +20,7 @@ from ..serializers import (
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
 )
+from ..tasks import validate_user_verification_files_task
 
 logger = logging.getLogger(__name__)
 
@@ -147,12 +147,18 @@ class UserVerificationUploadView(APIView):
                 # Set as pending and clear rejection status when submitting/resubmitting
                 verification = serializer.save(is_pending=True, is_rejected=False)
 
-            logger.info("Verification data submitted by user %s.", request.user.id)
+            # Asynchronously validate the files
+            validate_user_verification_files_task.delay(verification.id)
+
+            logger.info(
+                "Verification data submitted by user %s. Validation is pending.",
+                request.user.id,
+            )
             return Response(
                 {
-                    "detail": "Documents uploaded successfully.",
+                    "detail": "Documents uploaded successfully. Validation is in progress.",
                     "verification_data": {
-                        "status": "pending",
+                        "status": "pending_validation",
                         "has_profile_photo": bool(verification.profile_photo),
                         "has_id_card": bool(verification.id_card),
                         "has_verification_document": bool(
@@ -160,7 +166,7 @@ class UserVerificationUploadView(APIView):
                         ),
                     },
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_202_ACCEPTED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -191,13 +197,19 @@ class UserVerificationUploadView(APIView):
                 # Keep as pending or set to pending, clear rejection if updating
                 verification = serializer.save(is_pending=True, is_rejected=False)
 
-            logger.info("Verification data updated by user %s.", request.user.id)
+            # Asynchronously validate the files
+            validate_user_verification_files_task.delay(verification.id)
+
+            logger.info(
+                "Verification data updated by user %s. Validation is pending.",
+                request.user.id,
+            )
 
             return Response(
                 {
-                    "detail": "Verification data updated successfully.",
+                    "detail": "Verification data updated successfully. Validation is in progress.",
                     "verification_data": {
-                        "status": "pending",
+                        "status": "pending_validation",
                         "has_profile_photo": bool(verification.profile_photo),
                         "has_id_card": bool(verification.id_card),
                         "has_verification_document": bool(
@@ -205,7 +217,7 @@ class UserVerificationUploadView(APIView):
                         ),
                     },
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_202_ACCEPTED,
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -7,20 +7,17 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.request import Request
 
 
 from ..models import (
     Candidate,
     CandidateScore,
-    CandidateScoreSnapshot,
     Exam,
     Staff,
 )
 from ..permissions import HasStaffRole, IsVerifiedStaff
 from ..serializers import (
     CandidateScoreSerializer,
-    MinimalCandidateSerializer,
     SubmitScoreSerializer,
 )
 
@@ -135,40 +132,18 @@ class PublishScoresView(APIView):
 
     def post(self, request):
         """
-        Generates a new score snapshot from current candidate scores and saves it.
+        Triggers an asynchronous task to generate and publish the scores snapshot.
         """
-        staff = request.user.staff_profile
+        from ..tasks import generate_scores_snapshot_task
 
-        # Use the optimized manager method to get candidates with scores
-        candidates = Candidate.objects.with_scores().filter(is_active=True)
+        staff_id = request.user.staff_profile.pk
+        generate_scores_snapshot_task.delay(staff_id)
 
-        scores_data = []
-        for candidate in candidates:
-            scores_data.append(
-                {
-                    "candidate": MinimalCandidateSerializer(candidate).data,
-                    "total_score": float(candidate.total_score or 0.0),
-                    "average_score": float(candidate.average_score or 0.0),
-                    "exams_taken": candidate.exams_taken or 0,
-                }
-            )
-
-        snapshot = CandidateScoreSnapshot.objects.create(
-            data=scores_data,
-            published_by=staff,
-            published_at=timezone.now(),
-        )
-
-        logger.info(
-            "Scores published by staff %s. Snapshot ID: %s",
-            staff.pk,
-            snapshot.pk,
-        )
+        logger.info(f"Scores snapshot generation triggered by staff {staff_id}")
 
         return Response(
             {
-                "message": "Scores published successfully!",
-                "published_at": snapshot.published_at,
+                "message": "Scores snapshot generation has been started and will be available shortly."
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_202_ACCEPTED,
         )

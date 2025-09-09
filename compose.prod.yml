@@ -68,7 +68,7 @@ services:
     env_file: prod.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -136,6 +136,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  celery_beat:
+    build: *django-build
+    command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    volumes:
+      - vmlc_logs:/home/vmlc/web/logs
+    env_file: prod.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy: *django-deploy
+    security: *django-security
+    networks:
+      - backend
 
   flower:
     build: *django-build

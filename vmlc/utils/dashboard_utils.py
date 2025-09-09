@@ -1,4 +1,5 @@
 from datetime import timedelta
+from django.core.cache import cache
 from django.db.models import Avg, Max, Min, Sum, Q, Count, F
 from django.db.models.functions import Rank
 from django.db.models import Window, QuerySet
@@ -31,6 +32,12 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent scores, and upcoming exams.
     """
+    cache_key = f"candidate_dashboard_{candidate.pk}"
+    cached_data = cache.get(cache_key)
+
+    if cached_data:
+        return cached_data
+
     latest_snapshot: Optional[CandidateScoreSnapshot] = (
         CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
         .order_by("-published_at")
@@ -99,7 +106,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
 
         total_league_candidates = league_candidates_qs.count()
 
-    return {
+    dashboard_data = {
         "candidate_info": {
             # "id": candidate.user.id,
             "name": candidate.user.get_full_name(),
@@ -162,6 +169,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ],
     }
 
+    cache.set(cache_key, dashboard_data, timeout=3600)  # Cache for 1 hour
+    return dashboard_data
+
 
 def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     """
@@ -180,6 +190,12 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     Returns:
         dict: A dictionary containing candidate stats, exams, scores, recent activity, and upcoming exams.
     """
+    cache_key = f"staff_dashboard_{staff.pk}"
+    cached_data = cache.get(cache_key)
+
+    if cached_data:
+        return cached_data
+
     now: Any = timezone.now()
     last_week: timedelta = now - timedelta(days=7)
 
@@ -237,7 +253,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "profile_photo": staff.profile_photo.url if staff.profile_photo else None,
     }
 
-    return {
+    dashboard_data = {
         "staff_info": staff_info,
         "candidates": {
             "total": total_candidates,
@@ -288,3 +304,6 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
             for exam in upcoming_exams
         ],
     }
+
+    cache.set(cache_key, dashboard_data, timeout=3600)  # Cache for 1 hour
+    return dashboard_data

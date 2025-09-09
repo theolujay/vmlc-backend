@@ -7,10 +7,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.request import Request
 
 
-from ..models import CandidateAnswer, CandidateScore, Exam, Candidate
+from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import IsCandidate
 from ..serializers import CandidateAnswerBulkSerializer
 
@@ -80,7 +79,11 @@ class SubmitAnswersView(APIView):
                 for answer_data in answers_data
             ]
             CandidateAnswer.objects.bulk_create(answers_to_create)
-            candidate_score.calculate_and_save_auto_score(answers_to_create)
+
+            # Asynchronously calculate the score
+            from ..tasks import calculate_and_save_auto_score_task
+
+            calculate_and_save_auto_score_task.delay(candidate_score.id)
 
         logger.info(
             "Candidate %s successfully submitted answers for exam %s.",

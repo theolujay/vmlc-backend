@@ -23,7 +23,7 @@ services:
       - "5432:5432"
     env_file: .env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,6 +43,18 @@ services:
       context: .
       target: development
     command: celery -A config worker -l info
+    volumes:
+      - .:/home/vmlc/web
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+
+  celery_beat:
+    build:
+      context: .
+      target: development
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/home/vmlc/web
     env_file: .env

@@ -7,9 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 
 
-from ..models import Candidate, FeatureFlag, LeaderboardSnapshot, Staff
+from ..models import FeatureFlag, LeaderboardSnapshot, Staff
 from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff, IsVerifiedStaff
-from ..serializers import MinimalCandidateSerializer
 from .registration import ToggleFeatureFlagView
 
 logger = logging.getLogger(__name__)
@@ -28,43 +27,20 @@ class PublishLeaderboardView(APIView):
 
     def post(self, request: Request) -> Response:
         """
-        Generates a new leaderboard from current candidate scores and saves it.
+        Triggers an asynchronous task to generate and publish the leaderboard.
         """
-        staff: Staff = request.user.staff_profile
+        from ..tasks import generate_leaderboard_snapshot_task
 
-        # Use the optimized manager method to get candidates with scores
-        league_candidates: List[Candidate] = (
-            Candidate.objects.with_scores()
-            .filter(role=Candidate.Roles.LEAGUE, is_active=True)
-            .order_by("-total_score")
-        )
+        staff_id = request.user.staff_profile.pk
+        generate_leaderboard_snapshot_task.delay(staff_id)
 
-        leaderboard_data: List[Any] = [
-            {
-                "rank": index + 1,
-                "candidate": MinimalCandidateSerializer(candidate).data,
-                "total_score": float(candidate.total_score or 0.0),
-            }
-            for index, candidate in enumerate(league_candidates)
-        ]
-
-        snapshot: LeaderboardSnapshot = LeaderboardSnapshot.objects.create(
-            data=leaderboard_data,
-            published_by=staff,
-        )
-
-        logger.info(
-            "Leaderboard published by staff %s. Snapshot ID: %s",
-            staff.pk,
-            snapshot.pk,
-        )
+        logger.info(f"Leaderboard generation triggered by staff {staff_id}")
 
         return Response(
             {
-                "message": "Leaderboard published successfully!",
-                "published_at": snapshot.created_at,
+                "message": "Leaderboard generation has been started and will be available shortly."
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_202_ACCEPTED,
         )
 
 

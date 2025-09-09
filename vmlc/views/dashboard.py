@@ -1,17 +1,17 @@
 import logging
 
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
-from rest_framework import status, serializers
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.request import Request
 
 
-from ..models import Candidate, Staff, User
+from ..models import Staff, User
 from ..permissions import (
     HasStaffRole,
     IsCandidate,
@@ -23,9 +23,11 @@ from ..serializers import (
     StaffDetailSerializer,
     UserSerializer,
 )
+from ..tasks import (
+    update_staff_dashboard_cache_task,
+)
 from ..utils.dashboard_utils import (
     get_candidate_dashboard_data,
-    get_staff_dashboard_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,12 @@ class CandidateDashboardView(APIView):
         # IsCandidate permission ensures candidate_profile exists
         candidate = request.user.candidate_profile
         data = get_candidate_dashboard_data(candidate)
+
+        # Try to get the rank from cache
+        cached_rank = cache.get(f"candidate_rank_{candidate.pk}")
+        if cached_rank is not None and data["leaderboard_ranking"]:
+            data["leaderboard_ranking"]["current_rank"] = cached_rank
+
         return Response(data)
 
 
@@ -61,12 +69,23 @@ class StaffDashboardView(APIView):
 
     def get(self, request):
         """
-        Returns staff-specific dashboard metrics and profile data.
+        Returns staff-specific dashboard metrics and profile data from cache if available.
         """
-        # HasStaffRole permission ensures staff_profile exists
         staff = request.user.staff_profile
-        data = get_staff_dashboard_data(staff)
-        return Response(data)
+        cached_data = cache.get(f"staff_dashboard_data_{staff.pk}")
+
+        if cached_data:
+            return Response(cached_data)
+
+        # If not in cache, trigger a background update
+        update_staff_dashboard_cache_task.delay(staff.pk)
+
+        return Response(
+            {
+                "message": "Dashboard data is being generated. Please check back in a few moments."
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class AccountManagementView(APIView):

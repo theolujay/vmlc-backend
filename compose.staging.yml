@@ -86,6 +86,20 @@ services:
           memory: 512M
           cpus: '0.5'
 
+  celery_beat:
+    build:
+      target: staging
+    env_file: staging.env
+    command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
   flower:
     build:
       target: staging
