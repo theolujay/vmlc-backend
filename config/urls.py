@@ -20,9 +20,9 @@ from drf_yasg import openapi
 # === Swagger Schema Configuration ===
 schema_view = get_schema_view(
     openapi.Info(
-        title="Verboheit Math League Competition API",
+        title="Verboheit MLC API",
         default_version="v1",
-        description="API documentation for the Verboheit Math League Competition Web Platform",
+        description="API documentation for the Verboheit MLC Portal.",
         # terms_of_service=settings.TOS_URL,
         contact=openapi.Contact(
             name="API Support",
