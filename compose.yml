@@ -47,20 +47,24 @@ services:
       - .:/home/vmlc/web
     env_file: .env
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   celery_beat:
     build:
       context: .
       target: development
-    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/home/vmlc/web
     env_file: .env
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   flower:
     build:
@@ -71,8 +75,10 @@ services:
       - "5555:5555"
     env_file: .env
     depends_on:
-      - redis
-      - celery_worker
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
 
 volumes:
   postgres_data:

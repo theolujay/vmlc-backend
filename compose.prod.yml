@@ -83,6 +83,7 @@ services:
           cpus: '0.25'
     networks:
       - backend
+      - frontend
 
   redis:
     image: redis:7.2.4-alpine
@@ -156,7 +157,7 @@ services:
 
   flower:
     build: *django-build
-    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${FLOWER_USER}:${FLOWER_PASSWORD}"]
+    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}"]
     env_file: prod.env
     depends_on:
       redis:
@@ -175,6 +176,7 @@ services:
     security: *django-security
     networks:
       - backend
+      - frontend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5555/workers", "--max-time", "5"]
       interval: 30s
