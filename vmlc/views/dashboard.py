@@ -25,6 +25,7 @@ from ..serializers import (
 )
 from ..tasks import (
     update_staff_dashboard_cache_task,
+    update_candidate_dashboard_cache_task,
 )
 from ..utils.dashboard_utils import (
     get_candidate_dashboard_data,
@@ -44,16 +45,22 @@ class CandidateDashboardView(APIView):
         """
         Returns candidate-specific dashboard stats and profile data.
         """
-        # IsCandidate permission ensures candidate_profile exists
         candidate = request.user.candidate_profile
-        data = get_candidate_dashboard_data(candidate)
+        cache_key = f"candidate_dashboard_{candidate.pk}"
+        cached_data = cache.get(cache_key)
 
-        # Try to get the rank from cache
-        cached_rank = cache.get(f"candidate_rank_{candidate.pk}")
-        if cached_rank is not None and data["leaderboard_ranking"]:
-            data["leaderboard_ranking"]["current_rank"] = cached_rank
+        if cached_data:
+            return Response(cached_data)
 
-        return Response(data)
+        # If not in cache, trigger a background update
+        update_candidate_dashboard_cache_task.delay(candidate.pk)
+
+        return Response(
+            {
+                "message": "Dashboard data is being generated. Please check back in a few moments."
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class StaffDashboardView(APIView):

@@ -100,15 +100,24 @@ def calculate_and_save_auto_score_task(candidate_score_id):
 
 
 @shared_task(name="generate_leaderboard_snapshot_task")
-def generate_leaderboard_snapshot_task(staff_id):
+def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
     """
-    from .models import Candidate, LeaderboardSnapshot, Staff
+    from .models import Candidate, LeaderboardSnapshot, Staff, User
     from .serializers import MinimalCandidateSerializer
 
     try:
-        staff = Staff.objects.get(pk=staff_id)
+        if staff_id:
+            staff = Staff.objects.get(pk=staff_id)
+        else:
+            # If no staff_id is provided, use the first superadmin
+            superadmin_user = User.objects.filter(is_superuser=True).first()
+            if not superadmin_user:
+                logger.error("No superadmin user found to publish the leaderboard.")
+                return
+            staff = superadmin_user.staff_profile
+
         league_candidates = (
             Candidate.objects.with_scores()
             .filter(role=Candidate.Roles.LEAGUE, is_active=True)
@@ -139,15 +148,23 @@ def generate_leaderboard_snapshot_task(staff_id):
 
 
 @shared_task(name="generate_scores_snapshot_task")
-def generate_scores_snapshot_task(staff_id):
+def generate_scores_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the scores snapshot.
     """
-    from .models import Candidate, CandidateScoreSnapshot, Staff
+    from .models import Candidate, CandidateScoreSnapshot, Staff, User
     from .serializers import MinimalCandidateSerializer
 
     try:
-        staff = Staff.objects.get(pk=staff_id)
+        if staff_id:
+            staff = Staff.objects.get(pk=staff_id)
+        else:
+            # If no staff_id is provided, use the first superadmin
+            superadmin_user = User.objects.filter(is_superuser=True).first()
+            if not superadmin_user:
+                logger.error("No superadmin user found to publish the scores snapshot.")
+                return
+            staff = superadmin_user.staff_profile
         candidates = Candidate.objects.with_scores().filter(is_active=True)
 
         scores_data = []
@@ -295,25 +312,58 @@ def validate_user_verification_files_task(user_verification_id):
 
 
 @shared_task(name="update_staff_dashboard_cache_task")
-def update_staff_dashboard_cache_task(staff_id):
+def update_staff_dashboard_cache_task(staff_id=None):
     """
     Celery task to update the staff dashboard cache.
+    If a staff_id is provided, it updates the cache for that specific staff member.
+    Otherwise, it updates the cache for all staff members.
     """
     from .models import Staff
     from .utils.dashboard_utils import get_staff_dashboard_data
 
     try:
-        staff = Staff.objects.get(pk=staff_id)
-        dashboard_data = get_staff_dashboard_data(staff)
-        cache.set(
-            f"staff_dashboard_data_{staff_id}", dashboard_data, timeout=3600
-        )  # Cache for 1 hour
-        logger.info(f"Successfully updated cache for staff {staff_id}")
-    except Staff.DoesNotExist:
-        logger.error(f"Staff with id {staff_id} does not exist.")
+        if staff_id:
+            staff_members = Staff.objects.filter(pk=staff_id)
+            if not staff_members.exists():
+                logger.error(f"Staff with id {staff_id} does not exist.")
+                return
+        else:
+            staff_members = Staff.objects.all()
+
+        for staff in staff_members:
+            staff_id = staff.pk
+            dashboard_data = get_staff_dashboard_data(staff)
+            cache.set(
+                f"staff_dashboard_data_{staff_id}", dashboard_data, timeout=3600
+            )  # Cache for 1 hour
+            logger.info(f"Successfully updated cache for staff {staff_id}")
+
     except Exception as e:
         logger.error(
             f"Failed to update staff dashboard cache for staff {staff_id}: {e}"
+        )
+
+
+@shared_task(name="update_candidate_dashboard_cache_task")
+def update_candidate_dashboard_cache_task(candidate_id):
+    """
+    Celery task to update the candidate dashboard cache.
+    """
+    from .models import Candidate
+    from .utils.dashboard_utils import get_candidate_dashboard_data
+
+    try:
+        candidate = Candidate.objects.get(pk=candidate_id)
+        dashboard_data = get_candidate_dashboard_data(candidate)
+        cache.set(
+            f"candidate_dashboard_{candidate_id}", dashboard_data, timeout=3600
+        )  # Cache for 1 hour
+        logger.info(f"Successfully updated cache for candidate {candidate_id}")
+    except Candidate.DoesNotExist:
+        logger.error(f"Candidate with id {candidate_id} does not exist.")
+    except Exception as e:
+        logger.error(
+            f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
         )
 
 
