@@ -48,9 +48,7 @@ def root(request, format=None):
                 "token_refresh": safe_reverse("v1:token-refresh"),
             },
             "registration": {
-                "toggle_candidate": safe_reverse(
-                    "v1:toggle-candidate-registration"
-                ),
+                "toggle_candidate": safe_reverse("v1:toggle-candidate-registration"),
                 "toggle_staff": safe_reverse("v1:toggle-staff-registration"),
                 "candidate": safe_reverse("v1:register-candidate"),
                 "staff": safe_reverse("v1:register-staff"),
@@ -99,15 +97,11 @@ def root(request, format=None):
             },
             "exams": {
                 "collection": safe_reverse("v1:exam-list"),
-                "detail": generate_url_with_placeholder(
-                    "v1:exam-detail", "exam_id"
-                ),
+                "detail": generate_url_with_placeholder("v1:exam-detail", "exam_id"),
                 "questions": generate_url_with_placeholder(
                     "v1:exam-questions", "exam_id"
                 ),
-                "results": generate_url_with_placeholder(
-                    "v1:exam-results", "exam_id"
-                ),
+                "results": generate_url_with_placeholder("v1:exam-results", "exam_id"),
                 "candidate-take-exam": generate_url_with_placeholder(
                     "v1:take-exam", "exam_id"
                 ),
