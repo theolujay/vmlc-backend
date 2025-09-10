@@ -25,6 +25,7 @@ from ..serializers import (
 )
 from ..permissions import HasStaffRole, IsCandidate, IsVerifiedStaff
 from ..utils.query_filters import ExamFilter
+from ..utils.exceptions import PermissionDenied, NotFound
 
 
 class ExamListView(ListCreateAPIView):
@@ -122,8 +123,10 @@ class ExamResultsView(ListAPIView):
         optimized with prefetching.
         """
         exam_id = self.kwargs[self.lookup_url_kwarg]
-        # Ensure the exam exists before proceeding.
-        get_object_or_404(Exam, pk=exam_id)
+        try:
+            Exam.objects.get(pk=exam_id)
+        except Exam.DoesNotExist:
+            raise NotFound("Exam not found.")
         return (
             CandidateScore.objects.filter(exam_id=exam_id)
             .select_related("candidate__user")
@@ -149,11 +152,12 @@ class ExamQuestionsView(ListAPIView):
         """
         Returns the queryset of questions related to a given exam.
         """
-        # Use prefetch_related to optimize fetching the question creator's user data.
-        exam = get_object_or_404(
-            Exam.objects.prefetch_related("questions__created_by__user"),
-            pk=self.kwargs["exam_id"],
-        )
+        try:
+            exam = Exam.objects.prefetch_related("questions__created_by__user").get(
+                pk=self.kwargs["exam_id"]
+            )
+        except Exam.DoesNotExist:
+            raise NotFound("Exam not found.")
         return exam.questions.filter(is_active=True)
 
 
@@ -178,8 +182,10 @@ class ExamHistoryView(ListAPIView):
         optimized with prefetching.
         """
         candidate_id = self.kwargs[self.lookup_url_kwarg]
-        # Ensure the candidate exists before proceeding.
-        get_object_or_404(Candidate, pk=candidate_id)
+        try:
+            Candidate.objects.get(pk=candidate_id)
+        except Candidate.DoesNotExist:
+            raise NotFound("Candidate not found.")
         return (
             CandidateScore.objects.filter(candidate_id=candidate_id)
             .select_related("exam")
@@ -194,21 +200,19 @@ def candidate_take_exam(request, exam_id):
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
     candidate = request.user.candidate_profile
-    exam = get_object_or_404(Exam.objects.prefetch_related("questions"), pk=exam_id)
+    try:
+        exam = Exam.objects.prefetch_related("questions").get(pk=exam_id)
+    except Exam.DoesNotExist:
+        raise NotFound("Exam not found.")
 
     if not candidate.is_verified:
-        return Response(
-            {"detail": "Candidate must be verified to take this exam."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        raise PermissionDenied("Candidate must be verified to take this exam.")
 
     if candidate.role != exam.stage:
-        return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+        raise PermissionDenied("Not allowed.")
 
     if not exam.is_currently_open:
-        return Response(
-            {"detail": "Exam is not currently open."}, status=status.HTTP_403_FORBIDDEN
-        )
+        raise PermissionDenied("Exam is not currently open.")
 
     serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)

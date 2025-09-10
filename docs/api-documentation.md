@@ -1184,49 +1184,50 @@ Use ISO 8601 format for date parameters:
 ---
 
 ## Error Handling
-### HTTP Status Codes
-| Code | Status | Description |
-|------|--------|-------------|
-| 200 | OK | Request successful |
-| 201 | Created | Resource created successfully |
-| 204 | No Content | Resource deleted successfully |
-| 400 | Bad Request | Invalid request data or parameters |
-| 401 | Unauthorized | Authentication required or invalid token |
-| 403 | Forbidden | Insufficient permissions |
-| 404 | Not Found | Resource not found |
-| 422 | Unprocessable Entity | Validation errors |
-| 429 | Too Many Requests | Rate limit exceeded |
-| 500 | Internal Server Error | Server error |
 
-### Error Response Format
+### Standardized Error Response
+
+The API returns errors in a standardized format to ensure consistency and ease of parsing. All error responses follow this structure:
+
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "The request contains invalid data",
-    "details": {
-      "field": "username",
-      "reason": "Username already exists"
-    }
-  },
-  "timestamp": "2024-01-20T15:30:00Z",
-  "request_id": "req_123456789"
+  "detail": "Error message describing the issue.",
+  "code": "error_code"
 }
 ```
 
+- **detail**: A human-readable message explaining the error.
+- **code**: A unique code for the specific error type.
+
+### HTTP Status Codes
+
+| Code | Status                  | Description                                                                 |
+|------|-------------------------|-----------------------------------------------------------------------------|
+| 200  | OK                      | Request successful.                                                         |
+| 201  | Created                 | Resource created successfully.                                              |
+| 204  | No Content              | Resource deleted successfully or action completed with no content to return. |
+| 400  | Bad Request             | Invalid input, such as a malformed request body or invalid parameters.      |
+| 401  | Unauthorized            | Authentication credentials were not provided or were invalid.               |
+| 403  | Forbidden               | You do not have permission to perform this action.                          |
+| 404  | Not Found               | The requested resource could not be found.                                  |
+| 429  | Too Many Requests       | You have exceeded the rate limit.                                           |
+| 500  | Internal Server Error   | An unexpected error occurred on the server.                                 |
+| 502  | Bad Gateway             | The server received an invalid response from an upstream server.            |
+
 ### Common Error Codes
-| Code | Description |
-|------|-------------|
-| `AUTHENTICATION_REQUIRED` | Valid authentication token required |
-| `INVALID_TOKEN` | Token is expired or invalid |
-| `INSUFFICIENT_PERMISSIONS` | User lacks required permissions |
-| `VALIDATION_ERROR` | Request validation failed |
-| `RESOURCE_NOT_FOUND` | Requested resource doesn't exist |
-| `DUPLICATE_RESOURCE` | Resource already exists |
-| `RATE_LIMIT_EXCEEDED` | Too many requests |
-| `REGISTRATION_CLOSED` | Registration is currently disabled |
-| `EXAM_NOT_AVAILABLE` | Exam is not available for this user |
-| `EXAM_ALREADY_TAKEN` | Candidate has already taken this exam |
+
+| Code                      | Description                                                                 |
+|---------------------------|-----------------------------------------------------------------------------|
+| `authentication_failed`   | Incorrect authentication credentials.                                       |
+| `not_authenticated`       | Authentication credentials were not provided.                               |
+| `permission_denied`       | You do not have permission to perform this action.                          |
+| `not_found`               | The requested resource could not be found.                                  |
+| `invalid`                 | Invalid input.                                                              |
+| `invalid_token`           | Token is invalid or expired.                                                |
+| `rate_limit_exceeded`     | You have exceeded the rate limit.                                           |
+| `registration_closed`     | Registration is currently disabled.                                         |
+| `exam_not_available`      | The exam is not available for this user.                                    |
+| `exam_already_taken`      | The candidate has already taken this exam.                                  |
 
 ---
 

@@ -14,6 +14,7 @@ from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
 )
+from ..utils.exceptions import PermissionDenied
 
 
 logger = logging.getLogger(__name__)
@@ -27,22 +28,16 @@ class BaseRegistrationView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return Response(
-                {
-                    "error": "Already authenticated. Please log out to register a new account."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            raise PermissionDenied(
+                "Already authenticated. Please log out to register a new account."
             )
 
         # Use the specific feature flag key for the registration type
         if self.feature_flag_key and not FeatureFlag.get_bool(
             self.feature_flag_key, default=False
         ):
-            return Response(
-                {
-                    "detail": f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
-                },
-                status=status.HTTP_403_FORBIDDEN,
+            raise PermissionDenied(
+                f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
             )
 
         serializer = self.get_serializer(data=request.data)

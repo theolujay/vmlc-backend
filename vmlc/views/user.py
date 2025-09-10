@@ -24,6 +24,7 @@ from ..serializers import (
     UserVerificationListSerializer,
 )
 from ..tasks import validate_user_verification_files_task
+from ..utils.exceptions import PermissionDenied, NotFound, ValidationError, APIException
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,10 @@ class UserVerificationStatusView(APIView):
         if user_id is None:
             target_user = request.user
         else:
-            target_user = get_object_or_404(User, id=user_id)
+            try:
+                target_user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                raise NotFound("User not found.")
             if (
                 request.user.id != target_user.id
                 and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
@@ -122,24 +126,15 @@ class UserVerificationUploadView(APIView):
 
         # Check current status before processing
         if not verification.user.is_email_verified:
-            return Response(
-                {
-                    "detail": "Email not verified. Please verify your email before uploading documents."
-                },
-                status=status.HTTP_403_FORBIDDEN,
+            raise PermissionDenied(
+                "Email not verified. Please verify your email before uploading documents."
             )
 
         if verification.is_verified:
-            return Response(
-                {"detail": "This user is already verified."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError("This user is already verified.")
 
         if verification.is_pending:
-            return Response(
-                {"detail": "User already has a verification request pending."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError("User already has a verification request pending.")
 
         serializer = UserVerificationUploadSerializer(
             verification, data=request.data, partial=True
@@ -178,17 +173,11 @@ class UserVerificationUploadView(APIView):
         try:
             verification = UserVerification.objects.get(user=request.user)
         except UserVerification.DoesNotExist:
-            return Response(
-                {"detail": "No verification data found for this user."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound("No verification data found for this user.")
 
         if verification.is_verified:
-            return Response(
-                {
-                    "detail": "Cannot update verification data for an already verified user."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            raise ValidationError(
+                "Cannot update verification data for an already verified user."
             )
 
         serializer = UserVerificationUploadSerializer(
@@ -237,10 +226,16 @@ class UserVerificationDocumentView(APIView):
         # If no user_id provided, default to current user
         if user_id is None:
             target_user = request.user
-            verification = get_object_or_404(UserVerification, user=request.user)
+            try:
+                verification = UserVerification.objects.get(user=request.user)
+            except UserVerification.DoesNotExist:
+                raise NotFound("User verification not found.")
         else:
             # user_id provided - superadmin accessing another user's files
-            target_user = get_object_or_404(User, id=user_id)
+            try:
+                target_user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                raise NotFound("User not found.")
 
             # Check permissions: only the user themselves or superadmin can access
             if str(request.user.id) != str(
@@ -251,8 +246,10 @@ class UserVerificationDocumentView(APIView):
                 raise PermissionDenied(
                     "You don't have permission to access this user's documents."
                 )
-
-            verification = get_object_or_404(UserVerification, user=target_user)
+            try:
+                verification = UserVerification.objects.get(user=target_user)
+            except UserVerification.DoesNotExist:
+                raise NotFound("User verification not found.")
 
         if user_id and str(request.user.id) != str(user_id):
             logger.info(
@@ -273,16 +270,10 @@ class UserVerificationDocumentView(APIView):
             file = verification.profile_photo
             storage_prefix = "media/public"  # PublicMediaStorage
         else:
-            return Response(
-                {"detail": "Invalid file type."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError("Invalid file type.")
 
         if not file or not file.name:
-            return Response(
-                {"detail": f"No {file_type.replace('_', ' ')} uploaded."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound(f"No {file_type.replace('_', ' ')} uploaded.")
 
         try:
             s3_client = boto3.client("s3")
@@ -306,30 +297,16 @@ class UserVerificationDocumentView(APIView):
             error_code = e.response["Error"]["Code"]
             if error_code == "NoSuchKey":
                 logger.error(f"S3 object not found: {object_key}")
-                return Response(
-                    {
-                        "detail": f"The {file_type.replace('_', ' ')} file is no longer available."
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                raise NotFound(f"The {file_type.replace('_', ' ')} file is no longer available.")
             elif error_code == "AccessDenied":
                 logger.error(f"S3 access denied: {object_key}")
-                return Response(
-                    {"detail": "Access denied to file storage."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                raise PermissionDenied("Access denied to file storage.")
             else:
                 logger.error(f"S3 error ({error_code}): {e}")
-                return Response(
-                    {"detail": "Could not retrieve file from storage."},
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
+                raise APIException("Could not retrieve file from storage.", status_code=status.HTTP_502_BAD_GATEWAY)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
-            return Response(
-                {"detail": "Could not retrieve file from storage."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException("Could not retrieve file from storage.")
 
 
 class UserVerificationListView(ListAPIView):
@@ -353,15 +330,18 @@ class UserVerificationActionView(APIView):
     permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
     def post(self, request, user_id):
-        target_user = get_object_or_404(User, id=user_id)
-        verification = get_object_or_404(UserVerification, user=target_user)
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise NotFound("User not found.")
+        try:
+            verification = UserVerification.objects.get(user=target_user)
+        except UserVerification.DoesNotExist:
+            raise NotFound("User verification not found.")
 
         # Check if already processed
         if verification.is_verified:
-            return Response(
-                {"detail": "This user is already verified."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError("This user is already verified.")
 
         serializer = UserVerificationActionSerializer(
             verification, data=request.data, partial=True
@@ -377,10 +357,7 @@ class UserVerificationActionView(APIView):
                 action = "rejected"
                 message = "User verification rejected."
             else:
-                return Response(
-                    {"detail": "Must specify either is_verified or is_rejected."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                raise ValidationError("Must specify either is_verified or is_rejected.")
 
             with transaction.atomic():
                 verification = serializer.save()

@@ -27,6 +27,13 @@ from ..serializers import (
     VerifyEmailOTPSerializer,
 )
 from ..tasks import send_mail_task
+from ..utils.exceptions import (
+    AuthenticationFailed,
+    InvalidTokenError,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +61,8 @@ class VerifyEmailOTPView(APIView):
                     {"message": "Email verified successfully."},
                     status=status.HTTP_200_OK,
                 )
+            except User.DoesNotExist:
+                raise NotFound("User not found.")
             except Exception as e:
                 logger.error(f"Error during email verification: {str(e)}")
                 return Response(
@@ -95,9 +104,7 @@ class ResendEmailOTPView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error from utils
-                return Response(
-                    {"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
+                raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
             except Exception as e:
                 logger.error(f"Unexpected error in resend OTP: {str(e)}")
                 return Response(
@@ -146,9 +153,7 @@ class RequestPasswordChangeView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error
-                return Response(
-                    {"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
+                raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
             except Exception as e:
                 logger.error(f"Error requesting password change OTP: {str(e)}")
                 return Response(
@@ -260,16 +265,11 @@ class ResendPasswordChangeOTPView(APIView):
             email = request.data.get("email")
 
             if not email:
-                return Response(
-                    {"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                raise ValidationError("Email is required")
 
             # Basic email format validation
             if "@" not in email:
-                return Response(
-                    {"error": "Please provide a valid email address"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                raise ValidationError("Please provide a valid email address")
 
             # Check if user exists
             try:
@@ -304,7 +304,7 @@ class ResendPasswordChangeOTPView(APIView):
 
         except serializers.ValidationError as e:
             # Rate limiting error
-            return Response({"error": str(e)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
         except Exception as e:
             logger.error(f"Unexpected error in resend password change OTP: {str(e)}")
             return Response(
@@ -364,12 +364,8 @@ class LogoutView(APIView):
         Expects a 'refresh' token in the request body.
         Extracts user info from the refresh token for logging.
         """
-        refresh_token = request.data.get("refresh")
         if not refresh_token:
-            return Response(
-                {"error": "Refresh token is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError("Refresh token is required")
 
         try:
             token = RefreshToken(refresh_token)
@@ -386,10 +382,7 @@ class LogoutView(APIView):
             )
         except TokenError as e:
             logger.warning("Logout failed with invalid refresh token: %s", str(e))
-            return Response(
-                {"error": "Invalid or expired refresh token"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise InvalidTokenError("Invalid or expired refresh token")
         except Exception as e:
             logger.error("Logout failed with an unexpected error: %s", str(e))
             return Response(

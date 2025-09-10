@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
-from rest_framework.exceptions import ValidationError
+
 from rest_framework.request import Request
 
 
@@ -22,6 +22,7 @@ from ..serializers import (
 )
 from ..utils.dashboard_utils import get_candidate_dashboard_data
 from ..utils.query_filters import filter_candidates
+from ..utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
