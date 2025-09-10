@@ -77,6 +77,44 @@ Authorization: Api-Key <your_api_key>
 Content-Type: application/json
 ```
 
+---
+
+## Health Check
+The health check endpoint provides a simple way to verify the API's operational status.
+
+**Endpoint:** `GET /health/`
+**Required Role:** None (Public)
+
+**Response:** `200 OK`
+```json
+{
+  "status": "ok",
+  "message": "API is healthy and operational"
+}
+```
+
+---
+
+## API Endpoints
+### Root Endpoint
+The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
+
+**Endpoint:** `GET /root/`
+**Required Role:** None (Public)
+
+**Response:** `200 OK`
+```json
+{
+  "root": "https://vmlc-api.onrender.com/v1/root/",
+  "authentication": {
+    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
+    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
+    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
+  },
+  // ... other endpoints ...
+}
+```
+
 **Request Body:**
 ```json
 {

@@ -84,7 +84,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
@@ -94,8 +94,8 @@ EMAIL_USE_SSL = False  # ← Keep SSL disabled when using TLS
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "test@verboheit.dev")
 
 # Fallback to console if no EMAIL_HOST is provided
-if not os.getenv("EMAIL_HOST"):
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# if not os.getenv("EMAIL_HOST"):
+#     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 TOS_URL = os.getenv("TOS_URL", f"{BASE_URL}/terms/")

@@ -15,6 +15,7 @@ Built with Django and Django REST Framework, this project is designed to scale a
 - Multi-stage competition structure (screening, league, final)
 - Automated and manual scoring workflows
 - Real-time leaderboard management
+- Health Check endpoint for API operational status
 - Swagger UI and ReDoc documentation
 - Dockerized setup for development and staging environments.
 

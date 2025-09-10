@@ -1,0 +1,1708 @@
+ {
+ 	"info": {
+ 		"_postman_id": "a1b2c3d4-e5f6-4a9b-8c7d-6e5f4a3b2c1d",
+ 		"name": "Verboheit MLC API",
+ 		"description": "A comprehensive Postman collection for testing the Verboheit Math League Competition (VMLC) API.",
+ 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ 	},
+ 	"item": [
+ 		{
+ 			"name": "Health & Root",
+ 			"item": [
+ 				{
+ 					"name": "Health Check",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/health/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"health",
+ 								""
+ 							]
+ 						},
+ 						"description": "Checks if the API service is up and running. Should return a 200 OK with `{\"status\": \"healthy\"}`."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "API Root",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/root/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"root",
+ 								""
+ 							]
+ 						},
+ 						"description": "Provides a list of all discoverable API endpoints."
+ 					},
+ 					"response": []
+ 				}
+ 			]
+ 		},
+ 		{
+ 			"name": "Authentication",
+ 			"item": [
+ 				{
+ 					"name": "Login",
+ 					"event": [
+ 						{
+ 							"listen": "test",
+ 							"script": {
+ 								"exec": [
+ 									"var jsonData = pm.response.json();",
+ 									"if (jsonData.access) {",
+ 									"    pm.collectionVariables.set(\"accessToken\", jsonData.access);",
+ 									"}",
+ 									"if (jsonData.refresh) {",
+ 									"    pm.collectionVariables.set(\"refreshToken\", jsonData.refresh);",
+ 									"}"
+ 								],
+ 								"type": "text/javascript"
+ 							}
+ 						}
+ 					],
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [
+ 							{
+								"key": "Authorization",
+								"value": "Api-key {{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"strongpassword123\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/login/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"login",
+ 								""
+ 							]
+ 						},
+ 						"description": "Authenticate a user and receive access and refresh tokens. The `accessToken` and `refreshToken` will be automatically saved to collection variables."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Logout",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/logout/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"logout",
+ 								""
+ 							]
+ 						},
+ 						"description": "Blacklists the user's refresh token to log them out."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Refresh Token",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/token/refresh/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"token",
+ 								"refresh",
+ 								""
+ 							]
+ 						},
+ 						"description": "Obtain a new access token using a valid refresh token."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Password Change > Request OTP",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"user@example.com\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/password-change/request/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"password-change",
+ 								"request",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Password Change > Confirm OTP",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/password-change/confirm-otp/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"password-change",
+ 								"confirm-otp",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Password Change > Set New Password",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newstrongpassword123\",\n    \"confirm_password\": \"newstrongpassword123\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/password-change/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"password-change",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Password Change > Resend OTP",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"user@example.com\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/auth/password-change/resend-otp/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"auth",
+ 								"password-change",
+ 								"resend-otp",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				}
+ 			]
+ 		},
+ 		{
+ 			"name": "Registration & Verification",
+ 			"item": [
+ 				{
+ 					"name": "Register Candidate",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [
+ 							{
+								"key": "Authorization",
+								"value": "Api-key {{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"user\": {\n        \"email\": \"candidate@example.com\",\n        \"first_name\": \"John\",\n        \"last_name\": \"Doe\",\n        \"phone\": \"08012345678\"\n    },\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"school\": \"Example High School\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/register/candidate/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"register",
+ 								"candidate",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Register Staff",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [
+ 							{
+								"key": "Authorization",
+								"value": "Api-key {{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"user\": {\n        \"email\": \"staff@example.com\",\n        \"first_name\": \"Jane\",\n        \"last_name\": \"Smith\",\n        \"phone\": \"08087654321\"\n    },\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"occupation\": \"Teacher\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/register/staff/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"register",
+ 								"staff",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Verify Email OTP",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"otp\": \"123456\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/verify-email-otp/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"verify-email-otp",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Resend Email OTP",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"email\": \"candidate@example.com\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/resend-email-otp/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"resend-email-otp",
+ 								""
+ 							]
+ 						}
+ 					},
+ 					"response": []
+ 				}
+ 			]
+ 		},
+ 		{
+ 			"name": "Candidate Management",
+ 			"item": [
+ 				{
+ 					"name": "List Candidates",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Candidate Detail",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Candidate Detail",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"school\": \"New Example High School\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Delete Candidate (Soft)",
+ 					"request": {
+ 						"method": "DELETE",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Assign Candidate Role",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"role\": \"league\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/roles/assign/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								"roles",
+ 								"assign",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin). Valid roles: `screening`, `league`, `final`, `winner`."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Candidate Scores",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/scores/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								"scores",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Candidate Exam History",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"candidates",
+ 								"{{candidate_id}}",
+ 								"exam-history",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Staff Management",
+ 			"item": [
+ 				{
+ 					"name": "List Staff",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/staff/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"staff",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Staff Detail",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"staff",
+ 								"{{staff_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Staff Detail",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"occupation\": \"Head of Department\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"staff",
+ 								"{{staff_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Delete Staff (Soft)",
+ 					"request": {
+ 						"method": "DELETE",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"staff",
+ 								"{{staff_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Assign Staff Role",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"role\": \"admin\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/roles/assign/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"staff",
+ 								"{{staff_id}}",
+ 								"roles",
+ 								"assign",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Valid roles: `superadmin`, `admin`, `moderator`, `sponsor`, `volunteer`."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Exam Management",
+ 			"item": [
+ 				{
+ 					"name": "List Exams",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Create Exam",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"exam_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Exam Detail",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Exam",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"is_active\": false\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Delete Exam",
+ 					"request": {
+ 						"method": "DELETE",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Exam Questions",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/questions/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								"questions",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Exam Results",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/results/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								"results",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Candidate: Take Exam",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/take-exam/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								"take-exam",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires candidate authentication. Returns exam questions if the candidate is eligible."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Candidate: Submit Answers",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"answers\": [\n        {\n            \"question\": {{question_id_1}},\n            \"selected_option\": \"A\"\n        },\n        {\n            \"question\": {{question_id_2}},\n            \"selected_option\": \"C\"\n        }\n    ]\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/submit-exam-answers/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								"submit-exam-answers",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires candidate authentication. Submits answers for an exam."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Staff: Submit Manual Score",
+ 					"request": {
+ 						"method": "PUT",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"candidate_id\": \"{{candidate_id}}\",\n    \"score\": \"85.50\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/submit-exam-score/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"exams",
+ 								"{{exam_id}}",
+ 								"submit-exam-score",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin). Manually submits or updates a score for a candidate."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Question Management",
+ 			"item": [
+ 				{
+ 					"name": "List Questions",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/questions/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"questions",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Create Question",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/questions/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"questions",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Question Detail",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"questions",
+ 								"{{question_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Question",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"difficulty\": \"medium\"\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"questions",
+ 								"{{question_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Delete Question",
+ 					"request": {
+ 						"method": "DELETE",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"questions",
+ 								"{{question_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (moderator, admin, superadmin)."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Scoring & Leaderboard",
+ 			"item": [
+ 				{
+ 					"name": "Publish Scores",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/publish-scores/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"publish-scores",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin). Triggers a background task to generate a snapshot of all candidate scores."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Toggle Leaderboard Visibility",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"open\": true\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/toggle-leaderboard/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"toggle-leaderboard",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin). Toggles the `leaderboard_visible` feature flag."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Publish Leaderboard",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/publish-leaderboard/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"publish-leaderboard",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires staff authentication (admin, superadmin). Triggers a background task to generate a new leaderboard snapshot."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Load Leaderboard",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/load-leaderboard/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"load-leaderboard",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires authentication as a verified candidate or staff. Returns the latest published leaderboard if it's visible."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Dashboards & Account Management",
+ 			"item": [
+ 				{
+ 					"name": "Get Candidate Dashboard",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/dashboard/candidate/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"dashboard",
+ 								"candidate",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires authentication as a candidate. Returns cached dashboard data."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Staff Dashboard",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/dashboard/staff/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"dashboard",
+ 								"staff",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires authentication as a staff member. Returns cached dashboard data."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Own Account Info",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/account-management/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"account-management",
+ 								""
+ 							]
+ 						},
+ 						"description": "Retrieves the account and profile information for the authenticated user."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Own Account Info",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/account-management/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"account-management",
+ 								""
+ 							]
+ 						},
+ 						"description": "Partially updates the account and/or profile information for the authenticated user. The `profile` key should contain fields for the user's profile (e.g., `school` for a Candidate)."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: Get User Account Info",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"account-management",
+ 								"{{user_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Retrieves the account and profile information for a specific user."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: Update User Account Info",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"profile\": {\n        \"school\": \"Admin Updated School Name\"\n    }\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"account-management",
+ 								"{{user_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Partially updates the account and/or profile information for a specific user."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		},
+ 		{
+ 			"name": "User Verification",
+ 			"item": [
+ 				{
+ 					"name": "Get Verification Status",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/status/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"status",
+ 								""
+ 							]
+ 						},
+ 						"description": "Gets the verification status for the authenticated user."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: Get User Verification Status",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+ 							"raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"status",
+ 								"{{user_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Gets the verification status for a specific user."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Upload Verification Documents",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "formdata",
+ 							"formdata": [
+ 								{
+ 									"key": "profile_photo",
+ 									"type": "file",
+ 									"src": []
+ 								},
+ 								{
+ 									"key": "id_card",
+ 									"type": "file",
+ 									"src": []
+ 								},
+ 								{
+ 									"key": "verification_document",
+ 									"type": "file",
+ 									"src": []
+ 								}
+ 							]
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/upload/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"upload",
+ 								""
+ 							]
+ 						},
+ 						"description": "Uploads verification documents for the authenticated user. Use form-data to attach files."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Update Verification Documents",
+ 					"request": {
+ 						"method": "PATCH",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "formdata",
+ 							"formdata": [
+ 								{
+ 									"key": "profile_photo",
+ 									"type": "file",
+ 									"src": []
+ 								}
+ 							]
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/upload/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"upload",
+ 								""
+ 							]
+ 						},
+ 						"description": "Partially updates verification documents for the authenticated user. Use form-data to attach files."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Own Verification Document",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"documents",
+								"{{file_type}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Retrieves a specific verification document for the authenticated user. `file_type` can be `profile_photo`, `id_card`, or `verification_document`."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: Get User Verification Document",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"documents",
+								"{{file_type}}",
+ 								"{{user_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Retrieves a specific verification document for any user. `file_type` can be `profile_photo`, `id_card`, or `verification_document`."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: List Verification Requests",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/list/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"list",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Lists all user verification requests."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Admin: Action on Verification Request",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"is_verified\": true\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+							"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"user",
+ 								"verification",
+ 								"action",
+ 								"{{user_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires superadmin authentication. Approve (`is_verified: true`) or reject (`is_rejected: true`) a user's verification request."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			}
+ 		}
+ 	],
+ 	"variable": [
+ 		{
+ 			"key": "baseUrl",
+ 			"value": "http://127.0.0.1:8000",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "accessToken",
+ 			"value": "",
+ 			"type": "string",
+ 			"description": "Automatically set after successful login."
+ 		},
+ 		{
+ 			"key": "refreshToken",
+ 			"value": "",
+ 			"type": "string",
+ 			"description": "Automatically set after successful login."
+ 		},
+ 		{
+ 			"key": "candidate_id",
+ 			"value": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "staff_id",
+ 			"value": "a47ac10b-58cc-4372-a567-0e02b2c3d47a",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "user_id",
+ 			"value": "b47ac10b-58cc-4372-a567-0e02b2c3d47b",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "exam_id",
+ 			"value": "1",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "question_id",
+ 			"value": "1",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "question_id_1",
+ 			"value": "1",
+ 			"type": "string"
+ 		},
+ 		{
+ 			"key": "question_id_2",
+ 			"value": "2",
+ 			"type": "string"
+ 		},
+		{
+			"key": "file_type",
+			"value": "profile_photo",
+			"type": "string",
+			"description": "The type of document to retrieve. Can be 'profile_photo', 'id_card', or 'verification_document'."
+		},
+ 		{
+ 			"key": "apiKey",
+ 			"value": "fftlKYeR.R117tf9J8nHGbWcRQU7I2Urs6C66lARo",
+ 			"type": "string",
+ 			"description": "API Key for accessing public endpoints like login and registration."
+ 		}
+ 	]
+ }

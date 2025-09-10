@@ -258,6 +258,11 @@ urlpatterns = [
         name="user-verification-status",
     ),
     path(
+        "user/verification/status/<uuid:user_id>/",
+        UserVerificationStatusView.as_view(),
+        name="user-verification-status-admin",
+    ),
+    path(
         "user/verification/upload/",
         UserVerificationUploadView.as_view(),
         name="user-verification-upload",
