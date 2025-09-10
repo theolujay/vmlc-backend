@@ -1,5 +1,5 @@
-# previews:
-#   generation: automatic
+previews:
+  generation: automatic
 
 envVarGroups:
   - name: vmlc-secrets
@@ -36,7 +36,7 @@ services:
 
   # Celery Background Worker
   - type: worker
-    name: celery-worker
+    name: vmlc-celery-worker
     region: frankfurt
     runtime: image
     image:
@@ -59,7 +59,7 @@ services:
           property: connectionString
 
   - type: worker
-    name: celery-beat
+    name: vmlc-celery-beat
     region: frankfurt
     runtime: image
     plan: free
@@ -72,7 +72,7 @@ services:
 
   # Flower Dashboard
   - type: web
-    name: flower
+    name: vmlc-flower
     region: frankfurt
     runtime: image
     image:
