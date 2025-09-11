@@ -2,9 +2,9 @@
 # Provides convenient commands for managing your Docker environment
 
 # Configuration
-COMPOSE_UP_SCRIPT := ./compose_up.sh
-HEALTH_CHECK_SCRIPT := ./health_check.sh
-SECRETS_SETUP_SCRIPT := ./setup_secrets.sh
+COMPOSE_UP_SCRIPT := ./scripts/compose_up.sh
+HEALTH_CHECK_SCRIPT := ./scripts/health_check.sh
+SECRETS_SETUP_SCRIPT := ./scripts/setup_secrets.sh
 
 # Default environment
 ENV ?= development

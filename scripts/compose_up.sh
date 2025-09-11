@@ -241,25 +241,39 @@ setup_logging() {
 # Build compose command based on environment
 build_compose_command() {
     local action="$1"
-    local compose_cmd="docker compose"
-    
-    # Add compose files based on environment
+    local compose_cmd=""
+    local compose_files=""
+    local env_file=""
+
+    # Determine compose files and env file based on environment
     case "$ENVIRONMENT" in
         development)
-            compose_cmd+=" -f compose.yml"
+            env_file=".env"
+            compose_files="-f compose.yml"
             if [[ -f "compose.override.yml" ]]; then
-                compose_cmd+=" -f compose.override.yml"
+                compose_files+=" -f compose.override.yml"
             fi
             ;;
         staging)
-            compose_cmd+=" -f compose.yml -f compose.staging.yml"
+            env_file="staging.env"
+            compose_files="-f compose.yml -f compose.staging.yml"
             ;;
         production)
-            compose_cmd+=" -f compose.yml"
+            env_file="prod.env"
+            compose_files="-f compose.yml -f compose.prod.yml"
             ;;
     esac
-    
-    # Add common options
+
+    # Validate that the required env file exists
+    if [[ ! -s "$env_file" ]]; then
+        log_error "Required environment file '$env_file' not found or is empty!"
+        return 1
+    fi
+
+    # Construct the base command
+    compose_cmd="docker compose --env-file $env_file $compose_files"
+
+    # Add action-specific options
     case "$action" in
         up)
             compose_cmd+=" up"
@@ -498,7 +512,7 @@ check_single_instance() {
         fi
     fi
     
-    echo $$ > "$PID_FILE"
+    echo $ > "$PID_FILE"
 }
 
 # Main execution function
