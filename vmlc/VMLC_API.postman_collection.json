@@ -108,35 +108,76 @@
  					"response": []
  				},
  				{
- 					"name": "Logout",
- 					"request": {
- 						"method": "POST",
- 						"header": [],
- 						"body": {
- 							"mode": "raw",
- 							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
- 							"options": {
- 								"raw": {
- 									"language": "json"
- 								}
- 							}
- 						},
- 						"url": {
+ 					
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
 							"raw": "{{baseUrl}}/v1/auth/logout/",
- 							"host": [
- 								"{{baseUrl}}"
- 							],
- 							"path": [
- 								"v1",
- 								"auth",
- 								"logout",
- 								""
- 							]
- 						},
- 						"description": "Blacklists the user's refresh token to log them out."
- 					},
- 					"response": []
- 				},
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"auth",
+								"logout",
+								""
+						]
+						},
+						"description": "Blacklists the user's refresh token to log them out. Possible errors: `invalid_token`."
+					},
+					"response": [
+                        {
+                            "name": "Invalid Token",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"refresh\": \"invalidtoken\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/v1/auth/logout/",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "v1",
+                                        "auth",
+                                        "logout",
+                                        ""
+                                    ]
+                                }
+                            },
+                            "status": "Bad Request",
+                            "code": 400,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"detail\": \"Token is invalid or expired\",\n    \"code\": \"token_not_valid\"\n}"
+                        }
+                    ]
+				},
  				{
  					"name": "Refresh Token",
  					"request": {
