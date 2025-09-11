@@ -2,46 +2,36 @@ ARG PYTHON_VERSION=3.13.7
 ARG UV_VERSION=0.8.15
 ARG GOSU_VERSION=1.17
 # ==========================================================================
-#   Builder stage - compile dependencies and prepare virtual environment    
+# Builder: Compile dependencies in isolated env  
 # ==========================================================================
 FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
-
 ARG UV_VERSION
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
-        curl \
         libpq-dev \
-        build-essential && \
+        build-essential \
+        curl && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN addgroup --system verboheit && \
-    adduser --system --group verboheit --home /home/vmlc
-
-ENV HOME=/home/vmlc
+RUN groupadd --system --gid 1001 verboheit && \
+    useradd --system --uid 1001 --gid verboheit --home /home/verboheit --create-home verboheit
 
 USER verboheit
-
+WORKDIR /home/verboheit/build
+ENV PATH="/home/verboheit/.local/bin:${PATH}" \
+    UV_CACHE_DIR=/tmp/uv-cache
 RUN pip install --no-cache-dir --user uv==${UV_VERSION}
-
-ENV PATH="/home/vmlc/.local/bin:${PATH}"
-
-WORKDIR /home/vmlc/build
-
 COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
-
-RUN uv sync \
-        --frozen \
-        --no-cache \
-        --compile-bytecode \
-        --no-dev
+RUN uv sync --frozen --no-cache --compile-bytecode --no-dev && \
+    rm -rf /tmp/uv-cache
 
 # ==========================================================================
-#   Base stage - common for dev, staging, and prod
+# Base: Common runtime
 # ==========================================================================
 FROM python:${PYTHON_VERSION}-slim-bookworm AS base
-
 ARG GOSU_VERSION
 
 RUN apt-get update && \
@@ -52,143 +42,112 @@ RUN apt-get update && \
         curl \
         ca-certificates \
         gnupg && \
-    # Create temp GPG keyring and pull Tianon's public key
+    # Create temp GPG keyring and verify gosu
     export GNUPGHOME="$(mktemp -d)" && \
     gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 && \
-    # Download gosu with checksum verification for security
     dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" && \
-    curl -o /usr/local/bin/gosu -fsSL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}" && \
-    curl -o /usr/local/bin/gosu.asc -fsSL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}.asc" && \
-    # Verify gosu signature
+    curl -fsSL -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}" && \
+    curl -fsSL -o /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}.asc" && \
     gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu && \
-    rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
     chmod +x /usr/local/bin/gosu && \
     gosu --version && \
-    # Cleanup
-    apt-get remove -y curl gnupg && \
+    # Cleanup in single layer
+    rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
+    apt-get purge -y curl gnupg && \
     apt-get autoremove -y && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Security and performance environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONOPTIMIZE=1 \
-    PATH="/home/vmlc/build/.venv/bin:${PATH}" \
+    PYTHONHASHSEED=random \
+    PYTHONIOENCODING=utf-8 \
     TERM=xterm-256color \
-    # Security: Use Python hash randomization for security (not disable it)
-    PYTHONHASHSEED=random
+    PATH="/home/verboheit/build/.venv/bin:${PATH}" \
+    DJANGO_SETTINGS_MODULE=config.settings.prod
 
-RUN addgroup --system --gid 1001 verboheit && \
-    adduser --system --uid 1001 --group verboheit && \
-    mkdir -p /home/vmlc/web/staticfiles /home/vmlc/web/media /home/vmlc/web/logs && \
-    chown -R verboheit:verboheit /home/vmlc/
+RUN groupadd --system --gid 1001 verboheit && \
+    useradd --system --uid 1001 --gid verboheit --home /home/verboheit --create-home verboheit && \
+    mkdir -p /home/verboheit/web/{staticfiles,media,logs} && \
+    chown -R verboheit:verboheit /home/verboheit
 
+COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
 
-COPY --from=builder --chown=verboheit:verboheit /home/vmlc/build/.venv /home/vmlc/build/.venv
-
-WORKDIR /home/vmlc/web
-
+WORKDIR /home/verboheit/web
 COPY --chown=verboheit:verboheit . .
 
-RUN test -f ./entrypoint.sh && \
-    chmod +x ./entrypoint.sh && \
+RUN chmod +x ./scripts/entrypoint.sh ./scripts/start.sh && \
     echo "#!/bin/sh\ncurl -f http://localhost:8000/v1/health/ -m 10 || exit 1" > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
-USER verboheit
+    # Create volumes for persistent data
+VOLUME ["/home/verboheit/web/staticfiles", "/home/verboheit/web/media", "/home/verboheit/web/logs"]
 
+USER verboheit
 EXPOSE 8000
 
 # ==========================================================================
-#   Development stage... w/ config/settings/docker_dev.py and compose.yml
+# Development
 # ==========================================================================
 FROM base AS development
-
 USER root
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
         vim \
-        postgresql-client \
         redis-tools \
-        curl && \
+        procps \
+        iputils-ping && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 USER verboheit
 
 ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     PYTHONDEBUG=1 \
-    DEBUG=1
+    DEBUG=1 \
+    PYTHONOPTIMIZE=0
 
-HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=2 \
-    CMD python manage.py check || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
 
-ENTRYPOINT ["./entrypoint.sh"]
-
+ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ==========================================================================
-#   Staging stage ... w/ config/settings/staging.py and compose.staging.yml
+# Staging
 # ==========================================================================
 FROM base AS staging
 
-USER root
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        postgresql-client \
-        curl && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-USER verboheit
-
 ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
-    PYTHONOPTIMIZE=2
+    PYTHONOPTIMIZE=2 \
+    SERVER_SOFTWARE=
 
-
-ENTRYPOINT ["./entrypoint.sh"]
-
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--max-requests", "1200", \
-     "--max-requests-jitter", "50", \
-     "--preload", \
-     "--timeout", "30"]
-
-
-HEALTHCHECK --interval=45s --timeout=10s --start-period=45s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
 
+ENTRYPOINT ["./scripts/entrypoint.sh"]
+CMD ["./scripts/start.sh"]
+
 # ==========================================================================
-#   Production stage ... w/ config/settings/prod.py and compose.prod.yml
+# Production
 # ==========================================================================
 FROM base AS production
-
-USER root
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/
-
-USER verboheit
 
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE= \
-    PYTHONPATH=/home/vmlc/web
+    PYTHONPATH=/home/verboheit/web
 
-ENTRYPOINT ["./entrypoint.sh"]
-
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--max-requests", "1200", \
-     "--max-requests-jitter", "50", \
-     "--preload", \
-     "--timeout", "30"]
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=5 \
     CMD /usr/local/bin/healthcheck.sh
 
+ENTRYPOINT ["./scripts/entrypoint.sh"]  
+CMD ["./scripts/start.sh"]
+
+# Metadata
 LABEL version="0.1.0" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"
