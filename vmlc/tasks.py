@@ -310,7 +310,6 @@ def validate_user_verification_files_task(user_verification_id):
             f"An unexpected error occurred during file validation for UserVerification {user_verification_id}: {e}"
         )
 
-
 @shared_task(name="update_staff_dashboard_cache_task")
 def update_staff_dashboard_cache_task(staff_id=None):
     """
@@ -323,20 +322,19 @@ def update_staff_dashboard_cache_task(staff_id=None):
 
     try:
         if staff_id:
-            staff_members = Staff.objects.filter(pk=staff_id)
+            staff_members = Staff.objects.filter(user_id=staff_id)
             if not staff_members.exists():
-                logger.error(f"Staff with id {staff_id} does not exist.")
-                return
+                logger.error(f"Staff with user_id {staff_id} does not exist.")
         else:
             staff_members = Staff.objects.all()
 
         for staff in staff_members:
-            staff_id = staff.pk
+            staff_identifier = staff.user_id
             dashboard_data = get_staff_dashboard_data(staff)
             cache.set(
-                f"staff_dashboard_data_{staff_id}", dashboard_data, timeout=3600
+                f"staff_dashboard_data_{staff_identifier}", dashboard_data, timeout=3600
             )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for staff {staff_id}")
+            logger.info(f"Successfully updated cache for staff {staff_identifier}")
 
     except Exception as e:
         logger.error(
