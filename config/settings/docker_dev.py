@@ -19,12 +19,12 @@ from .base import *
 
 DEBUG = True
 
+INTERNAL_IPS = [
+    ip.strip() for ip in os.getenv("INTERNAL_IPS", "").split(",") if ip.strip()
+]
+
 ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "0.0.0.0",
-    "web",
-    "host.docker.internal",
+    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
 
@@ -39,17 +39,7 @@ MIDDLEWARE += [
     # "silk.middleware.SilkyMiddleware",
 ]
 
-INTERNAL_IPS = [
-    "127.0.0.1",
-    "172.17.0.1",  # Default Docker bridge
-    "172.18.0.1",
-    "172.19.0.1",
-    "172.20.0.1",
-    "host.docker.internal",
-]
-
-ADMIN_URL = "admin/"
-
+ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

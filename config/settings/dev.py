@@ -18,8 +18,13 @@ from .base import *
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
+INTERNAL_IPS = [
+    ip.strip() for ip in os.getenv("INTERNAL_IPS", "").split(",") if ip.strip()
+]
 
+ALLOWED_HOSTS = [
+    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
+]
 INSTALLED_APPS += [
     "debug_toolbar",
     "django_extensions",
@@ -29,11 +34,8 @@ MIDDLEWARE += [
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     # "silk.middleware.SilkyMiddleware",
 ]
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
 
-ADMIN_URL = "admin/"
+ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
 DATABASES = {
     "default": {
@@ -55,6 +57,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",  # Backend
     "http://127.0.0.1:8000",
+    "https://aece03f54dba.ngrok-free.app",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

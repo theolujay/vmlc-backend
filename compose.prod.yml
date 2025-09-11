@@ -35,7 +35,6 @@ services:
       - media_data:/home/vmlc/web/media
       - static_data:/home/vmlc/web/staticfiles
       - vmlc_logs:/home/vmlc/web/logs
-    env_file: prod.env
     depends_on:
       db:
         condition: service_healthy
@@ -65,7 +64,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgresql/init:/docker-entrypoint-initdb.d:ro
-    env_file: prod.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
@@ -120,7 +118,6 @@ services:
     volumes:
       - media_data:/home/vmlc/web/media
       - vmlc_logs:/home/vmlc/web/logs
-    env_file: prod.env
     depends_on:
       db:
         condition: service_healthy
@@ -143,7 +140,6 @@ services:
     command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     volumes:
       - vmlc_logs:/home/vmlc/web/logs
-    env_file: prod.env
     depends_on:
       db:
         condition: service_healthy
@@ -158,7 +154,6 @@ services:
   flower:
     build: *django-build
     command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}"]
-    env_file: prod.env
     depends_on:
       redis:
         condition: service_healthy

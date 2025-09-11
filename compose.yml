@@ -42,7 +42,7 @@ services:
     build:
       context: .
       target: development
-    command: celery -A config worker -l info
+    command: celery -A config worker -l INFO
     volumes:
       - .:/home/vmlc/web
     env_file: .env
