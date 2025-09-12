@@ -1297,7 +1297,7 @@ For technical support, API key requests, or questions:
 ---
 
 ## Changelog
-### Version 0.1.0 (Current)
+### Version 0.2.0 (Current)
 - Initial API release
 - Complete user management system
 - Exam administration features

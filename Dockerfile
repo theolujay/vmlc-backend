@@ -130,6 +130,6 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
 ENTRYPOINT ["./scripts/entrypoint.sh"]  
 CMD ["./scripts/start.sh"]
 
-LABEL version="0.1.0" \
+LABEL version="0.2.0" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"
