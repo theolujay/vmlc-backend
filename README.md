@@ -29,13 +29,13 @@ vmlc-backend/
 ├── vmlc/                 # Core Django app containing models, views, and serializers
 ├── config/              # Project settings, ASGI/WSGI entrypoints, and URL configurations
 ├── docs/                # Project documentation
+├── scripts/             # Utility scripts for entrypoint, start, and build
 ├── staticfiles/         # Collected static files for production
 ├── manage.py            # Django's command-line utility for administrative tasks
 ├── requirements.txt     # Python application dependencies
-├── build.sh             # Enhanced build script with intelligent error logging
 ├── Dockerfile           # Defines the Docker image for the application
 ├── compose.yml          # Base Docker Compose configuration for all environments
-├── compose.override.yml # Development-specific Docker Compose overrides
+├── compose.prod.yml     # Production-specific Docker Compose configuration
 ├── compose.staging.yml  # Staging-specific Docker Compose configuration
 ````
 
