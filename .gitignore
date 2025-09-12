@@ -126,6 +126,7 @@ target/
 .env.*
 # Project Specific
 vmlc/tests/
+dev_data/
 # models_erd.dot
 # models_erd.png
 *.dot

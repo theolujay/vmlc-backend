@@ -77,7 +77,7 @@ ipython_config.py
 # Project Specific
 vmlc/tests/
 models_erd.*
-
+dev_data/
 # Node
 node_modules/
 

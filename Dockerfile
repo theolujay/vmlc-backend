@@ -16,8 +16,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN groupadd --system --gid 1001 verboheit && \
-    useradd --system --uid 1001 --gid verboheit --home /home/verboheit --create-home verboheit
+RUN groupadd --system --gid 999 verboheit && \
+    useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
 
 USER verboheit
 WORKDIR /home/verboheit/build
@@ -53,7 +53,7 @@ RUN apt-get update && \
     gosu --version && \
     # Cleanup in single layer
     rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
-    apt-get purge -y curl gnupg && \
+    apt-get purge -y gnupg && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -67,24 +67,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/home/verboheit/build/.venv/bin:${PATH}" \
     DJANGO_SETTINGS_MODULE=config.settings.prod
 
-RUN groupadd --system --gid 1001 verboheit && \
-    useradd --system --uid 1001 --gid verboheit --home /home/verboheit --create-home verboheit && \
-    mkdir -p /home/verboheit/web/{staticfiles,media,logs} && \
-    chown -R verboheit:verboheit /home/verboheit
+RUN groupadd --system --gid 999 verboheit && \
+    useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
+
+USER verboheit
 
 COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
 
 WORKDIR /home/verboheit/web
 COPY --chown=verboheit:verboheit . .
 
-RUN chmod +x ./scripts/entrypoint.sh ./scripts/start.sh && \
-    echo "#!/bin/sh\ncurl -f http://localhost:8000/v1/health/ -m 10 || exit 1" > /usr/local/bin/healthcheck.sh && \
-    chmod +x /usr/local/bin/healthcheck.sh
+RUN chmod +x ./scripts/entrypoint.sh ./scripts/start.sh
 
-    # Create volumes for persistent data
-VOLUME ["/home/verboheit/web/staticfiles", "/home/verboheit/web/media", "/home/verboheit/web/logs"]
-
-USER verboheit
 EXPOSE 8000
 
 # ==========================================================================
@@ -110,12 +104,8 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     DEBUG=1 \
     PYTHONOPTIMIZE=0
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-    CMD /usr/local/bin/healthcheck.sh
-
 ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-
 # ==========================================================================
 # Staging
 # ==========================================================================
@@ -125,12 +115,8 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-    CMD /usr/local/bin/healthcheck.sh
-
 ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["./scripts/start.sh"]
-
 # ==========================================================================
 # Production
 # ==========================================================================
@@ -141,13 +127,9 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     SERVER_SOFTWARE= \
     PYTHONPATH=/home/verboheit/web
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=5 \
-    CMD /usr/local/bin/healthcheck.sh
-
 ENTRYPOINT ["./scripts/entrypoint.sh"]  
 CMD ["./scripts/start.sh"]
 
-# Metadata
 LABEL version="0.1.0" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"

@@ -32,9 +32,9 @@ services:
     build: *django-build
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     volumes:
-      - media_data:/home/vmlc/web/media
-      - static_data:/home/vmlc/web/staticfiles
-      - vmlc_logs:/home/vmlc/web/logs
+      - media_data:/home/verboheit/web/media
+      - static_data:/home/verboheit/web/staticfiles
+      - vmlc_logs:/home/verboheit/web/logs
     depends_on:
       db:
         condition: service_healthy
@@ -116,8 +116,8 @@ services:
     build: *django-build
     command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=1000", "--time-limit=300"]
     volumes:
-      - media_data:/home/vmlc/web/media
-      - vmlc_logs:/home/vmlc/web/logs
+      - media_data:/home/verboheit/web/media
+      - vmlc_logs:/home/verboheit/web/logs
     depends_on:
       db:
         condition: service_healthy
@@ -139,7 +139,7 @@ services:
     build: *django-build
     command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     volumes:
-      - vmlc_logs:/home/vmlc/web/logs
+      - vmlc_logs:/home/verboheit/web/logs
     depends_on:
       db:
         condition: service_healthy

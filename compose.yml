@@ -1,3 +1,6 @@
+networks:
+  vmlc-network:
+    driver: bridge
 services:
   web:
     build:
@@ -5,22 +8,35 @@ services:
       target: development
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - .:/home/vmlc/web
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
     ports:
       - "8000:8000"
+    networks:
+      - vmlc-network
     env_file: .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   db:
     image: postgres:17-alpine
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./dev_data/db:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - vmlc-network
     env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
@@ -32,6 +48,8 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    networks:
+      - vmlc-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -44,13 +62,24 @@ services:
       target: development
     command: celery -A config worker -l INFO
     volumes:
-      - .:/home/vmlc/web
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
     env_file: .env
+    networks:
+      - vmlc-network
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "celery.*worker"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   celery_beat:
     build:
@@ -58,27 +87,48 @@ services:
       target: development
     command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
-      - .:/home/vmlc/web
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
     env_file: .env
+    networks:
+      - vmlc-network
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "celery.*beat"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   flower:
     build:
       context: .
       target: development
     command: celery -A config flower --address=0.0.0.0
+    volumes:
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
     ports:
       - "5555:5555"
+    networks:
+      - vmlc-network
     env_file: .env
     depends_on:
       redis:
         condition: service_healthy
       celery_worker:
-        condition: service_started
-
-volumes:
-  postgres_data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

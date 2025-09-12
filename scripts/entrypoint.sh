@@ -28,13 +28,11 @@ log_error() {
 }
 
 cleanup() {
-    log_info "Received shutdown signal, gracefully bowing out and cleaning up..."
+    log_info "Shutting down gracefully..."
     jobs -p | xargs -r kill 2>/dev/null || true
-    log_info "Cleanup complete, exiting..."
-    exit 0 # '0' mark as success
+    exit 0
 }
 
-# Trap multiple signals for graceful shutdown
 trap cleanup SIGTERM SIGINT SIGQUIT SIGHUP
 
 security_check() {
@@ -181,30 +179,6 @@ setup_django_env() {
     fi
 }
 
-setup_directories() {
-    log_info "Setting up application directories..."
-    
-    local directories=(
-        "/home/vmlc/web/staticfiles"
-        "/home/vmlc/web/media"
-        "/home/vmlc/web/logs"
-    )
-    
-    for dir in "${directories[@]}"; do
-        if [[ ! -d "$dir" ]]; then
-            log_info "Creating directory: $dir"
-            mkdir -p "$dir"
-        fi
-        
-        # Ensure proper ownership (only if we have write access)
-        if [[ -w "$dir" ]]; then
-            log_info "Directory $dir is writable"
-        else
-            log_warn "Directory $dir is not writable by current user"
-        fi
-    done
-}
-
 setup_application() {
     local command="$1"
     local should_setup=false
@@ -266,7 +240,6 @@ main() {
     security_check
     validate_environment
     preflight_check
-    setup_directories
     
     # Handle special case of no arguments
     if [[ $# -eq 0 ]]; then
