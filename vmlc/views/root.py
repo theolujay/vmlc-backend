@@ -1,14 +1,14 @@
-"""
-Authentication-related API views for login, logout, and registration.
-"""
+import logging
 
 from django.urls.exceptions import NoReverseMatch
 from django.views.decorators.cache import cache_page
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+
+
+logger = logging.getLogger(__name__)
 
 
 @cache_page(60 * 15)
@@ -16,6 +16,9 @@ from rest_framework.reverse import reverse
 @permission_classes([AllowAny])
 def root(request, format=None):
     """API entry point with discoverable endpoints"""
+    logger.info(
+        f"API root accessed by {request.user if request.user.is_authenticated else 'anonymous'} from {request.META.get('REMOTE_ADDR')}"
+    )
 
     def generate_url_with_placeholder(name, param_name, is_uuid=False):
         """Generate URL with placeholder for dynamic endpoints"""
@@ -30,6 +33,7 @@ def root(request, format=None):
             )
             return url.replace(str(dummy_id), f"<{param_name}>")
         except NoReverseMatch:
+            logger.warning(f"No reverse match for URL name: {name}")
             return None
 
     def safe_reverse(name, **kwargs):
@@ -37,6 +41,7 @@ def root(request, format=None):
         try:
             return reverse(name, request=request, format=format, **kwargs)
         except NoReverseMatch:
+            logger.warning(f"No reverse match for URL name: {name}")
             return None
 
     return Response(

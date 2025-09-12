@@ -56,6 +56,9 @@ class StaffListView(ListAPIView):
         """
         Returns a filtered queryset of staff members.
         """
+        logger.info(
+            f"StaffListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
+        )
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
         queryset = Staff.objects.select_related("user").order_by("-date_created")
         return filter_staffs(queryset, self.request.query_params)
@@ -86,9 +89,9 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         Save updates to staff member and log the action.
         """
         logger.info(
-            "Updating staff %s",
+            "Updating staff %s by user %s",
             serializer.instance.pk,
-            extra={"user": self.request.user.id},
+            self.request.user.id,
         )
         serializer.save()
 
@@ -97,9 +100,9 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         Soft-delete staff by setting `is_active` to False.
         """
         logger.info(
-            "Soft-deleting staff %s",
+            "Soft-deleting staff %s by user %s",
             instance.pk,
-            extra={"user": self.request.user.id},
+            self.request.user.id,
         )
         instance.is_active = False
         instance.save()

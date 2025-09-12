@@ -6,7 +6,6 @@ from botocore.exceptions import ClientError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -37,6 +36,9 @@ class UserVerificationStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, user_id=None):
+        logger.info(
+            f"UserVerificationStatusView: request from user {request.user.id} for user {user_id}"
+        )
         # Determine target user
         if user_id is None:
             target_user = request.user
@@ -44,6 +46,7 @@ class UserVerificationStatusView(APIView):
             try:
                 target_user = User.objects.get(id=user_id)
             except User.DoesNotExist:
+                logger.error(f"User with id {user_id} not found.")
                 raise NotFound("User not found.")
             if (
                 request.user.id != target_user.id
@@ -51,12 +54,16 @@ class UserVerificationStatusView(APIView):
                     request, self, target_user
                 )
             ):
+                logger.warning(
+                    f"User {request.user.id} does not have permission to access user {user_id}'s verification status."
+                )
                 raise PermissionDenied(
                     "You don't have permission to access this user's verification status."
                 )
 
         # Check email verification first
         if not target_user.is_email_verified:
+            logger.warning(f"User {target_user.id} has not verified their email.")
             return Response(
                 {
                     "status": "email_not_verified",
@@ -70,6 +77,7 @@ class UserVerificationStatusView(APIView):
 
         # Determine status based on verification record
         if verification.is_verified:
+            logger.info(f"User {target_user.id} is verified.")
             return Response(
                 {"status": "verified", "detail": "User is verified."},
                 status=status.HTTP_200_OK,
@@ -78,6 +86,7 @@ class UserVerificationStatusView(APIView):
         elif verification.is_pending:
             # Return detailed verification data for pending cases
             serializer = UserVerificationStatusSerializer(verification)
+            logger.info(f"User {target_user.id} has a pending verification request.")
             return Response(
                 {
                     "status": "pending",
@@ -88,6 +97,7 @@ class UserVerificationStatusView(APIView):
             )
 
         elif verification.is_rejected:
+            logger.info(f"User {target_user.id} has a rejected verification request.")
             return Response(
                 {
                     "status": "rejected",
@@ -98,6 +108,9 @@ class UserVerificationStatusView(APIView):
 
         else:
             # Not verified, not pending, not rejected = never submitted
+            logger.info(
+                f"User {target_user.id} has not submitted a verification request."
+            )
             return Response(
                 {
                     "status": "not_submitted",
@@ -116,6 +129,7 @@ class UserVerificationUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
+        logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
             user=request.user
         )
@@ -126,14 +140,19 @@ class UserVerificationUploadView(APIView):
 
         # Check current status before processing
         if not verification.user.is_email_verified:
+            logger.warning(f"User {request.user.id} has not verified their email.")
             raise PermissionDenied(
                 "Email not verified. Please verify your email before uploading documents."
             )
 
         if verification.is_verified:
+            logger.warning(f"User {request.user.id} is already verified.")
             raise ValidationError("This user is already verified.")
 
         if verification.is_pending:
+            logger.warning(
+                f"User {request.user.id} has a pending verification request."
+            )
             raise ValidationError("User already has a verification request pending.")
 
         serializer = UserVerificationUploadSerializer(
@@ -166,16 +185,26 @@ class UserVerificationUploadView(APIView):
                 },
                 status=status.HTTP_202_ACCEPTED,
             )
+        logger.warning(
+            f"UserVerificationUploadView: validation failed: {serializer.errors}"
+        )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request):
         """Update existing verification data (partial update)."""
+        logger.info(
+            f"UserVerificationUploadView (patch): request from user {request.user.id}"
+        )
         try:
             verification = UserVerification.objects.get(user=request.user)
         except UserVerification.DoesNotExist:
+            logger.error(f"No verification data found for user {request.user.id}")
             raise NotFound("No verification data found for this user.")
 
         if verification.is_verified:
+            logger.warning(
+                f"Cannot update verification data for already verified user {request.user.id}"
+            )
             raise ValidationError(
                 "Cannot update verification data for an already verified user."
             )
@@ -211,7 +240,9 @@ class UserVerificationUploadView(APIView):
                 },
                 status=status.HTTP_202_ACCEPTED,
             )
-
+        logger.warning(
+            f"UserVerificationUploadView (patch): validation failed: {serializer.errors}"
+        )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -223,18 +254,23 @@ class UserVerificationDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_type, user_id=None):
+        logger.info(
+            f"UserVerificationDocumentView: request from user {request.user.id} for file type {file_type} of user {user_id}"
+        )
         # If no user_id provided, default to current user
         if user_id is None:
             target_user = request.user
             try:
                 verification = UserVerification.objects.get(user=request.user)
             except UserVerification.DoesNotExist:
+                logger.error(f"User verification not found for user {request.user.id}")
                 raise NotFound("User verification not found.")
         else:
             # user_id provided - superadmin accessing another user's files
             try:
                 target_user = User.objects.get(id=user_id)
             except User.DoesNotExist:
+                logger.error(f"User with id {user_id} not found.")
                 raise NotFound("User not found.")
 
             # Check permissions: only the user themselves or superadmin can access
@@ -243,12 +279,16 @@ class UserVerificationDocumentView(APIView):
             ) and not IsObjectOwnerOrSuperAdminRole().has_object_permission(  # Convert both to string for comparison
                 request, self, target_user
             ):
+                logger.warning(
+                    f"User {request.user.id} does not have permission to access user {user_id}'s documents."
+                )
                 raise PermissionDenied(
                     "You don't have permission to access this user's documents."
                 )
             try:
                 verification = UserVerification.objects.get(user=target_user)
             except UserVerification.DoesNotExist:
+                logger.error(f"User verification not found for user {target_user.id}")
                 raise NotFound("User verification not found.")
 
         if user_id and str(request.user.id) != str(user_id):
@@ -270,9 +310,13 @@ class UserVerificationDocumentView(APIView):
             file = verification.profile_photo
             storage_prefix = "media/public"  # PublicMediaStorage
         else:
+            logger.error(f"Invalid file type: {file_type}")
             raise ValidationError("Invalid file type.")
 
         if not file or not file.name:
+            logger.error(
+                f"No {file_type.replace('_', ' ')} uploaded for user {target_user.id}"
+            )
             raise NotFound(f"No {file_type.replace('_', ' ')} uploaded.")
 
         try:
@@ -297,13 +341,18 @@ class UserVerificationDocumentView(APIView):
             error_code = e.response["Error"]["Code"]
             if error_code == "NoSuchKey":
                 logger.error(f"S3 object not found: {object_key}")
-                raise NotFound(f"The {file_type.replace('_', ' ')} file is no longer available.")
+                raise NotFound(
+                    f"The {file_type.replace('_', ' ')} file is no longer available."
+                )
             elif error_code == "AccessDenied":
                 logger.error(f"S3 access denied: {object_key}")
                 raise PermissionDenied("Access denied to file storage.")
             else:
                 logger.error(f"S3 error ({error_code}): {e}")
-                raise APIException("Could not retrieve file from storage.", status_code=status.HTTP_502_BAD_GATEWAY)
+                raise APIException(
+                    "Could not retrieve file from storage.",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                )
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             raise APIException("Could not retrieve file from storage.")
@@ -318,6 +367,9 @@ class UserVerificationListView(ListAPIView):
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get_queryset(self):
+        logger.info(
+            f"UserVerificationListView: request from user {self.request.user.id}"
+        )
         # Ensure related user data is prefetched for efficiency
         return super().get_queryset().order_by("-date_created")
 
@@ -330,17 +382,23 @@ class UserVerificationActionView(APIView):
     permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
     def post(self, request, user_id):
+        logger.info(
+            f"UserVerificationActionView: request from user {request.user.id} for user {user_id}"
+        )
         try:
             target_user = User.objects.get(id=user_id)
         except User.DoesNotExist:
+            logger.error(f"User with id {user_id} not found.")
             raise NotFound("User not found.")
         try:
             verification = UserVerification.objects.get(user=target_user)
         except UserVerification.DoesNotExist:
+            logger.error(f"User verification not found for user {target_user.id}")
             raise NotFound("User verification not found.")
 
         # Check if already processed
         if verification.is_verified:
+            logger.warning(f"User {target_user.id} is already verified.")
             raise ValidationError("This user is already verified.")
 
         serializer = UserVerificationActionSerializer(
@@ -357,6 +415,7 @@ class UserVerificationActionView(APIView):
                 action = "rejected"
                 message = "User verification rejected."
             else:
+                logger.error("Must specify either is_verified or is_rejected.")
                 raise ValidationError("Must specify either is_verified or is_rejected.")
 
             with transaction.atomic():
@@ -370,5 +429,7 @@ class UserVerificationActionView(APIView):
             )
 
             return Response({"detail": message}, status=status.HTTP_200_OK)
-
+        logger.warning(
+            f"UserVerificationActionView: validation failed: {serializer.errors}"
+        )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -266,6 +266,18 @@ wheels = [
 ]
 
 [[package]]
+name = "colorlog"
+version = "6.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/7a/359f4d5df2353f26172b3cc39ea32daa39af8de522205f512f458923e677/colorlog-6.9.0.tar.gz", hash = "sha256:bfba54a1b93b94f54e1f4fe48395725a3d92fd2a4af702f6bd70946bdc0c6ac2", size = 16624, upload-time = "2024-10-29T18:34:51.011Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/51/9b208e85196941db2f0654ad0357ca6388ab3ed67efdbfc799f35d1f83aa/colorlog-6.9.0-py3-none-any.whl", hash = "sha256:5906e71acd67cb07a71e779c47c4bcb45fb8c2993eebe9e5adcd6a6f1b283eff", size = 11424, upload-time = "2024-10-29T18:34:49.815Z" },
+]
+
+[[package]]
 name = "cron-descriptor"
 version = "1.4.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1127,6 +1139,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-json-logger"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/de/d3144a0bceede957f961e975f3752760fbe390d57fbe194baf709d8f1f7b/python_json_logger-3.3.0.tar.gz", hash = "sha256:12b7e74b17775e7d565129296105bbe3910842d9d0eb083fc83a6a617aa8df84", size = 16642, upload-time = "2025-03-07T07:08:27.301Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/20/0f2523b9e50a8052bc6a8b732dfc8568abbdc42010aef03a2d750bdab3b2/python_json_logger-3.3.0-py3-none-any.whl", hash = "sha256:dd980fae8cffb24c13caf6e158d3d61c0d6d22342f932cb6e9deedab3d35eec7", size = 15163, upload-time = "2025-03-07T07:08:25.627Z" },
+]
+
+[[package]]
 name = "python-magic"
 version = "0.4.27"
 source = { registry = "https://pypi.org/simple" }
@@ -1471,6 +1492,7 @@ dependencies = [
     { name = "click-plugins" },
     { name = "click-repl" },
     { name = "colorama" },
+    { name = "colorlog" },
     { name = "cron-descriptor" },
     { name = "cryptography" },
     { name = "defusedxml" },
@@ -1536,6 +1558,7 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "python-decouple" },
     { name = "python-dotenv" },
+    { name = "python-json-logger" },
     { name = "python-magic" },
     { name = "python3-openid" },
     { name = "pytz" },
@@ -1589,6 +1612,7 @@ requires-dist = [
     { name = "click-plugins", specifier = "==1.1.1.2" },
     { name = "click-repl", specifier = "==0.3.0" },
     { name = "colorama", specifier = "==0.4.6" },
+    { name = "colorlog", specifier = ">=6.9.0" },
     { name = "cron-descriptor", specifier = "==1.4.5" },
     { name = "cryptography", specifier = "==45.0.7" },
     { name = "defusedxml", specifier = "==0.7.1" },
@@ -1654,6 +1678,7 @@ requires-dist = [
     { name = "python-dateutil", specifier = "==2.9.0.post0" },
     { name = "python-decouple", specifier = "==3.8" },
     { name = "python-dotenv", specifier = "==1.1.1" },
+    { name = "python-json-logger", specifier = ">=3.3.0" },
     { name = "python-magic", specifier = "==0.4.27" },
     { name = "python3-openid", specifier = "==3.2.0" },
     { name = "pytz", specifier = "==2025.2" },

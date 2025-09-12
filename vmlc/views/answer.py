@@ -8,7 +8,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-
 from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import IsCandidate
 from ..serializers import CandidateAnswerBulkSerializer
@@ -35,15 +34,24 @@ class SubmitAnswersView(APIView):
         """
         candidate = request.user.candidate_profile
         exam = get_object_or_404(Exam, pk=exam_id)
+        logger.info(
+            f"SubmitAnswersView: request from user {request.user.id} (candidate_id: {candidate.pk}) for exam {exam_id} with data: {request.data}"
+        )
 
         # 1. Business Logic Validation
         if not exam.is_currently_open:
+            logger.warning(
+                f"Candidate {candidate.pk} attempted to submit answers for closed exam {exam_id}"
+            )
             return Response(
                 {"detail": "This exam is not currently open for submissions."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         if candidate.role != exam.stage:
+            logger.warning(
+                f"Candidate {candidate.pk} with role {candidate.role} attempted to submit answers for exam {exam_id} with stage {exam.stage}"
+            )
             return Response(
                 {"detail": "You are not eligible to take this exam."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -58,6 +66,9 @@ class SubmitAnswersView(APIView):
             not created
             and CandidateAnswer.objects.filter(candidate_score=candidate_score).exists()
         ):
+            logger.warning(
+                f"Candidate {candidate.pk} attempted to re-submit answers for exam {exam_id}"
+            )
             return Response(
                 {"detail": "You have already submitted answers for this exam."},
                 status=status.HTTP_400_BAD_REQUEST,

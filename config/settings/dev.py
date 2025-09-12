@@ -177,43 +177,30 @@ else:
         },
     }
 
-# # Docker container logging
-# LOG_DIR = Path("/home/app/web/logs")
-# LOG_DIR.mkdir(exist_ok=True)
-
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {
-#             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-#             "style": "{",
-#         },
-#     },
-#     "handlers": {
-#         "console": {
-#             "level": "DEBUG",
-#             "class": "logging.StreamHandler",
-#             "formatter": "verbose",
-#         },
-#         "file": {
-#             "level": "DEBUG",
-#             "class": "logging.handlers.RotatingFileHandler",
-#             "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-#             "formatter": "verbose",
-#             "maxBytes": 5 * 1024 * 1024,  # 5MB
-#             "backupCount": 3,  # Keep 3 backups
-#             "encoding": "utf-8",  # Handle unicode properly
-#         },
-#     },
-#     "loggers": {
-#         "vmlc": {
-#             "level": "DEBUG",
-#             "handlers": ["console", "file"],
-#             "propagate": True,
-#         },
-#     },
-# }
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "vmlc": {
+            "level": "DEBUG",
+            "handlers": ["console"],
+            "propagate": True,
+        },
+    },
+}
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB (default is 2.5MB)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB (default is 2.5MB)

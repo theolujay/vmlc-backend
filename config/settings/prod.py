@@ -95,8 +95,6 @@ STORAGES = {
 }
 
 # === LOGGING CONFIGURATION ===
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -105,30 +103,40 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
-        "simple": {
-            "format": "{levelname} {asctime} {message}",
-            "style": "{",
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
         },
     },
     "handlers": {
         "console": {
-            "level": LOG_LEVEL,
+            "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
     },
     "root": {
-        "level": LOG_LEVEL,
+        "level": "INFO",
         "handlers": ["console"],
     },
     "loggers": {
-        "vmlc": {
+        "django": {
             "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },
         "django.request": {
             "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "vmlc": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "celery": {
+            "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },

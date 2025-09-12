@@ -5,10 +5,8 @@ Authentication-related API views for login, logout, and registration.
 import logging
 
 
-from django.contrib.auth import get_user_model
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
@@ -28,10 +26,8 @@ from ..serializers import (
 )
 from ..tasks import send_mail_task
 from ..utils.exceptions import (
-    AuthenticationFailed,
     InvalidTokenError,
     NotFound,
-    PermissionDenied,
     ValidationError,
 )
 
@@ -104,7 +100,9 @@ class ResendEmailOTPView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error from utils
-                raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+                raise ValidationError(
+                    str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS
+                )
             except Exception as e:
                 logger.error(f"Unexpected error in resend OTP: {str(e)}")
                 return Response(
@@ -153,7 +151,9 @@ class RequestPasswordChangeView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error
-                raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+                raise ValidationError(
+                    str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS
+                )
             except Exception as e:
                 logger.error(f"Error requesting password change OTP: {str(e)}")
                 return Response(
@@ -364,6 +364,7 @@ class LogoutView(APIView):
         Expects a 'refresh' token in the request body.
         Extracts user info from the refresh token for logging.
         """
+        refresh_token = request.get("refresh_token")
         if not refresh_token:
             raise ValidationError("Refresh token is required")
 

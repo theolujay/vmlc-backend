@@ -27,9 +27,6 @@ from ..tasks import (
     update_staff_dashboard_cache_task,
     update_candidate_dashboard_cache_task,
 )
-from ..utils.dashboard_utils import (
-    get_candidate_dashboard_data,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +43,19 @@ class CandidateDashboardView(APIView):
         Returns candidate-specific dashboard stats and profile data.
         """
         candidate = request.user.candidate_profile
+        logger.info(
+            f"CandidateDashboardView: request from user {request.user.id} (candidate_id: {candidate.pk})"
+        )
         cache_key = f"candidate_dashboard_{candidate.pk}"
         cached_data = cache.get(cache_key)
 
         if cached_data:
+            logger.info(f"Dashboard data for candidate {candidate.pk} found in cache.")
             return Response(cached_data)
 
+        logger.info(
+            f"Dashboard data for candidate {candidate.pk} not found in cache. Triggering background update."
+        )
         # If not in cache, trigger a background update
         update_candidate_dashboard_cache_task.delay(candidate.pk)
 
@@ -79,11 +83,18 @@ class StaffDashboardView(APIView):
         Returns staff-specific dashboard metrics and profile data from cache if available.
         """
         staff = request.user.staff_profile
+        logger.info(
+            f"StaffDashboardView: request from user {request.user.id} (staff_id: {staff.pk})"
+        )
         cached_data = cache.get(f"staff_dashboard_data_{staff.pk}")
 
         if cached_data:
+            logger.info(f"Dashboard data for staff {staff.pk} found in cache.")
             return Response(cached_data)
 
+        logger.info(
+            f"Dashboard data for staff {staff.pk} not found in cache. Triggering background update."
+        )
         # If not in cache, trigger a background update
         update_staff_dashboard_cache_task.delay(staff.pk)
 
@@ -121,6 +132,9 @@ class AccountManagementView(APIView):
         if not IsObjectOwnerOrSuperAdminRole().has_object_permission(
             request, self, target_user
         ):
+            logger.warning(
+                f"User {request.user.id} does not have permission to manage user {user_id}."
+            )
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
@@ -138,6 +152,9 @@ class AccountManagementView(APIView):
         """
         Retrieve the account and profile data of the target user.
         """
+        logger.info(
+            f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
+        )
         target_user = self._get_target_user(request, user_id)
         user_data = UserSerializer(target_user).data
         profile, profile_serializer_class = self._get_profile_and_serializer(
@@ -147,6 +164,7 @@ class AccountManagementView(APIView):
         if profile and profile_serializer_class:
             profile_data = profile_serializer_class(profile).data
         else:
+            logger.error(f"User {target_user.id} does not have a profile.")
             return Response(
                 {"detail": "User does not have a profile."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -158,6 +176,9 @@ class AccountManagementView(APIView):
         """
         Handles the update logic for both user and profile data.
         """
+        logger.info(
+            f"AccountManagementView (_update_account): request from user {request.user.id} for user {user_id} with data: {request.data}"
+        )
         target_user = self._get_target_user(request, user_id)
         user_data = request.data.get("user", {})
         profile_data = request.data.get("profile", {})

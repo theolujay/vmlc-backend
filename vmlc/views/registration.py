@@ -27,7 +27,11 @@ class BaseRegistrationView(CreateAPIView):
     feature_flag_key = None  # Subclasses must define this
 
     def create(self, request, *args, **kwargs):
+        logger.info(f"{self.__class__.__name__}: request data: {request.data}")
         if request.user.is_authenticated:
+            logger.warning(
+                f"Authenticated user {request.user.id} attempted to register a new account."
+            )
             raise PermissionDenied(
                 "Already authenticated. Please log out to register a new account."
             )
@@ -36,6 +40,9 @@ class BaseRegistrationView(CreateAPIView):
         if self.feature_flag_key and not FeatureFlag.get_bool(
             self.feature_flag_key, default=False
         ):
+            logger.warning(
+                f"Registration attempt for {self.feature_flag_key} which is currently closed."
+            )
             raise PermissionDenied(
                 f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
             )
@@ -44,6 +51,9 @@ class BaseRegistrationView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        logger.info(
+            f"Successfully registered new user with email: {serializer.data.get('email')}"
+        )
         return Response(
             {"message": "Registration successful."},
             status=status.HTTP_201_CREATED,
@@ -80,7 +90,11 @@ class ToggleFeatureFlagView(APIView):
     feature_flag_key = None
 
     def post(self, request, *args, **kwargs):
+        logger.info(
+            f"{self.__class__.__name__}: request from user {request.user.id} with data: {request.data}"
+        )
         if not self.feature_flag_key:
+            logger.error(f"{self.__class__.__name__} is missing a feature_flag_key.")
             raise ImproperlyConfigured(
                 f"{self.__class__.__name__} is missing a feature_flag_key."
             )

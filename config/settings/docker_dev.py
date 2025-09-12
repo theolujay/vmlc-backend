@@ -188,70 +188,83 @@ else:
         },
     }
 
-# # Docker container logging
-# LOG_DIR = Path("/home/app/web/logs")
+# Docker container logging
+LOG_DIR = Path("/home/verboheit/web/logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# # Development logging configuration
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {
-#             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-#             "style": "{",
-#         },
-#         "simple": {
-#             "format": "{levelname} {name} {message}",
-#             "style": "{",
-#         },
-#         "colored": {
-#             "()": "colorlog.ColoredFormatter",
-#             "format": "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(name)s%(reset)s %(message)s",
-#         },
-#     },
-#     "handlers": {
-#         "console": {
-#             "level": "DEBUG",
-#             "class": "logging.StreamHandler",
-#             "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
-#         },
-#         "file": {
-#             "level": "DEBUG",
-#             "class": "logging.handlers.RotatingFileHandler",
-#             "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-#             "formatter": "verbose",
-#             "maxBytes": 5 * 1024 * 1024,  # 5MB
-#             "backupCount": 3,
-#             "encoding": "utf-8",
-#         },
-#     },
-#     "root": {
-#         "level": "INFO",
-#         "handlers": ["console"],
-#     },
-#     "loggers": {
-#         "django": {
-#             "level": "INFO",
-#             "handlers": ["console", "file"],
-#             "propagate": False,
-#         },
-#         "vmlc": {
-#             "level": "DEBUG",
-#             "handlers": ["console", "file"],
-#             "propagate": False,
-#         },
-#         "celery": {
-#             "level": "DEBUG",
-#             "handlers": ["console", "file"],
-#             "propagate": False,
-#         },
-#         # Reduce noise from third-party packages
-#         "urllib3": {"level": "WARNING"},
-#         "requests": {"level": "WARNING"},
-#         "boto3": {"level": "WARNING"},
-#         "botocore": {"level": "WARNING"},
-#     },
-# }
+# Development logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {name} {message}",
+            "style": "{",
+        },
+        "colored": {
+            "()": "colorlog.ColoredFormatter",
+            "format": "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(name)s%(reset)s %(message)s",
+        },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
+            "formatter": "json",
+            "maxBytes": 5 * 1024 * 1024,  # 5MB
+            "backupCount": 3,
+            "encoding": "utf-8",
+            "delay": True,
+        },
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django": {
+            "level": "INFO",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "vmlc": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "celery": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        # Reduce noise from third-party packages
+        "urllib3": {"level": "WARNING"},
+        "requests": {"level": "WARNING"},
+        "boto3": {"level": "WARNING"},
+        "botocore": {"level": "WARNING"},
+    },
+}
+
+if os.getenv("LOG_QUERIES", "false").lower() == "true":
+    LOGGING["loggers"]["django.db.backends"] = {
+        "level": "DEBUG",
+        "handlers": ["console"],
+        "propagate": False,
+    }
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB for development
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB for development
@@ -284,14 +297,6 @@ SECURE_CONTENT_TYPE_NOSNIFF = False
 # Development session settings
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-
-# # Optional: Database query logging in development
-# if os.getenv("LOG_QUERIES", "false").lower() == "true":
-#     LOGGING["loggers"]["django.db.backends"] = {
-#         "level": "DEBUG",
-#         "handlers": ["console"],
-#         "propagate": False,
-#     }
 
 # Security settings (safe to enable in dev)
 SECURE_CONTENT_TYPE_NOSNIFF = True

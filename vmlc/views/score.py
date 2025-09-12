@@ -44,6 +44,9 @@ class CandidateScoreListView(ListAPIView):
         optimized with prefetching.
         """
         candidate_id = self.kwargs.get("candidate_id")
+        logger.info(
+            f"CandidateScoreListView: request from user {self.request.user.id} for candidate {candidate_id}"
+        )
         # Ensure the candidate exists before proceeding
         get_object_or_404(Candidate, pk=candidate_id)
         return (
@@ -71,6 +74,9 @@ class SubmitScoreView(APIView):
 
         Expects `candidate_id` and `score` in the request body.
         """
+        logger.info(
+            f"SubmitScoreView: request from user {self.request.user.id} for exam {exam_id} with data: {request.data}"
+        )
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -137,6 +143,9 @@ class PublishScoresView(APIView):
         from ..tasks import generate_scores_snapshot_task
 
         staff_id = request.user.staff_profile.pk
+        logger.info(
+            f"PublishScoresView: request from user {request.user.id} (staff_id: {staff_id})"
+        )
         generate_scores_snapshot_task.delay(staff_id)
 
         logger.info(f"Scores snapshot generation triggered by staff {staff_id}")

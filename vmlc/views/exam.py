@@ -1,20 +1,17 @@
 from django.db.models import Avg, Count
 
-from django.shortcuts import get_object_or_404
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status, serializers
 from rest_framework.generics import (
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
     ListCreateAPIView,
 )
-from rest_framework.request import Request
 
 
-from ..models import Exam, CandidateScore, Candidate, Question, Staff
+from ..models import Exam, CandidateScore, Candidate, Staff
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
@@ -26,6 +23,9 @@ from ..serializers import (
 from ..permissions import HasStaffRole, IsCandidate, IsVerifiedStaff
 from ..utils.query_filters import ExamFilter
 from ..utils.exceptions import PermissionDenied, NotFound
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ExamListView(ListCreateAPIView):
@@ -60,6 +60,9 @@ class ExamListView(ListCreateAPIView):
         """
         Returns a queryset of all Exam objects.
         """
+        logger.info(
+            f"ExamListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
+        )
         return (
             Exam.objects.annotate(question_count=Count("questions"))
             .select_related("created_by__user")
@@ -71,6 +74,9 @@ class ExamListView(ListCreateAPIView):
         Saves the staff member who created the exam
         """
         serializer.save(created_by=self.request.user.staff_profile)
+        logger.info(
+            f"Exam created by user {self.request.user.id} with data: {serializer.data}"
+        )
 
 
 class ExamDetailView(RetrieveUpdateDestroyAPIView):
@@ -95,6 +101,9 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         Optimizes the queryset by annotating with average score and prefetching
         related data needed by the serializer.
         """
+        logger.info(
+            f"ExamDetailView: request from user {self.request.user.id} for exam {self.kwargs.get(self.lookup_url_kwarg)}"
+        )
         return Exam.objects.annotate(average_score=Avg("scores__score")).select_related(
             "created_by__user", "updated_by__user"
         )
@@ -123,9 +132,13 @@ class ExamResultsView(ListAPIView):
         optimized with prefetching.
         """
         exam_id = self.kwargs[self.lookup_url_kwarg]
+        logger.info(
+            f"ExamResultsView: request from user {self.request.user.id} for exam {exam_id}"
+        )
         try:
             Exam.objects.get(pk=exam_id)
         except Exam.DoesNotExist:
+            logger.error(f"Exam with id {exam_id} not found.")
             raise NotFound("Exam not found.")
         return (
             CandidateScore.objects.filter(exam_id=exam_id)
@@ -152,11 +165,16 @@ class ExamQuestionsView(ListAPIView):
         """
         Returns the queryset of questions related to a given exam.
         """
+        exam_id = self.kwargs["exam_id"]
+        logger.info(
+            f"ExamQuestionsView: request from user {self.request.user.id} for exam {exam_id}"
+        )
         try:
             exam = Exam.objects.prefetch_related("questions__created_by__user").get(
-                pk=self.kwargs["exam_id"]
+                pk=exam_id
             )
         except Exam.DoesNotExist:
+            logger.error(f"Exam with id {exam_id} not found.")
             raise NotFound("Exam not found.")
         return exam.questions.filter(is_active=True)
 
@@ -182,9 +200,13 @@ class ExamHistoryView(ListAPIView):
         optimized with prefetching.
         """
         candidate_id = self.kwargs[self.lookup_url_kwarg]
+        logger.info(
+            f"ExamHistoryView: request from user {self.request.user.id} for candidate {candidate_id}"
+        )
         try:
             Candidate.objects.get(pk=candidate_id)
         except Candidate.DoesNotExist:
+            logger.error(f"Candidate with id {candidate_id} not found.")
             raise NotFound("Candidate not found.")
         return (
             CandidateScore.objects.filter(candidate_id=candidate_id)
@@ -199,19 +221,32 @@ def candidate_take_exam(request, exam_id):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
+    logger.info(
+        f"candidate_take_exam: request from user {request.user.id} for exam {exam_id}"
+    )
     candidate = request.user.candidate_profile
     try:
         exam = Exam.objects.prefetch_related("questions").get(pk=exam_id)
     except Exam.DoesNotExist:
+        logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
     if not candidate.is_verified:
+        logger.warning(
+            f"Unverified candidate {candidate.id} attempted to take exam {exam_id}"
+        )
         raise PermissionDenied("Candidate must be verified to take this exam.")
 
     if candidate.role != exam.stage:
+        logger.warning(
+            f"Candidate {candidate.id} with role {candidate.role} attempted to take exam {exam_id} with stage {exam.stage}"
+        )
         raise PermissionDenied("Not allowed.")
 
     if not exam.is_currently_open:
+        logger.warning(
+            f"Candidate {candidate.id} attempted to take exam {exam_id} which is not open."
+        )
         raise PermissionDenied("Exam is not currently open.")
 
     serializer = CandidateExamSerializer(exam)

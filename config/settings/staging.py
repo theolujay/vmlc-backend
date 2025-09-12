@@ -93,8 +93,6 @@ STORAGES = {
 }
 
 # === LOGGING CONFIGURATION ===
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -103,30 +101,40 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
-        "simple": {
-            "format": "{levelname} {asctime} {message}",
-            "style": "{",
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
         },
     },
     "handlers": {
         "console": {
-            "level": LOG_LEVEL,
+            "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
     },
     "root": {
-        "level": LOG_LEVEL,
+        "level": "INFO",
         "handlers": ["console"],
     },
     "loggers": {
-        "vmlc": {
+        "django": {
             "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },
         "django.request": {
             "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "vmlc": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "celery": {
+            "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },
@@ -235,3 +243,14 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # Maximum file sizes for different upload types
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+
+# Staging-specific security settings
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# HSTS - Make browsers stick to HTTPS
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True

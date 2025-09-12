@@ -1,5 +1,4 @@
 import logging
-from rest_framework import serializers
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
@@ -43,6 +42,9 @@ class QuestionListView(ListCreateAPIView):
         """
         Optimizes the queryset by prefetching related user data.
         """
+        logger.info(
+            f"QuestionListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
+        )
         queryset = (
             Question.objects.filter(is_active=True)
             .select_related("created_by__user")
@@ -57,9 +59,9 @@ class QuestionListView(ListCreateAPIView):
         # IsVerifiedStaff permission ensures staff_profile exists
         serializer.save(created_by=self.request.user.staff_profile)
         logger.info(
-            "Question created by user %s",
+            "Question created by user %s with data: %s",
             self.request.user.id,
-            extra={"question_id": serializer.instance.id},
+            serializer.data,
         )
 
 
@@ -95,9 +97,10 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         # HasStaffRole permission ensures staff_profile exists
         serializer.save(updated_by=self.request.user.staff_profile)
         logger.info(
-            "Question %s updated by %s",
+            "Question %s updated by %s with data: %s",
             serializer.instance.id,
             self.request.user.id,
+            serializer.data,
         )
 
     def perform_destroy(self, instance):
