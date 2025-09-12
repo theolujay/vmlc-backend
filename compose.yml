@@ -24,7 +24,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/"]
-      interval: 15s
+      interval: 300s
       timeout: 5s
       retries: 3
       start_period: 60s
@@ -40,7 +40,7 @@ services:
     env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 10s
+      interval: 300s
       timeout: 5s
       retries: 5
 
@@ -52,7 +52,7 @@ services:
       - vmlc-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 300s
       timeout: 5s
       retries: 3
 
@@ -76,7 +76,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "pgrep", "-f", "celery.*worker"]
-      interval: 30s
+      interval: 300s
       timeout: 10s
       retries: 3
       start_period: 60s
@@ -101,7 +101,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "pgrep", "-f", "celery.*beat"]
-      interval: 30s
+      interval: 300s
       timeout: 5s
       retries: 3
       start_period: 60s
@@ -128,7 +128,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5555/"]
-      interval: 15s
+      interval: 300s
       timeout: 5s
       retries: 3
       start_period: 30s
