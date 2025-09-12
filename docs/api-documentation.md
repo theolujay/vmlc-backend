@@ -1298,6 +1298,7 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 ### Version 0.2.0 (Current)
+- **Base URL** is now `https://vmlc-api.onrender.com/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 
 ### Version 0.1.0
