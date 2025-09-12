@@ -1298,11 +1298,7 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 ### Version 0.2.0 (Current)
-- **Structured Logging**: Implemented structured JSON logging for better log management and analysis.
-- **Docker Optimization**: Streamlined the Docker setup by removing obsolete scripts and optimizing the Dockerfile.
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
-- **API Updates**: Updated the Postman collection to align with the new exception handling and error logging.
-- **Code Refactoring**: Refactored the codebase for improved efficiency and readability, including moving scripts to a `scripts/` folder.
 
 ### Version 0.1.0
 - Initial API release
