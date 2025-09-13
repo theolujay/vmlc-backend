@@ -37,7 +37,7 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=[permissions.AllowAny],
     authentication_classes=[],
-    url=settings.BASE_URL if not settings.DEBUG else "http:localhost:8000",
+    url=settings.BASE_URL if not settings.DEBUG else None,
 )
 
 api_urlpatterns = [
