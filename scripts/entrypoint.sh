@@ -171,6 +171,10 @@ setup_django_env() {
     
     # Static files collection (only in production/staging)
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
+        log_info "Setting up directories..."
+        mkdir -p /home/verboheit/web/staticfiles
+        mkdir -p /home/verboheit/web/media
+        log_info "Directories setup completed"
         log_info "Collecting static files..."
         python manage.py collectstatic --no-input --clear
         log_info "Static files collection completed"
@@ -184,7 +188,7 @@ setup_application() {
     local should_setup=false
     
     case "$command" in
-        'gunicorn'|'daphne'|'hypercorn')
+        'gunicorn'|'daphne'|'hypercorn' | './scripts/start.sh')
             log_info "Setting up for ASGI/WSGI server ($command)..."
             should_setup=true
             ;;
