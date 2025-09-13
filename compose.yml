@@ -40,7 +40,7 @@ services:
     env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 300s
+      interval: 15s
       timeout: 5s
       retries: 5
 
@@ -52,7 +52,7 @@ services:
       - vmlc-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 300s
+      interval: 15s
       timeout: 5s
       retries: 3
 
