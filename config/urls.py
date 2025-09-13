@@ -22,7 +22,7 @@ schema_view = get_schema_view(
     openapi.Info(
         title="Verboheit MLC API",
         default_version="v1",
-        description="API documentation for the Verboheit MLC Portal.",
+        description="Interactive API doc for the Verboheit MLC Portal.",
         # terms_of_service=settings.TOS_URL,
         contact=openapi.Contact(
             name="API Support",
@@ -33,16 +33,11 @@ schema_view = get_schema_view(
         #     name="Proprietary License",
         #     url=settings.LICENSE_URL,
         # ),
-        x_logo={
-            "url": settings.LOGO_URL,
-            "backgroundColor": "#FFFFFF",
-            "altText": "Verboheit Logo",
-        },
     ),
     public=True,
     permission_classes=[permissions.AllowAny],
     authentication_classes=[],
-    url=settings.BASE_URL if not settings.DEBUG else None,
+    url=settings.BASE_URL if not settings.DEBUG else "http:localhost:8000",
 )
 
 api_urlpatterns = [
