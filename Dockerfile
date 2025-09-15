@@ -77,7 +77,7 @@ COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /hom
 WORKDIR /home/verboheit/web
 COPY --chown=verboheit:verboheit . .
 
-RUN chmod +x ./scripts/entrypoint.sh ./scripts/start.sh
+RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
 
 EXPOSE 8000
 
@@ -116,7 +116,7 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     SERVER_SOFTWARE=
 
 ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/start.sh"]
+CMD ["./scripts/runserver.sh"]
 # ==========================================================================
 # Production
 # ==========================================================================
@@ -127,8 +127,8 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     SERVER_SOFTWARE= \
     PYTHONPATH=/home/verboheit/web
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]  
-CMD ["./scripts/start.sh"]
+ENTRYPOINT ["./scripts/entrypoint.sh"]
+CMD ["./scripts/runserver.sh"]
 
 LABEL version="0.2.0" \
       description="Backend service for the Verboheit Mathematics League Competition." \

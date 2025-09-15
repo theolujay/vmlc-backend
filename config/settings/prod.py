@@ -8,7 +8,9 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+import warnings
 
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='pycparser')
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "prod.env")
 
@@ -25,7 +27,7 @@ ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-ADMIN_URL = os.getenv("DJANGO_ADMIN_URL")
+ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
 # === DATABASE CONFIG ===
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -243,6 +245,8 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+# Trust Fly.io's proxy headers for SSL
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed

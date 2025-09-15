@@ -163,6 +163,7 @@ setup_django_env() {
     log_info "Checking for database migrations..."
     if python manage.py showmigrations --plan | grep -q '\[ \]'; then
         log_info "Running pending database migrations..."
+        python manage.py makemigrations
         python manage.py migrate --no-input
         log_info "Database migrations completed"
     else
@@ -188,7 +189,7 @@ setup_application() {
     local should_setup=false
     
     case "$command" in
-        'gunicorn'|'daphne'|'hypercorn' | './scripts/start.sh')
+        'gunicorn'|'daphne'|'hypercorn' | './scripts/runserver.sh')
             log_info "Setting up for ASGI/WSGI server ($command)..."
             should_setup=true
             ;;

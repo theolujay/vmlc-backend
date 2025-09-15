@@ -45,10 +45,15 @@ api_urlpatterns = [
 ]
 
 docs_urlpatterns = [
-    re_path(
-        r"^schema(?P<format>\.json|\.yaml)$",
+    path(
+        "schema.json",
         schema_view.without_ui(cache_timeout=0),
-        name="schema",
+        name="schema-json",
+    ),
+    path(
+        "schema.yaml",
+        schema_view.without_ui(cache_timeout=0),
+        name="schema-yaml",
     ),
     path(
         "swagger/",
