@@ -1,11 +1,6 @@
-from django.forms import widgets
-from django.db import models
-from django.contrib import admin, messages
-from django.http import HttpResponseRedirect
-from django.urls import path, reverse
+from django.contrib import admin
 from django.utils.html import format_html
-from django.forms import widgets
-from django.db.models import Count, QuerySet
+from django.db.models import Count, Sum
 from .models import (
     Candidate,
     Staff,
@@ -147,7 +142,9 @@ class CandidateAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return queryset.with_scores()
+        return queryset.annotate(
+            total_score=Sum("scores__score")
+        )
 
     @admin.display(description="Total Score", ordering="total_score")
     def total_score(self, obj):
