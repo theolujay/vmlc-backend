@@ -7,7 +7,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
+from channels.db import database_sync_to_async
 
 from ..models import (
     Candidate,
@@ -68,14 +68,15 @@ class SubmitScoreView(APIView):
     ]
     serializer_class = SubmitScoreSerializer
 
-    def put(self, request, exam_id):
+    @database_sync_to_async
+    def _submit_score(self, request, exam_id):
         """
         Handles the submission of a score for a candidate in a given exam.
 
         Expects `candidate_id` and `score` in the request body.
         """
         logger.info(
-            f"SubmitScoreView: request from user {self.request.user.id} for exam {exam_id} with data: {request.data}"
+            f"SubmitScoreView: request from user {request.user.id} for exam {exam_id} with data: {request.data}"
         )
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -123,6 +124,9 @@ class SubmitScoreView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    async def put(self, request, exam_id):
+        return await self._submit_score(request, exam_id)
+
 
 class PublishScoresView(APIView):
     """
@@ -136,7 +140,7 @@ class PublishScoresView(APIView):
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    def post(self, request):
+    async def post(self, request):
         """
         Triggers an asynchronous task to generate and publish the scores snapshot.
         """

@@ -197,7 +197,6 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
-CELERY_CACHE_BACKEND = "django-cache"
 
 # Production-specific Celery settings
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -209,16 +208,16 @@ CELERY_BROKER_CONNECTION_RETRY = True
 # Redis Cache Configuration
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
+        "BACKEND": "django_async_redis.cache.RedisCache",
         "LOCATION": CACHE_REDIS_URL,
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
                 "max_connections": 20,
                 "retry_on_timeout": True,
             },
-            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+            "COMPRESSOR": "django_async_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_async_redis.serializers.json.JSONSerializer",
         },
         "KEY_PREFIX": "vmlc",
         "TIMEOUT": 300,  # 5 minutes default timeout

@@ -30,7 +30,7 @@ x-django-security: &django-security
 services:
   web:
     build: *django-build
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    command: ["/home/verboheit/web/scripts/runserver.sh"]
     volumes:
       - media_data:/home/verboheit/web/media
       - static_data:/home/verboheit/web/staticfiles

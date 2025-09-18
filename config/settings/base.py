@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "storages",
     "django_celery_results",
     "django_celery_beat",
+    "channels",
     "vmlc",
 ]
 
@@ -70,11 +71,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Use dj-database-url to parse the DATABASE_URL environment variable.
-# Falls back to SQLite for local development if DATABASE_URL is not set.
+ASGI_APPLICATION = "config.asgi.application"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -153,8 +150,6 @@ SIMPLE_JWT = {
 SWAGGER_USE_COMPAT_RENDERERS = False
 
 CELERY_TIMEZONE = "Europe/London"
-# CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-# CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -163,6 +158,7 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_WORKER_LOG_COLOR = False
+CELERY_CACHE_BACKEND = "django-cache"
 # CELERY_TASK_ROUTES = {
 #     'vmlc.tasks.send_email': {'queue': 'emails'},
 #     'vmlc.tasks.process_payment': {'queue': 'payments'},

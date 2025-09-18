@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from channels.db import database_sync_to_async
 
 from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import IsCandidate
@@ -23,7 +24,8 @@ class SubmitAnswersView(APIView):
     permission_classes = [IsAuthenticated, IsCandidate]
     serializer_class = CandidateAnswerBulkSerializer
 
-    def post(self, request, exam_id):
+    @database_sync_to_async
+    def _submit_answers(self, request, exam_id):
         """
         Validates and saves a bulk submission of answers for an exam.
 
@@ -106,3 +108,6 @@ class SubmitAnswersView(APIView):
             {"message": "Answers submitted successfully!"},
             status=status.HTTP_201_CREATED,
         )
+
+    async def post(self, request, exam_id):
+        return await self._submit_answers(request, exam_id)

@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
-
+from channels.db import database_sync_to_async
 
 from ..models import FeatureFlag, LeaderboardSnapshot, Staff
 from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff, IsVerifiedStaff
@@ -47,6 +47,9 @@ class PublishLeaderboardView(APIView):
         )
 
 
+from channels.db import database_sync_to_async
+
+
 class LoadLeaderboardView(APIView):
     """
     Returns the most recently published leaderboard snapshot.
@@ -54,7 +57,11 @@ class LoadLeaderboardView(APIView):
 
     permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
 
-    def get(self, request):
+    @database_sync_to_async
+    def _get_snapshot(self):
+        return LeaderboardSnapshot.objects.order_by("-created_at").first()
+
+    async def get(self, request):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
         if hasattr(request.user, "candidate_profile"):
             if not request.user.candidate_profile.is_verified:
@@ -75,7 +82,9 @@ class LoadLeaderboardView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        leaderboard_visible = FeatureFlag.get_bool("leaderboard_visible", default=False)
+        leaderboard_visible = await database_sync_to_async(FeatureFlag.get_bool)(
+            "leaderboard_visible", default=False
+        )
         logger.info(f"Leaderboard visibility is set to {leaderboard_visible}")
         if not leaderboard_visible:
             logger.warning(
@@ -86,7 +95,7 @@ class LoadLeaderboardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        snapshot = LeaderboardSnapshot.objects.order_by("-created_at").first()
+        snapshot = await self._get_snapshot()
 
         if not snapshot:
             logger.warning("Leaderboard requested but not yet published.")

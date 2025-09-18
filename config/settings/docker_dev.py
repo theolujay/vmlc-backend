@@ -55,6 +55,13 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "anon": "10000/day",  # Unauthenticated
+    "user": "100000/day",  # Authenticated users
+    "login": "500/min",  # Login endpoint
+    "burst": "1000/min",  # For sensitive or POST-heavy endpoints
+    "sustained": "1000000/hour",  # For sustained traffic
+}
 
 SIMPLE_JWT.update(
     {
@@ -96,21 +103,22 @@ LOGO_URL = os.getenv("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
-CELERY_CACHE_BACKEND = "django-cache"
 
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER", "False").lower() == "true"
 CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode
 
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
+        "BACKEND": "django_async_redis.cache.RedisCache",
         "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1"),
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
                 "retry_on_timeout": True,
                 "health_check_interval": 30,
             },
+            "COMPRESSOR": "django_async_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_async_redis.serializers.json.JSONSerializer",
         },
         "KEY_PREFIX": "vmlc_dev",
         "TIMEOUT": 300,  # 5 minutes default timeout

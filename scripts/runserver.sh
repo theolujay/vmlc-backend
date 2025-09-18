@@ -1,8 +1,14 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-exec gunicorn config.wsgi:application \
---bind 0.0.0.0:8000 \
---workers 2 \
---timeout 30
+# Run gunicorn with uvicorn workers
+exec gunicorn config.asgi:application \
+    -k uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:8000 \
+    --workers 3 \
+    --threads 2 \
+    --log-level info \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output

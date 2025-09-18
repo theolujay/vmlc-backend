@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
+from channels.db import database_sync_to_async
 
 from ..models import User, UserVerification
 from ..permissions import HasStaffRole, IsObjectOwnerOrSuperAdminRole
@@ -35,13 +36,14 @@ class UserVerificationStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, user_id=None):
+    @database_sync_to_async
+    def _get_user_verification_status(self, user, user_id):
         logger.info(
-            f"UserVerificationStatusView: request from user {request.user.id} for user {user_id}"
+            f"UserVerificationStatusView: request from user {user.id} for user {user_id}"
         )
         # Determine target user
         if user_id is None:
-            target_user = request.user
+            target_user = user
         else:
             try:
                 target_user = User.objects.get(id=user_id)
@@ -49,13 +51,13 @@ class UserVerificationStatusView(APIView):
                 logger.error(f"User with id {user_id} not found.")
                 raise NotFound("User not found.")
             if (
-                request.user.id != target_user.id
+                user.id != target_user.id
                 and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
-                    request, self, target_user
+                    self.request, self, target_user
                 )
             ):
                 logger.warning(
-                    f"User {request.user.id} does not have permission to access user {user_id}'s verification status."
+                    f"User {user.id} does not have permission to access user {user_id}'s verification status."
                 )
                 raise PermissionDenied(
                     "You don't have permission to access this user's verification status."
@@ -119,6 +121,9 @@ class UserVerificationStatusView(APIView):
                 status=status.HTTP_200_OK,
             )
 
+    async def get(self, request, user_id=None):
+        return await self._get_user_verification_status(request.user, user_id)
+
 
 class UserVerificationUploadView(APIView):
     """
@@ -128,7 +133,8 @@ class UserVerificationUploadView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request):
+    @database_sync_to_async
+    def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
             user=request.user
@@ -190,7 +196,11 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request):
+    async def post(self, request):
+        return await self._upload_verification_documents(request)
+
+    @database_sync_to_async
+    def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
         logger.info(
             f"UserVerificationUploadView (patch): request from user {request.user.id}"
@@ -245,6 +255,11 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    async def patch(self, request):
+        return await self._update_verification_documents(request)
+
+
+import aioboto3
 
 class UserVerificationDocumentView(APIView):
     """
@@ -253,7 +268,8 @@ class UserVerificationDocumentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, file_type, user_id=None):
+    @database_sync_to_async
+    def _get_verification_document(self, request, file_type, user_id=None):
         logger.info(
             f"UserVerificationDocumentView: request from user {request.user.id} for file type {file_type} of user {user_id}"
         )
@@ -319,23 +335,30 @@ class UserVerificationDocumentView(APIView):
             )
             raise NotFound(f"No {file_type.replace('_', ' ')} uploaded.")
 
+        return file, storage_prefix, target_user
+
+    async def get(self, request, file_type, user_id=None):
+        file, storage_prefix, target_user = await self._get_verification_document(
+            request, file_type, user_id
+        )
+
         try:
-            s3_client = boto3.client("s3")
-            bucket_name = "vmlc-s3"
-            object_key = f"{storage_prefix}/{file.name}"
+            async with aioboto3.client("s3") as s3_client:
+                bucket_name = "vmlc-s3"
+                object_key = f"{storage_prefix}/{file.name}"
 
-            logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
+                logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
 
-            # Get the object from S3
-            s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+                # Get the object from S3
+                s3_response = await s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
-            # Get content type
-            content_type = s3_response.get("ContentType", "application/octet-stream")
+                # Get content type
+                content_type = s3_response.get("ContentType", "application/octet-stream")
 
-            # Stream the content
-            file_content = s3_response["Body"].read()
+                # Stream the content
+                file_content = await s3_response["Body"].read()
 
-            return HttpResponse(file_content, content_type=content_type)
+                return HttpResponse(file_content, content_type=content_type)
 
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
@@ -381,7 +404,8 @@ class UserVerificationActionView(APIView):
 
     permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
 
-    def post(self, request, user_id):
+    @database_sync_to_async
+    def _verification_action(self, request, user_id):
         logger.info(
             f"UserVerificationActionView: request from user {request.user.id} for user {user_id}"
         )
@@ -433,3 +457,6 @@ class UserVerificationActionView(APIView):
             f"UserVerificationActionView: validation failed: {serializer.errors}"
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    async def post(self, request, user_id):
+        return await self._verification_action(request, user_id)

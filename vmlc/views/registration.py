@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
+from channels.db import database_sync_to_async
 
 from ..models import FeatureFlag, Staff
 from ..permissions import HasStaffRole
@@ -89,7 +90,8 @@ class ToggleFeatureFlagView(APIView):
     ]
     feature_flag_key = None
 
-    def post(self, request, *args, **kwargs):
+    @database_sync_to_async
+    def _toggle_feature_flag(self, request, *args, **kwargs):
         logger.info(
             f"{self.__class__.__name__}: request from user {request.user.id} with data: {request.data}"
         )
@@ -142,6 +144,9 @@ class ToggleFeatureFlagView(APIView):
             {"message": message},
             status=status.HTTP_200_OK,
         )
+
+    async def post(self, request, *args, **kwargs):
+        return await self._toggle_feature_flag(request, *args, **kwargs)
 
 
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):

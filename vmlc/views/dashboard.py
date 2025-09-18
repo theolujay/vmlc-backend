@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
+from channels.db import database_sync_to_async
 
 from ..models import Staff, User
 from ..permissions import (
@@ -38,7 +38,7 @@ class CandidateDashboardView(APIView):
 
     permission_classes = [IsAuthenticated, IsCandidate]
 
-    def get(self, request):
+    async def get(self, request):
         """
         Returns candidate-specific dashboard stats and profile data.
         """
@@ -47,7 +47,7 @@ class CandidateDashboardView(APIView):
             f"CandidateDashboardView: request from user {request.user.id} (candidate_id: {candidate.pk})"
         )
         cache_key = f"candidate_dashboard_{candidate.pk}"
-        cached_data = cache.get(cache_key)
+        cached_data = await cache.get(cache_key)
 
         if cached_data:
             logger.info(f"Dashboard data for candidate {candidate.pk} found in cache.")
@@ -78,7 +78,7 @@ class StaffDashboardView(APIView):
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    def get(self, request):
+    async def get(self, request):
         """
         Returns staff-specific dashboard metrics and profile data from cache if available.
         """
@@ -86,7 +86,7 @@ class StaffDashboardView(APIView):
         logger.info(
             f"StaffDashboardView: request from user {request.user.id} (staff_id: {staff.pk})"
         )
-        cached_data = cache.get(f"staff_dashboard_data_{staff.pk}")
+        cached_data = await cache.get(f"staff_dashboard_data_{staff.pk}")
 
         if cached_data:
             logger.info(f"Dashboard data for staff {staff.pk} found in cache.")
@@ -120,6 +120,7 @@ class AccountManagementView(APIView):
     permission_classes = [IsAuthenticated]
     # parser_classes = [MultiPartParser, FormParser]
 
+    @database_sync_to_async
     def _get_target_user(self, request, user_id=None):
         """
         Determines the target user for the action and checks permissions.
@@ -138,6 +139,7 @@ class AccountManagementView(APIView):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
+    @database_sync_to_async
     def _get_profile_and_serializer(self, user):
         """
         Gets the user's profile (Candidate or Staff) and the appropriate serializer.
@@ -148,16 +150,16 @@ class AccountManagementView(APIView):
             return user.staff_profile, StaffDetailSerializer
         return None, None
 
-    def get(self, request, user_id=None):
+    async def get(self, request, user_id=None):
         """
         Retrieve the account and profile data of the target user.
         """
         logger.info(
             f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
         )
-        target_user = self._get_target_user(request, user_id)
+        target_user = await self._get_target_user(request, user_id)
         user_data = UserSerializer(target_user).data
-        profile, profile_serializer_class = self._get_profile_and_serializer(
+        profile, profile_serializer_class = await self._get_profile_and_serializer(
             target_user
         )
 
@@ -172,6 +174,7 @@ class AccountManagementView(APIView):
 
         return Response({"profile": profile_data})
 
+    @database_sync_to_async
     def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.
@@ -219,8 +222,8 @@ class AccountManagementView(APIView):
     #     """
     #     return self._update_account(request, partial=False, user_id=user_id)
 
-    def patch(self, request, user_id=None):
+    async def patch(self, request, user_id=None):
         """
         Partially update user and/or profile data.
         """
-        return self._update_account(request, partial=True, user_id=user_id)
+        return await self._update_account(request, partial=True, user_id=user_id)
