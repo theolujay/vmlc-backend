@@ -16,7 +16,7 @@ class MinimalStaffSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Staff
-        fields = ["user"]
+        fields = ["user", "occupation", "role"]
 
 
 class StaffListSerializer(serializers.ModelSerializer):

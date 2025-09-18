@@ -57,6 +57,8 @@ from .views import (
     UserVerificationListView,
     UserVerificationActionView,
     health_check,
+    CandidateMeView,
+    StaffMeView,
 )
 
 app_name = "vmlc"
@@ -122,6 +124,11 @@ urlpatterns = [
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================
+    path(
+        "candidates/me/",
+        CandidateMeView.as_view(),
+        name="candidate-me"
+    ),
     path("candidates/", CandidateListView.as_view(), name="candidate-list"),
     path(
         "candidates/<uuid:candidate_id>/",
@@ -146,6 +153,11 @@ urlpatterns = [
     # =============================================================================
     # STAFF MANAGEMENT
     # =============================================================================
+    path(
+        "staff/me/",
+        StaffMeView.as_view(),
+        name="staff-me"
+    ),
     path("staff/", StaffListView.as_view(), name="staff-list"),
     path(
         "staff/<uuid:staff_id>/",
@@ -287,14 +299,4 @@ urlpatterns = [
         UserVerificationActionView.as_view(),
         name="user-verification-action",
     ),
-    # path(
-    #     "candidates/me/",
-    #     CandidateMeView.as_view(),
-    #     name="candidate-me"
-    # ),
-    # path(
-    #     "staff/me/",
-    #     StaffMeView.as_view(),
-    #     name="staff-me"
-    # ),
 ]

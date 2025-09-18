@@ -4,6 +4,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
+    RetrieveAPIView,
 )
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -11,11 +12,12 @@ from rest_framework import status
 from rest_framework.settings import api_settings
 
 from ..models import Candidate, Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, IsCandidate
 from ..serializers import (
     CandidateDetailSerializer,
     CandidateListSerializer,
     CandidateRoleSerializer,
+    MinimalCandidateSerializer
 )
 from ..utils.dashboard_utils import get_candidate_dashboard_data
 from ..utils.query_filters import filter_candidates
@@ -23,20 +25,19 @@ from ..utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
-# class CandidateMeView(RetrieveAPIView):
-#     """
-#     Retrieve the authenticated candidate's own profile.
-#     """
-#     permission_classes = [IsAuthenticated, IsCandidate]
-#     serializer_class = CandidateDetailSerializer
+class CandidateMeView(RetrieveAPIView):
+    """
+    Retrieve the authenticated candidate's own profile.
+    """
+    permission_classes = [IsAuthenticated, IsCandidate]
+    serializer_class = MinimalCandidateSerializer
 
-#     def get(self, request, *args, **kwargs):
-#         """
-#         Returns a structured data payload for the authenticated candidate.
-#         """
-#         # The IsCandidate permission already ensures the profile exists.
-#         data = get_candidate_dashboard_data(request.user.candidate_profile)
-#         return Response(data)
+    def get(self, request, *args, **kwargs):
+        """
+        Returns a structured data payload for the authenticated candidate.
+        """
+        data = Candidate.objects.get(request.user)
+        return Response(data)
 
 
 class CandidateListView(ListAPIView):

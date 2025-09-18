@@ -4,37 +4,39 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
+    RetrieveAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
 
 
 from ..models import Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, IsStaff
 from ..serializers import (
     StaffDetailSerializer,
     StaffListSerializer,
     StaffRoleSerializer,
+    MinimalStaffSerializer,
 )
 from ..utils.query_filters import filter_staffs
 
 logger = logging.getLogger(__name__)
 
 
-# class StaffMeView(RetrieveAPIView):
-#     """
-#     Retrieve the authenticated staff member's own profile.
-#     """
+class StaffMeView(RetrieveAPIView):
+    """
+    Retrieve the authenticated staff member's own profile.
+    """
 
-#     permission_classes = [IsAuthenticated, IsStaff]
-#     serializer_class = StaffDetailSerializer
+    permission_classes = [IsAuthenticated, IsStaff]
+    serializer_class = MinimalStaffSerializer
 
-#     def get_object(self):
-#         """
-#         Return the staff profile for the currently authenticated user.
-#         """
-#         # The IsStaff permission already ensures the profile exists.
-#         return self.request.user.staff_profile
+    def get_object(self):
+        """
+        Return the staff profile for the currently authenticated user.
+        """
+        data = Staff.objects.get(self.request.user)
+        return data
 
 
 class StaffListView(ListAPIView):
