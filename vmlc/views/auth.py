@@ -16,6 +16,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from channels.db import database_sync_to_async
 
 from ..models import User
+from ..permissions import AsyncHasAPIKey
 from ..serializers import (
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
@@ -44,7 +45,7 @@ class VerifyEmailOTPView(APIView):
     Handles OTP verification for user registration.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _verify_email(self, data):
@@ -84,7 +85,7 @@ class ResendEmailOTPView(APIView):
     Resend OTP to user's email with rate limiting.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _resend_email_otp(self, data):
@@ -131,7 +132,7 @@ class RequestPasswordChangeView(APIView):
     Request OTP for password change.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _request_password_change(self, data):
@@ -188,7 +189,7 @@ class PasswordChangeOTPConfirmView(APIView):
     Confirm password change request with OTP.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _confirm_password_change_otp(self, data):
@@ -221,7 +222,7 @@ class PasswordChangeView(APIView):
     Change user password with OTP verification.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _change_password(self, data):
@@ -275,7 +276,7 @@ class ResendPasswordChangeOTPView(APIView):
     Resend OTP for password change with rate limiting.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _resend_password_change_otp(self, data):
@@ -392,7 +393,7 @@ class LogoutView(APIView):
     Uses AllowAny permission to handle expired access tokens.
     """
 
-    permission_classes = [HasAPIKey]
+    permission_classes = [AsyncHasAPIKey]
 
     @database_sync_to_async
     def _logout(self, refresh_token):
