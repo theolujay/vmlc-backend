@@ -190,37 +190,71 @@ CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
 CONTACT_URL = os.getenv("CONTACT_URL")
 LICENSE_URL = os.getenv("LICENSE_URL")
 LOGO_URL = os.getenv("LOGO_URL")
-# === REDIS AND CELERY CONFIGURATION ===
+# === REDIS CONFIGURATION ===
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
+# ============================================================================
+# CELERY CONFIGURATION - Staging Environment
+# ============================================================================
 
-# Celery Configuration
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
+# External Redis service (could be AWS ElastiCache, etc.)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://staging-redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://staging-redis:6379/0")
 
-# Production-specific Celery settings
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-CELERY_TASK_ACKS_LATE = True
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_BROKER_CONNECTION_RETRY = True
+# Staging-specific overrides
+CELERY_WORKER_LOG_COLOR = False  # No colors in staging logs
+CELERY_TASK_ALWAYS_EAGER = False  # Always use real async processing
+CELERY_TASK_EAGER_PROPAGATES = False  # Don't propagate in staging
 
-# Redis Cache Configuration
+# Performance settings for staging (moderate load)
+CELERY_WORKER_CONCURRENCY = 4
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Restart workers periodically
+
+# Enhanced monitoring for staging
+CELERY_TASK_TRACK_STARTED = True
+CELERY_SEND_TASK_EVENTS = True
+CELERY_WORKER_SEND_TASK_EVENTS = True
+
+# More conservative time limits
+CELERY_TASK_SOFT_TIME_LIMIT = 180  # 3 minutes
+CELERY_TASK_TIME_LIMIT = 300       # 5 minutes
+
+# ============================================================================
+# CACHE CONFIGURATION - Staging Environment
+# ============================================================================
+
 CACHES = {
     "default": {
-        "BACKEND": "django_async_redis.cache.RedisCache",
-        "LOCATION": CACHE_REDIS_URL,
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://staging-redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "retry_on_timeout": True,
+                "health_check_interval": 30,
+                "socket_connect_timeout": 10,
+                "socket_timeout": 10,
+                "max_connections": 20,
+            },
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "vmlc_staging_sync",
+        "TIMEOUT": 600,  # Longer timeout for staging
+    },
+    "async": {
+        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://staging-redis:6379/2"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
-                "max_connections": 20,
-                "retry_on_timeout": True,
+                "max_connections": 10,
+                "socket_connect_timeout": 10,
+                "socket_timeout": 10,
             },
-            "COMPRESSOR": "django_async_redis.compressors.zlib.ZlibCompressor",
-            "SERIALIZER": "django_async_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc",
-        "TIMEOUT": 300,  # 5 minutes default timeout
+        "KEY_PREFIX": "vmlc_staging_async",
+        "TIMEOUT": 600,
     }
 }
 
@@ -250,6 +284,6 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 # HSTS - Make browsers stick to HTTPS
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_SECONDS = 3600 # 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

@@ -84,17 +84,27 @@ CONTACT_URL = os.getenv("CONTACT_URL", f"{BASE_URL}/contact/")
 LICENSE_URL = os.getenv("LICENSE_URL", f"{BASE_URL}/license/")
 LOGO_URL = os.getenv("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-CELERY_CACHE_BACKEND = "django-cache"
 
-CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER", "False").lower() == "true"
-CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode
+# Local Redis for development
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+
+# Development-specific overrides
+CELERY_WORKER_LOG_COLOR = True  # Enable colored logs in dev
+CELERY_TASK_ALWAYS_EAGER = False  # Use real async processing
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Lower concurrency for development
+CELERY_WORKER_CONCURRENCY = 2
+
+# ============================================================================
+# CACHE CONFIGURATION - Development Environment  
+# ============================================================================
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://localhost:6379/1"),
+        "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
@@ -102,8 +112,17 @@ CACHES = {
                 "health_check_interval": 30,
             },
         },
-        "KEY_PREFIX": "vmlc_dev",
-        "TIMEOUT": 300,  # 5 minutes default timeout
+        "KEY_PREFIX": "vmlc_dev_sync",
+        "TIMEOUT": 300,
+    },
+    "async": {
+        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "LOCATION": "redis://localhost:6379/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "vmlc_dev_async",
+        "TIMEOUT": 300,
     }
 }  # remember to run `sudo systemctl start redis-server` or use  bash alias="pyma runserver w-redis"
 

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 import warnings
 
-warnings.filterwarnings('ignore', category=RuntimeWarning, module='pycparser')
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="pycparser")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "prod.env")
 
@@ -101,10 +101,10 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
+        # "verbose": {
+        #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+        #     "style": "{",
+        # },
         "json": {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
@@ -114,7 +114,7 @@ LOGGING = {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
         },
     },
     "root": {
@@ -122,16 +122,6 @@ LOGGING = {
         "handlers": ["console"],
     },
     "loggers": {
-        "django": {
-            "level": "INFO",
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "django.request": {
-            "level": "ERROR",
-            "handlers": ["console"],
-            "propagate": False,
-        },
         "vmlc": {
             "level": "INFO",
             "handlers": ["console"],
@@ -142,19 +132,13 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "boto3": {
-            "level": "WARNING",
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "botocore": {
+        "django": {
             "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
     },
 }
-
 
 # === CORS CONFIGURATION ===
 cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
@@ -194,36 +178,94 @@ CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
 CONTACT_URL = os.getenv("CONTACT_URL")
 LICENSE_URL = os.getenv("LICENSE_URL")
 LOGO_URL = os.getenv("LOGO_URL")
-# === REDIS AND CELERY CONFIGURATION ===
+# === REDIS CONFIGURATION ===
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
+# ============================================================================
+# CELERY CONFIGURATION - Production Environment
+# ============================================================================
 
-# Celery Configuration
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
+# Production Redis (AWS ElastiCache, etc.)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://prod-redis-cluster:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://prod-redis-cluster:6379/0")
 
-# Production-specific Celery settings
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-CELERY_TASK_ACKS_LATE = True
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-CELERY_BROKER_CONNECTION_RETRY = True
+# Production-specific overrides
+CELERY_WORKER_LOG_COLOR = False  # No colors in production logs
+CELERY_TASK_ALWAYS_EAGER = False  # Never use eager mode in production
+CELERY_TASK_EAGER_PROPAGATES = False
 
-# Redis Cache Configuration
+# Production performance settings
+CELERY_WORKER_CONCURRENCY = 8  # Higher concurrency for production
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Restart workers to prevent memory leaks
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000  # ~200MB memory limit per worker
+
+# Production monitoring and reliability
+CELERY_TASK_TRACK_STARTED = True
+CELERY_SEND_TASK_EVENTS = True
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Stricter time limits for production
+CELERY_TASK_SOFT_TIME_LIMIT = 120  # 2 minutes
+CELERY_TASK_TIME_LIMIT = 180       # 3 minutes
+
+# Production-specific broker settings
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 3600,  # 1 hour
+    "fanout_prefix": True,
+    "fanout_patterns": True,
+}
+
+# Result backend settings for production
+CELERY_RESULT_EXPIRES = 1800  # 30 minutes (shorter than base)
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
+    "master_name": "mymaster",  # For Redis Sentinel
+}
+
+# ============================================================================
+# CACHE CONFIGURATION - Production Environment
+# ============================================================================
+
 CACHES = {
     "default": {
-        "BACKEND": "django_async_redis.cache.RedisCache",
-        "LOCATION": CACHE_REDIS_URL,
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": [
+            # Multiple Redis nodes for high availability
+            os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/1"),
+            os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/1"),
+        ],
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "retry_on_timeout": True,
+                "health_check_interval": 30,
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
+                "max_connections": 50,  # Higher connection pool
+            },
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "vmlc_prod_sync",
+        "TIMEOUT": 900,  # 15 minutes default timeout
+    },
+    "async": {
+        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "LOCATION": [
+            os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/2"),
+            os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/2"),
+        ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
-                "max_connections": 20,
+                "max_connections": 25,
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
                 "retry_on_timeout": True,
             },
-            "COMPRESSOR": "django_async_redis.compressors.zlib.ZlibCompressor",
-            "SERIALIZER": "django_async_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc",
-        "TIMEOUT": 300,  # 5 minutes default timeout
+        "KEY_PREFIX": "vmlc_prod_async",
+        "TIMEOUT": 900,
     }
 }
 
@@ -239,14 +281,15 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
 
 # HSTS - Make browsers stick to HTTPS
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-# Trust Fly.io's proxy headers for SSL
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
+# Trust Fly.io"s proxy headers for SSL
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SAMESITE = "Lax"
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
