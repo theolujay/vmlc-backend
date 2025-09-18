@@ -37,7 +37,7 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=[permissions.AllowAny],
     authentication_classes=[],
-    url=settings.BASE_URL if not settings.DEBUG else "http:localhost:8000",
+    url=settings.BASE_URL if not settings.DEBUG else None,
 )
 
 api_urlpatterns = [
@@ -45,10 +45,15 @@ api_urlpatterns = [
 ]
 
 docs_urlpatterns = [
-    re_path(
-        r"^schema(?P<format>\.json|\.yaml)$",
+    path(
+        "schema.json",
         schema_view.without_ui(cache_timeout=0),
-        name="schema",
+        name="schema-json",
+    ),
+    path(
+        "schema.yaml",
+        schema_view.without_ui(cache_timeout=0),
+        name="schema-yaml",
     ),
     path(
         "swagger/",

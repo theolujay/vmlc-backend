@@ -233,7 +233,6 @@ class Staff(models.Model):
     """
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
-
     class Roles(models.TextChoices):
         """Roles for staff members."""
 
@@ -243,6 +242,9 @@ class Staff(models.Model):
         SPONSOR = "sponsor", "Sponsor"
         VOLUNTEER = "volunteer", "Volunteer"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._verification_override = None
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
@@ -296,8 +298,18 @@ class Staff(models.Model):
     @property
     def is_verified(self):
         """Check if user has verification and is verified"""
+        if self._verification_override is not None:
+            return self._verification_override
         return hasattr(self.user, "verification") and self.user.verification.is_verified
 
+    def set_verification_override(self, value):
+        """Manually override verification status"""
+        self._verification_override = value
+        
+    def clear_verification_override(self):
+        """Remove override, return to normal verification checking"""
+        self._verification_override = None
+    
     def __str__(self):
         """Return a string representation of the staff member."""
         return f"{self.user.get_full_name()} ({self.role})"
@@ -486,7 +498,6 @@ class Candidate(models.Model):
     Represents a student or participant in the exam system.
     Linked to a User, assigned a role, and tracks their profile and score history.
     """
-
     class Roles(models.TextChoices):
         """
         Roles for a candidate."""
@@ -496,6 +507,10 @@ class Candidate(models.Model):
         FINAL = "final", "Final"
         WINNER = "winner", "Winner"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._verification_override = None
+        
     user = models.OneToOneField(
         User,
         primary_key=True,
@@ -556,8 +571,18 @@ class Candidate(models.Model):
     @property
     def is_verified(self):
         """Check if user has verification and is verified"""
+        if self._verification_override is not None:
+            return self._verification_override
         return hasattr(self.user, "verification") and self.user.verification.is_verified
 
+    def set_verification_override(self, value):
+        """Manually override verification status"""
+        self._verification_override = value
+        
+    def clear_verification_override(self):
+        """Remove override, return to normal verification checking"""
+        self._verification_override = None
+        
     @property
     def score_data(self):
         """

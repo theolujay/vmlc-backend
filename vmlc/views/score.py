@@ -7,7 +7,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
+# from channels.db import database_sync_to_async
 
 from ..models import (
     Candidate,
@@ -15,7 +15,7 @@ from ..models import (
     Exam,
     Staff,
 )
-from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, HasXAPIKey
 from ..serializers import (
     CandidateScoreSerializer,
     SubmitScoreSerializer,
@@ -32,6 +32,7 @@ class CandidateScoreListView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -62,20 +63,22 @@ class SubmitScoreView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = SubmitScoreSerializer
 
-    def put(self, request, exam_id):
+    # @database_sync_to_async
+    def _submit_score(self, request, exam_id):
         """
         Handles the submission of a score for a candidate in a given exam.
 
         Expects `candidate_id` and `score` in the request body.
         """
         logger.info(
-            f"SubmitScoreView: request from user {self.request.user.id} for exam {exam_id} with data: {request.data}"
+            f"SubmitScoreView: request from user {request.user.id} for exam {exam_id} with data: {request.data}"
         )
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -123,6 +126,9 @@ class SubmitScoreView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    def put(self, request, exam_id):
+        return self._submit_score(request, exam_id)
+
 
 class PublishScoresView(APIView):
     """
@@ -131,6 +137,7 @@ class PublishScoresView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),

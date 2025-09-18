@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
+# from channels.db import database_sync_to_async
 
 from ..models import Staff, User
 from ..permissions import (
@@ -17,6 +17,7 @@ from ..permissions import (
     IsCandidate,
     IsObjectOwnerOrSuperAdminRole,
     IsVerifiedStaff,
+    HasXAPIKey,
 )
 from ..serializers import (
     CandidateDetailSerializer,
@@ -36,7 +37,7 @@ class CandidateDashboardView(APIView):
     Retrieve dashboard data for the currently authenticated candidate.
     """
 
-    permission_classes = [IsAuthenticated, IsCandidate]
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
 
     def get(self, request):
         """
@@ -73,6 +74,7 @@ class StaffDashboardView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -117,9 +119,10 @@ class AccountManagementView(APIView):
     Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasXAPIKey, IsAuthenticated]
     # parser_classes = [MultiPartParser, FormParser]
 
+    # @database_sync_to_async
     def _get_target_user(self, request, user_id=None):
         """
         Determines the target user for the action and checks permissions.
@@ -138,6 +141,7 @@ class AccountManagementView(APIView):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
+    # @database_sync_to_async
     def _get_profile_and_serializer(self, user):
         """
         Gets the user's profile (Candidate or Staff) and the appropriate serializer.
@@ -172,6 +176,7 @@ class AccountManagementView(APIView):
 
         return Response({"profile": profile_data})
 
+    # @database_sync_to_async
     def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.

@@ -3,7 +3,7 @@ import logging
 from django.urls.exceptions import NoReverseMatch
 from django.views.decorators.cache import cache_page
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from ..permissions import HasXAPIKey
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @cache_page(60 * 15)
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([HasXAPIKey])
 def root(request, format=None):
     """API entry point with discoverable endpoints"""
     logger.info(

@@ -17,7 +17,7 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Candidate
-        fields = ["user", "school"]
+        fields = ["user", "school", "role"]
 
 
 class CandidateListSerializer(serializers.ModelSerializer):

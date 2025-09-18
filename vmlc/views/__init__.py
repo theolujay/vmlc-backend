@@ -18,6 +18,7 @@ from .candidate import (
     CandidateListView,
     CandidateDetailView,
     AssignCandidateRoleView,
+    CandidateMeView,
 )
 from .dashboard import (
     CandidateDashboardView,
@@ -57,6 +58,7 @@ from .staff import (
     StaffListView,
     StaffDetailView,
     AssignStaffRoleView,
+    StaffMeView,
 )
 from .user import (
     UserVerificationStatusView,
@@ -81,6 +83,7 @@ __all__ = [
     "LoginView",
     "LogoutView",
     # candidate
+    "CandidateMeView",
     "CandidateListView",
     "CandidateDetailView",
     "AssignCandidateRoleView",
@@ -116,6 +119,7 @@ __all__ = [
     "SubmitScoreView",
     "PublishScoresView",
     # staff
+    "StaffMeView",
     "StaffListView",
     "StaffDetailView",
     "AssignStaffRoleView",

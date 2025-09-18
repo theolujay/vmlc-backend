@@ -78,6 +78,8 @@ ipython_config.py
 vmlc/tests/
 models_erd.*
 dev_data/
+fly.toml
+credentials.txt
 # Node
 node_modules/
 

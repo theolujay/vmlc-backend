@@ -1,5 +1,23 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import Candidate, Staff
+from rest_framework_api_key.permissions import HasAPIKey
+from channels.db import database_sync_to_async
+
+
+# @database_sync_to_async
+def _is_api_key_valid(key):
+    from rest_framework_api_key.models import APIKey
+    return APIKey.objects.is_valid(key)
+
+class HasXAPIKey(HasAPIKey):
+    def _get_key(self, request):
+        return request.headers.get("X-Api-Key")
+
+    def has_permission(self, request, view):
+        key = self._get_key(request)
+        if not key:
+            return False
+        return _is_api_key_valid(key)
 
 
 def _get_candidate_profile(request):

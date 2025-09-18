@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "storages",
     "django_celery_results",
     "django_celery_beat",
+    "channels",
     "vmlc",
 ]
 
@@ -70,11 +71,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Use dj-database-url to parse the DATABASE_URL environment variable.
-# Falls back to SQLite for local development if DATABASE_URL is not set.
+ASGI_APPLICATION = "config.asgi.application"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -152,21 +149,62 @@ SIMPLE_JWT = {
 
 SWAGGER_USE_COMPAT_RENDERERS = False
 
+# config/settings/base.py
+
+# ============================================================================
+# CELERY CONFIGURATION - Common settings for all environments
+# ============================================================================
+
+# Celery Core Settings
 CELERY_TIMEZONE = "Europe/London"
-# CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-# CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Task Events & Monitoring
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_SEND_SENT_EVENT = True
-CELERY_WORKER_HIJACK_ROOT_LOGGER = False
-CELERY_WORKER_LOG_COLOR = False
-# CELERY_TASK_ROUTES = {
-#     'vmlc.tasks.send_email': {'queue': 'emails'},
-#     'vmlc.tasks.process_payment': {'queue': 'payments'},
-#     'vmlc.tasks.generate_report': {'queue': 'reports'},
-# }
 
-# API Documentation settings
+# Logging Configuration
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_WORKER_LOG_COLOR = False  # Can be overridden in dev
+
+# Cache Integration
+CELERY_CACHE_BACKEND = "django-cache"
+
+# Queue & Routing Configuration
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_QUEUE_MAX_PRIORITY = 10
+CELERY_TASK_DEFAULT_PRIORITY = 5
+
+# Task routing - same for all environments
+CELERY_TASK_ROUTES = {
+    # HIGH PRIORITY - User-facing tasks
+    'send_mail_task': {'queue': 'emails', 'priority': 9},
+    'send_otp_on_registration_task': {'queue': 'emails', 'priority': 9},
+    
+    # MEDIUM PRIORITY - Background processing
+    'calculate_and_save_auto_score_task': {'queue': 'scoring', 'priority': 6},
+    'validate_user_verification_files_task': {'queue': 'files', 'priority': 5},
+    
+    # LOW PRIORITY - Administrative tasks
+    'generate_leaderboard_snapshot_task': {'queue': 'reports', 'priority': 3},
+    'generate_scores_snapshot_task': {'queue': 'reports', 'priority': 3},
+    'update_staff_dashboard_cache_task': {'queue': 'cache', 'priority': 2},
+    'update_candidate_dashboard_cache_task': {'queue': 'cache', 'priority': 2},
+    'update_candidate_ranking_cache_task': {'queue': 'cache', 'priority': 2},
+}
+
+# Worker Performance Settings
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Good for long-running tasks
+CELERY_TASK_ACKS_LATE = True  # Don't acknowledge until completion
+CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Retry if worker crashes
+
+# Task Time Limits (prevent runaway tasks)
+CELERY_TASK_SOFT_TIME_LIMIT = 300  # 5 minutes soft limit
+CELERY_TASK_TIME_LIMIT = 600  # 10 minutes hard limit
+
+# Result Settings
+CELERY_RESULT_EXPIRES = 3600  # Results expire after 1 hour
+CELERY_TASK_IGNORE_RESULT = False  # Keep results for debugging

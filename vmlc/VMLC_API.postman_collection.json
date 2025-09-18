@@ -77,8 +77,8 @@
  						"method": "POST",
  						"header": [
  							{
-								"key": "Authorization",
-								"value": "Api-key {{apiKey}}",
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
  								"type": "text"
  							}
  						],
@@ -339,8 +339,8 @@
  						"method": "POST",
  						"header": [
  							{
-								"key": "Authorization",
-								"value": "Api-key {{apiKey}}",
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
  								"type": "text"
  							}
  						],
@@ -374,8 +374,8 @@
  						"method": "POST",
  						"header": [
  							{
-								"key": "Authorization",
-								"value": "Api-key {{apiKey}}",
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
  								"type": "text"
  							}
  						],

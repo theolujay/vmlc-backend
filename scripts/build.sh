@@ -1,6 +1,21 @@
 #!/bin/bash
+#
+# Usage:
+#   ./script.sh [version] [cache_option] [push_option]
+#
+# Arguments:
+#   version        Optional. Image version tag. Defaults to 'latest' if omitted.
+#   cache_option   Optional. Use 'nc' to disable Docker build cache.
+#   push_option    Optional. Use 'p' to build multi-arch image and push to Docker Hub.
+#
+# Examples:
+#   ./script.sh                 # Build vmlc-backend:latest with cache
+#   ./script.sh 1.0             # Build vmlc-backend:1.0 with cache
+#   ./script.sh 1.0 nc          # Build vmlc-backend:1.0 with --no-cache
+#   ./script.sh "" "" p         # Build & push vmlc-backend:latest (multi-arch)
+#   ./script.sh 1.0 "" p        # Build & push vmlc-backend:1.0 (multi-arch)
+#   ./script.sh 1.0 nc p        # Build & push vmlc-backend:1.0 (multi-arch, no cache)
 
-# Exit immediately if a command exits with a non-zero status.
 set -e
 
 # Configuration
@@ -37,53 +52,57 @@ run_with_clean_logging() {
 echo "===== Docker Build Session Started at $(date) =====" > "$LOG_FILE"
 
 # Main build logic using case statements
-case "${version:-}" in
+case "${push:-}" in
     "")
-        echo "No version provided - building vmlc-backend with 'latest'..."
-        if ! run_with_clean_logging "docker build -t vmlc-backend:latest ."; then
-            echo "Build failed!"
-            echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
-            exit 1
-        fi
-        echo "Built as 'vmlc-backend:latest'"
+        case "${version:-}" in
+            "")
+                echo "No version provided - building vmlc-backend with 'latest'..."
+                if ! run_with_clean_logging "docker buildx build -t vmlc-backend:latest ."; then
+                    echo "Build failed!"
+                    echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
+                    exit 1
+                fi
+                echo "Built as 'vmlc-backend:latest'"
+                ;;
+            *)
+                # Version provided - check cache option
+                if [[ "$no_cache" == "nc" ]]; then
+                    echo "Building vmlc-backend v$version with no cache"
+                    if ! run_with_clean_logging "docker buildx build -t vmlc-backend:$version . --no-cache"; then
+                        echo "Build failed!"
+                        echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
+                        exit 1
+                    fi
+                else
+                    echo "Building v$version with cache"
+                    if ! run_with_clean_logging "docker buildx build -t vmlc-backend:$version ."; then
+                        echo "Build failed!"
+                        echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
+                        exit 1
+                    fi
+                fi
+                ;;
+        esac
         ;;
-    *)
-        # Version provided - check cache option
-        if [[ "$no_cache" == "nc" ]]; then
-            echo "Building vmlc-backend v$version with no cache"
-            if ! run_with_clean_logging "docker build -t vmlc-backend:$version . --no-cache"; then
-                echo "Build failed!"
-                echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
-                exit 1
-            fi
-        else
-            echo "Building v$version with cache"
-            if ! run_with_clean_logging "docker build -t vmlc-backend:$version ."; then
-                echo "Build failed!"
-                echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
-                exit 1
-            fi
-        fi
-        
-        echo "Built successfully. Now tagging for repo..."
-        if ! run_with_clean_logging "docker tag vmlc-backend:$version theolujay/vmlc-backend:$version"; then
-            echo "Tagging failed!"
-            echo "===== Tagging Failed at $(date) =====" >> "$LOG_FILE"
-            exit 1
-        fi
-        
-        # Check push option
-        if [[ "$push" == "p" ]]; then
-            echo "Pushing v$version to repo: theolujay/vmlc-backend"
-            if ! run_with_clean_logging "docker push theolujay/vmlc-backend:$version"; then
-                echo "Push failed!"
-                echo "===== Push Failed at $(date) =====" >> "$LOG_FILE"
-                exit 1
-            fi
-            echo "Pushed to repo!"
-        else
-            echo "Not pushing to repo."
-        fi
+    "p")
+        case "${version:-}" in
+            "")
+                echo "Building then pushing vlatest to repo: theolujay/vmlc-backend"
+                if ! run_with_clean_logging "docker buildx build -t theolujay/vmlc-backend:latest --push ."; then
+                    echo "Build then push failed!"
+                    echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Building then pushing v$version to repo: theolujay/vmlc-backend"
+                if ! run_with_clean_logging "docker buildx build -t theolujay/vmlc-backend:$version --push ."; then
+                    echo "Build then push failed!"
+                    echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
+                    exit 1
+                fi
+                ;;
+        esac
         ;;
 esac
 

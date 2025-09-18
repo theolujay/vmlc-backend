@@ -133,5 +133,6 @@ dev_data/
 *.png# Secrets and environment files
 secrets/
 data/
+credentials.txt
 # Docker volumes
 docker-compose.override.local.yml

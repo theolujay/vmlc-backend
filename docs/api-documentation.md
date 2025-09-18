@@ -2,117 +2,65 @@
 
 ## Table of Contents
 - [Overview](#overview)
-- [Base URL](#base-url)
-- [Authentication](#authentication)
-- [User Roles & Permissions](#user-roles--permissions)
+- [Getting Started](#getting-started)
+  - [Base URL](#base-url)
+  - [Authentication](#authentication)
+  - [User Roles & Permissions](#user-roles--permissions)
 - [API Endpoints](#api-endpoints)
+  - [Health & Root](#health--root)
+  - [Authentication](#authentication-endpoints)
   - [Registration](#registration)
-  - [Email Verification](#email-verification)
+  - [Email & Password](#email--password)
+  - [User Profiles ("Me" Endpoints)](#user-profiles-me-endpoints)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
-  - [Exam Management](#exam-management)
-  - [Question Management](#question-management)
-  - [Dashboard](#dashboard)
-  - [Leaderboard](#leaderboard)
   - [User Verification](#user-verification)
   - [Account Management](#account-management)
-- [Query Parameters](#query-parameters)
-- [Error Handling](#error-handling)
-- [Rate Limiting](#rate-limiting)
-- [Versioning](#versioning)
-- [Interactive Documentation](#interactive-documentation)
-- [Support](#support)
-- [Changelog](#changelog)
+  - [Exam Management](#exam-management)
+  - [Question Management](#question-management)
+  - [Scoring & Submissions](#scoring--submissions)
+  - [Dashboard](#dashboard)
+  - [Leaderboard](#leaderboard)
+- [Advanced Topics](#advanced-topics)
+  - [Query Parameters](#query-parameters)
+  - [Error Handling](#error-handling)
+  - [Rate Limiting](#rate-limiting)
+  - [Versioning](#versioning)
+- [Support & More](#support--more)
+  - [Interactive Documentation](#interactive-documentation)
+  - [Support](#support)
+  - [Changelog](#changelog)
 
 ---
 
 ## Overview
-The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with role-based access control.
-
-### Key Features
-- **User Management**: Candidate and staff registration with role-based access control
-- **Exam System**: Create, manage, and administer timed exams with automatic scoring
-- **Leaderboards**: Real-time ranking system based on candidate performance
-- **Dashboard**: Personalized views for candidates and staff members
-- **Security**: JWT-based authentication with API key protection
-
-### API Characteristics
-- **Format**: JSON-only API
-- **Authentication**: JWT Bearer tokens for most endpoints and API key for specific endpoints
-- **Pagination**: Page-based pagination
-- **Rate Limiting**: 1000 requests per day for authenticated users, 60 per day for anonymous users
-- **CORS**: Enabled for web applications
+The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with robust user management and role-based access control.
 
 ---
 
-## Base URL
+## Getting Started
+
+### Base URL
 ```
 https://vmlc-api.onrender.com/v1/
 ```
-All endpoints are relative to this base URL. List of endpoints available at `root/` endpoint.
+All endpoints are relative to this base URL. A discoverable list of endpoints is available at the `root/` endpoint.
 
 ---
 
-## Authentication
-The API uses JWT (JSON Web Tokens) for authentication with two-tier security:
-
-### API Key Authentication (Public Endpoints)
-Required for registration and login endpoints:
+### Authentication
+The API uses `X-Api-Key` for authentication. The API key should be provided in the `X-Api-Key` header:
 ```text
-Authorization: Api-Key <your_api_key>
+X-Api-Key: <your_api_key>
 ```
 
-### Bearer Token Authentication (Protected Endpoints)
-Required for other authenticated endpoints:
-```text
-Authorization: Bearer <access_token>
-```
-
-### Login Flow
+#### Login Flow
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
 ```text
-Authorization: Api-Key <your_api_key>
+X-Api-Key: <your_api_key>
 Content-Type: application/json
-```
-
----
-
-## Health Check
-The health check endpoint provides a simple way to verify the API's operational status.
-
-**Endpoint:** `GET /health/`
-**Required Role:** None (Public)
-
-**Response:** `200 OK`
-```json
-{
-  "status": "ok",
-  "message": "API is healthy and operational"
-}
-```
-
----
-
-## API Endpoints
-### Root Endpoint
-The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
-
-**Endpoint:** `GET /root/`
-**Required Role:** None (Public)
-
-**Response:** `200 OK`
-```json
-{
-  "root": "https://vmlc-api.onrender.com/v1/root/",
-  "authentication": {
-    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
-    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
-    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
-  },
-  // ... other endpoints ...
-}
 ```
 
 **Request Body:**
@@ -128,19 +76,24 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 {    
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
   "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "user": {
-    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-    "email": "john@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone": "+23490xxxxxxxx",
-    "date_joined": "2024-01-15T10:30:00Z"
+  "profile": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "john@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-15T10:30:00Z"
+    },
+    "school": "Mathematics High School",
+    "role": "screening"
   }
 }
 ```
+*Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
 
-### Token Management
-#### Refresh Token
+#### Token Management
+##### Refresh Token
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
@@ -158,7 +111,7 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 }
 ```
 
-#### Logout
+##### Logout
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
@@ -167,112 +120,87 @@ The root endpoint provides a discoverable list of all available API endpoints, c
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
+**Response:** `204 No Content`
 
-#### Password Change
-**Request Password Change OTP**
-**Endpoint:** `POST /auth/password-change/request/`
+---
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com"
-}
-```
+## Health & Root
 
-**Response:** `200 OK`
-```json
-{
-  "message": "Password change verification code sent to your email",
-  "email": "use***@example.com",
-  "expires_in_minutes": 10
-}
-```
+### Health Check
+The health check endpoint provides a simple way to verify the API's operational status.
 
-**Confirm User for Password Change with OTP**
-**Endpoint:** `POST /auth/password-change/confirm-otp/`
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "otp": "123456"
-}**Response:** `200 OK`
-```json
-{
-  "message": "OTP verified. User confirmed for password change. Proceed to change password."
-}
-```
-
-**Change Password with OTP**
-**Endpoint:** `POST /auth/password-change/`
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "otp": "123456",
-  "new_password": "your_new_secure_password",
-  "confirm_password": "your_new_secure_password"
-}
-```
+**Endpoint:** `GET /health/`
+**Required Role:** None (Public)
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "Password changed successfully. Please log in with your new password."
+  "status": "healthy",
+  "timestamp": "2025-09-18T10:00:00.000000Z"
 }
 ```
 
-**Resend Password Change OTP**
-**Endpoint:** `POST /auth/password-change/resend-otp/`
+### Root Endpoint
+The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com"
-}
+**Endpoint:** `GET /root/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
 ```
+**Required Role:** None (Public, but requires API Key)
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "Password change verification code has been resent",
-  "email": "use***@example.com",
-  "expires_in_minutes": 10
+  "root": "https://vmlc-api.onrender.com/v1/root/",
+  "authentication": {
+    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
+    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
+    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
+  },
+  // ... other endpoints ...
 }
 ```
 
 ---
 
 ## User Roles & Permissions
+The VMLC API implements a robust Role-Based Access Control (RBAC) system, ensuring that users can only access resources and perform actions relevant to their assigned roles.
+
 ### Candidate Roles
 | Role | Description | Permissions |
 |------|-------------|-------------|
-| `screening` | Default role for new candidates | Dashboard access, screening exams, own profile |
-| `league` | Advanced candidates (staff-assigned) | League exams + leaderboards |
-| `final` | Top performers (staff-assigned) | All league permissions + final stage access |
-| `winner` | Competition winner (staff-assigned) | Ceremonial role with all permissions |
+| `screening` | Default role for new candidates. | Access to candidate dashboard, participate in screening exams, view own profile and verification status. |
+| `league` | Candidates who have progressed past the screening stage (staff-assigned). | All `screening` permissions, plus access to league exams and leaderboard. |
+| `final` | Top performers from the league stage (staff-assigned). | All `league` permissions, plus access to final stage exams. |
+| `winner` | The ultimate competition winner (staff-assigned). | Ceremonial role with all candidate permissions. |
 
 ### Staff Roles
 | Role | Description | Permissions |
 |------|-------------|-------------|
-| `volunteer` | Basic staff member | User verification |
-| `moderator` | Content moderator | View candidates/staff, manage questions |
-| `admin` | Operations administrator | Full management except staff roles |
-| `superadmin` | Platform administrator | All permissions including staff management |
+| `volunteer` | Basic staff member. | Can manage user verification requests (view, approve, reject). |
+| `moderator` | Responsible for content moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
+| `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing, visibility toggle). Cannot assign staff roles. |
+| `superadmin` | Platform administrator with full control. | All `admin` permissions, plus ability to manage staff (CRUD, role assignment), toggle registration feature flags, and access all user verification documents. |
 
 ### Role Progression
-- **Candidates**: `screening` → `league` → `final` → `winner`
-- **Staff**: `volunteer` → `moderator` → `admin` → `superadmin`
+- **Candidates**: `screening` → `league` → `final` → `winner` (progression is typically managed by staff)
+- **Staff**: `volunteer` → `moderator` → `admin` → `superadmin` (progression is managed by `superadmin`)
 
 ---
 
 ## API Endpoints
 ### Registration
+Registration endpoints allow new users to sign up as either candidates or staff members. Registration can be dynamically enabled or disabled via feature flags.
+
 #### Register New Users
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -291,13 +219,17 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 **Response:** `201 Created`
 ```json
 {
-  "message": "Registration successful"
+  "message": "Registration successful."
 }
 ```
+*Note: If candidate registration is closed, a `403 Forbidden` response will be returned.*
 
 **Staff Registration**  
 **Endpoint:** `POST /register/staff/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -312,11 +244,18 @@ The root endpoint provides a discoverable list of all available API endpoints, c
   "occupation": "Mathematics Teacher"
 }
 ```
+*Note: If staff registration is closed, a `403 Forbidden` response will be returned.*
 
-### Email Verification
+---
+
+### Email & Password
+
 #### Verify Email with OTP
 **Endpoint:** `POST /verify-email-otp/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -334,6 +273,10 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 
 #### Resend Email OTP
 **Endpoint:** `POST /resend-email-otp/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -350,9 +293,153 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 }
 ```
 
+#### Request Password Change OTP
+**Endpoint:** `POST /auth/password-change/request/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Password change verification code sent to your email",
+  "email": "use***@example.com",
+  "expires_in_minutes": 10
+}
+```
+
+#### Confirm OTP for Password Change
+**Endpoint:** `POST /auth/password-change/confirm-otp/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456"
+}
+```
+**Response:** `200 OK`
+```json
+{
+  "message": "OTP verified. User confirmed for password change. Proceed to change password."
+}
+```
+
+#### Change Password
+**Endpoint:** `POST /auth/password-change/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456",
+  "new_password": "your_new_secure_password",
+  "confirm_password": "your_new_secure_password"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Password changed successfully. Please log in with your new password."
+}
+```
+
+#### Resend Password Change OTP
+**Endpoint:** `POST /auth/password-change/resend-otp/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Password change verification code has been resent",
+  "email": "use***@example.com",
+  "expires_in_minutes": 10
+}
+```
+
+---
+
+### User Profiles "Me" Endpoints
+
+#### Get Authenticated Candidate's Profile
+**Endpoint:** `GET /candidates/me/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Any authenticated `candidate`
+**Response:** `200 OK`
+```json
+{
+  "user": {
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+    "email": "john@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+23490xxxxxxxx",
+    "date_joined": "2024-01-15T10:30:00Z"
+  },
+  "school": "Mathematics High School",
+  "role": "screening"
+}
+```
+
+#### Get Authenticated Staff Member's Profile
+**Endpoint:** `GET /staff/me/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Any authenticated `staff`
+**Response:** `200 OK`
+```json
+{
+  "user": {
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+    "email": "jane@example.com",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "phone": "+23490xxxxxxxx",
+    "date_joined": "2024-01-01T08:00:00Z"
+  },
+  "occupation": "Mathematics Teacher",
+  "role": "moderator"
+}
+```
+
+---
+
 ### Candidate Management
+
 #### List Candidates
 **Endpoint:** `GET /candidates/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -386,26 +473,55 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 
 #### Get Candidate Details
 **Endpoint:** `GET /candidates/{candidate_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`
 
 **Response:** `200 OK`
 ```json
 {
   "user": {
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "john@example.com",
     "first_name": "John",
     "last_name": "Doe",
-    "phone": "+23490xxxxxxxx"
+    "phone": "+23490xxxxxxxx",
+    "date_joined": "2024-01-15T10:30:00Z"
   },
   "school": "Mathematics High School",
+  "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
   "role": "league",
-  "is_verified": true
+  "is_active": true,
+  "is_verified": true,
+  "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
+  "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
+  "date_created": "2024-01-15T10:30:00Z",
+  "date_updated": "2024-01-20T11:00:00Z",
+  "scores": {
+    "total_score": 380.0,
+    "average_score": 95.0,
+    "scores": [
+      {
+        "exam_id": 1,
+        "exam_title": "Algebra Screening",
+        "score": 88.0,
+        "date_recorded": "2024-01-20T15:30:00Z",
+        "submitted_by": "Admin User",
+        "auto_score": true
+      }
+    ]
+  }
 }
 ```
 
-#### Role Management
-**Assign Role**  
-**Endpoint:** `POST /candidates/{candidate_id}/roles/assign/`  
+#### Assign Candidate Role
+**Endpoint:** `PUT /candidates/{candidate_id}/roles/assign/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
@@ -413,54 +529,78 @@ The root endpoint provides a discoverable list of all available API endpoints, c
   "role": "league"
 }
 ```
+**Response:** `200 OK`
+```json
+{
+  "role": "league"
+}
+```
+*Note: A candidate must be verified before a role can be assigned.*
 
-#### Scores
-**Get Candidate Scores**  
+#### Get Candidate Scores
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
 **Required Role:** `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
-{
-  "user": {
-    "id": 123,
-    "username": "john_doe",
-    "first_name": "John",
-    "last_name": "Doe"
-  },
-  "school": "Mathematics High School",
-  "role": "league",
-  "latest_score": 95.5,
-  "total_score": 380.0,
-  "average_score": 95.0,
-  "scores": [
-    {
-      "exam_id": 1,
-      "exam_title": "Algebra Screening",
-      "score": 88.0,
-      "date_recorded": "2024-01-20T15:30:00Z",
-      "submitted_by": {
-        "id": 10,
-        "name": "Admin User"
-      }
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "candidate": {
+      "user": {
+        "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+        "email": "john@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "phone": "+23490xxxxxxxx",
+        "date_joined": "2024-01-15T10:30:00Z"
+      },
+      "school": "Mathematics High School",
+      "role": "league",
+      "is_verified": true
+    },
+    "exam": {
+      "id": 1,
+      "title": "Algebra Screening Exam",
+      "stage": "screening",
+      "question_count": 20,
+      "date_created": "2024-01-10T09:00:00Z"
+    },
+    "score": 88.0,
+    "date_recorded": "2024-01-20T15:30:00Z"
+  }
+]
 ```
 
-**Publish Scores (Staff only)**  
-**Endpoint:** `POST /publish-scores/`  
-**Required Role:** `admin`, `superadmin`  
-**Response:** `201 Created`
+#### Get Candidate Exam History
+Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
+
+**Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
+**Required Role:** `admin` or `superadmin`
+
+**Response:** `200 OK`
 ```json
-{
-  "message": "Scores published successfully!",
-  "published_at": "2025-09-02T12:45:06.058245Z"
-}
+[
+  {
+    "exam": "Algebra Screening Exam",
+    "score": 88.0
+  },
+  {
+    "exam": "Geometry Challenge",
+    "score": 92.5
+  }
+]
 ```
+
+---
 
 ### Staff Management
+
 #### List Staff
 **Endpoint:** `GET /staff/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -469,27 +609,66 @@ The root endpoint provides a discoverable list of all available API endpoints, c
 - `role` (string): Filter by staff role
 - `occupation` (string): Filter by occupation
 
+**Response:** `200 OK`
+```json
+{
+  "count": 10,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "user": {
+        "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+        "email": "jane@example.com",
+        "first_name": "Jane",
+        "last_name": "Smith",
+        "phone": "+23490xxxxxxxx",
+        "date_joined": "2024-01-01T08:00:00Z"
+      },
+      "occupation": "Mathematics Teacher",
+      "role": "moderator"
+    }
+  ]
+}
+```
+
 #### Get Staff Details
 **Endpoint:** `GET /staff/{staff_id}/`
-**Required Role:** `moderator`, `admin`, `superadmin`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `superadmin`
 
 **Response:** `200 OK`
 ```json
 {
   "user": {
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "jane@example.com",
     "first_name": "Jane",
     "last_name": "Smith",
-    "phone": "+23490xxxxxxxx"
+    "phone": "+23490xxxxxxxx",
+    "date_joined": "2024-01-01T08:00:00Z"
   },
   "occupation": "Mathematics Teacher",
+  "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/jane_smith.jpg",
   "role": "moderator",
-  "is_verified": true
+  "is_active": true,
+  "is_verified": true,
+  "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
+  "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
+  "date_created": "2024-01-01T08:00:00Z",
+  "date_updated": "2024-01-05T09:00:00Z"
 }
 ```
 
 #### Assign Staff Role
-**Endpoint:** `POST /staff/{staff_id}/roles/assign/`  
+**Endpoint:** `PUT /staff/{staff_id}/roles/assign/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `superadmin`  
 **Request Body:**
 ```json
@@ -497,10 +676,24 @@ The root endpoint provides a discoverable list of all available API endpoints, c
   "role": "admin"
 }
 ```
+**Response:** `200 OK`
+```json
+{
+  "role": "admin"
+}
+```
+
+---
 
 ### Exam Management
+The API provides comprehensive management for exams, including CRUD operations, question association, and result viewing.
+
 #### List Exams
 **Endpoint:** `GET /exams/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -521,20 +714,68 @@ The root endpoint provides a discoverable list of all available API endpoints, c
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
-      "exam_date": "2024-01-20T15:00:00Z",
       "question_count": 20,
-      "is_active": true,
-      "average_score": 78.5,
-      "participants_count": 45,
       "date_created": "2024-01-10T09:00:00Z"
     }
   ]
 }
 ```
 
-#### Exam Details
-**Get Exam Information**  
+#### Create Exam
+**Endpoint:** `POST /exams/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin`, `superadmin`  
+**Request Body:**
+```json
+{
+  "title": "New Algebra Exam",
+  "stage": "screening",
+  "description": "A new exam for algebra screening.",
+  "exam_date": "2025-10-01T10:00:00Z",
+  "countdown_minutes": 60,
+  "open_duration_hours": 24,
+  "is_active": true,
+  "questions": [1, 2, 3]
+}
+```
+**Response:** `201 Created`
+```json
+{
+  "id": 4,
+  "title": "New Algebra Exam",
+  "stage": "screening",
+  "description": "A new exam for algebra screening.",
+  "exam_date": "2025-10-01T10:00:00Z",
+  "countdown_minutes": 60,
+  "open_duration_hours": 24,
+  "is_active": true,
+  "questions": [1, 2, 3],
+  "created_by": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "admin@example.com",
+      "first_name": "Admin",
+      "last_name": "User",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-01T08:00:00Z"
+    },
+    "occupation": "Administrator",
+    "role": "superadmin"
+  },
+  "average_score": 0.0,
+  "date_created": "2025-09-18T12:00:00Z"
+}
+```
+
+#### Get Exam Details
 **Endpoint:** `GET /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
@@ -550,83 +791,122 @@ The root endpoint provides a discoverable list of all available API endpoints, c
   "questions": [1, 4, 8],
   "created_by": {
     "user": {
-      "id": 10,
-      "username": "admin_user",
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "admin@example.com",
       "first_name": "Admin",
-      "last_name": "User"
-    }
+      "last_name": "User",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-01T08:00:00Z"
+    },
+    "occupation": "Administrator",
+    "role": "superadmin"
   },
+  "updated_by": null,
   "average_score": 78.5,
-  "participants_count": 45,
   "date_created": "2024-01-10T09:00:00Z"
 }
 ```
 
-#### Exam Interaction
-**View Exam Questions**  
+#### Update Exam
+**Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin`, `superadmin`  
+**Request Body (PATCH example):**
+```json
+{
+  "description": "Updated description for the algebra exam."
+}
+```
+**Response:** `200 OK` (Returns updated exam details)
+
+#### Delete Exam
+**Endpoint:** `DELETE /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin`, `superadmin`  
+**Response:** `204 No Content`
+
+#### View Exam Questions (Admin/Staff)
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
-{
-  "count": 20,
-  "results": [
-    {
-      "id": 1,
-      "text": "What is 5 × 5?",
-      "option_a": "20",
-      "option_b": "25",
-      "option_c": "205",
-      "option_d": "250",
-      "difficulty": "easy"
-    }
-  ]
-}
-```
-
-**Get Exam Results**
-
-Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
-
-- **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
-
-- **Required Role:** `admin` or `superadmin`
-
-- **Response:** `200 OK`
-```json
 [
   {
-    "exam": {
-      "id": 1,
-      "title": "Algebra Screening",
-      "stage": "screening"
-    },
-    "score": 88.0,
-    "date_recorded": "2024-01-20T15:30:00Z",
-    "auto_score": true
-  },
-  {
-    "exam": {
-      "id": 3,
-      "title": "League Week 1",
-      "stage": "league"
-    },
-    "score": 92.5,
-    "date_recorded": "2024-02-05T11:20:15Z",
-    "auto_score": false
+    "id": 1,
+    "text": "What is 5 × 5?",
+    "option_a": "20",
+    "option_b": "25",
+    "option_c": "205",
+    "option_d": "250",
+    "correct_answer": "B",
+    "difficulty": "easy",
+    "date_created": "2024-01-10T09:00:00Z",
+    "created_by": {
+      "user": {
+        "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+        "email": "moderator@example.com",
+        "first_name": "Mod",
+        "last_name": "User",
+        "phone": "+23490xxxxxxxx",
+        "date_joined": "2024-01-01T08:00:00Z"
+      },
+      "occupation": "Moderator",
+      "role": "moderator"
+    }
   }
 ]
 ```
 
-**Candidate Take Exam**  
-**Endpoint:** `POST /exams/{exam_id}/take-exam/`  
-**Required Role:** Candidate with appropriate stage access  
+#### Get Exam Results (Admin/Staff)
+**Endpoint:** `GET /exams/{exam_id}/results/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin` or `superadmin`
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "candidate_name": "John Doe",
+    "candidate_school": "Mathematics High School",
+    "score": 88.0,
+    "auto_score": true,
+    "submitted_by": null,
+    "date_recorded": "2024-01-20T15:30:00Z"
+  }
+]
+```
+
+#### Candidate Take Exam
+Allows an eligible and verified candidate to retrieve the questions for a specific exam.
+
+**Endpoint:** `GET /exams/{exam_id}/take-exam/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Authenticated `candidate` with `is_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
 ```json
 {
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
+  "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
+  "open_duration_hours": 12,
+  "exam_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "questions": [
     {
@@ -637,14 +917,20 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
       "option_c": "205",
       "option_d": "250"
     }
-  ],
-  "start_time": "2024-01-20T15:00:00Z"
+  ]
 }
 ```
+*Note: This endpoint will return a `403 Forbidden` if the candidate is not verified, their role does not match the exam stage, or the exam is not currently open for submissions.*
 
-**Submit Exam Answers**  
+#### Submit Exam Answers (Candidate)
+Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
+
 **Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
-**Required Role:** Candidate taking the exam  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Authenticated `candidate` currently taking the exam.  
 **Request Body:**
 ```json
 {
@@ -652,41 +938,59 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
     {
       "question": 1,
       "selected_option": "B"
+    },
+    {
+      "question": 2,
+      "selected_option": "A"
     }
   ]
+}
+```
+*Note: `selected_option` can be an empty string `""` if the question is unanswered.*
+
+**Response:** `201 Created`
+```json
+{
+  "message": "Answers submitted successfully!"
+}
+```
+*Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
+
+#### Submit Exam Score (Manual by Staff)
+Allows `admin` or `superadmin` staff members to manually submit or update a candidate's score for a specific exam.
+
+**Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin`, `superadmin`
+**Request Body:**
+```json
+{
+    "candidate_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+    "score": 95.5
 }
 ```
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "Exam submitted successfully",
-  "score": 85.0,
-  "correct_answers": 17,
-  "total_questions": 20,
-  "submission_time": "2024-01-20T16:27:00Z"
+    "message": "Score updated.",
+    "data": {
+        "candidate": "John Doe",
+        "exam": "Algebra Screening Exam",
+        "score": 95.5
+    }
 }
 ```
+*Note: If the score is being submitted for the first time, the message will be "Score submitted."*
 
-**Submit Exam Score (Manual)**
-**Endpoint:** `POST /exams/{exam_id}/submit-exam-score/`
-**Required Role:** `admin`, `superadmin`
-**Request Body:**
-```json
-{
-    "candidate_id": "uuid_of_candidate",
-    "score": 95.5
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-    "message": "Score submitted successfully."
-}
-```
+---
 
 ### Question Management
+The API provides CRUD operations for managing exam questions.
+
 #### List Questions
 **Endpoint:** `GET /questions/`  
 **Required Role:** `moderator`, `admin`, `superadmin`  
@@ -695,7 +999,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 - `page` (integer): Page number
 - `difficulty` (string): Filter by difficulty (`easy`, `medium`, `hard`)
 - `search` (string): Search question text
-- `created_by` (integer): Filter by creator ID
+- `created_by` (uuid): Filter by the UUID of the staff member who created the question
 
 **Response:** `200 OK`
 ```json
@@ -706,17 +1010,55 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
       "id": 1,
       "text": "What is 5 × 5?",
       "difficulty": "easy",
-      "date_created": "2024-01-10T09:00:00Z",
-      "created_by": {
-        "name": "Admin User"
-      }
+      "date_created": "2024-01-10T09:00:00Z"
     }
   ]
 }
 ```
 
-#### Question Details
-**Get Question**  
+#### Create Question
+**Endpoint:** `POST /questions/`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
+**Request Body:**
+```json
+{
+  "text": "What is the capital of France?",
+  "option_a": "Berlin",
+  "option_b": "Madrid",
+  "option_c": "Paris",
+  "option_d": "Rome",
+  "correct_answer": "C",
+  "difficulty": "easy"
+}
+```
+**Response:** `201 Created`
+```json
+{
+  "id": 5,
+  "text": "What is the capital of France?",
+  "option_a": "Berlin",
+  "option_b": "Madrid",
+  "option_c": "Paris",
+  "option_d": "Rome",
+  "correct_answer": "C",
+  "difficulty": "easy",
+  "date_created": "2025-09-18T12:30:00Z",
+  "created_by": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "moderator@example.com",
+      "first_name": "Mod",
+      "last_name": "User",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-01T08:00:00Z"
+    },
+    "occupation": "Moderator",
+    "role": "moderator"
+  }
+}
+```
+
+#### Get Question Details
 **Endpoint:** `GET /questions/{question_id}/`  
 **Required Role:** `moderator`, `admin`, `superadmin`  
 **Response:** `200 OK`
@@ -733,19 +1075,48 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
   "date_created": "2024-01-10T09:00:00Z",
   "created_by": {
     "user": {
-      "id": 4,
-      "username": "adminjoe",
-      "first_name": "Joe",
-      "last_name": "Admin"
-    }
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "moderator@example.com",
+      "first_name": "Mod",
+      "last_name": "User",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-01T08:00:00Z"
+    },
+    "occupation": "Moderator",
+    "role": "moderator"
   }
 }
 ```
 
+#### Update Question
+**Endpoint:** `PUT /questions/{question_id}/` or `PATCH /questions/{question_id}/`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
+**Request Body (PATCH example):**
+```json
+{
+  "difficulty": "medium"
+}
+```
+**Response:** `200 OK` (Returns updated question details)
+
+#### Delete Question
+**Endpoint:** `DELETE /questions/{question_id}/`  
+**Required Role:** `moderator`, `admin`, `superadmin`  
+**Response:** `204 No Content`
+*Note: Questions are soft-deleted by setting `is_active` to `False`.*
+
+---
+
 ### Dashboard
+Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
+
 #### Candidate Dashboard
 **Endpoint:** `GET /dashboard/candidate/`  
-**Required Role:** Any candidate  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Any authenticated `candidate`  
 **Response:** `200 OK`
 ```json
 {
@@ -784,7 +1155,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
       "id": 2,
       "title": "Geometry Screening",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
-      "open_duration_hours": "12",
+      "open_duration_hours": 12,
       "exam_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
@@ -793,9 +1164,14 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
   ]
 }
 ```
+*Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
 
 #### Staff Dashboard
 **Endpoint:** `GET /dashboard/staff/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
@@ -854,38 +1230,67 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
   ]
 }
 ```
+*Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
+
+---
 
 ### Leaderboard
+The leaderboard displays candidate rankings and can be dynamically controlled by staff.
+
 #### Toggle Leaderboard Visibility
+Allows `admin` or `superadmin` to enable or disable the public visibility of the leaderboard.
+
 **Endpoint:** `POST /toggle-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
 {
-  "visible": true
+  "open": true
 }
 ```
+*Note: Use `true` to make the leaderboard visible, `false` to hide it.*
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "leaderboard_visible: True"
+  "message": "Leaderboard is now visible."
+}
+```
+*or*
+```json
+{
+  "message": "Leaderboard is now hidden."
 }
 ```
 
 #### Publish Leaderboard
+Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
+
 **Endpoint:** `POST /publish-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
-**Response:** `200 OK`
+**Response:** `202 Accepted`
 ```json
 {
-  "message": "Leaderboard published successfully!",
-  "published_at": "2024-01-20T18:00:00Z"
+  "message": "Leaderboard generation has been started and will be available shortly."
 }
 ```
 
 #### Load Leaderboard
+Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
+
 **Endpoint:** `GET /load-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `league` candidates and above, all staff  
 
 **Query Parameters:**
@@ -913,27 +1318,30 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
   ]
 }
 ```
-
-### User Verification
-
-User verification is a multi-step process involving email verification, document submission, and admin approval.
+*Note: A `403 Forbidden` will be returned if the leaderboard is currently hidden.*
 
 ---
 
-#### 1. Get Verification Status
+### User Verification
+User verification is a multi-step process involving email verification, document submission, and admin approval.
 
+#### 1. Get Verification Status
 Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
 
 **Endpoints:**
 - `GET /user/verification/status/` (for self)
 - `GET /user/verification/status/{user_id}/` (for superadmins)
 
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+
 **Required Role:**
 - Any authenticated user for their own status.
 - `superadmin` to check another user's status.
 
 **Responses:**
-
 The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
 
 - **Status: `email_not_verified`**
@@ -988,51 +1396,51 @@ The API returns a consistent JSON object with a `status` field that indicates th
   }
   ```
 
----
-
 #### 2. Submit or Update Verification Documents
-
 This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
 
 **Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
 **Required Role:** Any authenticated user
 **Headers:**
 ```text
-Authorization: Bearer <access_token>
+X-Api-Key: <your_api_key>
 Content-Type: multipart/form-data
 ```
 
 **Form Data:**
-- `profile_photo` (file): Your profile picture.
-- `id_card` (file): A valid identification document.
-- `verification_document` (file): Recent school result for candidates | NIN/Driver's License/Passport for staff.
+- `profile_photo` (file): Your profile picture (max 2MB, JPG/JPEG/PNG).
+- `id_card` (file): A valid identification document (max 2MB, JPG/JPEG/PNG/PDF).
+- `verification_document` (file): Additional verification document (max 2MB, PDF/DOC/DOCX/JPG/JPEG/PNG).
 
-**Success Response (`200 OK`):**
+**Success Response (`202 Accepted`):**
 ```json
 {
-    "detail": "Documents uploaded successfully.",
+    "detail": "Documents uploaded successfully. Validation is in progress.",
     "verification_data": {
-        "status": "pending",
+        "status": "pending_validation",
         "has_profile_photo": true,
         "has_id_card": true,
         "has_verification_document": true
     }
 }
 ```
+*Note: Document validation is performed asynchronously. The initial response indicates successful upload and pending validation.*
 
 **Error Responses:**
 - `403 Forbidden`: If the user's email is not verified.
-- `400 Bad Request`: If the user is already verified or has a pending request (for `POST`).
-
----
+- `400 Bad Request`: If the user is already verified or has a pending request (for `POST`), or if file validation fails (e.g., invalid file type, size).
 
 #### 3. Access Verification Documents
-
-Access uploaded documents. The API serves the file content directly from secure storage.
+Access uploaded documents. The API serves the file content directly from secure storage (AWS S3). Private documents (`id_card`, `verification_document`) are served via signed URLs, ensuring temporary and secure access.
 
 **Endpoints:**
 - `GET /user/verification/documents/{file_type}/` (for self)
 - `GET /user/verification/documents/{file_type}/{user_id}/` (for superadmins)
+
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 
 **Required Role:**
 - Any authenticated user for their own documents.
@@ -1040,29 +1448,34 @@ Access uploaded documents. The API serves the file content directly from secure 
 
 **URL Parameters:**
 - `file_type` (string): `id_card`, `verification_document`, or `profile_photo`.
-- `user_id` (uuid, optional): The ID of the user whose document to access.
+- `user_id` (uuid, optional): The ID of the user whose document to access (required for superadmins accessing other users' documents).
 
 **Successful Response:**
-- The raw file content (e.g., an image) with the correct `Content-Type`.
+- The raw file content (e.g., an image or PDF) with the correct `Content-Type` header.
 
 **Error Responses:**
-- `404 Not Found`: If the file does not exist.
-- `403 Forbidden`: If you do not have permission.
-- `502 Bad Gateway`: If there is an issue with file storage.
-
----
+- `404 Not Found`: If the file does not exist or has not been uploaded.
+- `403 Forbidden`: If you do not have permission to access the document.
+- `502 Bad Gateway`: If there is an issue retrieving the file from storage (e.g., S3 error).
 
 #### 4. List All Verification Requests (Admin)
-
-Retrieve a list of all user verification submissions for administrative review.
+Retrieve a paginated list of all user verification submissions for administrative review.
 
 **Endpoint:** `GET /user/verification/list/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 
 **Required Role:** `superadmin`
 
 **Response:** `200 OK`
 ```json
-[
+{
+  "count": 10,
+  "next": null,
+  "previous": null,
+  "results": [
     {
         "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "user_name": "John Doe",
@@ -1075,16 +1488,18 @@ Retrieve a list of all user verification submissions for administrative review.
         "has_verification_document": false,
         "date_created": "2025-08-30T16:33:19Z"
     }
-]
+  ]
+}
 ```
 
----
-
 #### 5. Approve or Reject a Verification Request (Admin)
-
-Allows a superadmin to approve or reject a user's verification submission. This action is final and notifies the user via email.
+Allows a `superadmin` to approve or reject a user's verification submission. This action is final and notifies the user via email.
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 
 **Required Role:** `superadmin`
 
@@ -1092,14 +1507,12 @@ Allows a superadmin to approve or reject a user's verification submission. This 
 - `user_id` (uuid): The ID of the user whose verification is being actioned.
 
 **Request Body:**
-
 To approve a user:
 ```json
 {
     "is_verified": true
 }
 ```
-
 To reject a user:
 ```json
 {
@@ -1119,60 +1532,187 @@ To reject a user:
     "detail": "User verification rejected."
 }
 ```
+*Note: An email notification is sent to the user upon approval or rejection.*
+
+---
 
 ### Account Management
-#### Get Account Details
+The account management endpoints allow users to view and update their own profile information. Superadmins have the ability to manage other users' accounts.
+
+#### Get Account Details (Self)
 **Endpoint:** `GET /account-management/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Any authenticated user
 
 **Response:** `200 OK`
 ```json
 {
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone": "+23490xxxxxxxx"
+  "profile": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "john@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-15T10:30:00Z"
+    },
+    "school": "Mathematics High School",
+    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
+    "role": "league",
+    "is_active": true,
+    "is_verified": true,
+    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
+    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
+    "date_created": "2024-01-15T10:30:00Z",
+    "date_updated": "2024-01-20T11:00:00Z",
+    "scores": {
+      "total_score": 380.0,
+      "average_score": 95.0,
+      "scores": [
+        {
+          "exam_id": 1,
+          "exam_title": "Algebra Screening",
+          "score": 88.0,
+          "date_recorded": "2024-01-20T15:30:00Z",
+          "submitted_by": "Admin User",
+          "auto_score": true
+        }
+      ]
+    }
+  }
 }
 ```
+*Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
 
 #### Get Account Details (Admin)
 **Endpoint:** `GET /account-management/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `superadmin`
 
 **Response:** `200 OK`
 ```json
 {
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone": "+23490xxxxxxxx"
+  "profile": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "jane@example.com",
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-01T08:00:00Z"
+    },
+    "occupation": "Mathematics Teacher",
+    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/jane_smith.jpg",
+    "role": "moderator",
+    "is_active": true,
+    "is_verified": true,
+    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
+    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
+    "date_created": "2024-01-01T08:00:00Z",
+    "date_updated": "2024-01-05T09:00:00Z"
+  }
+}
+```
+*Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
+
+#### Update Account Details
+Allows authenticated users to update their own account and profile information. Superadmins can update other users' accounts.
+
+**Endpoint:** `PATCH /account-management/` (for self) or `PATCH /account-management/{user_id}/` (for superadmins)
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Any authenticated user (for self), `superadmin` (for others)
+**Request Body (example):**
+```json
+{
+  "user": {
+    "first_name": "Jonathan"
+  },
+  "profile": {
+    "school": "New High School"
+  }
+}
+```
+*Note: You can update `user` fields, `profile` fields, or both. The `profile` fields will depend on whether the user is a candidate or staff.*
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Account updated successfully.",
+  "profile": {
+    "user": {
+      "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+      "email": "john@example.com",
+      "first_name": "Jonathan",
+      "last_name": "Doe",
+      "phone": "+23490xxxxxxxx",
+      "date_joined": "2024-01-15T10:30:00Z"
+    },
+    "school": "New High School",
+    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
+    "role": "league",
+    "is_active": true,
+    "is_verified": true,
+    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
+    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
+    "date_created": "2024-01-15T10:30:00Z",
+    "date_updated": "2024-01-20T11:00:00Z",
+    "scores": {
+      "total_score": 380.0,
+      "average_score": 95.0,
+      "scores": [
+        {
+          "exam_id": 1,
+          "exam_title": "Algebra Screening",
+          "score": 88.0,
+          "date_recorded": "2024-01-20T15:30:00Z",
+          "submitted_by": "Admin User",
+          "auto_score": true
+        }
+      ]
+    }
+  }
 }
 ```
 
 ---
 
-## Query Parameters
-### Common Parameters
+## Advanced Topics
+
+### Query Parameters
+#### Common Parameters
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
 | `page` | integer | Page number for pagination | `?page=2` |
 | `limit` | integer | Items per page (max: 100) | `?limit=25` |
-| `search` | string | Search across relevant fields | `?search=john` |
-| `ordering` | string | Sort results (`field` or `-field`) | `?ordering=-date_created` |
+| `search` | string | Search across relevant fields (e.g., name, email, title) | `?search=john` |
+| `ordering` | string | Sort results (`field` or `-field` for descending) | `?ordering=-date_created` |
 
-### Filtering Parameters
+#### Filtering Parameters
 | Endpoint | Parameter | Type | Description |
 |----------|-----------|------|-------------|
-| `/candidates/` | `role` | string | Filter by candidate role |
+| `/candidates/` | `role` | string | Filter by candidate role (`screening`, `league`, `final`, `winner`) |
 | `/candidates/` | `school` | string | Filter by school name |
-| `/candidates/` | `verified` | boolean | Filter by verification status |
-| `/staff/` | `role` | string | Filter by staff role |
+| `/candidates/` | `verified` | boolean | Filter by verification status (`true` or `false`) |
+| `/staff/` | `role` | string | Filter by staff role (`volunteer`, `moderator`, `admin`, `superadmin`) |
 | `/staff/` | `occupation` | string | Filter by occupation |
-| `/exams/` | `stage` | string | Filter by exam stage |
-| `/exams/` | `active` | boolean | Filter by active status |
-| `/questions/` | `difficulty` | string | Filter by question difficulty |
+| `/exams/` | `stage` | string | Filter by exam stage (`screening`, `league`) |
+| `/exams/` | `active` | boolean | Filter by active status (`true` or `false`) |
+| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `medium`, `hard`) |
+| `/questions/` | `created_by` | uuid | Filter by the UUID of the staff member who created the question |
+| `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
+| `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
+| `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
 
-### Date Filtering
+#### Date Filtering
 Use ISO 8601 format for date parameters:
 
 | Parameter | Format | Example |
@@ -1180,6 +1720,7 @@ Use ISO 8601 format for date parameters:
 | `date_from` | YYYY-MM-DD | `?date_from=2024-01-01` |
 | `date_to` | YYYY-MM-DD | `?date_to=2024-12-31` |
 | `created_after` | YYYY-MM-DDTHH:MM:SS | `?created_after=2024-01-01T10:00:00` |
+| `created_before` | YYYY-MM-DDTHH:MM:SS | `?created_before=2024-01-01T10:00:00` |
 
 ---
 
@@ -1201,33 +1742,48 @@ The API returns errors in a standardized format to ensure consistency and ease o
 
 ### HTTP Status Codes
 
-| Code | Status                  | Description                                                                 |
+| Code | Status | Description |
 |------|-------------------------|-----------------------------------------------------------------------------|
-| 200  | OK                      | Request successful.                                                         |
-| 201  | Created                 | Resource created successfully.                                              |
-| 204  | No Content              | Resource deleted successfully or action completed with no content to return. |
-| 400  | Bad Request             | Invalid input, such as a malformed request body or invalid parameters.      |
-| 401  | Unauthorized            | Authentication credentials were not provided or were invalid.               |
-| 403  | Forbidden               | You do not have permission to perform this action.                          |
-| 404  | Not Found               | The requested resource could not be found.                                  |
-| 429  | Too Many Requests       | You have exceeded the rate limit.                                           |
-| 500  | Internal Server Error   | An unexpected error occurred on the server.                                 |
-| 502  | Bad Gateway             | The server received an invalid response from an upstream server.            |
+| 200 | OK | Request successful. |
+| 201 | Created | Resource created successfully. |
+| 202 | Accepted | Request accepted for processing, but the processing is not yet complete (e.g., asynchronous task). |
+| 204 | No Content | Resource deleted successfully or action completed with no content to return. |
+| 400 | Bad Request | Invalid input, such as a malformed request body or invalid parameters. |
+| 401 | Unauthorized | Authentication credentials were not provided or were invalid. |
+| 403 | Forbidden | You do not have permission to perform this action (e.g., insufficient role, unverified account, feature disabled). |
+| 404 | Not Found | The requested resource could not be found. |
+| 429 | Too Many Requests | You have exceeded the rate limit. |
+| 500 | Internal Server Error | An unexpected error occurred on the server. |
+| 502 | Bad Gateway | The server received an invalid response from an upstream server (e.g., S3 error). |
 
 ### Common Error Codes
 
-| Code                      | Description                                                                 |
+| Code | Description |
 |---------------------------|-----------------------------------------------------------------------------|
-| `authentication_failed`   | Incorrect authentication credentials.                                       |
-| `not_authenticated`       | Authentication credentials were not provided.                               |
-| `permission_denied`       | You do not have permission to perform this action.                          |
-| `not_found`               | The requested resource could not be found.                                  |
-| `invalid`                 | Invalid input.                                                              |
-| `invalid_token`           | Token is invalid or expired.                                                |
-| `rate_limit_exceeded`     | You have exceeded the rate limit.                                           |
-| `registration_closed`     | Registration is currently disabled.                                         |
-| `exam_not_available`      | The exam is not available for this user.                                    |
-| `exam_already_taken`      | The candidate has already taken this exam.                                  |
+| `authentication_failed` | Incorrect authentication credentials. |
+| `not_authenticated` | Authentication credentials were not provided. |
+| `permission_denied` | You do not have permission to perform this action. |
+| `not_found` | The requested resource could not be found. |
+| `invalid` | Invalid input (e.g., validation errors in request body). |
+| `invalid_token` | Token is invalid or expired. |
+| `rate_limit_exceeded` | You have exceeded the rate limit. |
+| `registration_closed` | Registration for this type of user is currently disabled by a feature flag. |
+| `email_not_verified` | User's email address has not been verified. |
+| `already_verified` | User is already verified and cannot resubmit verification documents. |
+| `pending_verification` | User has a pending verification request and cannot submit a new one (for POST). |
+| `unverified_candidate` | Candidate must be verified to perform this action (e.g., take an exam, assign role). |
+| `unverified_staff` | Staff member must be verified to perform this action. |
+| `exam_not_open` | The exam is not currently open for submissions. |
+| `exam_not_eligible` | The candidate's role does not match the exam stage. |
+| `exam_already_submitted` | The candidate has already submitted answers for this exam. |
+| `invalid_file_type` | The uploaded file has an unsupported extension. |
+| `file_size_exceeded` | The uploaded file exceeds the maximum allowed size. |
+| `leaderboard_hidden` | The leaderboard is currently not visible to the public. |
+| `leaderboard_not_published` | The leaderboard has not been published yet. |
+| `account_already_authenticated` | An authenticated user attempted to register a new account. |
+| `invalid_otp` | The provided One-Time Password is invalid or expired. |
+| `passwords_do_not_match` | New password and confirmation password do not match. |
+| `password_validation_failed` | The new password does not meet security requirements. |
 
 ---
 
@@ -1243,27 +1799,26 @@ The API returns errors in a standardized format to ensure consistency and ease o
 - 5 requests per minute
 
 ### Rate Limit Headers
+When a rate limit is applied, the following headers are included in the response:
 ```text
 X-RateLimit-Limit: 1000
 X-RateLimit-Remaining: 999
 X-RateLimit-Reset: 1640995200
 ```
+- `X-RateLimit-Limit`: The maximum number of requests allowed in the current period.
+- `X-RateLimit-Remaining`: The number of requests remaining in the current period.
+- `X-RateLimit-Reset`: The UTC epoch seconds when the current rate limit window resets.
 
 ### Rate Limit Exceeded
+If you exceed the allocated rate limit, the API will return a `429 Too Many Requests` response:
 **Response:** `429 Too Many Requests`
 ```json
 {
-  "error": {
-    "code": "RATE_LIMIT_EXCEEDED",
-    "message": "Rate limit exceeded. Please try again later.",
-    "details": {
-      "limit": 1000,
-      "remaining": 0,
-      "reset_time": "2024-01-21T00:00:00Z"
-    }
-  }
+  "detail": "Request was throttled. Expected available in 10 seconds.",
+  "code": "throttle_exceeded"
 }
 ```
+*Note: The exact `detail` message and `code` might vary slightly based on the throttling implementation.*
 
 ---
 
@@ -1272,15 +1827,15 @@ X-RateLimit-Reset: 1640995200
 The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 
 ### Versioning Strategy
-- **Backwards Compatibility**: Minor changes maintain backwards compatibility
-- **Breaking Changes**: Major version increments for breaking changes
-- **Deprecation**: 6-month notice period for deprecated endpoints
-- **Version Support**: Latest 2 major versions supported
+- **Backwards Compatibility**: Minor changes maintain backwards compatibility.
+- **Breaking Changes**: Major version increments for breaking changes.
+- **Deprecation**: 6-month notice period for deprecated endpoints.
+- **Version Support**: Latest 2 major versions supported.
 
 ---
 
 ## Interactive Documentation
-Explore the API interactively using our documentation interfaces:
+Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
 - **Swagger UI**: `https://vmlc-api.onrender.com/docs/swagger/`
 - **ReDoc**: `https://vmlc-api.onrender.com/docs/redoc/`
 
@@ -1291,13 +1846,18 @@ For technical support, API key requests, or questions:
 - **Email:** `theolujay@gmail.com`
 - **Discord:** `@olujay`
 - **X:** `@theolujay`
-- **Response Time:** Within 48 hours for support requests
-- **API Key Requests:** Include organization name and intended use case
+- **Response Time:** Within 48 hours for support requests.
 
 ---
 
 ## Changelog
-### Version 0.2.0 (Current)
+### Version 0.3.0 (Current)
+- **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>` for some.
+- **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
+- **Login:** Response now includes full profile (and not user details alone).
+- **RBAC**: Only `superadmin` can view staff staff details.
+
+### Version 0.2.0
 - **Base URL** is now `https://vmlc-api.onrender.com/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 

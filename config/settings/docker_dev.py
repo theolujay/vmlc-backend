@@ -55,6 +55,13 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "anon": "10000/day",  # Unauthenticated
+    "user": "100000/day",  # Authenticated users
+    "login": "500/min",  # Login endpoint
+    "burst": "1000/min",  # For sensitive or POST-heavy endpoints
+    "sustained": "1000000/hour",  # For sustained traffic
+}
 
 SIMPLE_JWT.update(
     {
@@ -65,14 +72,26 @@ SIMPLE_JWT.update(
 )
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Frontend
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",  # Backend
-    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:5173",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-api-key',  # Add your custom header here
+]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
@@ -94,12 +113,27 @@ CONTACT_URL = os.getenv("CONTACT_URL", f"{BASE_URL}/contact/")
 LICENSE_URL = os.getenv("LICENSE_URL", f"{BASE_URL}/license/")
 LOGO_URL = os.getenv("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 
+
+# ============================================================================
+# CELERY CONFIGURATION - Docker Development Environment
+# ============================================================================
+
+# Docker service names for Redis broker
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
-CELERY_CACHE_BACKEND = "django-cache"
 
+# Docker development overrides
+CELERY_WORKER_LOG_COLOR = True  # Enable colored logs
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER", "False").lower() == "true"
-CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Development debugging
+CELERY_TASK_TRACK_STARTED = True  # Track when tasks start
+CELERY_SEND_TASK_EVENTS = True   # Send task events for monitoring
+
+# ============================================================================
+# CACHE CONFIGURATION - Docker Development Environment
+# ============================================================================
 
 CACHES = {
     "default": {
@@ -110,10 +144,27 @@ CACHES = {
             "CONNECTION_POOL_KWARGS": {
                 "retry_on_timeout": True,
                 "health_check_interval": 30,
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
+            },
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "vmlc_docker_dev_sync",
+        "TIMEOUT": 300,
+    },
+    "async": {
+        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/2"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
             },
         },
-        "KEY_PREFIX": "vmlc_dev",
-        "TIMEOUT": 300,  # 5 minutes default timeout
+        "KEY_PREFIX": "vmlc_docker_dev_async",
+        "TIMEOUT": 300,
     }
 }
 
@@ -197,14 +248,14 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-        "simple": {
-            "format": "{levelname} {name} {message}",
-            "style": "{",
-        },
+        # "verbose": {
+        #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+        #     "style": "{",
+        # },
+        # "simple": {
+        #     "format": "{levelname} {name} {message}",
+        #     "style": "{",
+        # },
         "colored": {
             "()": "colorlog.ColoredFormatter",
             "format": "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(name)s%(reset)s %(message)s",
@@ -216,9 +267,10 @@ LOGGING = {
     },
     "handlers": {
         "console": {
-            "level": "DEBUG",
+            "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
+            # "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
+            "formatter": "colored",
         },
         "file": {
             "level": "DEBUG",
@@ -232,39 +284,51 @@ LOGGING = {
         },
     },
     "root": {
-        "level": "INFO",
+        "level": "WARNING",
         "handlers": ["console"],
     },
     "loggers": {
-        "django": {
-            "level": "INFO",
-            "handlers": ["console", "file"],
-            "propagate": False,
-        },
+        # Your app - keep detailed logging
         "vmlc": {
             "level": "DEBUG",
             "handlers": ["console", "file"],
             "propagate": False,
         },
-        "celery": {
-            "level": "DEBUG",
+        
+        # Django - only important stuff
+        "django": {
+            "level": "WARNING",  # Only warnings/errors
             "handlers": ["console", "file"],
             "propagate": False,
         },
-        # Reduce noise from third-party packages
-        "urllib3": {"level": "WARNING"},
-        "requests": {"level": "WARNING"},
-        "boto3": {"level": "WARNING"},
-        "botocore": {"level": "WARNING"},
+        
+        # Celery - moderate logging
+        "celery": {
+            "level": "INFO",  # Changed from DEBUG
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        
+        # Third-party noise reduction
+        "urllib3": {"level": "ERROR"},          # Only errors
+        "requests": {"level": "ERROR"},         # Only errors  
+        "boto3": {"level": "ERROR"},           # Only errors
+        "botocore": {"level": "ERROR"},        # Only errors
+        "django.db.backends": {"level": "ERROR"},  # No query spam
+        
+        # Additional noise reducers
+        "django.request": {"level": "ERROR"},   # Only 4xx/5xx requests
+        "django.security": {"level": "WARNING"}, # Security warnings only
+        "asyncio": {"level": "WARNING"},        # Async noise reduction
     },
 }
 
 if os.getenv("LOG_QUERIES", "false").lower() == "true":
-    LOGGING["loggers"]["django.db.backends"] = {
-        "level": "DEBUG",
-        "handlers": ["console"],
-        "propagate": False,
-    }
+    LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
+
+# Enable request logging for debugging
+if os.getenv("LOG_REQUESTS", "false").lower() == "true":
+    LOGGING["loggers"]["django.request"]["level"] = "INFO"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB for development
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB for development

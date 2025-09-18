@@ -1,6 +1,7 @@
 networks:
   vmlc-network:
     driver: bridge
+
 services:
   web:
     build:
@@ -40,7 +41,7 @@ services:
     env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 300s
+      interval: 15s
       timeout: 5s
       retries: 5
 
@@ -52,15 +53,16 @@ services:
       - vmlc-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 300s
+      interval: 15s
       timeout: 5s
       retries: 3
 
-  celery_worker:
+  # High Priority - Email workers (fast, dedicated)
+  celery_emails:
     build:
       context: .
       target: development
-    command: celery -A config worker -l INFO
+    command: celery -A config worker --queues=emails --concurrency=2 --loglevel=INFO --hostname=emails@%h
     volumes:
       - .:/home/verboheit/web
       - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
@@ -75,7 +77,59 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*worker"]
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*emails"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Medium Priority - Processing workers
+  celery_processing:
+    build:
+      context: .
+      target: development
+    command: celery -A config worker --queues=scoring,files --concurrency=2 --loglevel=INFO --hostname=processing@%h
+    volumes:
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
+    env_file: .env
+    networks:
+      - vmlc-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*(scoring|files)"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Low Priority - Background workers  
+  celery_background:
+    build:
+      context: .
+      target: development
+    command: celery -A config worker --queues=reports,cache --concurrency=1 --loglevel=INFO --hostname=background@%h
+    volumes:
+      - .:/home/verboheit/web
+      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+      - ./dev_data/media:/home/verboheit/web/media
+      - ./dev_data/logs:/home/verboheit/web/logs
+    env_file: .env
+    networks:
+      - vmlc-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*(reports|cache)"]
       interval: 300s
       timeout: 10s
       retries: 3
@@ -110,7 +164,7 @@ services:
     build:
       context: .
       target: development
-    command: celery -A config flower --address=0.0.0.0
+    command: celery -A config flower --address=0.0.0.0 --port=5555
     volumes:
       - .:/home/verboheit/web
       - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
@@ -124,7 +178,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      celery_worker:
+      celery_emails:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5555/"]

@@ -4,24 +4,26 @@ Authentication-related API views for login, logout, and registration.
 
 import logging
 
-
 from rest_framework import serializers, status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework_api_key.permissions import HasAPIKey
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.views import APIView
+
+# from channels.db import database_sync_to_async
+# from adrf.views import APIView as AdrfAPIView
 
 from ..models import User
+from ..permissions import HasXAPIKey
 from ..serializers import (
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     RequestPasswordChangeSerializer,
     ResendEmailOTPSerializer,
-    UserSerializer,
+    MinimalCandidateSerializer,
+    MinimalStaffSerializer,
     VerifyEmailOTPSerializer,
 )
 from ..tasks import send_mail_task
@@ -39,10 +41,11 @@ class VerifyEmailOTPView(APIView):
     Handles OTP verification for user registration.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
-        serializer = VerifyEmailOTPSerializer(data=request.data)
+    # @database_sync_to_async
+    def _verify_email(self, data):
+        serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
             try:
                 user = serializer.save()
@@ -69,16 +72,20 @@ class VerifyEmailOTPView(APIView):
         logger.warning(f"Email verification failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def post(self, request):
+        return self._verify_email(request.data)
+
 
 class ResendEmailOTPView(APIView):
     """
     Resend OTP to user's email with rate limiting.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
-        serializer = ResendEmailOTPSerializer(data=request.data)
+    # @database_sync_to_async
+    def _resend_email_otp(self, data):
+        serializer = ResendEmailOTPSerializer(data=data)
 
         if serializer.is_valid():
             try:
@@ -112,15 +119,19 @@ class ResendEmailOTPView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def post(self, request):
+        return self._resend_email_otp(request.data)
+
 
 class RequestPasswordChangeView(APIView):
     """
     Request OTP for password change.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
+    # @database_sync_to_async
+    def _request_password_change(self, data):
         """
         Send OTP to user's email for password change verification.
 
@@ -129,7 +140,7 @@ class RequestPasswordChangeView(APIView):
             "email": "user@example.com"
         }
         """
-        serializer = RequestPasswordChangeSerializer(data=request.data)
+        serializer = RequestPasswordChangeSerializer(data=data)
 
         if serializer.is_valid():
             try:
@@ -165,15 +176,19 @@ class RequestPasswordChangeView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def post(self, request):
+        return self._request_password_change(request.data)
+
 
 class PasswordChangeOTPConfirmView(APIView):
     """
     Confirm password change request with OTP.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
+    # @database_sync_to_async
+    def _confirm_password_change_otp(self, data):
         """
         Change user password after OTP verification.
 
@@ -183,7 +198,7 @@ class PasswordChangeOTPConfirmView(APIView):
             "otp": "123456"
         }
         """
-        serializer = PasswordChangeOTPConfirmSerializer(data=request.data)
+        serializer = PasswordChangeOTPConfirmSerializer(data=data)
 
         if serializer.is_valid():
             return Response(
@@ -194,15 +209,19 @@ class PasswordChangeOTPConfirmView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def post(self, request):
+        return self._confirm_password_change_otp(request.data)
+
 
 class PasswordChangeView(APIView):
     """
     Change user password with OTP verification.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
+    # @database_sync_to_async
+    def _change_password(self, data):
         """
         Change password after OTP verification.
 
@@ -214,7 +233,7 @@ class PasswordChangeView(APIView):
             "confirm_password": "newpassword123"
         }
         """
-        serializer = PasswordChangeSerializer(data=request.data)
+        serializer = PasswordChangeSerializer(data=data)
 
         if serializer.is_valid():
             try:
@@ -244,15 +263,19 @@ class PasswordChangeView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def post(self, request):
+        return self._change_password(request.data)
+
 
 class ResendPasswordChangeOTPView(APIView):
     """
     Resend OTP for password change with rate limiting.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
+    # @database_sync_to_async
+    def _resend_password_change_otp(self, data):
         """
         Resend password change OTP.
 
@@ -262,7 +285,7 @@ class ResendPasswordChangeOTPView(APIView):
         }
         """
         try:
-            email = request.data.get("email")
+            email = data.get("email")
 
             if not email:
                 raise ValidationError("Email is required")
@@ -314,6 +337,9 @@ class ResendPasswordChangeOTPView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    def post(self, request):
+        return self._resend_password_change_otp(request.data)
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
@@ -321,12 +347,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
 
     def validate(self, attrs):
-        # The default result (access/refres tokens)
+        # The default result (access/refresh tokens)
         data = super().validate(attrs)
 
-        # Add user information to the response
-        user_serializer = UserSerializer(self.user)
-        data["user"] = user_serializer.data
+        # Add profile information (candidate or staff)
+        profile_data = None
+        if hasattr(self.user, "candidate_profile"):
+            profile_data = MinimalCandidateSerializer(self.user.candidate_profile).data
+        elif hasattr(self.user, "staff_profile"):
+            profile_data = MinimalStaffSerializer(self.user.staff_profile).data
+
+        if profile_data:
+            data["profile"] = profile_data
 
         return data
 
@@ -338,7 +370,7 @@ class LoginView(TokenObtainPairView):
     """
 
     serializer_class = CustomTokenObtainPairSerializer
-    permission_classes = [HasAPIKey]
+    permission_classes = [HasXAPIKey]
     throttle_scope = "login"
 
     def post(self, request, *args, **kwargs):
@@ -357,14 +389,14 @@ class LogoutView(APIView):
     Uses AllowAny permission to handle expired access tokens.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [HasXAPIKey]
 
-    def post(self, request):
+    # @database_sync_to_async
+    def _logout(self, refresh_token):
         """
         Expects a 'refresh' token in the request body.
         Extracts user info from the refresh token for logging.
         """
-        refresh_token = request.get("refresh_token")
         if not refresh_token:
             raise ValidationError("Refresh token is required")
 
@@ -390,3 +422,6 @@ class LogoutView(APIView):
                 {"error": "Logout failed"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    def post(self, request):
+        return self._logout(request.get("refresh_token"))
