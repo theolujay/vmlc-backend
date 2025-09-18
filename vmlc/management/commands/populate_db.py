@@ -18,6 +18,11 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         fake = Faker()
 
+        def generate_nigerian_phone_number():
+            # Helper to generate a valid Nigerian phone number
+            prefix = random.choice(["070", "080", "081", "090", "091"])
+            return f"{prefix}{random.randint(10000000, 99999999)}"
+
         # Clear existing data
         CandidateAnswer.objects.all().delete()
         CandidateScore.objects.all().delete()
@@ -36,7 +41,7 @@ class Command(BaseCommand):
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 is_email_verified=random.choice([True, False]),
-                phone=fake.phone_number(),
+                phone=generate_nigerian_phone_number(),
             )
             staff = Staff.objects.create(
                 user=user,
@@ -55,7 +60,7 @@ class Command(BaseCommand):
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 is_email_verified=random.choice([True, False]),
-                phone=fake.phone_number(),
+                phone=generate_nigerian_phone_number(),
             )
             candidate = Candidate.objects.create(
                 user=user,
