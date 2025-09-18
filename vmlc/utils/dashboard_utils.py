@@ -196,10 +196,12 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
 
     # Combine multiple counts into a single query
     candidate_stats = Candidate.objects.aggregate(
-        total_candidates=Count('id'),
-        active_candidates=Count('id', filter=Q(is_active=True)),
-        verified_candidates=Count('id', filter=Q(is_verified=True)),
-        recent_registrations=Count('id', filter=Q(date_created__gte=last_week))
+        total_candidates=Count("user_id"),
+        active_candidates=Count("user_id", filter=Q(user__is_active=True)),
+        verified_candidates=Count(
+            "user_id", filter=Q(user__verification__is_verified=True)
+        ),
+        recent_registrations=Count("user_id", filter=Q(date_created__gte=last_week)),
     )
 
     total_candidates = candidate_stats['total_candidates']
@@ -210,7 +212,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     # This still requires iterating through roles, but the count is per role
     candidates_by_role: Dict[str, Dict[str, Any]] = {
         key: {"display": display, "count": Candidate.candidates_by_role(key).count()}
-        for key, display in Candidate.ROLE_CHOICES
+        for key, display in Candidate.Roles.choices
     }
 
     exam_stats = Exam.objects.aggregate(
