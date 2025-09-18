@@ -2,55 +2,45 @@
 
 ## Table of Contents
 - [Overview](#overview)
-- [Base URL](#base-url)
-- [Authentication](#authentication)
-- [User Roles & Permissions](#user-roles--permissions)
+- [Getting Started](#getting-started)
+  - [Base URL](#base-url)
+  - [Authentication](#authentication)
+  - [User Roles & Permissions](#user-roles--permissions)
 - [API Endpoints](#api-endpoints)
+  - [Health & Root](#health--root)
+  - [Authentication](#authentication-endpoints)
   - [Registration](#registration)
-  - [Email Verification](#email-verification)
-  - [Password Change & Reset](#password-change--reset)
+  - [Email & Password](#email--password)
+  - [User Profiles ("Me" Endpoints)](#user-profiles-me-endpoints)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
-  - [Exam Management](#exam-management)
-  - [Question Management](#question-management)
-  - [Dashboard](#dashboard)
-  - [Leaderboard](#leaderboard)
   - [User Verification](#user-verification)
   - [Account Management](#account-management)
-- [Query Parameters](#query-parameters)
-- [Error Handling](#error-handling)
-- [Rate Limiting](#rate-limiting)
-- [Versioning](#versioning)
-- [Interactive Documentation](#interactive-documentation)
-- [Support](#support)
-- [Changelog](#changelog)
+  - [Exam Management](#exam-management)
+  - [Question Management](#question-management)
+  - [Scoring & Submissions](#scoring--submissions)
+  - [Dashboard](#dashboard)
+  - [Leaderboard](#leaderboard)
+- [Advanced Topics](#advanced-topics)
+  - [Query Parameters](#query-parameters)
+  - [Error Handling](#error-handling)
+  - [Rate Limiting](#rate-limiting)
+  - [Versioning](#versioning)
+- [Support & More](#support--more)
+  - [Interactive Documentation](#interactive-documentation)
+  - [Support](#support)
+  - [Changelog](#changelog)
 
 ---
 
 ## Overview
 The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with robust user management and role-based access control.
 
-### Key Features
-- **Comprehensive User Authentication**: JWT-based authentication with email verification, secure password reset flows, and API key protection for public endpoints.
-- **Advanced User Verification System**: Multi-step process including document uploads, asynchronous validation, secure document access, and admin approval/rejection.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions for candidates and staff (volunteer, moderator, admin, superadmin).
-- **Exam System**: Create, manage, and administer timed exams with bulk answer submission, eligibility checks, re-submission prevention, and asynchronous auto-scoring.
-- **Dynamic Scoring & Leaderboards**: Manual score submission, asynchronous generation and publishing of score and leaderboard snapshots, with feature-flagged visibility.
-- **Personalized Dashboards**: Cached dashboard data for candidates and staff with asynchronous updates.
-- **Asynchronous Operations**: Extensive use of Celery for background tasks (email sending, file validation, scoring, snapshot generation) to improve responsiveness and scalability.
-- **Feature Flag System**: Dynamic control over various application features (e.g., registration, leaderboard visibility).
-- **Interactive API Documentation**: Powered by Swagger UI and ReDoc for easy API exploration.
-
-### API Characteristics
-- **Format**: JSON-only API
-- **Authentication**: JWT Bearer tokens for most endpoints and API key for specific endpoints
-- **Pagination**: Page-based pagination
-- **Rate Limiting**: Configurable rate limits for authenticated and anonymous users
-- **CORS**: Enabled for web applications
-
 ---
 
-## Base URL
+## Getting Started
+
+### Base URL
 ```
 https://vmlc-api.onrender.com/v1/
 ```
@@ -58,27 +48,18 @@ All endpoints are relative to this base URL. A discoverable list of endpoints is
 
 ---
 
-## Authentication
-The API uses JWT (JSON Web Tokens) for authentication, complemented by API Key authentication for specific public endpoints.
-
-### API Key Authentication (Public Endpoints)
-Required for registration and login endpoints:
+### Authentication
+The API uses `X-Api-Key` for authentication. The API key should be provided in the `X-Api-Key` header:
 ```text
-Authorization: Api-Key <your_api_key>
+X-Api-Key: <your_api_key>
 ```
 
-### Bearer Token Authentication (Protected Endpoints)
-Required for other authenticated endpoints:
-```text
-Authorization: Bearer <access_token>
-```
-
-### Login Flow
+#### Login Flow
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
 ```text
-Authorization: Api-Key <your_api_key>
+X-Api-Key: <your_api_key>
 Content-Type: application/json
 ```
 
@@ -111,8 +92,8 @@ Content-Type: application/json
 ```
 *Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
 
-### Token Management
-#### Refresh Token
+#### Token Management
+##### Refresh Token
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
@@ -130,7 +111,7 @@ Content-Type: application/json
 }
 ```
 
-#### Logout
+##### Logout
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
@@ -143,7 +124,9 @@ Content-Type: application/json
 
 ---
 
-## Health Check
+## Health & Root
+
+### Health Check
 The health check endpoint provides a simple way to verify the API's operational status.
 
 **Endpoint:** `GET /health/`
@@ -157,14 +140,15 @@ The health check endpoint provides a simple way to verify the API's operational 
 }
 ```
 
----
-
-## API Endpoints
 ### Root Endpoint
 The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
 
 **Endpoint:** `GET /root/`
-**Required Role:** None (Public)
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** None (Public, but requires API Key)
 
 **Response:** `200 OK`
 ```json
@@ -213,7 +197,10 @@ Registration endpoints allow new users to sign up as either candidates or staff 
 #### Register New Users
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -239,7 +226,10 @@ Registration endpoints allow new users to sign up as either candidates or staff 
 
 **Staff Registration**  
 **Endpoint:** `POST /register/staff/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -258,12 +248,14 @@ Registration endpoints allow new users to sign up as either candidates or staff 
 
 ---
 
-### Email Verification
-Email verification is a crucial step for new users to activate their accounts and proceed with other actions like document uploads.
+### Email & Password
 
 #### Verify Email with OTP
 **Endpoint:** `POST /verify-email-otp/`  
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -281,7 +273,10 @@ Email verification is a crucial step for new users to activate their accounts an
 
 #### Resend Email OTP
 **Endpoint:** `POST /resend-email-otp/`
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -298,14 +293,12 @@ Email verification is a crucial step for new users to activate their accounts an
 }
 ```
 
----
-
-### Password Change & Reset
-The API provides a secure flow for users to request and perform password changes, including OTP verification.
-
 #### Request Password Change OTP
 **Endpoint:** `POST /auth/password-change/request/`
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -324,7 +317,10 @@ The API provides a secure flow for users to request and perform password changes
 
 #### Confirm OTP for Password Change
 **Endpoint:** `POST /auth/password-change/confirm-otp/`
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -341,7 +337,10 @@ The API provides a secure flow for users to request and perform password changes
 
 #### Change Password
 **Endpoint:** `POST /auth/password-change/`
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -361,7 +360,10 @@ The API provides a secure flow for users to request and perform password changes
 
 #### Resend Password Change OTP
 **Endpoint:** `POST /auth/password-change/resend-otp/`
-**Headers:** `Authorization: Api-Key <your_api_key>`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Request Body:**
 ```json
 {
@@ -380,9 +382,14 @@ The API provides a secure flow for users to request and perform password changes
 
 ---
 
-### Candidate Management
+### User Profiles "Me" Endpoints
+
 #### Get Authenticated Candidate's Profile
 **Endpoint:** `GET /candidates/me/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Any authenticated `candidate`
 **Response:** `200 OK`
 ```json
@@ -400,8 +407,39 @@ The API provides a secure flow for users to request and perform password changes
 }
 ```
 
+#### Get Authenticated Staff Member's Profile
+**Endpoint:** `GET /staff/me/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Any authenticated `staff`
+**Response:** `200 OK`
+```json
+{
+  "user": {
+    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+    "email": "jane@example.com",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "phone": "+23490xxxxxxxx",
+    "date_joined": "2024-01-01T08:00:00Z"
+  },
+  "occupation": "Mathematics Teacher",
+  "role": "moderator"
+}
+```
+
+---
+
+### Candidate Management
+
 #### List Candidates
 **Endpoint:** `GET /candidates/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -435,6 +473,10 @@ The API provides a secure flow for users to request and perform password changes
 
 #### Get Candidate Details
 **Endpoint:** `GET /candidates/{candidate_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`
 
 **Response:** `200 OK`
@@ -476,6 +518,10 @@ The API provides a secure flow for users to request and perform password changes
 
 #### Assign Candidate Role
 **Endpoint:** `PUT /candidates/{candidate_id}/roles/assign/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
@@ -548,27 +594,13 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ---
 
 ### Staff Management
-#### Get Authenticated Staff Member's Profile
-**Endpoint:** `GET /staff/me/`
-**Required Role:** Any authenticated `staff`
-**Response:** `200 OK`
-```json
-{
-  "user": {
-    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-    "email": "jane@example.com",
-    "first_name": "Jane",
-    "last_name": "Smith",
-    "phone": "+23490xxxxxxxx",
-    "date_joined": "2024-01-01T08:00:00Z"
-  },
-  "occupation": "Mathematics Teacher",
-  "role": "moderator"
-}
-```
 
 #### List Staff
 **Endpoint:** `GET /staff/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -602,6 +634,10 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 #### Get Staff Details
 **Endpoint:** `GET /staff/{staff_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `superadmin`
 
 **Response:** `200 OK`
@@ -629,6 +665,10 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 
 #### Assign Staff Role
 **Endpoint:** `PUT /staff/{staff_id}/roles/assign/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `superadmin`  
 **Request Body:**
 ```json
@@ -650,6 +690,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### List Exams
 **Endpoint:** `GET /exams/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 
 **Query Parameters:**
@@ -679,6 +723,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### Create Exam
 **Endpoint:** `POST /exams/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
@@ -724,6 +772,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### Get Exam Details
 **Endpoint:** `GET /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
@@ -757,6 +809,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### Update Exam
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body (PATCH example):**
 ```json
@@ -768,11 +824,19 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### Delete Exam
 **Endpoint:** `DELETE /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Response:** `204 No Content`
 
 #### View Exam Questions (Admin/Staff)
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin` or `superadmin`  
 **Response:** `200 OK`
 ```json
@@ -805,6 +869,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 
 #### Get Exam Results (Admin/Staff)
 **Endpoint:** `GET /exams/{exam_id}/results/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin` or `superadmin`
 
 **Response:** `200 OK`
@@ -825,6 +893,10 @@ The API provides comprehensive management for exams, including CRUD operations, 
 Allows an eligible and verified candidate to retrieve the questions for a specific exam.
 
 **Endpoint:** `GET /exams/{exam_id}/take-exam/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Authenticated `candidate` with `is_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
 ```json
@@ -854,6 +926,10 @@ Allows an eligible and verified candidate to retrieve the questions for a specif
 Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
 
 **Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Authenticated `candidate` currently taking the exam.  
 **Request Body:**
 ```json
@@ -884,6 +960,10 @@ Allows a candidate to submit their answers for an exam. This endpoint handles bu
 Allows `admin` or `superadmin` staff members to manually submit or update a candidate's score for a specific exam.
 
 **Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`
 **Request Body:**
 ```json
@@ -1032,6 +1112,10 @@ Personalized dashboards provide an overview of relevant information for both can
 
 #### Candidate Dashboard
 **Endpoint:** `GET /dashboard/candidate/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Any authenticated `candidate`  
 **Response:** `200 OK`
 ```json
@@ -1084,6 +1168,10 @@ Personalized dashboards provide an overview of relevant information for both can
 
 #### Staff Dashboard
 **Endpoint:** `GET /dashboard/staff/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `moderator`, `admin`, `superadmin`  
 **Response:** `200 OK`
 ```json
@@ -1153,6 +1241,10 @@ The leaderboard displays candidate rankings and can be dynamically controlled by
 Allows `admin` or `superadmin` to enable or disable the public visibility of the leaderboard.
 
 **Endpoint:** `POST /toggle-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Request Body:**
 ```json
@@ -1179,6 +1271,10 @@ Allows `admin` or `superadmin` to enable or disable the public visibility of the
 Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
 
 **Endpoint:** `POST /publish-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `admin`, `superadmin`  
 **Response:** `202 Accepted`
 ```json
@@ -1191,6 +1287,10 @@ Triggers an asynchronous task to generate and publish the latest leaderboard sna
 Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
 
 **Endpoint:** `GET /load-leaderboard/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `league` candidates and above, all staff  
 
 **Query Parameters:**
@@ -1231,6 +1331,11 @@ Retrieve the verification status for the authenticated user or for a specific us
 **Endpoints:**
 - `GET /user/verification/status/` (for self)
 - `GET /user/verification/status/{user_id}/` (for superadmins)
+
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 
 **Required Role:**
 - Any authenticated user for their own status.
@@ -1298,7 +1403,7 @@ This endpoint allows users to submit their documents for the first time (`POST`)
 **Required Role:** Any authenticated user
 **Headers:**
 ```text
-Authorization: Bearer <access_token>
+X-Api-Key: <your_api_key>
 Content-Type: multipart/form-data
 ```
 
@@ -1332,6 +1437,11 @@ Access uploaded documents. The API serves the file content directly from secure 
 - `GET /user/verification/documents/{file_type}/` (for self)
 - `GET /user/verification/documents/{file_type}/{user_id}/` (for superadmins)
 
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+
 **Required Role:**
 - Any authenticated user for their own documents.
 - `superadmin` to access another user's documents.
@@ -1352,6 +1462,11 @@ Access uploaded documents. The API serves the file content directly from secure 
 Retrieve a paginated list of all user verification submissions for administrative review.
 
 **Endpoint:** `GET /user/verification/list/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+
 **Required Role:** `superadmin`
 
 **Response:** `200 OK`
@@ -1381,6 +1496,11 @@ Retrieve a paginated list of all user verification submissions for administrativ
 Allows a `superadmin` to approve or reject a user's verification submission. This action is final and notifies the user via email.
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+
 **Required Role:** `superadmin`
 
 **URL Parameters:**
@@ -1421,6 +1541,10 @@ The account management endpoints allow users to view and update their own profil
 
 #### Get Account Details (Self)
 **Endpoint:** `GET /account-management/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Any authenticated user
 
 **Response:** `200 OK`
@@ -1465,6 +1589,10 @@ The account management endpoints allow users to view and update their own profil
 
 #### Get Account Details (Admin)
 **Endpoint:** `GET /account-management/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** `superadmin`
 
 **Response:** `200 OK`
@@ -1497,6 +1625,10 @@ The account management endpoints allow users to view and update their own profil
 Allows authenticated users to update their own account and profile information. Superadmins can update other users' accounts.
 
 **Endpoint:** `PATCH /account-management/` (for self) or `PATCH /account-management/{user_id}/` (for superadmins)
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** Any authenticated user (for self), `superadmin` (for others)
 **Request Body (example):**
 ```json
@@ -1553,8 +1685,10 @@ Allows authenticated users to update their own account and profile information. 
 
 ---
 
-## Query Parameters
-### Common Parameters
+## Advanced Topics
+
+### Query Parameters
+#### Common Parameters
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
 | `page` | integer | Page number for pagination | `?page=2` |
@@ -1562,7 +1696,7 @@ Allows authenticated users to update their own account and profile information. 
 | `search` | string | Search across relevant fields (e.g., name, email, title) | `?search=john` |
 | `ordering` | string | Sort results (`field` or `-field` for descending) | `?ordering=-date_created` |
 
-### Filtering Parameters
+#### Filtering Parameters
 | Endpoint | Parameter | Type | Description |
 |----------|-----------|------|-------------|
 | `/candidates/` | `role` | string | Filter by candidate role (`screening`, `league`, `final`, `winner`) |
@@ -1578,7 +1712,7 @@ Allows authenticated users to update their own account and profile information. 
 | `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
 | `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
 
-### Date Filtering
+#### Date Filtering
 Use ISO 8601 format for date parameters:
 
 | Parameter | Format | Example |
@@ -1719,14 +1853,8 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 ### Version 0.3.0 (Current)
-- **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information.
-- **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, secure access to private documents via AWS S3 signed URLs, and an admin interface for review and approval/rejection.
-- **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator`, `admin`, `superadmin`), ensuring fine-grained access control across all API endpoints.
-- **Enhanced Exam Management**: Improved exam workflow for candidates, including bulk answer submission, robust eligibility checks, prevention of re-submission, and asynchronous auto-scoring. Added manual score submission for staff.
-- **Dynamic Scoring & Leaderboard System**: Implemented asynchronous generation and publishing of score and leaderboard snapshots. Introduced feature-flagged control for leaderboard visibility.
-- **Personalized Dashboards**: Developed cached dashboard endpoints for both candidates and staff, with asynchronous updates for improved performance and user experience.
-- **Asynchronous Operations**: Integrated Celery for various background tasks (email sending, file validation, score calculation, leaderboard/score snapshot generation), significantly boosting API responsiveness and scalability.
-- **Feature Flag System**: Introduced a generic `FeatureFlag` model and associated views to dynamically enable/disable key application features (e.g., candidate/staff registration, leaderboard visibility).
+- **API Documentation**: The API documentation has been reformatted for easier navigation and readability. Backend-specific details have been removed to focus on API consumption. Authentication methods have been clarified to consistently use the `X-Api-Key` header, removing discrepancies.
+<!-- - **Asynchronous Operations**: Integrated Celery for various background tasks (email sending, file validation, score calculation, leaderboard/score snapshot generation), significantly boosting API responsiveness and scalability. -->
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
 - **Account Management API**: Provided a unified endpoint (`/account-management/`) for users to manage their own account and profile information, with `superadmin` capabilities to manage other users' accounts.
 - **Updated Error Handling**: Expanded common error codes to cover new scenarios related to verification, authentication, and feature flags, providing more specific and actionable error responses.
@@ -1735,6 +1863,13 @@ For technical support, API key requests, or questions:
 ### Version 0.2.0
 - **Base URL** is now `https://vmlc-api.onrender.com/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
+- **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information.
+- **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, secure access to private documents via AWS S3 signed URLs, and an admin interface for review and approval/rejection.
+- **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator`, `admin`, `superadmin`), ensuring fine-grained access control across all API endpoints.
+- **Enhanced Exam Management**: Improved exam workflow for candidates, including bulk answer submission, robust eligibility checks, prevention of re-submission, and asynchronous auto-scoring. Added manual score submission for staff.
+- **Dynamic Scoring & Leaderboard System**: Implemented asynchronous generation and publishing of score and leaderboard snapshots. Introduced feature-flagged control for leaderboard visibility.
+- **Personalized Dashboards**: Developed cached dashboard endpoints for both candidates and staff, with asynchronous updates for improved performance and user experience.
+- **Feature Flag System**: Introduced a generic `FeatureFlag` model and associated views to dynamically enable/disable key application features (e.g., candidate/staff registration, leaderboard visibility).
 
 ### Version 0.1.0
 - Initial API release

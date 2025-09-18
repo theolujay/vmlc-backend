@@ -7,7 +7,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from channels.db import database_sync_to_async
+# from channels.db import database_sync_to_async
 
 from ..models import (
     Candidate,
@@ -15,7 +15,7 @@ from ..models import (
     Exam,
     Staff,
 )
-from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, HasXAPIKey
 from ..serializers import (
     CandidateScoreSerializer,
     SubmitScoreSerializer,
@@ -32,6 +32,7 @@ class CandidateScoreListView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -62,13 +63,14 @@ class SubmitScoreView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
     serializer_class = SubmitScoreSerializer
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _submit_score(self, request, exam_id):
         """
         Handles the submission of a score for a candidate in a given exam.
@@ -124,8 +126,8 @@ class SubmitScoreView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    async def put(self, request, exam_id):
-        return await self._submit_score(request, exam_id)
+    def put(self, request, exam_id):
+        return self._submit_score(request, exam_id)
 
 
 class PublishScoresView(APIView):
@@ -135,12 +137,13 @@ class PublishScoresView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    async def post(self, request):
+    def post(self, request):
         """
         Triggers an asynchronous task to generate and publish the scores snapshot.
         """

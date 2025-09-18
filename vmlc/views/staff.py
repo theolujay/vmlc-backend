@@ -11,7 +11,7 @@ from rest_framework.settings import api_settings
 
 
 from ..models import Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff, IsStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, IsStaff, HasXAPIKey
 from ..serializers import (
     StaffDetailSerializer,
     StaffListSerializer,
@@ -28,7 +28,7 @@ class StaffMeView(RetrieveAPIView):
     Retrieve the authenticated staff member's own profile.
     """
 
-    permission_classes = [IsAuthenticated, IsStaff]
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsStaff]
     serializer_class = MinimalStaffSerializer
 
     def get_object(self):
@@ -47,6 +47,7 @@ class StaffListView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -78,6 +79,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.SUPERADMIN),
@@ -119,6 +121,7 @@ class AssignStaffRoleView(UpdateAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.SUPERADMIN),

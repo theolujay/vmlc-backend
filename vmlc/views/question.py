@@ -5,7 +5,7 @@ from rest_framework.settings import api_settings
 
 
 from ..models import Question, Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff
+from ..permissions import HasStaffRole, IsVerifiedStaff, HasXAPIKey
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.query_filters import filter_questions
 
@@ -24,6 +24,7 @@ class QuestionListView(ListCreateAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -78,6 +79,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),

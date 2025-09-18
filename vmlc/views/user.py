@@ -16,7 +16,7 @@ from rest_framework.settings import api_settings
 from channels.db import database_sync_to_async
 
 from ..models import User, UserVerification
-from ..permissions import HasStaffRole, IsObjectOwnerOrSuperAdminRole
+from ..permissions import HasStaffRole, IsObjectOwnerOrSuperAdminRole, HasXAPIKey
 from ..serializers import (
     UserVerificationActionSerializer,
     UserVerificationStatusSerializer,
@@ -34,9 +34,9 @@ class UserVerificationStatusView(APIView):
     Get the verification status of the authenticated user.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasXAPIKey]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _get_user_verification_status(self, user, user_id):
         logger.info(
             f"UserVerificationStatusView: request from user {user.id} for user {user_id}"
@@ -121,8 +121,8 @@ class UserVerificationStatusView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-    async def get(self, request, user_id=None):
-        return await self._get_user_verification_status(request.user, user_id)
+    def get(self, request, user_id=None):
+        return self._get_user_verification_status(request.user, user_id)
 
 
 class UserVerificationUploadView(APIView):
@@ -130,10 +130,10 @@ class UserVerificationUploadView(APIView):
     Upload verification documents for the authenticated user.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasXAPIKey]
     parser_classes = [MultiPartParser, FormParser]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
@@ -196,10 +196,10 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    async def post(self, request):
-        return await self._upload_verification_documents(request)
+    def post(self, request):
+        return self._upload_verification_documents(request)
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
         logger.info(
@@ -255,8 +255,8 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    async def patch(self, request):
-        return await self._update_verification_documents(request)
+    def patch(self, request):
+        return self._update_verification_documents(request)
 
 
 import aioboto3
@@ -266,9 +266,9 @@ class UserVerificationDocumentView(APIView):
     Access verification documents for authenticated user or any user (if superadmin).
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasXAPIKey]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _get_verification_document(self, request, file_type, user_id=None):
         logger.info(
             f"UserVerificationDocumentView: request from user {request.user.id} for file type {file_type} of user {user_id}"
@@ -337,26 +337,26 @@ class UserVerificationDocumentView(APIView):
 
         return file, storage_prefix, target_user
 
-    async def get(self, request, file_type, user_id=None):
-        file, storage_prefix, target_user = await self._get_verification_document(
+    def get(self, request, file_type, user_id=None):
+        file, storage_prefix, target_user = self._get_verification_document(
             request, file_type, user_id
         )
 
         try:
-            async with aioboto3.client("s3") as s3_client:
+            with aioboto3.client("s3") as s3_client:
                 bucket_name = "vmlc-s3"
                 object_key = f"{storage_prefix}/{file.name}"
 
                 logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
 
                 # Get the object from S3
-                s3_response = await s3_client.get_object(Bucket=bucket_name, Key=object_key)
+                s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
                 # Get content type
                 content_type = s3_response.get("ContentType", "application/octet-stream")
 
                 # Stream the content
-                file_content = await s3_response["Body"].read()
+                file_content = s3_response["Body"].read()
 
                 return HttpResponse(file_content, content_type=content_type)
 
@@ -384,7 +384,7 @@ class UserVerificationDocumentView(APIView):
 class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasXAPIKey, HasStaffRole(["superadmin"])]
     serializer_class = UserVerificationListSerializer
     queryset = UserVerification.objects.select_related("user").all()
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -402,9 +402,9 @@ class UserVerificationActionView(APIView):
     Handle user verification actions (approve/reject).
     """
 
-    permission_classes = [IsAuthenticated, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasXAPIKey, HasStaffRole(["superadmin"])]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _verification_action(self, request, user_id):
         logger.info(
             f"UserVerificationActionView: request from user {request.user.id} for user {user_id}"
@@ -458,5 +458,5 @@ class UserVerificationActionView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    async def post(self, request, user_id):
-        return await self._verification_action(request, user_id)
+    def post(self, request, user_id):
+        return self._verification_action(request, user_id)

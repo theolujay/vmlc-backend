@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from channels.db import database_sync_to_async
+# from channels.db import database_sync_to_async
 
 from ..models import Staff, User
 from ..permissions import (
@@ -17,6 +17,7 @@ from ..permissions import (
     IsCandidate,
     IsObjectOwnerOrSuperAdminRole,
     IsVerifiedStaff,
+    HasXAPIKey,
 )
 from ..serializers import (
     CandidateDetailSerializer,
@@ -36,9 +37,9 @@ class CandidateDashboardView(APIView):
     Retrieve dashboard data for the currently authenticated candidate.
     """
 
-    permission_classes = [IsAuthenticated, IsCandidate]
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
 
-    async def get(self, request):
+    def get(self, request):
         """
         Returns candidate-specific dashboard stats and profile data.
         """
@@ -47,7 +48,7 @@ class CandidateDashboardView(APIView):
             f"CandidateDashboardView: request from user {request.user.id} (candidate_id: {candidate.pk})"
         )
         cache_key = f"candidate_dashboard_{candidate.pk}"
-        cached_data = await cache.get(cache_key)
+        cached_data = cache.get(cache_key)
 
         if cached_data:
             logger.info(f"Dashboard data for candidate {candidate.pk} found in cache.")
@@ -73,12 +74,13 @@ class StaffDashboardView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
     ]
 
-    async def get(self, request):
+    def get(self, request):
         """
         Returns staff-specific dashboard metrics and profile data from cache if available.
         """
@@ -86,7 +88,7 @@ class StaffDashboardView(APIView):
         logger.info(
             f"StaffDashboardView: request from user {request.user.id} (staff_id: {staff.pk})"
         )
-        cached_data = await cache.get(f"staff_dashboard_data_{staff.pk}")
+        cached_data = cache.get(f"staff_dashboard_data_{staff.pk}")
 
         if cached_data:
             logger.info(f"Dashboard data for staff {staff.pk} found in cache.")
@@ -117,10 +119,10 @@ class AccountManagementView(APIView):
     Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasXAPIKey, IsAuthenticated]
     # parser_classes = [MultiPartParser, FormParser]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _get_target_user(self, request, user_id=None):
         """
         Determines the target user for the action and checks permissions.
@@ -139,7 +141,7 @@ class AccountManagementView(APIView):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _get_profile_and_serializer(self, user):
         """
         Gets the user's profile (Candidate or Staff) and the appropriate serializer.
@@ -150,16 +152,16 @@ class AccountManagementView(APIView):
             return user.staff_profile, StaffDetailSerializer
         return None, None
 
-    async def get(self, request, user_id=None):
+    def get(self, request, user_id=None):
         """
         Retrieve the account and profile data of the target user.
         """
         logger.info(
             f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
         )
-        target_user = await self._get_target_user(request, user_id)
+        target_user = self._get_target_user(request, user_id)
         user_data = UserSerializer(target_user).data
-        profile, profile_serializer_class = await self._get_profile_and_serializer(
+        profile, profile_serializer_class = self._get_profile_and_serializer(
             target_user
         )
 
@@ -174,7 +176,7 @@ class AccountManagementView(APIView):
 
         return Response({"profile": profile_data})
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.
@@ -222,8 +224,8 @@ class AccountManagementView(APIView):
     #     """
     #     return self._update_account(request, partial=False, user_id=user_id)
 
-    async def patch(self, request, user_id=None):
+    def patch(self, request, user_id=None):
         """
         Partially update user and/or profile data.
         """
-        return await self._update_account(request, partial=True, user_id=user_id)
+        return self._update_account(request, partial=True, user_id=user_id)

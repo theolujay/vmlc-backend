@@ -5,10 +5,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
-from channels.db import database_sync_to_async
+# from channels.db import database_sync_to_async
 
 from ..models import FeatureFlag, LeaderboardSnapshot, Staff
-from ..permissions import HasStaffRole, IsLeagueCandidateOrStaff, IsVerifiedStaff
+from ..permissions import (
+    HasStaffRole,
+    IsLeagueCandidateOrStaff,
+    IsVerifiedStaff,
+    HasXAPIKey,
+)
 from .registration import ToggleFeatureFlagView
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,7 @@ class PublishLeaderboardView(APIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -47,21 +53,19 @@ class PublishLeaderboardView(APIView):
         )
 
 
-from channels.db import database_sync_to_async
-
 
 class LoadLeaderboardView(APIView):
     """
     Returns the most recently published leaderboard snapshot.
     """
 
-    permission_classes = [IsAuthenticated, IsLeagueCandidateOrStaff]
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueCandidateOrStaff]
 
-    @database_sync_to_async
+    # @database_sync_to_async
     def _get_snapshot(self):
         return LeaderboardSnapshot.objects.order_by("-created_at").first()
 
-    async def get(self, request):
+    def get(self, request):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
         if hasattr(request.user, "candidate_profile"):
             if not request.user.candidate_profile.is_verified:
@@ -82,7 +86,10 @@ class LoadLeaderboardView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        leaderboard_visible = await database_sync_to_async(FeatureFlag.get_bool)(
+        # leaderboard_visible = await database_sync_to_async(FeatureFlag.get_bool)(
+        #     "leaderboard_visible", default=False
+        # )
+        leaderboard_visible = FeatureFlag.get_bool(
             "leaderboard_visible", default=False
         )
         logger.info(f"Leaderboard visibility is set to {leaderboard_visible}")
@@ -95,7 +102,7 @@ class LoadLeaderboardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        snapshot = await self._get_snapshot()
+        snapshot = self._get_snapshot()
 
         if not snapshot:
             logger.warning("Leaderboard requested but not yet published.")
@@ -115,6 +122,7 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),

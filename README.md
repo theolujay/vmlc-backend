@@ -9,7 +9,7 @@ Built with Django and Django REST Framework, this project is designed to scale a
 
 ## Features
 
-- **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information.
+- **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information. API key protection for public endpoints using the `X-Api-Key` header.
 - **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator`, `admin`, `superadmin`), ensuring fine-grained access control across all API endpoints.
 - **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, and secure access to private documents via AWS S3 signed URLs.
 - **Multi-stage Competition Structure**: Supports `screening`, `league`, and `final` stages for exams and candidate progression.

@@ -20,7 +20,12 @@ from ..serializers import (
     CandidateExamSerializer,
     CandidateExamScoreSerializer,
 )
-from ..permissions import HasStaffRole, IsCandidate, IsVerifiedStaff
+from ..permissions import (
+    HasStaffRole,
+    IsCandidate,
+    IsVerifiedStaff,
+    HasXAPIKey,
+)
 from ..utils.query_filters import ExamFilter
 from ..utils.exceptions import PermissionDenied, NotFound
 import logging
@@ -37,6 +42,7 @@ class ExamListView(ListCreateAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -89,6 +95,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -119,6 +126,7 @@ class ExamResultsView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -155,6 +163,7 @@ class ExamQuestionsView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -187,6 +196,7 @@ class ExamHistoryView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -216,7 +226,7 @@ class ExamHistoryView(ListAPIView):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsCandidate])
+@permission_classes([HasXAPIKey, IsAuthenticated, IsCandidate])
 def candidate_take_exam(request, exam_id):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.

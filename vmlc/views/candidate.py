@@ -12,12 +12,17 @@ from rest_framework import status
 from rest_framework.settings import api_settings
 
 from ..models import Candidate, Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff, IsCandidate
+from ..permissions import (
+    HasStaffRole,
+    IsVerifiedStaff,
+    IsCandidate,
+    HasXAPIKey,
+)
 from ..serializers import (
     CandidateDetailSerializer,
     CandidateListSerializer,
     CandidateRoleSerializer,
-    MinimalCandidateSerializer
+    MinimalCandidateSerializer,
 )
 from ..utils.dashboard_utils import get_candidate_dashboard_data
 from ..utils.query_filters import filter_candidates
@@ -25,11 +30,13 @@ from ..utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
+
 class CandidateMeView(RetrieveAPIView):
     """
     Retrieve the authenticated candidate's own profile.
     """
-    permission_classes = [IsAuthenticated, IsCandidate]
+
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
     serializer_class = MinimalCandidateSerializer
 
     def get(self, request, *args, **kwargs):
@@ -49,6 +56,7 @@ class CandidateListView(ListAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -76,6 +84,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
@@ -137,6 +146,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     """
 
     permission_classes = [
+        HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
         HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
