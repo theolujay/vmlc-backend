@@ -1851,28 +1851,20 @@ For technical support, API key requests, or questions:
 - **Discord:** `@olujay`
 - **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests.
-- **API Key Requests:** Include organization name and intended use case.
 
 ---
 
 ## Changelog
 ### Version 0.3.0 (Current)
-- **API Documentation**: The API documentation has been reformatted for easier navigation and readability. Backend-specific details have been removed to focus on API consumption. Authentication methods have been clarified to consistently use the `X-Api-Key` header, removing discrepancies.- **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
+- **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
+- **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
-- **Account Management API**: Provided a unified endpoint (`/account-management/`) for users to manage their own account and profile information, with 'manager' or higher capabilities to manage other users' accounts.
-- **Updated Error Handling**: Expanded common error codes to cover new scenarios related to verification, authentication, and feature flags, providing more specific and actionable error responses.
-- **API Key Authentication**: Explicitly documented the use of API Key authentication for public endpoints like registration and login.
+- **Login:** Response now includes full profile (and not user details alone).
+- **RBAC**: Only `superadmin` can view staff staff details.
 
 ### Version 0.2.0
 - **Base URL** is now `https://vmlc-api.onrender.com/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
-- **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information.
-- **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, secure access to private documents via AWS S3 signed URLs, and an admin interface for review and approval/rejection.
-- **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator` or higher), ensuring fine-grained access control across all API endpoints.
-- **Enhanced Exam Management**: Improved exam workflow for candidates, including bulk answer submission, robust eligibility checks, prevention of re-submission, and asynchronous auto-scoring. Added manual score submission for staff.
-- **Dynamic Scoring & Leaderboard System**: Implemented asynchronous generation and publishing of score and leaderboard snapshots. Introduced feature-flagged control for leaderboard visibility.
-- **Personalized Dashboards**: Developed cached dashboard endpoints for both candidates and staff, with asynchronous updates for improved performance and user experience.
-- **Feature Flag System**: Introduced a generic `FeatureFlag` model and associated views to dynamically enable/disable key application features (e.g., candidate/staff registration, leaderboard visibility).
 
 ### Version 0.1.0
 - Initial API release
