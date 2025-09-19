@@ -11,11 +11,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 # from channels.db import database_sync_to_async
 
-from ..models import Staff, User
+from ..models import User
 from ..permissions import (
-    HasStaffRole,
+    HasMinimumStaffRole,
     IsCandidate,
-    IsObjectOwnerOrSuperAdminRole,
+    IsObjectOwnerOrManagerRole,
     IsVerifiedStaff,
     HasXAPIKey,
 )
@@ -77,7 +77,7 @@ class StaffDashboardView(APIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("moderator"),
     ]
 
     def get(self, request):
@@ -132,7 +132,7 @@ class AccountManagementView(APIView):
 
         # If a user_id is provided, check if the requester has permission.
         target_user = get_object_or_404(User, id=user_id)
-        if not IsObjectOwnerOrSuperAdminRole().has_object_permission(
+        if not IsObjectOwnerOrManagerRole().has_object_permission(
             request, self, target_user
         ):
             logger.warning(

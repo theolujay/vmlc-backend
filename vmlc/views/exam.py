@@ -11,7 +11,7 @@ from rest_framework.generics import (
 )
 
 
-from ..models import Exam, CandidateScore, Candidate, Staff
+from ..models import Exam, CandidateScore, Candidate
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
@@ -21,7 +21,7 @@ from ..serializers import (
     CandidateExamScoreSerializer,
 )
 from ..permissions import (
-    HasStaffRole,
+    HasMinimumStaffRole,
     IsCandidate,
     IsVerifiedStaff,
     HasXAPIKey,
@@ -45,7 +45,7 @@ class ExamListView(ListCreateAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
@@ -98,7 +98,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
@@ -129,7 +129,7 @@ class ExamResultsView(ListAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
@@ -166,7 +166,7 @@ class ExamQuestionsView(ListAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = QuestionDetailSerializer
 
@@ -199,7 +199,7 @@ class ExamHistoryView(ListAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"

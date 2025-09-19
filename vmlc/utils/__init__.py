@@ -14,16 +14,13 @@ from .dashboard_utils import (
     get_candidate_dashboard_data,
     get_staff_dashboard_data,
 )
+from ..utils.feature import ToggleFeatureFlagView
 from .query_filters import (
     filter_candidates,
     filter_staffs,
     filter_questions,
     ExamFilter,
 )
-from .user import (
-    validate_role_for_serializer,
-)
-
 
 __all__ = [
     # auth
@@ -36,11 +33,11 @@ __all__ = [
     # dashboard_utils
     "get_candidate_dashboard_data",
     "get_staff_dashboard_data",
+    # feature
+    "ToggleFeatureFlagView",
     # query_filters
     "filter_candidates",
     "filter_staffs",
     "filter_questions",
     "ExamFilter",
-    # user
-    "validate_role_for_serializer",
 ]

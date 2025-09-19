@@ -1,7 +1,10 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from .models import Candidate, Staff
 from rest_framework_api_key.permissions import HasAPIKey
 from channels.db import database_sync_to_async
+
+
+from .models import Candidate, Staff
 
 
 # @database_sync_to_async
@@ -37,7 +40,7 @@ def _get_staff_profile(request):
         try:
             # Use the explicit related_name from the model for clarity.
             request._staff_profile = request.user.staff_profile
-        except (Staff.DoesNotExist, AttributeError):
+        except (ObjectDoesNotExist, AttributeError):
             request._staff_profile = None
     return request._staff_profile
 
@@ -63,17 +66,70 @@ class IsStaff(BasePermission):
 def HasStaffRole(*roles):
     """
     Permission factory that grants access to staff users with specific roles.
-    This is more explicit and reusable than a class with an __init__.
+    
+    Usage:
+        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN)
+    
+    Args:
+        *roles: Variable number of Staff.Roles enum values
     """
-
+    
     class HasStaffRolePermission(BasePermission):
+        """Permission class that checks if user has any of the required staff roles."""
+        
         def has_permission(self, request, view):
+            """Check if user has any of the required staff roles."""
             staff_profile = _get_staff_profile(request)
-            return staff_profile and staff_profile.role in roles
+            
+            # User must have a staff profile and role must be in allowed roles
+            if not staff_profile or not staff_profile.role:
+                return False
+                
+            return staff_profile.role in roles
+        
+        def has_object_permission(self, request, view, obj):
+            """Object-level permission check (inherits from has_permission)."""
+            return self.has_permission(request, view)
 
     return HasStaffRolePermission
 
+class StaffRoleHierarchy:
+    """Helper class to define role hierarchies."""
+    
+    ROLE_LEVELS = {
+        Staff.Roles.VOLUNTEER: 1,
+        Staff.Roles.SPONSOR: 2,
+        Staff.Roles.MODERATOR: 3,
+        Staff.Roles.ADMIN: 4,
+        Staff.Roles.MANAGER: 5,
+        Staff.Roles.SUPERADMIN: 6,
+    }
+    
+    @classmethod
+    def has_minimum_role(cls, user_role, minimum_role):
+        """Check if user role meets minimum requirement."""
+        user_level = cls.ROLE_LEVELS.get(user_role, 0)
+        min_level = cls.ROLE_LEVELS.get(minimum_role, 999)
+        return user_level >= min_level
 
+def HasMinimumStaffRole(minimum_role):
+    """Permission factory for hierarchical role checking.
+    
+    Usage: HasMinimumStaffRole(Staff.Roles.ADMIN)
+    This grants access to ADMIN MANAGER, and SUPERADMIN automatically.
+    """
+    
+    class HasMinimumStaffRolePermission(BasePermission):
+        def has_permission(self, request, view):
+            staff_profile = _get_staff_profile(request)
+            
+            if not staff_profile:
+                False
+            return StaffRoleHierarchy.has_minimum_role(
+                staff_profile.role,
+                minimum_role
+            )
+    return HasMinimumStaffRolePermission
 class IsLeagueCandidate(BasePermission):
     """
     Grants access only to candidates whose role is 'league'.
@@ -90,7 +146,7 @@ class IsLeagueCandidate(BasePermission):
 # Pre-instantiate permission classes for efficiency in composed permissions.
 _is_league_candidate_perm = IsLeagueCandidate()
 _is_elevated_staff_perm = HasStaffRole(
-    Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN
+    Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN
 )()
 
 
@@ -127,11 +183,11 @@ class IsVerifiedStaff(BasePermission):
         return staff_profile is not None and staff_profile.is_verified
 
 
-class IsObjectOwnerOrSuperAdminRole(BasePermission):
+class IsObjectOwnerOrManagerRole(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object (e.g., `request.user == obj.user`).
-    2. A verified staff member with the 'superadmin' role.
+    2. A verified staff member with a 'manager' or 'superadmin' role.
     """
 
     message = "You do not have permission to perform this action on this object."
@@ -143,12 +199,12 @@ class IsObjectOwnerOrSuperAdminRole(BasePermission):
         elif isinstance(obj, request.user.__class__):
             is_owner = request.user == obj
 
-        # Check if the user is a superadmin
+        # Check if the user is a manager
         staff_profile = _get_staff_profile(request)
-        is_superadmin = (
+        is_manager = (
             staff_profile is not None
             and staff_profile.is_verified
-            and staff_profile.role in (Staff.Roles.SUPERADMIN)
+            and staff_profile.role in (Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN)
         )
 
-        return is_owner or is_superadmin
+        return is_owner or is_manager

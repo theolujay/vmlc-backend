@@ -11,7 +11,7 @@ from rest_framework.settings import api_settings
 
 
 from ..models import Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff, IsStaff, HasXAPIKey
+from ..permissions import HasMinimumStaffRole, IsVerifiedStaff, IsStaff, HasXAPIKey
 from ..serializers import (
     StaffDetailSerializer,
     StaffListSerializer,
@@ -43,14 +43,14 @@ class StaffListView(ListAPIView):
     """
     List all staff members with pagination and optional filtering.
 
-    Only accessible to users with roles: moderator, admin, or superadmin.
+    Only accessible to users with roles: moderator, admin, manager, or superadmin.
     """
 
     permission_classes = [
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("moderator"),
     ]
     serializer_class = StaffListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -71,7 +71,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff member.
 
-    Only superadmins are allowed to access this endpoint.
+    Only manager and superadmins are allowed to access this endpoint.
 
     - GET: Retrieve staff details.
     - PUT/PATCH: Update staff profile.
@@ -82,7 +82,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("manager"),
     ]
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.select_related("user", "user__verification").all()
@@ -99,24 +99,24 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         )
         serializer.save()
 
-    def perform_destroy(self, instance):
-        """
-        Soft-delete staff by setting `is_active` to False.
-        """
-        logger.info(
-            "Soft-deleting staff %s by user %s",
-            instance.pk,
-            self.request.user.id,
-        )
-        instance.is_active = False
-        instance.save()
+    # def perform_destroy(self, instance):
+    #     """
+    #     Soft-delete staff by setting `is_active` to False.
+    #     """
+    #     logger.info(
+    #         "Soft-deleting staff %s by user %s",
+    #         instance.pk,
+    #         self.request.user.id,
+    #     )
+    #     instance.is_active = False
+    #     instance.save()
 
 
 class AssignStaffRoleView(UpdateAPIView):
     """
     Assign a new role to a staff member.
 
-    - Only superadmins can change roles.
+    - Only manager and superadmin can change roles.
     - Only accepts PUT requests.
     """
 
@@ -124,7 +124,7 @@ class AssignStaffRoleView(UpdateAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("manager"),
     ]
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
@@ -132,10 +132,12 @@ class AssignStaffRoleView(UpdateAPIView):
     http_method_names = ["put", "patch"]
 
     def perform_update(self, serializer):
+        old_role = serializer.instance.role
         super().perform_update(serializer)
         logger.info(
-            "Assigned role '%s' to staff %s by user %s.",
-            serializer.instance.role,
+            "Changed staff %s role from '%s' to '%s' by user %s.",
             serializer.instance.pk,
+            old_role,
+            serializer.instance.role,
             self.request.user.id,
         )

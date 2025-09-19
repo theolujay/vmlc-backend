@@ -4,8 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
 
 
-from ..models import Question, Staff
-from ..permissions import HasStaffRole, IsVerifiedStaff, HasXAPIKey
+from ..models import Question
+from ..permissions import IsVerifiedStaff, HasXAPIKey, HasMinimumStaffRole
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.query_filters import filter_questions
 
@@ -27,7 +27,7 @@ class QuestionListView(ListCreateAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("moderator"),
     ]
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -82,7 +82,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("moderator"),
     ]
     serializer_class = QuestionDetailSerializer
     queryset = (
@@ -96,7 +96,6 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         """
         Set the `updated_by` field to the current staff user.
         """
-        # HasStaffRole permission ensures staff_profile exists
         serializer.save(updated_by=self.request.user.staff_profile)
         logger.info(
             "Question %s updated by %s with data: %s",

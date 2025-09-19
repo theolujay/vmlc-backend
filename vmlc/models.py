@@ -237,6 +237,7 @@ class Staff(models.Model):
         """Roles for staff members."""
 
         SUPERADMIN = "superadmin", "Superadmin"
+        MANAGER = "manager", "Manager"
         ADMIN = "admin", "Admin"
         MODERATOR = "moderator", "Moderator"
         SPONSOR = "sponsor", "Sponsor"

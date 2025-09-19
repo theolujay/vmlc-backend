@@ -7,14 +7,14 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 # from channels.db import database_sync_to_async
 
-from ..models import FeatureFlag, LeaderboardSnapshot, Staff
+from ..utils import ToggleFeatureFlagView
+from ..models import FeatureFlag, LeaderboardSnapshot
 from ..permissions import (
-    HasStaffRole,
+    HasMinimumStaffRole,
     IsLeagueCandidateOrStaff,
     IsVerifiedStaff,
     HasXAPIKey,
 )
-from .registration import ToggleFeatureFlagView
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class PublishLeaderboardView(APIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
 
     def post(self, request: Request) -> Response:
@@ -125,6 +125,6 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     feature_flag_key = "leaderboard_visible"

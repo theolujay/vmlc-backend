@@ -1,7 +1,6 @@
 import logging
 
 
-import boto3
 from botocore.exceptions import ClientError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -13,10 +12,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
-from channels.db import database_sync_to_async
 
 from ..models import User, UserVerification
-from ..permissions import HasStaffRole, IsObjectOwnerOrSuperAdminRole, HasXAPIKey
+from ..permissions import HasMinimumStaffRole, IsObjectOwnerOrManagerRole, HasXAPIKey
 from ..serializers import (
     UserVerificationActionSerializer,
     UserVerificationStatusSerializer,
@@ -52,7 +50,7 @@ class UserVerificationStatusView(APIView):
                 raise NotFound("User not found.")
             if (
                 user.id != target_user.id
-                and not IsObjectOwnerOrSuperAdminRole().has_object_permission(
+                and not IsObjectOwnerOrManagerRole().has_object_permission(
                     self.request, self, target_user
                 )
             ):
@@ -292,7 +290,7 @@ class UserVerificationDocumentView(APIView):
             # Check permissions: only the user themselves or superadmin can access
             if str(request.user.id) != str(
                 user_id
-            ) and not IsObjectOwnerOrSuperAdminRole().has_object_permission(  # Convert both to string for comparison
+            ) and not IsObjectOwnerOrManagerRole().has_object_permission(  # Convert both to string for comparison
                 request, self, target_user
             ):
                 logger.warning(
@@ -384,7 +382,7 @@ class UserVerificationDocumentView(APIView):
 class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes = [IsAuthenticated, HasXAPIKey, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasXAPIKey, HasMinimumStaffRole("manager")]
     serializer_class = UserVerificationListSerializer
     queryset = UserVerification.objects.select_related("user").all()
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -402,7 +400,7 @@ class UserVerificationActionView(APIView):
     Handle user verification actions (approve/reject).
     """
 
-    permission_classes = [IsAuthenticated, HasXAPIKey, HasStaffRole(["superadmin"])]
+    permission_classes = [IsAuthenticated, HasXAPIKey, HasMinimumStaffRole("manager")]
 
     # @database_sync_to_async
     def _verification_action(self, request, user_id):

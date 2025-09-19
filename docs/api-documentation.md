@@ -177,16 +177,20 @@ The VMLC API implements a robust Role-Based Access Control (RBAC) system, ensuri
 | `winner` | The ultimate competition winner (staff-assigned). | Ceremonial role with all candidate permissions. |
 
 ### Staff Roles
-| Role | Description | Permissions |
-|------|-------------|-------------|
+The API now uses a hierarchical role system. Users with a higher role inherit all permissions from the roles below them.
+
+| Role (Hierarchy) | Description | Key Permissions |
+|------------------|-------------|-----------------|
 | `volunteer` | Basic staff member. | Can manage user verification requests (view, approve, reject). |
+| `sponsor` | A sponsor. Vanity role. | (Permissions are currently equivalent to `volunteer`). |
 | `moderator` | Responsible for content moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
-| `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing, visibility toggle). Cannot assign staff roles. |
-| `superadmin` | Platform administrator with full control. | All `admin` permissions, plus ability to manage staff (CRUD, role assignment), toggle registration feature flags, and access all user verification documents. |
+| `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing). |
+| `manager` | Senior administrator. | All `admin` permissions, plus ability to manage staff members (CRUD, role assignment) and access to user verfication process and documents. Cannot assign `manager` or `superadmin` roles. |
+| `superadmin` | Platform administrator with full control. | All `manager` permissions, plus ability to assign any staff role (excluding `superadmin`). |
 
 ### Role Progression
-- **Candidates**: `screening` → `league` → `final` → `winner` (progression is typically managed by staff)
-- **Staff**: `volunteer` → `moderator` → `admin` → `superadmin` (progression is managed by `superadmin`)
+- **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
+- **Staff**: Roles are assigned by a `manager` or `superadmin`.
 
 ---
 
@@ -440,7 +444,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number for pagination
@@ -477,7 +481,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `moderator`, `admin`, `superadmin`
+**Required Role:** `moderator` or higher
 
 **Response:** `200 OK`
 ```json
@@ -522,7 +526,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Request Body:**
 ```json
 {
@@ -539,7 +543,7 @@ X-Api-Key: <your_api_key>
 
 #### Get Candidate Scores
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Response:** `200 OK`
 ```json
 [
@@ -575,7 +579,7 @@ X-Api-Key: <your_api_key>
 Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
 
 **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
-**Required Role:** `admin` or `superadmin`
+**Required Role:** 'admin' or higher
 
 **Response:** `200 OK`
 ```json
@@ -601,7 +605,7 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -638,7 +642,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `superadmin`
+**Required Role:** `manager`, `superadmin`
 
 **Response:** `200 OK`
 ```json
@@ -669,7 +673,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `superadmin`  
+**Required Role:** `manager`, `superadmin`  
 **Request Body:**
 ```json
 {
@@ -694,7 +698,7 @@ The API provides comprehensive management for exams, including CRUD operations, 
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -727,7 +731,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Request Body:**
 ```json
 {
@@ -776,7 +780,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin` or `superadmin`  
+**Required Role:** 'admin' or higher  
 **Response:** `200 OK`
 ```json
 {
@@ -813,7 +817,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Request Body (PATCH example):**
 ```json
 {
@@ -828,7 +832,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Response:** `204 No Content`
 
 #### View Exam Questions (Admin/Staff)
@@ -837,7 +841,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin` or `superadmin`  
+**Required Role:** 'admin' or higher  
 **Response:** `200 OK`
 ```json
 [
@@ -873,7 +877,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin` or `superadmin`
+**Required Role:** 'admin' or higher
 
 **Response:** `200 OK`
 ```json
@@ -957,14 +961,14 @@ X-Api-Key: <your_api_key>
 *Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
 
 #### Submit Exam Score (Manual by Staff)
-Allows `admin` or `superadmin` staff members to manually submit or update a candidate's score for a specific exam.
+Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
 
 **Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`
+**Required Role:** `admin` or higher
 **Request Body:**
 ```json
 {
@@ -993,7 +997,7 @@ The API provides CRUD operations for managing exam questions.
 
 #### List Questions
 **Endpoint:** `GET /questions/`  
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number
@@ -1018,7 +1022,7 @@ The API provides CRUD operations for managing exam questions.
 
 #### Create Question
 **Endpoint:** `POST /questions/`  
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 **Request Body:**
 ```json
 {
@@ -1060,7 +1064,7 @@ The API provides CRUD operations for managing exam questions.
 
 #### Get Question Details
 **Endpoint:** `GET /questions/{question_id}/`  
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 **Response:** `200 OK`
 ```json
 {
@@ -1090,7 +1094,7 @@ The API provides CRUD operations for managing exam questions.
 
 #### Update Question
 **Endpoint:** `PUT /questions/{question_id}/` or `PATCH /questions/{question_id}/`  
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 **Request Body (PATCH example):**
 ```json
 {
@@ -1101,7 +1105,7 @@ The API provides CRUD operations for managing exam questions.
 
 #### Delete Question
 **Endpoint:** `DELETE /questions/{question_id}/`  
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
 *Note: Questions are soft-deleted by setting `is_active` to `False`.*
 
@@ -1172,7 +1176,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `moderator`, `admin`, `superadmin`  
+**Required Role:** `moderator` or higher  
 **Response:** `200 OK`
 ```json
 {
@@ -1238,14 +1242,14 @@ X-Api-Key: <your_api_key>
 The leaderboard displays candidate rankings and can be dynamically controlled by staff.
 
 #### Toggle Leaderboard Visibility
-Allows `admin` or `superadmin` to enable or disable the public visibility of the leaderboard.
+Allows 'admin' or higher to enable or disable the public visibility of the leaderboard.
 
 **Endpoint:** `POST /toggle-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Request Body:**
 ```json
 {
@@ -1275,7 +1279,7 @@ Triggers an asynchronous task to generate and publish the latest leaderboard sna
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin`, `superadmin`  
+**Required Role:** `admin` or higher  
 **Response:** `202 Accepted`
 ```json
 {
@@ -1339,7 +1343,7 @@ X-Api-Key: <your_api_key>
 
 **Required Role:**
 - Any authenticated user for their own status.
-- `superadmin` to check another user's status.
+- 'manager' or higher to check another user's status.
 
 **Responses:**
 The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
@@ -1444,7 +1448,7 @@ X-Api-Key: <your_api_key>
 
 **Required Role:**
 - Any authenticated user for their own documents.
-- `superadmin` to access another user's documents.
+- 'manager' or higher to access another user's documents.
 
 **URL Parameters:**
 - `file_type` (string): `id_card`, `verification_document`, or `profile_photo`.
@@ -1467,7 +1471,7 @@ Retrieve a paginated list of all user verification submissions for administrativ
 X-Api-Key: <your_api_key>
 ```
 
-**Required Role:** `superadmin`
+**Required Role:** 'manager' or higher
 
 **Response:** `200 OK`
 ```json
@@ -1493,7 +1497,7 @@ X-Api-Key: <your_api_key>
 ```
 
 #### 5. Approve or Reject a Verification Request (Admin)
-Allows a `superadmin` to approve or reject a user's verification submission. This action is final and notifies the user via email.
+Allows a 'manager' or higher to approve or reject a user's verification submission. This action is final and notifies the user via email.
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
 **Headers:**
@@ -1501,7 +1505,7 @@ Allows a `superadmin` to approve or reject a user's verification submission. Thi
 X-Api-Key: <your_api_key>
 ```
 
-**Required Role:** `superadmin`
+**Required Role:** 'manager' or higher
 
 **URL Parameters:**
 - `user_id` (uuid): The ID of the user whose verification is being actioned.
@@ -1593,7 +1597,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `superadmin`
+**Required Role:** 'manager' or higher
 
 **Response:** `200 OK`
 ```json
@@ -1629,7 +1633,7 @@ Allows authenticated users to update their own account and profile information. 
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** Any authenticated user (for self), `superadmin` (for others)
+**Required Role:** Any authenticated user (for self), 'manager' or higher (for others)
 **Request Body (example):**
 ```json
 {
@@ -1702,7 +1706,7 @@ X-Api-Key: <your_api_key>
 | `/candidates/` | `role` | string | Filter by candidate role (`screening`, `league`, `final`, `winner`) |
 | `/candidates/` | `school` | string | Filter by school name |
 | `/candidates/` | `verified` | boolean | Filter by verification status (`true` or `false`) |
-| `/staff/` | `role` | string | Filter by staff role (`volunteer`, `moderator`, `admin`, `superadmin`) |
+| `/staff/` | `role` | string | Filter by staff role (`volunteer`, `moderator` or higher) |
 | `/staff/` | `occupation` | string | Filter by occupation |
 | `/exams/` | `stage` | string | Filter by exam stage (`screening`, `league`) |
 | `/exams/` | `active` | boolean | Filter by active status (`true` or `false`) |
@@ -1853,10 +1857,9 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 ### Version 0.3.0 (Current)
-- **API Documentation**: The API documentation has been reformatted for easier navigation and readability. Backend-specific details have been removed to focus on API consumption. Authentication methods have been clarified to consistently use the `X-Api-Key` header, removing discrepancies.
-<!-- - **Asynchronous Operations**: Integrated Celery for various background tasks (email sending, file validation, score calculation, leaderboard/score snapshot generation), significantly boosting API responsiveness and scalability. -->
+- **API Documentation**: The API documentation has been reformatted for easier navigation and readability. Backend-specific details have been removed to focus on API consumption. Authentication methods have been clarified to consistently use the `X-Api-Key` header, removing discrepancies.- **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
-- **Account Management API**: Provided a unified endpoint (`/account-management/`) for users to manage their own account and profile information, with `superadmin` capabilities to manage other users' accounts.
+- **Account Management API**: Provided a unified endpoint (`/account-management/`) for users to manage their own account and profile information, with 'manager' or higher capabilities to manage other users' accounts.
 - **Updated Error Handling**: Expanded common error codes to cover new scenarios related to verification, authentication, and feature flags, providing more specific and actionable error responses.
 - **API Key Authentication**: Explicitly documented the use of API Key authentication for public endpoints like registration and login.
 
@@ -1865,7 +1868,7 @@ For technical support, API key requests, or questions:
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 - **Comprehensive User Authentication**: Implemented full OTP-based email verification and secure password reset flows. Enhanced JWT login to include detailed candidate/staff profile information.
 - **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, secure access to private documents via AWS S3 signed URLs, and an admin interface for review and approval/rejection.
-- **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator`, `admin`, `superadmin`), ensuring fine-grained access control across all API endpoints.
+- **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator` or higher), ensuring fine-grained access control across all API endpoints.
 - **Enhanced Exam Management**: Improved exam workflow for candidates, including bulk answer submission, robust eligibility checks, prevention of re-submission, and asynchronous auto-scoring. Added manual score submission for staff.
 - **Dynamic Scoring & Leaderboard System**: Implemented asynchronous generation and publishing of score and leaderboard snapshots. Introduced feature-flagged control for leaderboard visibility.
 - **Personalized Dashboards**: Developed cached dashboard endpoints for both candidates and staff, with asynchronous updates for improved performance and user experience.

@@ -11,9 +11,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
 
-from ..models import Candidate, Staff
+from ..models import Candidate
 from ..permissions import (
-    HasStaffRole,
+    HasMinimumStaffRole,
     IsVerifiedStaff,
     IsCandidate,
     HasXAPIKey,
@@ -51,7 +51,7 @@ class CandidateListView(ListAPIView):
     """
     List all candidates.
 
-    Accessible by staff users with roles: moderator, admin, or superadmin.
+    Accessible by staff users with roles: moderator, admin, manager, or superadmin.
     Supports pagination and query param filtering.
     """
 
@@ -59,7 +59,7 @@ class CandidateListView(ListAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.MODERATOR, Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("moderator"),
     ]
     serializer_class = CandidateListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -87,7 +87,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = CandidateDetailSerializer
     lookup_url_kwarg = "candidate_id"
@@ -149,7 +149,7 @@ class AssignCandidateRoleView(UpdateAPIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()

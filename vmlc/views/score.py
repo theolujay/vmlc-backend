@@ -13,9 +13,8 @@ from ..models import (
     Candidate,
     CandidateScore,
     Exam,
-    Staff,
 )
-from ..permissions import HasStaffRole, IsVerifiedStaff, HasXAPIKey
+from ..permissions import HasMinimumStaffRole, IsVerifiedStaff, HasXAPIKey
 from ..serializers import (
     CandidateScoreSerializer,
     SubmitScoreSerializer,
@@ -28,14 +27,14 @@ class CandidateScoreListView(ListAPIView):
     """
     Retrieve all scores for a given candidate.
 
-    Accessible by staff with 'admin' or 'superadmin' roles.
+    Accessible by staff with 'admin', 'manager', or 'superadmin' roles.
     """
 
     permission_classes = [
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = CandidateScoreSerializer
 
@@ -66,7 +65,7 @@ class SubmitScoreView(APIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
     serializer_class = SubmitScoreSerializer
 
@@ -140,7 +139,7 @@ class PublishScoresView(APIView):
         HasXAPIKey,
         IsAuthenticated,
         IsVerifiedStaff,
-        HasStaffRole(Staff.Roles.ADMIN, Staff.Roles.SUPERADMIN),
+        HasMinimumStaffRole("admin"),
     ]
 
     def post(self, request):
