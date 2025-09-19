@@ -123,9 +123,7 @@ REST_FRAMEWORK = {
         "burst": "20/min",  # For sensitive or POST-heavy endpoints
         "sustained": "100/hour",  # For sustained traffic
     },
-    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
-    "DEFAULT_VERSION": "v1",
-    "ALLOWED_VERSIONS": ["v1"],
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",

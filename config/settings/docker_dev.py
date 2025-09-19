@@ -153,19 +153,19 @@ CACHES = {
         "KEY_PREFIX": "vmlc_docker_dev_sync",
         "TIMEOUT": 300,
     },
-    "async": {
-        "BACKEND": "django_async_redis.cache.RedisCache", 
-        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/2"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
-            },
-        },
-        "KEY_PREFIX": "vmlc_docker_dev_async",
-        "TIMEOUT": 300,
-    }
+    # "async": {
+    #     "BACKEND": "django_async_redis.cache.RedisCache", 
+    #     "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/2"),
+    #     "OPTIONS": {
+    #         "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
+    #         "CONNECTION_POOL_KWARGS": {
+    #             "socket_connect_timeout": 5,
+    #             "socket_timeout": 5,
+    #         },
+    #     },
+    #     "KEY_PREFIX": "vmlc_docker_dev_async",
+    #     "TIMEOUT": 300,
+    # }
 }
 
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
@@ -319,7 +319,7 @@ LOGGING = {
         # Additional noise reducers
         "django.request": {"level": "ERROR"},   # Only 4xx/5xx requests
         "django.security": {"level": "WARNING"}, # Security warnings only
-        "asyncio": {"level": "WARNING"},        # Async noise reduction
+        # "asyncio": {"level": "WARNING"},        # Async noise reduction
     },
 }
 

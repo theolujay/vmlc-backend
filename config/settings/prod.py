@@ -100,6 +100,15 @@ STORAGES = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "skip_static_requests": {
+            "()": "django.utils.log.CallbackFilter",
+            "callback": lambda record: not (
+                "GET /static/" in record.getMessage()
+                and record.args[1] == "200"
+            ),
+        }
+    },
     "formatters": {
         # "verbose": {
         #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
@@ -109,12 +118,21 @@ LOGGING = {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
         },
+        "access": {
+            "format": "%(message)s",
+        },
     },
     "handlers": {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "json",
+        },
+        "access_console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "access",
+            "filters": ["skip_static_requests"],
         },
     },
     "root": {
@@ -135,6 +153,11 @@ LOGGING = {
         "django": {
             "level": "WARNING",
             "handlers": ["console"],
+            "propagate": False,
+        },
+        "gunicorn.access": {
+            "level": "INFO",
+            "handlers": ["access_console"],
             "propagate": False,
         },
     },
@@ -231,8 +254,8 @@ CACHES = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": [
             # Multiple Redis nodes for high availability
-            os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/1"),
-            os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/1"),
+            os.getenv("CACHE_REDIS_URL"),
+            # os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/1"),
         ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -249,24 +272,24 @@ CACHES = {
         "KEY_PREFIX": "vmlc_prod_sync",
         "TIMEOUT": 900,  # 15 minutes default timeout
     },
-    "async": {
-        "BACKEND": "django_async_redis.cache.RedisCache", 
-        "LOCATION": [
-            os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/2"),
-            os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/2"),
-        ],
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {
-                "max_connections": 25,
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
-                "retry_on_timeout": True,
-            },
-        },
-        "KEY_PREFIX": "vmlc_prod_async",
-        "TIMEOUT": 900,
-    }
+    # "async": {
+    #     "BACKEND": "django_async_redis.cache.RedisCache", 
+    #     "LOCATION": [
+    #         os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/2"),
+    #         os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/2"),
+    #     ],
+    #     "OPTIONS": {
+    #         "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
+    #         "CONNECTION_POOL_KWARGS": {
+    #             "max_connections": 25,
+    #             "socket_connect_timeout": 5,
+    #             "socket_timeout": 5,
+    #             "retry_on_timeout": True,
+    #         },
+    #     },
+    #     "KEY_PREFIX": "vmlc_prod_async",
+    #     "TIMEOUT": 900,
+    # }
 }
 
 # === PERFORMANCE OPTIMIZATIONS ===
