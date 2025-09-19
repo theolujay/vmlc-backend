@@ -1860,7 +1860,7 @@ For technical support, API key requests, or questions:
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
 - **Login:** Response now includes full profile (and not user details alone).
-- **RBAC**: Only `superadmin` can view staff staff details.
+- **RBAC**: Only `manager` and `superadmin` can view staff details.
 
 ### Version 0.2.0
 - **Base URL** is now `https://vmlc-api.onrender.com/v1/`
