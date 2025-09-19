@@ -4,7 +4,6 @@ set -euo pipefail
 
 # Run gunicorn with uvicorn workers
 exec gunicorn config.asgi:application \
-    -k uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:8000 \
     --workers 3 \
     --threads 2 \
