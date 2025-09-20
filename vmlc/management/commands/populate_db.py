@@ -19,6 +19,10 @@ from vmlc.models import (
     Exam,
     CandidateScore,
     CandidateAnswer,
+    FeatureFlag,
+    UserVerification,
+    LeaderboardSnapshot,
+    CandidateScoreSnapshot
 )
 from django.core.management.base import BaseCommand
 
@@ -41,7 +45,15 @@ class Command(BaseCommand):
         Question.objects.all().delete()
         Staff.objects.all().delete()
         Candidate.objects.all().delete()
+        UserVerification.objects.all().delete()
+        FeatureFlag.objects.all().delete()
+        LeaderboardSnapshot.objects.all().delete()
+        CandidateScoreSnapshot.objects.all().delete()
         User.objects.filter(is_superuser=False).delete()
+
+        # Create FeatureFlags
+        FeatureFlag.objects.create(key="candidate_registration", value=True)
+        FeatureFlag.objects.create(key="staff_registration", value=True)
 
         # Create staff users
         staff_list = []
@@ -49,17 +61,22 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 email=f"staff{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
-                first_name=fake.first_name(),
-                last_name=fake.last_name(),
+                first_name=fake.first_name()[:29],
+                last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
             )
             staff = Staff.objects.create(
                 user=user,
-                occupation=fake.job(),
+                occupation=fake.job()[:49],
                 role=random.choice(["admin", "moderator", "volunteer"]),
             )
-            staff.set_verification_override(random.choice([True, False]))
+            UserVerification.objects.create(
+                user=user,
+                is_verified=random.choice([True, False]),
+                is_pending=random.choice([True, False]),
+                is_rejected=random.choice([True, False])
+            )
             staff_list.append(staff)
 
         # Create candidate users
@@ -68,17 +85,22 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 email=f"candidate{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
-                first_name=fake.first_name(),
-                last_name=fake.last_name(),
+                first_name=fake.first_name()[:29],
+                last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
             )
             candidate = Candidate.objects.create(
                 user=user,
-                school=fake.company() + " High",
+                school=fake.company()[:154] + " High",
                 role=random.choice(["league", "screening"]),
             )
-            candidate.set_verification_override(random.choice([True, False]))
+            UserVerification.objects.create(
+                user=user,
+                is_verified=random.choice([True, False]),
+                is_pending=random.choice([True, False]),
+                is_rejected=random.choice([True, False])
+            )
             candidate_list.append(candidate)
 
         # Create questions
@@ -130,6 +152,10 @@ class Command(BaseCommand):
                         question=question,
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
+
+        # Create dummy snapshots
+        LeaderboardSnapshot.objects.create(data={"leaderboard": "dummy_data"})
+        CandidateScoreSnapshot.objects.create(data={"scores": "dummy_data"})
 
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with more data!")
