@@ -4,8 +4,11 @@ import random
 from django.utils import timezone
 from typing import Any
 from faker import Faker
+from dotenv import load_dotenv
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+load_dotenv(".env")
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
 django.setup()
 
 from vmlc.models import User, Candidate, Staff, Question, Exam, CandidateScore, CandidateAnswer
@@ -37,7 +40,7 @@ class Command(BaseCommand):
         for i in range(20):
             user = User.objects.create_user(
                 email=f"staff{i+1}@mail.com",
-                password="password123",
+                password=os.getenv("ANON_PASSWORD"),
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 is_email_verified=random.choice([True, False]),
@@ -56,7 +59,7 @@ class Command(BaseCommand):
         for i in range(100):
             user = User.objects.create_user(
                 email=f"candidate{i+1}@mail.com",
-                password="password123",
+                password=os.getenv("ANON_PASSWORD"),
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 is_email_verified=random.choice([True, False]),

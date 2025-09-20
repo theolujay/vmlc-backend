@@ -1,10 +1,9 @@
 import logging
-import random
+import string
+import secrets
 from datetime import timedelta
 
-from django.core.mail import send_mail
 from django.utils import timezone
-from django.conf import settings
 from rest_framework import serializers
 from typing import Tuple, Any
 
@@ -13,16 +12,13 @@ from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
 
-
-def generate_otp() -> str:
+def generate_secure_numeric_otp(length: int = 6) -> str:
     """
-    Generates a 6-digit OTP.
+    Generates a secure 6-digit OTP
     """
-    otp: str = str(random.randint(100000, 999999))
-    logger.debug("OTP generated successfully")
-    return otp
-
-
+    digits = string.digits
+    return ''.join(secrets.choice(digits) for _ in range(length))
+    
 def can_resend_otp(user: User, cooldown_minutes: int = 2) -> Tuple[bool, int]:
     """
     Check if user can resend OTP based on cooldown period.
@@ -97,7 +93,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
         logger.info(f"Invalidated existing OTPs for user {user.id}")
 
         # Generate new OTP
-        otp: str = generate_otp()
+        otp: str = generate_secure_numeric_otp()
         expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database
@@ -174,7 +170,7 @@ def send_password_change_otp(user: User) -> None:
         logger.info(f"Invalidated existing OTPs for password change - user {user.id}")
 
         # Generate new OTP
-        otp: str = generate_otp()
+        otp: str = generate_secure_numeric_otp()
         expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database
