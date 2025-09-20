@@ -181,9 +181,9 @@ The API now uses a hierarchical role system. Users with a higher role inherit al
 
 | Role (Hierarchy) | Description | Key Permissions |
 |------------------|-------------|-----------------|
-| `volunteer` | Basic staff member. | Can manage user verification requests (view, approve, reject). |
-| `sponsor` | A sponsor. Vanity role. | (Permissions are currently equivalent to `volunteer`). |
-| `moderator` | Responsible for content moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
+| `volunteer` | Basic staff member. | Restricted permissions. Access to apply for user verification. |
+| `sponsor` | Vanity role. | Unused. |
+| `moderator` | Responsible for basic moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
 | `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing). |
 | `manager` | Senior administrator. | All `admin` permissions, plus ability to manage staff members (CRUD, role assignment) and access to user verfication process and documents. Cannot assign `manager` or `superadmin` roles. |
 | `superadmin` | Platform administrator with full control. | All `manager` permissions, plus ability to assign any staff role (excluding `superadmin`). |
