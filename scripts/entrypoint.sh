@@ -83,7 +83,7 @@ validate_environment() {
 }
 
 wait_for_db() {
-    log_info "Waiting for database (production mode)..."
+    log_info "Waiting for database..."
     if [[ -z "${DATABASE_URL:-}" ]]; then
         log_error "DATABASE_URL not set. Cannot start in production."
         exit 1
@@ -107,8 +107,8 @@ wait_for_db() {
     log_info "Database connection established. Checking health..."
 
     # Now run Django's system check for critical errors only
-    if ! python manage.py check --deploy --fail-level CRITICAL; then
-        log_error "Django system check failed in production mode. Exiting."
+    if ! python manage.py check --fail-level CRITICAL; then
+        log_error "Django system check failed with critical errors. Exiting."
         exit 1
     fi
 }
