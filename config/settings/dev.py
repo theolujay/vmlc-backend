@@ -4,6 +4,7 @@ This settings configuration is used when running without Docker containers local
 Uses SQLite
 """
 
+import sys
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -25,15 +26,17 @@ INTERNAL_IPS = [
 ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
-INSTALLED_APPS += [
-    "debug_toolbar",
-    "django_extensions",
-    # "silk",  # SQL profiling
-]
-MIDDLEWARE += [
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
-    # "silk.middleware.SilkyMiddleware",
-]
+
+if 'test' not in sys.argv:
+    INSTALLED_APPS += [
+        "debug_toolbar",
+        "django_extensions",
+        # "silk",  # SQL profiling
+    ]
+    MIDDLEWARE += [
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+        # "silk.middleware.SilkyMiddleware",
+    ]
 
 ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
