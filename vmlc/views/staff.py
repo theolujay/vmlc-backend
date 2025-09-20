@@ -6,12 +6,15 @@ from rest_framework.generics import (
     UpdateAPIView,
     RetrieveAPIView,
 )
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
 
 
 from ..models import Staff
-from ..permissions import HasMinimumStaffRole, IsVerifiedStaff, IsStaff, HasXAPIKey
+from ..permissions import (
+    StaffPermissions,
+    VerifiedModeratorPermissions,
+    VerifiedManagerPermissions,
+)
 from ..serializers import (
     StaffDetailSerializer,
     StaffListSerializer,
@@ -28,7 +31,7 @@ class StaffMeView(RetrieveAPIView):
     Retrieve the authenticated staff member's own profile.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsStaff]
+    permission_classes = StaffPermissions
     serializer_class = MinimalStaffSerializer
 
     def get_object(self):
@@ -46,12 +49,7 @@ class StaffListView(ListAPIView):
     Only accessible to users with roles: moderator, admin, manager, or superadmin.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("moderator"),
-    ]
+    permission_classes = VerifiedModeratorPermissions
     serializer_class = StaffListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -78,12 +76,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Soft delete the staff (marks as inactive).
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("manager"),
-    ]
+    permission_classes = VerifiedManagerPermissions
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.select_related("user", "user__verification").all()
     lookup_url_kwarg = "staff_id"
@@ -120,12 +113,7 @@ class AssignStaffRoleView(UpdateAPIView):
     - Only accepts PUT requests.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("manager"),
-    ]
+    permission_classes = VerifiedManagerPermissions
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"

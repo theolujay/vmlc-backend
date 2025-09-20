@@ -2,14 +2,11 @@ import logging
 
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-# from channels.db import database_sync_to_async
 
 from ..utils import ToggleFeatureFlagView
 from ..models import FeatureFlag
-from ..permissions import HasMinimumStaffRole, HasXAPIKey
+from ..permissions import HasXAPIKey, VerifiedManagerPermissions
 from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
@@ -80,18 +77,12 @@ class StaffRegistrationView(BaseRegistrationView):
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
-    permission_classes = [
-        IsAuthenticated,
-        HasMinimumStaffRole("manager"),
-    ]
+    permission_classes = VerifiedManagerPermissions
     feature_flag_key = "candidate_registration_open"
 
 
 class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
-    permission_classes = [
-        IsAuthenticated,
-        HasMinimumStaffRole("manager"),
-    ]
+    permission_classes = VerifiedManagerPermissions
     feature_flag_key = "staff_registration_open"

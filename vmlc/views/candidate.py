@@ -7,16 +7,14 @@ from rest_framework.generics import (
     RetrieveAPIView,
 )
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.settings import api_settings
 
 from ..models import Candidate
 from ..permissions import (
-    HasMinimumStaffRole,
-    IsVerifiedStaff,
-    IsCandidate,
-    HasXAPIKey,
+    CandidatePermissions,
+    VerifiedModeratorPermissions,
+    VerifiedAdminPermissions,
 )
 from ..serializers import (
     CandidateDetailSerializer,
@@ -36,7 +34,7 @@ class CandidateMeView(RetrieveAPIView):
     Retrieve the authenticated candidate's own profile.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
+    permission_classes = CandidatePermissions
     serializer_class = MinimalCandidateSerializer
 
     def get(self, request, *args, **kwargs):
@@ -55,12 +53,7 @@ class CandidateListView(ListAPIView):
     Supports pagination and query param filtering.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("moderator"),
-    ]
+    permission_classes = VerifiedModeratorPermissions
     serializer_class = CandidateListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -83,12 +76,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     Only accessible to staff with 'owner' or 'admin' roles.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateDetailSerializer
     lookup_url_kwarg = "candidate_id"
 
@@ -145,12 +133,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     Only staff with 'owner' or 'admin' roles are permitted.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"

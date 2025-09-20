@@ -1,20 +1,16 @@
 import logging
 
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
 
-# from channels.db import database_sync_to_async
-
 from ..utils import ToggleFeatureFlagView
 from ..models import FeatureFlag, LeaderboardSnapshot
 from ..permissions import (
-    HasMinimumStaffRole,
+    AuthenticatedUser,
     IsLeagueCandidateOrStaff,
-    IsVerifiedStaff,
-    HasXAPIKey,
+    VerifiedAdminPermissions,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,12 +21,7 @@ class PublishLeaderboardView(APIView):
     Refreshes and publishes the leaderboard snapshot. Admin/Superadmin only.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
 
     def post(self, request: Request) -> Response:
         """
@@ -59,7 +50,7 @@ class LoadLeaderboardView(APIView):
     Returns the most recently published leaderboard snapshot.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueCandidateOrStaff]
+    permission_classes = AuthenticatedUser + [IsLeagueCandidateOrStaff]
 
     # @database_sync_to_async
     def _get_snapshot(self):
@@ -119,10 +110,5 @@ class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
     Accessible only by staff with 'admin' or 'superadmin' roles.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     feature_flag_key = "leaderboard_visible"

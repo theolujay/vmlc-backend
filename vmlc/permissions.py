@@ -1,10 +1,10 @@
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework_api_key.permissions import HasAPIKey
 from channels.db import database_sync_to_async
 
 
-from .models import Candidate, Staff
+from .models import Candidate, Staff, User
 
 
 # @database_sync_to_async
@@ -215,3 +215,44 @@ class IsObjectOwnerOrManagerRole(BasePermission):
         )
 
         return is_owner or is_manager
+
+AuthenticatedUser = [
+    HasXAPIKey,
+    IsAuthenticated,
+]
+
+CandidatePermissions = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsCandidate,
+]
+
+StaffPermissions = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsStaff,
+]
+
+VerifiedModeratorPermissions = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsVerifiedStaff,
+    HasMinimumStaffRole(Staff.Roles.MODERATOR),
+]
+
+VerifiedAdminPermissions = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsVerifiedStaff,
+    HasMinimumStaffRole(Staff.Roles.ADMIN),
+]
+
+VerifiedManagerPermissions = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsVerifiedStaff,
+    HasMinimumStaffRole(Staff.Roles.MANAGER),
+]
+
+
+

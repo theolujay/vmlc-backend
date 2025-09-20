@@ -1,11 +1,10 @@
 import logging
+
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
 
-
 from ..models import Question
-from ..permissions import IsVerifiedStaff, HasXAPIKey, HasMinimumStaffRole
+from ..permissions import VerifiedModeratorPermissions
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.query_filters import filter_questions
 
@@ -23,12 +22,7 @@ class QuestionListView(ListCreateAPIView):
         - Only accessible to verified staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("moderator"),
-    ]
+    permission_classes = VerifiedModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get_serializer_class(self):
@@ -78,12 +72,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         - Only accessible to staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("moderator"),
-    ]
+    permission_classes = VerifiedModeratorPermissions
     serializer_class = QuestionDetailSerializer
     queryset = (
         Question.objects.filter(is_active=True)

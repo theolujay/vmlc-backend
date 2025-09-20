@@ -7,18 +7,14 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
-# from channels.db import database_sync_to_async
 
 from ..models import User
 from ..permissions import (
-    HasMinimumStaffRole,
-    IsCandidate,
+    AuthenticatedUser,
     IsObjectOwnerOrManagerRole,
-    IsVerifiedStaff,
-    HasXAPIKey,
+    CandidatePermissions,
+    VerifiedModeratorPermissions,
 )
 from ..serializers import (
     CandidateDetailSerializer,
@@ -38,7 +34,7 @@ class CandidateDashboardView(APIView):
     Retrieve dashboard data for the currently authenticated candidate.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
+    permission_classes = CandidatePermissions
 
     def get(self, request):
         """
@@ -74,12 +70,7 @@ class StaffDashboardView(APIView):
     Retrieve dashboard data for the currently authenticated staff member.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("moderator"),
-    ]
+    permission_classes = VerifiedModeratorPermissions
 
     def get(self, request):
         """
@@ -120,7 +111,7 @@ class AccountManagementView(APIView):
     Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated]
+    permission_classes = AuthenticatedUser
     # parser_classes = [MultiPartParser, FormParser]
 
     # @database_sync_to_async
@@ -161,7 +152,7 @@ class AccountManagementView(APIView):
             f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
         )
         target_user = self._get_target_user(request, user_id)
-        user_data = UserSerializer(target_user).data
+        # user_data = UserSerializer(target_user).data
         profile, profile_serializer_class = self._get_profile_and_serializer(
             target_user
         )

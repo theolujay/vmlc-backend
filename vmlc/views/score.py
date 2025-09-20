@@ -5,7 +5,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 # from channels.db import database_sync_to_async
@@ -15,7 +14,9 @@ from ..models import (
     CandidateScore,
     Exam,
 )
-from ..permissions import HasMinimumStaffRole, IsVerifiedStaff, HasXAPIKey
+from ..permissions import (
+    VerifiedAdminPermissions,
+)
 from ..serializers import (
     CandidateScoreSerializer,
     SubmitScoreSerializer,
@@ -31,12 +32,7 @@ class CandidateScoreListView(ListAPIView):
     Accessible by staff with 'admin', 'manager', or 'superadmin' roles.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateScoreSerializer
 
     def get_queryset(self):
@@ -62,12 +58,7 @@ class SubmitScoreView(APIView):
     Submit or update a candidate's score for a specific exam.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = SubmitScoreSerializer
 
     # @database_sync_to_async
@@ -94,7 +85,7 @@ class SubmitScoreView(APIView):
         staff = request.user.staff_profile
 
         # Create or update the score
-        score_obj, created = CandidateScore.objects.update_or_create(
+        _, created = CandidateScore.objects.update_or_create(
             candidate=candidate,
             exam=exam,
             defaults={
@@ -136,12 +127,7 @@ class PublishScoresView(APIView):
     Admin/Superadmin only.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
 
     def post(self, request):
         """

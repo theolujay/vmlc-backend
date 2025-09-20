@@ -2,15 +2,12 @@ import logging
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from channels.db import database_sync_to_async
 
 from ..models import CandidateAnswer, CandidateScore, Exam
-from ..permissions import IsCandidate, HasXAPIKey
+from ..permissions import CandidatePermissions
 from ..serializers import CandidateAnswerBulkSerializer
 
 logger = logging.getLogger(__name__)
@@ -21,10 +18,9 @@ class SubmitAnswersView(APIView):
     Handles the submission of a candidate's answers for a specific exam.
     """
 
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsCandidate]
+    permission_classes = CandidatePermissions
     serializer_class = CandidateAnswerBulkSerializer
 
-    @database_sync_to_async
     def _submit_answers(self, request, exam_id):
         """
         Validates and saves a bulk submission of answers for an exam.

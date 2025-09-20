@@ -6,11 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from ..models import EmailOTP, User
-from ..utils.auth import (
-    resend_otp_to_email,
-    send_password_change_otp,
-    verify_otp_for_password_change,
-)
+from .. import utils
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +254,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
         # Verify OTP
         user = User.objects.get(email=data["email"])
-        if not verify_otp_for_password_change(user, data["otp"]):
+        if not utils.auth.verify_otp_for_password_change(user, data["otp"]):
             raise serializers.ValidationError("Invalid or expired OTP code.")
 
         return data

@@ -6,14 +6,11 @@ import logging
 
 from rest_framework import serializers, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.views import APIView
-
-# from channels.db import database_sync_to_async
-# from adrf.views import APIView as AdrfAPIView
 
 from ..models import User
 from ..permissions import HasXAPIKey
@@ -62,7 +59,7 @@ class VerifyEmailOTPView(APIView):
                 )
             except User.DoesNotExist:
                 raise NotFound("User not found.")
-            except Exception as e:
+            except RuntimeError as e:
                 logger.error(f"Error during email verification: {str(e)}")
                 return Response(
                     {"error": "Verification failed. Please try again."},
@@ -107,10 +104,10 @@ class ResendEmailOTPView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error from utils
-                raise ValidationError(
-                    str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            except Exception as e:
+                exc = ValidationError(str(e))
+                exc.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+                raise exc
+            except RuntimeError as e:
                 logger.error(f"Unexpected error in resend OTP: {str(e)}")
                 return Response(
                     {"error": "Failed to resend OTP. Please try again later."},
@@ -162,10 +159,10 @@ class RequestPasswordChangeView(APIView):
 
             except serializers.ValidationError as e:
                 # Rate limiting error
-                raise ValidationError(
-                    str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            except Exception as e:
+                exc = ValidationError(str(e))
+                exc.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+                raise exc
+            except RuntimeError as e:
                 logger.error(f"Error requesting password change OTP: {str(e)}")
                 return Response(
                     {
@@ -238,9 +235,6 @@ class PasswordChangeView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
-                from ..tasks import send_mail_task
-
-                # Send notification email about password change
                 send_mail_task.delay(
                     subject="Your Password Has Been Changed",
                     message="This is to inform you that your password has been successfully changed.",
@@ -254,7 +248,7 @@ class PasswordChangeView(APIView):
                     status=status.HTTP_200_OK,
                 )
 
-            except Exception as e:
+            except RuntimeError as e:
                 logger.error(f"Error changing password: {str(e)}")
                 return Response(
                     {"error": "Failed to change password. Please try again."},
@@ -308,9 +302,9 @@ class ResendPasswordChangeOTPView(APIView):
                     },
                     status=status.HTTP_200_OK,
                 )
-            from ..utils.auth import resend_otp_to_email
+            from .. import utils
 
-            resend_otp_to_email(user)
+            utils.auth.resend_otp_to_email(user)
             logger.info(f"Password change OTP resent to user {user.id}")
             # Mask email for response
             email_parts = email.split("@")
@@ -327,8 +321,10 @@ class ResendPasswordChangeOTPView(APIView):
 
         except serializers.ValidationError as e:
             # Rate limiting error
-            raise ValidationError(str(e), status_code=status.HTTP_429_TOO_MANY_REQUESTS)
-        except Exception as e:
+            exc = ValidationError(str(e))
+            exc.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+            raise exc
+        except RuntimeError as e:
             logger.error(f"Unexpected error in resend password change OTP: {str(e)}")
             return Response(
                 {
@@ -416,7 +412,7 @@ class LogoutView(APIView):
         except TokenError as e:
             logger.warning("Logout failed with invalid refresh token: %s", str(e))
             raise InvalidTokenError("Invalid or expired refresh token")
-        except Exception as e:
+        except RuntimeError as e:
             logger.error("Logout failed with an unexpected error: %s", str(e))
             return Response(
                 {"error": "Logout failed"},

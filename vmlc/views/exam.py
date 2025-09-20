@@ -1,15 +1,13 @@
+import logging
+
 from django.db.models import Avg, Count
-
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import (
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
     ListCreateAPIView,
 )
-
 
 from ..models import Exam, CandidateScore, Candidate
 from ..serializers import (
@@ -21,14 +19,12 @@ from ..serializers import (
     CandidateExamScoreSerializer,
 )
 from ..permissions import (
-    HasMinimumStaffRole,
-    IsCandidate,
-    IsVerifiedStaff,
-    HasXAPIKey,
+    VerifiedAdminPermissions,
+    CandidatePermissions,
 )
 from ..utils.query_filters import ExamFilter
 from ..utils.exceptions import PermissionDenied, NotFound
-import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +37,7 @@ class ExamListView(ListCreateAPIView):
     - POST: Creates a new exam with detailed input data.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
 
@@ -94,12 +85,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Remove the exam.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
 
@@ -125,12 +111,7 @@ class ExamResultsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
 
@@ -162,12 +143,7 @@ class ExamQuestionsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = QuestionDetailSerializer
 
     def get_queryset(self):
@@ -195,12 +171,7 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = [
-        HasXAPIKey,
-        IsAuthenticated,
-        IsVerifiedStaff,
-        HasMinimumStaffRole("admin"),
-    ]
+    permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"
 
@@ -226,7 +197,7 @@ class ExamHistoryView(ListAPIView):
 
 
 @api_view(["GET"])
-@permission_classes([HasXAPIKey, IsAuthenticated, IsCandidate])
+@permission_classes(CandidatePermissions)
 def candidate_take_exam(request, exam_id):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.

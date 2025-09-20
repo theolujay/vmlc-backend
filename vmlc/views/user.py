@@ -1,20 +1,24 @@
 import logging
 
 
+import boto3
 from botocore.exceptions import ClientError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
 
 from ..models import User, UserVerification
-from ..permissions import HasMinimumStaffRole, IsObjectOwnerOrManagerRole, HasXAPIKey
+from ..permissions import (
+    AuthenticatedUser,
+    IsObjectOwnerOrManagerRole,
+    VerifiedManagerPermissions,
+)
 from ..serializers import (
     UserVerificationActionSerializer,
     UserVerificationStatusSerializer,
@@ -32,7 +36,7 @@ class UserVerificationStatusView(APIView):
     Get the verification status of the authenticated user.
     """
 
-    permission_classes = [IsAuthenticated, HasXAPIKey]
+    permission_classes = AuthenticatedUser
 
     # @database_sync_to_async
     def _get_user_verification_status(self, user, user_id):
@@ -73,7 +77,7 @@ class UserVerificationStatusView(APIView):
             )
 
         # Get or create verification record
-        verification, created = UserVerification.objects.get_or_create(user=target_user)
+        verification, _ = UserVerification.objects.get_or_create(user=target_user)
 
         # Determine status based on verification record
         if verification.is_verified:
@@ -83,7 +87,7 @@ class UserVerificationStatusView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        elif verification.is_pending:
+        if verification.is_pending:
             # Return detailed verification data for pending cases
             serializer = UserVerificationStatusSerializer(verification)
             logger.info(f"User {target_user.id} has a pending verification request.")
@@ -96,7 +100,7 @@ class UserVerificationStatusView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        elif verification.is_rejected:
+        if verification.is_rejected:
             logger.info(f"User {target_user.id} has a rejected verification request.")
             return Response(
                 {
@@ -106,18 +110,15 @@ class UserVerificationStatusView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        else:
-            # Not verified, not pending, not rejected = never submitted
-            logger.info(
-                f"User {target_user.id} has not submitted a verification request."
-            )
-            return Response(
-                {
-                    "status": "not_submitted",
-                    "detail": "No verification request submitted.",
-                },
-                status=status.HTTP_200_OK,
-            )
+        # Not verified, not pending, not rejected = never submitted
+        logger.info(f"User {target_user.id} has not submitted a verification request.")
+        return Response(
+            {
+                "status": "not_submitted",
+                "detail": "No verification request submitted.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def get(self, request, user_id=None):
         return self._get_user_verification_status(request.user, user_id)
@@ -128,7 +129,7 @@ class UserVerificationUploadView(APIView):
     Upload verification documents for the authenticated user.
     """
 
-    permission_classes = [IsAuthenticated, HasXAPIKey]
+    permission_classes = AuthenticatedUser
     parser_classes = [MultiPartParser, FormParser]
 
     # @database_sync_to_async
@@ -257,17 +258,13 @@ class UserVerificationUploadView(APIView):
         return self._update_verification_documents(request)
 
 
-import aioboto3
-
-
 class UserVerificationDocumentView(APIView):
     """
     Access verification documents for authenticated user or any user (if superadmin).
     """
 
-    permission_classes = [IsAuthenticated, HasXAPIKey]
+    permission_classes = AuthenticatedUser
 
-    # @database_sync_to_async
     def _get_verification_document(self, request, file_type, user_id=None):
         logger.info(
             f"UserVerificationDocumentView: request from user {request.user.id} for file type {file_type} of user {user_id}"
@@ -337,29 +334,27 @@ class UserVerificationDocumentView(APIView):
         return file, storage_prefix, target_user
 
     def get(self, request, file_type, user_id=None):
-        file, storage_prefix, target_user = self._get_verification_document(
+        file, storage_prefix, _ = self._get_verification_document(
             request, file_type, user_id
         )
 
         try:
-            with aioboto3.client("s3") as s3_client:
-                bucket_name = "vmlc-s3"
-                object_key = f"{storage_prefix}/{file.name}"
+            s3_client = boto3.client("s3")
+            bucket_name = "vmlc-s3"
+            object_key = f"{storage_prefix}/{file.name}"
 
-                logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
+            logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
 
-                # Get the object from S3
-                s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+            # Get the object from S3
+            s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
-                # Get content type
-                content_type = s3_response.get(
-                    "ContentType", "application/octet-stream"
-                )
+            # Get content type
+            content_type = s3_response.get("ContentType", "application/octet-stream")
 
-                # Stream the content
-                file_content = s3_response["Body"].read()
+            # Stream the content
+            file_content = s3_response["Body"].read()
 
-                return HttpResponse(file_content, content_type=content_type)
+            return HttpResponse(file_content, content_type=content_type)
 
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
@@ -368,15 +363,16 @@ class UserVerificationDocumentView(APIView):
                 raise NotFound(
                     f"The {file_type.replace('_', ' ')} file is no longer available."
                 )
-            elif error_code == "AccessDenied":
+            if error_code == "AccessDenied":
                 logger.error(f"S3 access denied: {object_key}")
                 raise PermissionDenied("Access denied to file storage.")
-            else:
-                logger.error(f"S3 error ({error_code}): {e}")
-                raise APIException(
-                    "Could not retrieve file from storage.",
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                )
+
+            logger.error(f"S3 error ({error_code}): {e}")
+            exc = APIException(
+                "Could not retrieve file from storage.",
+            )
+            exc.status_code = status.HTTP_502_BAD_GATEWAY
+            raise exc
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             raise APIException("Could not retrieve file from storage.")
@@ -385,7 +381,7 @@ class UserVerificationDocumentView(APIView):
 class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes = [IsAuthenticated, HasXAPIKey, HasMinimumStaffRole("manager")]
+    permission_classes = VerifiedManagerPermissions
     serializer_class = UserVerificationListSerializer
     queryset = UserVerification.objects.select_related("user").all()
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -403,7 +399,7 @@ class UserVerificationActionView(APIView):
     Handle user verification actions (approve/reject).
     """
 
-    permission_classes = [IsAuthenticated, HasXAPIKey, HasMinimumStaffRole("manager")]
+    permission_classes = VerifiedManagerPermissions
 
     # @database_sync_to_async
     def _verification_action(self, request, user_id):
