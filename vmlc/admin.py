@@ -1,5 +1,7 @@
 from django.contrib import admin
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
+from django.urls import reverse
 from django.db.models import Count, Sum
 from .models import (
     Candidate,
@@ -22,9 +24,8 @@ class UserAdmin(admin.ModelAdmin):
         "email",
         "first_name",
         "last_name",
-        "id",
+        "user_profile",
         "is_email_verified",
-        "get_user_profile",
         "is_active",
         "date_joined",
     )
@@ -32,15 +33,13 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ("email", "first_name")
 
     @admin.display(description="User Profile")
-    def get_user_profile(self, obj):
+    def user_profile(self, obj):
         try:
             if hasattr(obj, "candidate_profile"):
                 return "Candidate"
             elif hasattr(obj, "staff_profile"):
                 return "Staff"
-            else:
-                return "—"
-        except:
+        except ObjectDoesNotExist:
             return "—"
 
 
@@ -117,11 +116,11 @@ class CandidateAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "get_email",
-        "get_full_name",
+        "email",
+        "full_name",
         "school",
         "role",
-        "total_score",
+        "total_score_display",
         "get_primary_key",
         "exams_taken",
         "is_verified",
@@ -142,18 +141,21 @@ class CandidateAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return queryset.annotate(total_score=Sum("scores__score"))
+        return queryset.annotate(
+            total_score=Sum("scores__score"),
+            exams_taken_count=Count("scores", distinct=True),
+        )
 
     @admin.display(description="Total Score", ordering="total_score")
-    def total_score(self, obj):
+    def total_score_display(self, obj):
         return obj.total_score
 
     @admin.display(description="Email", ordering="user__email")
-    def get_email(self, obj):
+    def email(self, obj):
         return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
-    def get_full_name(self, obj):
+    def full_name(self, obj):
         return obj.user.get_full_name()
 
     @admin.display(description="ID")
@@ -170,9 +172,9 @@ class CandidateAdmin(admin.ModelAdmin):
     def is_active(self, obj):
         return obj.is_active
 
-    @admin.display(description="Exams Taken")
+    @admin.display(description="Exams Taken", ordering="exams_taken_count")
     def exams_taken(self, obj):
-        return obj.exams_taken.count() if hasattr(obj, "exams_taken") else 0
+        return obj.exams_taken_count
 
 
 @admin.register(Staff)
@@ -183,8 +185,8 @@ class StaffAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "get_email",
-        "get_full_name",
+        "email",
+        "full_name",
         "role",
         "occupation",
         "get_primary_key",
@@ -205,11 +207,11 @@ class StaffAdmin(admin.ModelAdmin):
     date_hierarchy = "date_created"
 
     @admin.display(description="Email", ordering="user__email")
-    def get_email(self, obj):
+    def email(self, obj):
         return obj.user.email
 
     @admin.display(description="Full Name", ordering="user__first_name")
-    def get_full_name(self, obj):
+    def full_name(self, obj):
         return obj.user.get_full_name()
 
     @admin.display(description="ID")
@@ -263,10 +265,9 @@ class ExamAdmin(admin.ModelAdmin):
 
     @admin.display(description="Results")
     def view_results_link(self, obj):
-        from django.utils.html import format_html
-        from django.urls import reverse
-
-        url = reverse("vmlc:exam-results", args=[obj.pk])
+        url = (
+            reverse("admin:vmlc_candidatescore_changelist") + f"?exam__id__exact={obj.pk}"
+        )
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
 
 
@@ -277,7 +278,7 @@ class QuestionAdmin(admin.ModelAdmin):
     Displays question text, difficulty, and creator.
     """
 
-    list_display = ("id", "text", "difficulty", "get_creator_name", "date_created")
+    list_display = ("id", "text", "difficulty", "creator_name", "date_created")
     readonly_fields = ("date_created", "date_updated")
     list_filter = ("difficulty", "created_by")
     search_fields = ("text", "created_by__user__email")
@@ -285,7 +286,7 @@ class QuestionAdmin(admin.ModelAdmin):
     date_hierarchy = "date_created"
 
     @admin.display(description="Created By", ordering="created_by__user__first_name")
-    def get_creator_name(self, obj):
+    def creator_name(self, obj):
         if obj.created_by:
             return obj.created_by.user.get_full_name()
         return None
@@ -300,8 +301,8 @@ class CandidateScoreAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "get_candidate_email",
-        "get_exam_title",
+        "candidate_email",
+        "exam_title",
         "score",
         "date_recorded",
         "auto_score",
@@ -313,11 +314,11 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     date_hierarchy = "date_recorded"
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
-    def get_candidate_email(self, obj):
+    def candidate_email(self, obj):
         return obj.candidate.user.email
 
     @admin.display(description="Exam", ordering="exam__title")
-    def get_exam_title(self, obj):
+    def exam_title(self, obj):
         return obj.exam.title
 
 
@@ -330,9 +331,9 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "get_candidate_email",
-        "get_exam_title",
-        "get_question_text",
+        "candidate_email",
+        "exam_title",
+        "question_text",
         "selected_option",
         "answered_at",
     )
@@ -350,15 +351,15 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     @admin.display(
         description="Candidate", ordering="candidate_score__candidate__user__email"
     )
-    def get_candidate_email(self, obj):
+    def candidate_email(self, obj):
         return obj.candidate_score.candidate.user.email
 
     @admin.display(description="Exam", ordering="candidate_score__exam__title")
-    def get_exam_title(self, obj):
+    def exam_title(self, obj):
         return obj.candidate_score.exam.title
 
     @admin.display(description="Question", ordering="question__text")
-    def get_question_text(self, obj):
+    def question_text(self, obj):
         return (
             str(obj.question)[:50] + "..."
             if len(str(obj.question)) > 50
@@ -376,7 +377,7 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "data_summary",
-        "get_published_by_name",
+        "published_by_name",
         "created_at",
     )
     readonly_fields = ("created_at",)
@@ -386,7 +387,7 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")
-    def get_published_by_name(self, obj):
+    def published_by_name(self, obj):
         if obj.published_by:
             return obj.published_by.user.get_full_name()
         return None
@@ -410,7 +411,7 @@ class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
         "id",
         "published_at",
         "data_summary",
-        "get_published_by_name",
+        "published_by_name",
         "created_at",
     )
     readonly_fields = ("created_at",)
@@ -420,7 +421,7 @@ class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")
-    def get_published_by_name(self, obj):
+    def published_by_name(self, obj):
         if obj.published_by:
             return obj.published_by.user.get_full_name()
         return None
