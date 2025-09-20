@@ -98,7 +98,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_WORKER_CONCURRENCY = 2
 
 # ============================================================================
-# CACHE CONFIGURATION - Development Environment  
+# CACHE CONFIGURATION - Development Environment
 # ============================================================================
 
 CACHES = {
@@ -116,14 +116,14 @@ CACHES = {
         "TIMEOUT": 300,
     },
     "async": {
-        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "BACKEND": "django_async_redis.cache.RedisCache",
         "LOCATION": "redis://localhost:6379/2",
         "OPTIONS": {
             "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
         },
         "KEY_PREFIX": "vmlc_dev_async",
         "TIMEOUT": 300,
-    }
+    },
 }  # remember to run `sudo systemctl start redis-server` or use  bash alias="pyma runserver w-redis"
 
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"

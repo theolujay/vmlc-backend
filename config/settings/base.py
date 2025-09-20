@@ -172,26 +172,24 @@ CELERY_WORKER_LOG_COLOR = False  # Can be overridden in dev
 CELERY_CACHE_BACKEND = "django-cache"
 
 # Queue & Routing Configuration
-CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_QUEUE_MAX_PRIORITY = 10
 CELERY_TASK_DEFAULT_PRIORITY = 5
 
 # Task routing - same for all environments
 CELERY_TASK_ROUTES = {
     # HIGH PRIORITY - User-facing tasks
-    'send_mail_task': {'queue': 'emails', 'priority': 9},
-    'send_otp_on_registration_task': {'queue': 'emails', 'priority': 9},
-    
+    "send_mail_task": {"queue": "emails", "priority": 9},
+    "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
     # MEDIUM PRIORITY - Background processing
-    'calculate_and_save_auto_score_task': {'queue': 'scoring', 'priority': 6},
-    'validate_user_verification_files_task': {'queue': 'files', 'priority': 5},
-    
+    "calculate_and_save_auto_score_task": {"queue": "scoring", "priority": 6},
+    "validate_user_verification_files_task": {"queue": "files", "priority": 5},
     # LOW PRIORITY - Administrative tasks
-    'generate_leaderboard_snapshot_task': {'queue': 'reports', 'priority': 3},
-    'generate_scores_snapshot_task': {'queue': 'reports', 'priority': 3},
-    'update_staff_dashboard_cache_task': {'queue': 'cache', 'priority': 2},
-    'update_candidate_dashboard_cache_task': {'queue': 'cache', 'priority': 2},
-    'update_candidate_ranking_cache_task': {'queue': 'cache', 'priority': 2},
+    "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
+    "generate_scores_snapshot_task": {"queue": "reports", "priority": 3},
+    "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
+    "update_candidate_dashboard_cache_task": {"queue": "cache", "priority": 2},
+    "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},
 }
 
 # Worker Performance Settings

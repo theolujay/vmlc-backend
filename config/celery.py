@@ -13,7 +13,7 @@ app.conf.beat_schedule = {
     "update-staff-dashboard-cache-every-30-minutes": {
         "task": "update_staff_dashboard_cache_task",
         "schedule": 1800.0,
-        "args": (), 
+        "args": (),
     },
     "update-candidate-ranking-cache-every-30-minutes": {
         "task": "update_candidate_ranking_cache_task",

@@ -199,7 +199,9 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
 
 # External Redis service (could be AWS ElastiCache, etc.)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://staging-redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://staging-redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", "redis://staging-redis:6379/0"
+)
 
 # Staging-specific overrides
 CELERY_WORKER_LOG_COLOR = False  # No colors in staging logs
@@ -217,7 +219,7 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 
 # More conservative time limits
 CELERY_TASK_SOFT_TIME_LIMIT = 180  # 3 minutes
-CELERY_TASK_TIME_LIMIT = 300       # 5 minutes
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
 
 # ============================================================================
 # CACHE CONFIGURATION - Staging Environment
@@ -243,7 +245,7 @@ CACHES = {
         "TIMEOUT": 600,  # Longer timeout for staging
     },
     "async": {
-        "BACKEND": "django_async_redis.cache.RedisCache", 
+        "BACKEND": "django_async_redis.cache.RedisCache",
         "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://staging-redis:6379/2"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
@@ -255,7 +257,7 @@ CACHES = {
         },
         "KEY_PREFIX": "vmlc_staging_async",
         "TIMEOUT": 600,
-    }
+    },
 }
 
 # === PERFORMANCE OPTIMIZATIONS ===
@@ -284,6 +286,6 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 # HSTS - Make browsers stick to HTTPS
-SECURE_HSTS_SECONDS = 3600 # 
+SECURE_HSTS_SECONDS = 3600  #
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

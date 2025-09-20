@@ -81,16 +81,16 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'x-api-key',  # Add your custom header here
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-api-key",  # Add your custom header here
 ]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -129,7 +129,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # Development debugging
 CELERY_TASK_TRACK_STARTED = True  # Track when tasks start
-CELERY_SEND_TASK_EVENTS = True   # Send task events for monitoring
+CELERY_SEND_TASK_EVENTS = True  # Send task events for monitoring
 
 # ============================================================================
 # CACHE CONFIGURATION - Docker Development Environment
@@ -154,7 +154,7 @@ CACHES = {
         "TIMEOUT": 300,
     },
     # "async": {
-    #     "BACKEND": "django_async_redis.cache.RedisCache", 
+    #     "BACKEND": "django_async_redis.cache.RedisCache",
     #     "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/2"),
     #     "OPTIONS": {
     #         "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
@@ -294,31 +294,27 @@ LOGGING = {
             "handlers": ["console", "file"],
             "propagate": False,
         },
-        
         # Django - only important stuff
         "django": {
             "level": "WARNING",  # Only warnings/errors
             "handlers": ["console", "file"],
             "propagate": False,
         },
-        
         # Celery - moderate logging
         "celery": {
             "level": "INFO",  # Changed from DEBUG
             "handlers": ["console", "file"],
             "propagate": False,
         },
-        
         # Third-party noise reduction
-        "urllib3": {"level": "ERROR"},          # Only errors
-        "requests": {"level": "ERROR"},         # Only errors  
-        "boto3": {"level": "ERROR"},           # Only errors
-        "botocore": {"level": "ERROR"},        # Only errors
+        "urllib3": {"level": "ERROR"},  # Only errors
+        "requests": {"level": "ERROR"},  # Only errors
+        "boto3": {"level": "ERROR"},  # Only errors
+        "botocore": {"level": "ERROR"},  # Only errors
         "django.db.backends": {"level": "ERROR"},  # No query spam
-        
         # Additional noise reducers
-        "django.request": {"level": "ERROR"},   # Only 4xx/5xx requests
-        "django.security": {"level": "WARNING"}, # Security warnings only
+        "django.request": {"level": "ERROR"},  # Only 4xx/5xx requests
+        "django.security": {"level": "WARNING"},  # Security warnings only
         # "asyncio": {"level": "WARNING"},        # Async noise reduction
     },
 }

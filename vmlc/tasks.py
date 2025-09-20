@@ -309,14 +309,16 @@ def validate_user_verification_files_task(user_verification_id):
         logger.error(
             f"An unexpected error occurred during file validation for UserVerification {user_verification_id}: {e}"
         )
-        
+
+
 # def user_profile_cache_task(user_id):
 #     """Celery task to cache user's profile data."""
 #     from .models import User, Candidate, Staff
 #     from .serializers import MinimalCandidateSerializer, MinimalStaffSerializer
-    
-    
+
+
 #     pass
+
 
 @shared_task(name="update_staff_dashboard_cache_task")
 def update_staff_dashboard_cache_task(staff_id=None):

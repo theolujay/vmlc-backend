@@ -11,7 +11,15 @@ load_dotenv(".env")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
 django.setup()
 
-from vmlc.models import User, Candidate, Staff, Question, Exam, CandidateScore, CandidateAnswer
+from vmlc.models import (
+    User,
+    Candidate,
+    Staff,
+    Question,
+    Exam,
+    CandidateScore,
+    CandidateAnswer,
+)
 from django.core.management.base import BaseCommand
 
 
@@ -97,7 +105,8 @@ class Command(BaseCommand):
                 description=fake.text(),
                 created_by=random.choice(staff_list),
                 is_active=True,
-                exam_date=timezone.now() - timezone.timedelta(days=random.randint(1, 30)),
+                exam_date=timezone.now()
+                - timezone.timedelta(days=random.randint(1, 30)),
             )
             # Add a random number of questions to each exam
             exam.questions.set(random.sample(question_list, k=random.randint(5, 20)))
@@ -122,4 +131,6 @@ class Command(BaseCommand):
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
 
-        self.stdout.write(self.style.SUCCESS("Database populated successfully with more data!"))
+        self.stdout.write(
+            self.style.SUCCESS("Database populated successfully with more data!")
+        )

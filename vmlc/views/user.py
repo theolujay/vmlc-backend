@@ -259,6 +259,7 @@ class UserVerificationUploadView(APIView):
 
 import aioboto3
 
+
 class UserVerificationDocumentView(APIView):
     """
     Access verification documents for authenticated user or any user (if superadmin).
@@ -351,7 +352,9 @@ class UserVerificationDocumentView(APIView):
                 s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
                 # Get content type
-                content_type = s3_response.get("ContentType", "application/octet-stream")
+                content_type = s3_response.get(
+                    "ContentType", "application/octet-stream"
+                )
 
                 # Stream the content
                 file_content = s3_response["Body"].read()

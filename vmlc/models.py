@@ -233,6 +233,7 @@ class Staff(models.Model):
     """
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
+
     class Roles(models.TextChoices):
         """Roles for staff members."""
 
@@ -246,6 +247,7 @@ class Staff(models.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._verification_override = None
+
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
@@ -306,11 +308,11 @@ class Staff(models.Model):
     def set_verification_override(self, value):
         """Manually override verification status"""
         self._verification_override = value
-        
+
     def clear_verification_override(self):
         """Remove override, return to normal verification checking"""
         self._verification_override = None
-    
+
     def __str__(self):
         """Return a string representation of the staff member."""
         return f"{self.user.get_full_name()} ({self.role})"
@@ -499,6 +501,7 @@ class Candidate(models.Model):
     Represents a student or participant in the exam system.
     Linked to a User, assigned a role, and tracks their profile and score history.
     """
+
     class Roles(models.TextChoices):
         """
         Roles for a candidate."""
@@ -511,7 +514,7 @@ class Candidate(models.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._verification_override = None
-        
+
     user = models.OneToOneField(
         User,
         primary_key=True,
@@ -579,11 +582,11 @@ class Candidate(models.Model):
     def set_verification_override(self, value):
         """Manually override verification status"""
         self._verification_override = value
-        
+
     def clear_verification_override(self):
         """Remove override, return to normal verification checking"""
         self._verification_override = None
-        
+
     @property
     def score_data(self):
         """

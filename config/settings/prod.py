@@ -104,8 +104,7 @@ LOGGING = {
         "skip_static_requests": {
             "()": "django.utils.log.CallbackFilter",
             "callback": lambda record: not (
-                "GET /static/" in record.getMessage()
-                and record.args[1] == "200"
+                "GET /static/" in record.getMessage() and record.args[1] == "200"
             ),
         }
     },
@@ -210,7 +209,9 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
 
 # Production Redis (AWS ElastiCache, etc.)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://prod-redis-cluster:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://prod-redis-cluster:6379/0")
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", "redis://prod-redis-cluster:6379/0"
+)
 
 # Production-specific overrides
 CELERY_WORKER_LOG_COLOR = False  # No colors in production logs
@@ -230,7 +231,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 # Stricter time limits for production
 CELERY_TASK_SOFT_TIME_LIMIT = 120  # 2 minutes
-CELERY_TASK_TIME_LIMIT = 180       # 3 minutes
+CELERY_TASK_TIME_LIMIT = 180  # 3 minutes
 
 # Production-specific broker settings
 CELERY_BROKER_TRANSPORT_OPTIONS = {
@@ -273,7 +274,7 @@ CACHES = {
         "TIMEOUT": 900,  # 15 minutes default timeout
     },
     # "async": {
-    #     "BACKEND": "django_async_redis.cache.RedisCache", 
+    #     "BACKEND": "django_async_redis.cache.RedisCache",
     #     "LOCATION": [
     #         os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/2"),
     #         os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/2"),

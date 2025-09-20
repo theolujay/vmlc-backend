@@ -142,9 +142,7 @@ class CandidateAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return queryset.annotate(
-            total_score=Sum("scores__score")
-        )
+        return queryset.annotate(total_score=Sum("scores__score"))
 
     @admin.display(description="Total Score", ordering="total_score")
     def total_score(self, obj):

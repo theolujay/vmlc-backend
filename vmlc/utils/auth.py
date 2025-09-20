@@ -12,13 +12,15 @@ from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
 
+
 def generate_secure_numeric_otp(length: int = 6) -> str:
     """
     Generates a secure 6-digit OTP
     """
     digits = string.digits
-    return ''.join(secrets.choice(digits) for _ in range(length))
-    
+    return "".join(secrets.choice(digits) for _ in range(length))
+
+
 def can_resend_otp(user: User, cooldown_minutes: int = 2) -> Tuple[bool, int]:
     """
     Check if user can resend OTP based on cooldown period.

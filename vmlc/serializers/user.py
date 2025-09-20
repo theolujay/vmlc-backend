@@ -52,9 +52,10 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
     """
     Serializer for listing user verification requests.
     """
-    user_id = serializers.CharField(source='user.id', read_only=True)
-    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
-    email = serializers.CharField(source='user.email', read_only=True)
+
+    user_id = serializers.CharField(source="user.id", read_only=True)
+    user_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
     has_profile_photo = serializers.SerializerMethodField()
     has_id_card = serializers.SerializerMethodField()
     has_verification_document = serializers.SerializerMethodField()

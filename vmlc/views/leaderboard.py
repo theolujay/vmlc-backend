@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
+
 # from channels.db import database_sync_to_async
 
 from ..utils import ToggleFeatureFlagView
@@ -53,7 +54,6 @@ class PublishLeaderboardView(APIView):
         )
 
 
-
 class LoadLeaderboardView(APIView):
     """
     Returns the most recently published leaderboard snapshot.
@@ -89,9 +89,7 @@ class LoadLeaderboardView(APIView):
         # leaderboard_visible = await database_sync_to_async(FeatureFlag.get_bool)(
         #     "leaderboard_visible", default=False
         # )
-        leaderboard_visible = FeatureFlag.get_bool(
-            "leaderboard_visible", default=False
-        )
+        leaderboard_visible = FeatureFlag.get_bool("leaderboard_visible", default=False)
         logger.info(f"Leaderboard visibility is set to {leaderboard_visible}")
         if not leaderboard_visible:
             logger.warning(

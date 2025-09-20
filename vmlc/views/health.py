@@ -17,7 +17,7 @@ def health_check(request):
     """
     current_time = datetime.now(timezone.utc)
     logger.info("Health check performed at %s", current_time)
-    return Response({
-        "status": "healthy",
-        "timestamp": current_time.isoformat()
-    }, status=status.HTTP_200_OK)
+    return Response(
+        {"status": "healthy", "timestamp": current_time.isoformat()},
+        status=status.HTTP_200_OK,
+    )
