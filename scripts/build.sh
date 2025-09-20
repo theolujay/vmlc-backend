@@ -12,9 +12,9 @@
 #   ./script.sh                 # Build vmlc-backend:latest with cache
 #   ./script.sh 1.0             # Build vmlc-backend:1.0 with cache
 #   ./script.sh 1.0 nc          # Build vmlc-backend:1.0 with --no-cache
-#   ./script.sh "" "" p         # Build & push vmlc-backend:latest (multi-arch)
-#   ./script.sh 1.0 "" p        # Build & push vmlc-backend:1.0 (multi-arch)
-#   ./script.sh 1.0 nc p        # Build & push vmlc-backend:1.0 (multi-arch, no cache)
+#   ./script.sh "" "" p         # Build & push vmlc-backend:latest
+#   ./script.sh 1.0 "" p        # Build & push vmlc-backend:1.0
+#   ./script.sh 1.0 nc p        # Build & push vmlc-backend:1.0 (no cache)
 
 set -e
 
