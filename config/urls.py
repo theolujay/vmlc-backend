@@ -9,15 +9,14 @@ Includes:
 """
 
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
-from rest_framework import permissions
+from rest_framework.permissions import AllowAny
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-# === Swagger Schema Configuration ===
 schema_view = get_schema_view(
     openapi.Info(
         title="Verboheit MLC API",
@@ -35,7 +34,7 @@ schema_view = get_schema_view(
         # ),
     ),
     public=True,
-    permission_classes=[permissions.AllowAny],
+    permission_classes=[AllowAny],
     authentication_classes=[],
     url=settings.BASE_URL if not settings.DEBUG else None,
 )
@@ -68,25 +67,18 @@ docs_urlpatterns = [
 ]
 
 urlpatterns = [
-    # === Admin Panel ===
     path(settings.ADMIN_URL, admin.site.urls),
-    # === API ===
     path("", include(vmlc_urlpatterns)),
-    # === API Docs ===
     path("docs/", include(docs_urlpatterns)),
-    # === Root Redirects ===
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
-    # === Monitoring (Prometheus) ===
-    path('prometheus/', include('django_prometheus.urls')),
+    path("", include('django_prometheus.urls')),
 ]
 
-# === Development-only URLs ===
 if settings.DEBUG:
     import debug_toolbar
 
     urlpatterns += [
         path("__debug__/", include(debug_toolbar.urls)),
     ]
-    # Serve static and media files from development server
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

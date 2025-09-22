@@ -1,8 +1,7 @@
 networks:
   verboheit:
     driver: bridge
-  monitor:
-    driver: bridge
+    
 services:
   web:
     build:
@@ -199,4 +198,4 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - monitor
+      - verboheit
