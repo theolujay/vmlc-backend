@@ -53,6 +53,7 @@ DATABASES = {
         default=DATABASE_URL,
         conn_max_age=0,
         conn_health_checks=True,
+        engine="django_prometheus.db.backends.postgresql",
     )
 }
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
@@ -137,7 +138,7 @@ CELERY_SEND_TASK_EVENTS = True  # Send task events for monitoring
 
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
+        "BACKEND": "django_prometheus.cache.backends.redis.RedisCache",
         "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",

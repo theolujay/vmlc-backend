@@ -40,7 +40,7 @@ schema_view = get_schema_view(
     url=settings.BASE_URL if not settings.DEBUG else None,
 )
 
-api_urlpatterns = [
+vmlc_urlpatterns = [
     path("v1/", include("vmlc.urls", namespace="v1")),
 ]
 
@@ -71,11 +71,13 @@ urlpatterns = [
     # === Admin Panel ===
     path(settings.ADMIN_URL, admin.site.urls),
     # === API ===
-    path("", include(api_urlpatterns)),
+    path("", include(vmlc_urlpatterns)),
     # === API Docs ===
     path("docs/", include(docs_urlpatterns)),
     # === Root Redirects ===
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
+    # === Monitoring (Prometheus) ===
+    path('prometheus/', include('django_prometheus.urls')),
 ]
 
 # === Development-only URLs ===
