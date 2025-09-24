@@ -13,7 +13,7 @@ from ..tasks import send_mail_task
 logger = logging.getLogger(__name__)
 
 
-def generate_secure_numeric_otp(length: int = 6) -> str:
+def generate_otp(length: int = 6) -> str:
     """
     Generates a secure 6-digit OTP
     """
@@ -95,7 +95,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
         logger.info(f"Invalidated existing OTPs for user {user.id}")
 
         # Generate new OTP
-        otp: str = generate_secure_numeric_otp()
+        otp: str = generate_otp()
         expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database
@@ -172,7 +172,7 @@ def send_password_change_otp(user: User) -> None:
         logger.info(f"Invalidated existing OTPs for password change - user {user.id}")
 
         # Generate new OTP
-        otp: str = generate_secure_numeric_otp()
+        otp: str = generate_otp()
         expiration: Any = timezone.now() + timedelta(minutes=10)
 
         # Save to database

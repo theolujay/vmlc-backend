@@ -1,13 +1,17 @@
 networks:
   verboheit:
     driver: bridge
+
+volumes:
+  grafana-storage: {}
     
 services:
   web:
     build:
       context: .
       target: development
-    command: python manage.py runserver 0.0.0.0:8000
+    # command: python manage.py runserver 0.0.0.0:8000
+    command: ./scripts/runserver.sh
     volumes:
       - .:/home/verboheit/web
       - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
@@ -190,7 +194,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-  
+
+
   prometheus:
     image: prom/prometheus:v3.6.0
     volumes:
@@ -199,3 +204,16 @@ services:
       - "9090:9090"
     networks:
       - verboheit
+  
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SERVER_HTTP_PORT=3030
+    ports:
+      - "3030:3030"
+    depends_on:
+      - prometheus
+    networks:
+      - verboheit  
+    volumes:
+      - grafana-storage:/var/lib/grafana
