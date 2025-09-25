@@ -9,7 +9,7 @@ Includes:
 """
 
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
@@ -40,8 +40,12 @@ schema_view = get_schema_view(
     url=settings.BASE_URL if not settings.DEBUG else None,
 )
 
-api_urlpatterns = [
-    path("v1/", include("vmlc.urls", namespace="v1")),
+vmlc_urlpatterns = [
+    path("v1/", include("vmlc.urls", namespace="vmlc")),
+]
+
+comms_urlpatterns = [
+    path("v1/", include("comms.urls", namespace="comms")),
 ]
 
 docs_urlpatterns = [
@@ -70,9 +74,10 @@ docs_urlpatterns = [
 urlpatterns = [
     # === Admin Panel ===
     path(settings.ADMIN_URL, admin.site.urls),
-    # === API ===
-    path("", include(api_urlpatterns)),
-    # === API Docs ===
+    # === VMLC ===
+    path("", include(vmlc_urlpatterns)),
+    path("", include(comms_urlpatterns)),
+    # === Docs ===
     path("docs/", include(docs_urlpatterns)),
     # === Root Redirects ===
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),

@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "channels",
     "vmlc",
+    "comms",
 ]
 
 # The order of middleware is important. This order is optimized for security and

@@ -93,6 +93,16 @@ CORS_ALLOW_HEADERS = [
     "x-api-key",  # Add your custom header here
 ]
 
+ADMINS = [
+    ("Olujay", "olujay.dev@gmail.com"),
+    # ("Verboheit", "verboheit@gmail.com"),
+]
+
+EMAIL_SUBJECT_PREFIX = "[VMLC Portal]"
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", "dev@vmlc.local")
+
+BROADCAST_WEBHOOK_URL = os.getenv("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
+
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
@@ -294,6 +304,12 @@ LOGGING = {
             "handlers": ["console", "file"],
             "propagate": False,
         },
+        "comms": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        
         # Django - only important stuff
         "django": {
             "level": "WARNING",  # Only warnings/errors
