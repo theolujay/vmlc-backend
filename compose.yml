@@ -10,8 +10,7 @@ services:
     build:
       context: .
       target: development
-    # command: python manage.py runserver 0.0.0.0:8000
-    command: ./scripts/runserver.sh
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     volumes:
       - .:/home/verboheit/web
       - ./dev_data/staticfiles:/home/verboheit/web/staticfiles

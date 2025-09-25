@@ -34,7 +34,7 @@ def send_broadcast_task(self, broadcast_id):
         dict: Summary of the broadcast attempt
     """
     from vmlc.models import Candidate
-    from comms.models import Broadcast, BroadcastLog
+    from comms.models import Broadcast, BroadcastLog, Notification
 
     try:
         broadcast = Broadcast.objects.select_related("created_by__user").get(id=broadcast_id)
@@ -60,7 +60,7 @@ def send_broadcast_task(self, broadcast_id):
                 Candidate.objects.select_related('user').filter(
                     role=role, 
                     user__is_active=True
-                ).values_list("user__email", flat=True)
+                ).values('user__id', 'user__email')
             )
             logger.info(
                 "Found %d active candidates for role '%s'", 
@@ -89,7 +89,7 @@ def send_broadcast_task(self, broadcast_id):
                     raise ValueError(f"No active candidates found for role '{role}'")
 
                 if medium == Broadcast.Mediums.EMAIL:
-                    valid_emails = [email for email in recipients if email and email.strip()]
+                    valid_emails = [r['user__email'] for r in recipients if r.get('user__email')]
                     
                     if not valid_emails:
                         raise ValueError(f"No valid email addresses found for role '{role}'")
@@ -108,14 +108,18 @@ def send_broadcast_task(self, broadcast_id):
                     )
 
                 elif medium == Broadcast.Mediums.PLATFORM:
-                    # TODO: Implement WebSocket push via Django Channels
-                    # For now, we'll mark it as sent but log that it's not implemented
-                    logger.warning(
-                        "Platform notifications not yet implemented for broadcast %s (role: %s)",
-                        broadcast_id, role
-                    )
-                    # Consider raising NotImplementedError here instead
+                    user_ids = [r['user__id'] for r in recipients if r.get('user__id')]
+                    notifications_to_create = [
+                        Notification(
+                            recipient_id=user_id,
+                            subject=broadcast.subject,
+                            message=broadcast.message
+                        )
+                        for user_id in user_ids
+                    ]
+                    Notification.objects.bulk_create(notifications_to_create)
                     
+                    logger.info("Platform notifications created for %d users (role: %s)", len(user_ids), role)
                 elif medium == Broadcast.Mediums.SMS:
                     # TODO: Integrate SMS provider (Twilio, AWS SNS, etc.)
                     logger.warning(

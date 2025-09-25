@@ -2,7 +2,8 @@ from rest_framework import serializers
 
 from .models import (
     Broadcast,
-    BroadcastLog
+    BroadcastLog,
+    Notification,
 )
 from vmlc.serializers.staff import MinimalStaffSerializer
 
@@ -18,6 +19,7 @@ class BroadcastLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = BroadcastLog
         fields = ["id", "medium", "target_role", "status", "message", "attempted_at"]
+        
 class BroadcastDetailSerializer(serializers.ModelSerializer):
     created_by = MinimalStaffSerializer(read_only=True)
     logs = BroadcastLogSerializer(many=True, read_only=True)
@@ -37,3 +39,14 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
             "logs",
         ]
         read_only_fields = ["id", "created_at", "status", "last_attempt", "logs"]
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = (
+            "id",
+            "subject",
+            "message",
+            "read",
+            "created_at",
+        )

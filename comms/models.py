@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-from vmlc.models import Staff, Candidate
+from vmlc.models import Staff, Candidate, User
 
 
 class Broadcast(models.Model):
@@ -78,3 +78,19 @@ class BroadcastLog(models.Model):
 
     def __str__(self):
         return f"{self.broadcast.subject} [{self.medium} -> {self.target_role}] {self.status}"
+
+class Notification(models.Model):
+    """
+    Represents a real-time notification sent to a user.
+    """
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    subject = models.CharField(max_length=100)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        
+    def __str__(self):
+        return f"Notification for {self.recipient.email}: {self.subject}"
