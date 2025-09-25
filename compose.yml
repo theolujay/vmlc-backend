@@ -61,12 +61,12 @@ services:
       timeout: 5s
       retries: 3
 
-  # High Priority - Email workers (fast, dedicated)
-  celery_emails:
+  # High Priority - Comms workers (fast, dedicated)
+  celery_comms:
     build:
       context: .
       target: development
-    command: celery -A config worker --queues=emails --concurrency=2 --loglevel=INFO --hostname=emails@%h
+    command: celery -A config worker --queues=comms --concurrency=2 --loglevel=INFO --hostname=comms@%h
     volumes:
       - .:/home/verboheit/web
       - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
@@ -81,7 +81,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*worker.*emails"]
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*comms"]
       interval: 300s
       timeout: 10s
       retries: 3
@@ -182,7 +182,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      celery_emails:
+      celery_comms:
         condition: service_healthy
       celery_processing:
         condition: service_healthy

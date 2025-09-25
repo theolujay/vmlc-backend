@@ -11,7 +11,7 @@ import magic
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60, queue="comms")
 def send_mail_task(self, subject, message, recipient_list):
     """
     Celery task to send an email asynchronously.
@@ -40,6 +40,7 @@ def send_mail_task(self, subject, message, recipient_list):
     name="send_otp_on_registration_task",
     max_retries=3,
     default_retry_delay=60,
+    queue="comms"
 )
 def send_otp_on_registration_task(self, user_id):
     """
@@ -113,10 +114,11 @@ def generate_leaderboard_snapshot_task(staff_id=None):
         else:
             # If no staff_id is provided, use the first superadmin
             superadmin_user = User.objects.filter(is_superuser=True).first()
-            if not superadmin_user:
-                logger.error("No superadmin user found to publish the leaderboard.")
+            manager_user = User.objects.filter(is_manager=True).first()
+            if not manager_user or superadmin_user:
+                logger.error("No superadmin or manager user found to publish the leaderboard.")
                 return
-            staff = superadmin_user.staff_profile
+            staff = manager_user.staff_profile if manager_user else superadmin_user.staff_profile
 
         league_candidates = (
             Candidate.objects.with_scores()

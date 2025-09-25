@@ -13,12 +13,13 @@ Built with Django and Django REST Framework, this project is designed to scale a
 - **Refined Role-Based Access Control (RBAC)**: Expanded and clarified permissions for all candidate and staff roles (`volunteer`, `moderator`, `admin`, `superadmin`), ensuring fine-grained access control across all API endpoints.
 - **Advanced User Verification System**: Introduced a multi-step verification process with secure document uploads (profile photos, ID cards, verification documents), asynchronous validation, and secure access to private documents via AWS S3 signed URLs.
 - **Multi-stage Competition Structure**: Supports `screening`, `league`, and `final` stages for exams and candidate progression.
+- **Asynchronous Broadcast System**: A dedicated module for sending targeted announcements to candidates based on their roles. Supports multiple mediums (email, platform), tracks delivery status, and automatically alerts admins on low success rates or task failures.
 - **Enhanced Exam Management**: Improved exam workflow for candidates, including bulk answer submission, robust eligibility checks, prevention of re-submission, and asynchronous auto-scoring. Added manual score submission for staff.
 - **Dynamic Scoring & Leaderboards**: Implemented asynchronous generation and publishing of score and leaderboard snapshots. Introduced feature-flagged control for leaderboard visibility.
 - **Personalized Dashboards**: Developed cached dashboard endpoints for both candidates and staff, with asynchronous updates for improved performance and user experience.
 - **Asynchronous Operations**: Extensive use of Celery for various background tasks (email sending, file validation, score calculation, leaderboard/score snapshot generation), significantly boosting API responsiveness and scalability.
 - **Feature Flag System**: Introduced a generic `FeatureFlag` model and associated views to dynamically enable/disable key application features (e.g., candidate/staff registration, leaderboard visibility).
-- **Health Check Endpoint**: For monitoring API operational status.
+- **Monitoring & Health Checks**: Includes a health check endpoint for API status and Celery signal handlers for monitoring critical background tasks like broadcasts.
 - **Interactive API Documentation**: Powered by Swagger UI and ReDoc for easy API exploration.
 - **Dockerized Setup**: For development and staging environments.
 

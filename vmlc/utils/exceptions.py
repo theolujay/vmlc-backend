@@ -48,3 +48,8 @@ class InvalidTokenError(VMLCException):
     status_code = 401
     default_detail = "Token is invalid or expired."
     default_code = "invalid_token"
+
+class ServerError(VMLCException):
+    status_code = 500
+    default_detail = "Internal server error."
+    default_code = "server_error"

@@ -40,7 +40,11 @@ schema_view = get_schema_view(
 )
 
 vmlc_urlpatterns = [
-    path("v1/", include("vmlc.urls", namespace="v1")),
+    path("v1/", include("vmlc.urls", namespace="vmlc")),
+]
+
+comms_urlpatterns = [
+    path("v1/", include("comms.urls", namespace="comms")),
 ]
 
 docs_urlpatterns = [
@@ -68,7 +72,10 @@ docs_urlpatterns = [
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    # === VMLC ===
     path("", include(vmlc_urlpatterns)),
+    path("", include(comms_urlpatterns)),
+    # === Docs ===
     path("docs/", include(docs_urlpatterns)),
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
     path("", include('django_prometheus.urls')),

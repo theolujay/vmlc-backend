@@ -21,6 +21,7 @@
   - [Scoring & Submissions](#scoring--submissions)
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
+  - [Broadcast Management](#broadcast-management)
 - [Advanced Topics](#advanced-topics)
   - [Query Parameters](#query-parameters)
   - [Error Handling](#error-handling)
@@ -1334,7 +1335,7 @@ Retrieve the verification status for the authenticated user or for a specific us
 
 **Endpoints:**
 - `GET /user/verification/status/` (for self)
-- `GET /user/verification/status/{user_id}/` (for superadmins)
+- `GET /user/verification/status/{user_id}/` (for managers or higher)
 
 **Headers:**
 ```text
@@ -1343,7 +1344,7 @@ X-Api-Key: <your_api_key>
 
 **Required Role:**
 - Any authenticated user for their own status.
-- 'manager' or higher to check another user's status.
+- `manager` or higher to check another user's status.
 
 **Responses:**
 The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
@@ -1439,7 +1440,7 @@ Access uploaded documents. The API serves the file content directly from secure 
 
 **Endpoints:**
 - `GET /user/verification/documents/{file_type}/` (for self)
-- `GET /user/verification/documents/{file_type}/{user_id}/` (for superadmins)
+- `GET /user/verification/documents/{file_type}/{user_id}/` (for managers or higher)
 
 **Headers:**
 ```text
@@ -1448,11 +1449,11 @@ X-Api-Key: <your_api_key>
 
 **Required Role:**
 - Any authenticated user for their own documents.
-- 'manager' or higher to access another user's documents.
+- `manager` or higher to access another user's documents.
 
 **URL Parameters:**
 - `file_type` (string): `id_card`, `verification_document`, or `profile_photo`.
-- `user_id` (uuid, optional): The ID of the user whose document to access (required for superadmins accessing other users' documents).
+- `user_id` (uuid, optional): The ID of the user whose document to access (required for managers or higher accessing other users' documents).
 
 **Successful Response:**
 - The raw file content (e.g., an image or PDF) with the correct `Content-Type` header.
@@ -1471,7 +1472,7 @@ Retrieve a paginated list of all user verification submissions for administrativ
 X-Api-Key: <your_api_key>
 ```
 
-**Required Role:** 'manager' or higher
+**Required Role:** `manager` or higher
 
 **Response:** `200 OK`
 ```json
@@ -1497,15 +1498,16 @@ X-Api-Key: <your_api_key>
 ```
 
 #### 5. Approve or Reject a Verification Request (Admin)
-Allows a 'manager' or higher to approve or reject a user's verification submission. This action is final and notifies the user via email.
+Allows a `manager` or higher to approve or reject a user's verification submission. This action is final and notifies the user via email.
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
 **Headers:**
 ```text
+Content-Type: application/json
 X-Api-Key: <your_api_key>
 ```
 
-**Required Role:** 'manager' or higher
+**Required Role:** `manager` or higher
 
 **URL Parameters:**
 - `user_id` (uuid): The ID of the user whose verification is being actioned.
@@ -1597,7 +1599,7 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** 'manager' or higher
+**Required Role:** `manager` or higher
 
 **Response:** `200 OK`
 ```json
@@ -1633,7 +1635,7 @@ Allows authenticated users to update their own account and profile information. 
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** Any authenticated user (for self), 'manager' or higher (for others)
+**Required Role:** Any authenticated user (for self), `manager` or higher (for others)
 **Request Body (example):**
 ```json
 {
@@ -1686,6 +1688,80 @@ X-Api-Key: <your_api_key>
   }
 }
 ```
+
+---
+
+### Broadcast Management
+The broadcast system allows authorized staff to send targeted communications to candidates. Broadcasts are sent asynchronously, and their status can be tracked.
+
+#### List Broadcasts
+**Endpoint:** `GET /broadcasts/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `manager` or higher  
+
+**Response:** `200 OK`
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "subject": "Important Announcement",
+      "message": "Please review the new exam schedule.",
+      "created_by": {
+        "user": { "email": "manager@example.com", "first_name": "Manager", "last_name": "User" },
+        "occupation": "System Manager", "role": "manager"
+      },
+      "created_at": "2025-09-20T10:00:00Z",
+      "mediums": ["email", "platform"],
+      "target_roles": ["league", "final"]
+    }
+  ]
+}
+```
+
+#### Create Broadcast
+**Endpoint:** `POST /broadcasts/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `manager` or higher  
+**Request Body:**
+```json
+{
+  "subject": "New Exam Available",
+  "message": "The final stage exam is now open. Good luck!",
+  "mediums": ["email", "platform"],
+  "target_roles": ["final"]
+}
+```
+**Response:** `201 Created`
+```json
+{
+    "id": 2,
+    "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "subject": "New Exam Available",
+    "message": "The final stage exam is now open. Good luck!",
+    "created_by": { "...": "..." },
+    "created_at": "2025-09-21T12:00:00Z",
+    "status": "pending",
+    "mediums": ["email", "platform"],
+    "target_roles": ["final"],
+    "logs": []
+}
+```
+*Note: Creating a broadcast triggers an asynchronous task. The response includes the `task_id` for tracking. The initial status is `pending`.*
+
+#### Get Broadcast Details
+**Endpoint:** `GET /broadcasts/{broadcast_id}/`  
+**Required Role:** `manager` or higher  
+**Response:** `200 OK` (Returns the detailed broadcast object, including the status and logs of sending attempts)
 
 ---
 

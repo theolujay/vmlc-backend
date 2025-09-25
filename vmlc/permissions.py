@@ -7,7 +7,6 @@ from channels.db import database_sync_to_async
 from .models import Candidate, Staff, User
 
 
-# @database_sync_to_async
 def _is_api_key_valid(key):
     from rest_framework_api_key.models import APIKey
 
