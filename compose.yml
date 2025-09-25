@@ -4,35 +4,39 @@ networks:
 
 volumes:
   grafana-storage: {}
-    
+
+x-backend-base: &backend-base
+  build:
+    context: .
+    target: development
+  env_file: .env
+  networks:
+    - verboheit
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+x-dev-volumes: &dev-volumes
+  - .:/home/verboheit/web
+  - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
+  - ./dev_data/media:/home/verboheit/web/media
+  - ./dev_data/logs:/home/verboheit/web/logs
+
 services:
   web:
-    build:
-      context: .
-      target: development
-    # command: python manage.py runserver 0.0.0.0:8000
-    command: ./scripts/runserver.sh
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
+    <<: *backend-base
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    volumes: *dev-volumes
     ports:
       - "8000:8000"
-    networks:
-      - verboheit
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/"]
-      interval: 300s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
   db:
     image: postgres:17-alpine
@@ -45,9 +49,10 @@ services:
     env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -55,165 +60,122 @@ services:
       - "6379:6379"
     networks:
       - verboheit
+    command: redis-server --appendonly yes
+    volumes:
+      - ./dev_data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
-      timeout: 5s
+      interval: 10s
+      timeout: 3s
       retries: 3
+      start_period: 5s
 
-  # High Priority - Comms workers (fast, dedicated)
+  # High Priority - Communication workers (email, notifications)
   celery_comms:
-    build:
-      context: .
-      target: development
-    command: celery -A config worker --queues=comms --concurrency=2 --loglevel=INFO --hostname=comms@%h
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
-    env_file: .env
-    networks:
-      - verboheit
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    <<: *backend-base
+    command: celery -A config worker --queues=comms --concurrency=2 --loglevel=INFO --hostname=comms@%h --max-tasks-per-child=1000
+    volumes: *dev-volumes
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*worker.*comms"]
-      interval: 300s
+      test: ["CMD-SHELL", "celery -A config inspect ping -d comms@$$HOSTNAME"]
+      interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
-  # Medium Priority - Processing workers
+  # Medium Priority - Processing workers (scoring, file processing)
   celery_processing:
-    build:
-      context: .
-      target: development
-    command: celery -A config worker --queues=scoring,files --concurrency=2 --loglevel=INFO --hostname=processing@%h
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
-    env_file: .env
-    networks:
-      - verboheit
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    <<: *backend-base
+    command: celery -A config worker --queues=scoring,files --concurrency=2 --loglevel=INFO --hostname=processing@%h --max-tasks-per-child=1000
+    volumes: *dev-volumes
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*worker.*(scoring|files)"]
-      interval: 300s
+      test: ["CMD-SHELL", "celery -A config inspect ping -d processing@$$HOSTNAME"]
+      interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
-  # Low Priority - Background workers  
+  # Low Priority - Background workers (reports, cache warming)
   celery_background:
-    build:
-      context: .
-      target: development
-    command: celery -A config worker --queues=reports,cache --concurrency=1 --loglevel=INFO --hostname=background@%h
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
-    env_file: .env
-    networks:
-      - verboheit
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    <<: *backend-base
+    command: celery -A config worker --queues=reports,cache --concurrency=1 --loglevel=INFO --hostname=background@%h --max-tasks-per-child=1000
+    volumes: *dev-volumes
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*worker.*(reports|cache)"]
-      interval: 300s
+      test: ["CMD-SHELL", "celery -A config inspect ping -d background@$$HOSTNAME"]
+      interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
   celery_beat:
-    build:
-      context: .
-      target: development
+    <<: *backend-base
     command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
-    env_file: .env
-    networks:
-      - verboheit
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    volumes: *dev-volumes
     healthcheck:
       test: ["CMD", "pgrep", "-f", "celery.*beat"]
-      interval: 300s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
-
-  flower:
-    build:
-      context: .
-      target: development
-    command: celery -A config flower --address=0.0.0.0 --port=5555
-    volumes:
-      - .:/home/verboheit/web
-      - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
-      - ./dev_data/media:/home/verboheit/web/media
-      - ./dev_data/logs:/home/verboheit/web/logs
-    ports:
-      - "5555:5555"
-    networks:
-      - verboheit
-    env_file: .env
-    depends_on:
-      redis:
-        condition: service_healthy
-      celery_comms:
-        condition: service_healthy
-      celery_processing:
-        condition: service_healthy
-      celery_background:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/"]
-      interval: 300s
+      interval: 60s
       timeout: 5s
       retries: 3
       start_period: 30s
 
+  flower:
+    <<: *backend-base
+    command: celery -A config flower --address=0.0.0.0 --port=5555 --basic_auth=admin:admin
+    volumes: *dev-volumes
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery_comms:
+        condition: service_started
+      celery_processing:
+        condition: service_started
+      celery_background:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://admin:admin@localhost:5555/"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   prometheus:
     image: prom/prometheus:v3.6.0
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
     networks:
       - verboheit
-  
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=7d'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:latest
     environment:
       - GF_SERVER_HTTP_PORT=3030
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
     ports:
       - "3030:3030"
     depends_on:
       - prometheus
     networks:
-      - verboheit  
+      - verboheit
     volumes:
       - grafana-storage:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3030/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
