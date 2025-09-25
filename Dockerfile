@@ -2,9 +2,7 @@ ARG PYTHON_VERSION=3.13.7
 ARG UV_VERSION=0.8.15
 ARG GOSU_VERSION=1.17
 # ==========================================================================
-# Builder: Compile dependencies in isolated env  
-# ==========================================================================
-FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
+FROM python:${PYTHON_VERSION}-slim-bookworm AS builder-base
 ARG UV_VERSION
 
 RUN apt-get update && \
@@ -23,15 +21,21 @@ USER verboheit
 WORKDIR /home/verboheit/build
 ENV PATH="/home/verboheit/.local/bin:${PATH}" \
     UV_CACHE_DIR=/tmp/uv-cache
+
 RUN pip install --no-cache-dir --user uv==${UV_VERSION}
 COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-cache --compile-bytecode --no-dev && \
-    rm -rf /tmp/uv-cache
+# ==========================================================================
+FROM builder-base AS builder-production
 
+RUN uv sync --only-group main --frozen --no-cache --compile-bytecode && \
+    rm -rf /tmp/uv-cache
 # ==========================================================================
-# Base: Common runtime
+FROM builder-base AS builder-development
+
+RUN uv sync --group dev --group test --frozen --no-cache --compile-bytecode && \
+    rm -rf /tmp/uv-cache
 # ==========================================================================
-FROM python:${PYTHON_VERSION}-slim-bookworm AS base
+FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime-base
 ARG GOSU_VERSION
 
 RUN apt-get update && \
@@ -42,7 +46,6 @@ RUN apt-get update && \
         curl \
         ca-certificates \
         gnupg && \
-    # Create temp GPG keyring and verify gosu
     export GNUPGHOME="$(mktemp -d)" && \
     gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 && \
     dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" && \
@@ -51,7 +54,6 @@ RUN apt-get update && \
     gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu && \
     chmod +x /usr/local/bin/gosu && \
     gosu --version && \
-    # Cleanup in single layer
     rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
     apt-get purge -y gnupg && \
     apt-get autoremove -y && \
@@ -60,31 +62,47 @@ RUN apt-get update && \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONOPTIMIZE=1 \
     PYTHONHASHSEED=random \
     PYTHONIOENCODING=utf-8 \
-    TERM=xterm-256color \
-    PATH="/home/verboheit/build/.venv/bin:${PATH}" \
-    DJANGO_SETTINGS_MODULE=config.settings.prod
+    TERM=xterm-256color
 
 RUN groupadd --system --gid 999 verboheit && \
     useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
 
 USER verboheit
-
-COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
-
 WORKDIR /home/verboheit/web
-COPY --chown=verboheit:verboheit . .
+# ==========================================================================
+FROM runtime-base AS production
 
+COPY --from=builder-production --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
+
+ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
+    PYTHONOPTIMIZE=2 \
+    SERVER_SOFTWARE= \
+    PYTHONPATH=/home/verboheit/web \
+    PATH="/home/verboheit/build/.venv/bin:${PATH}"
+
+COPY --chown=verboheit:verboheit . .
 RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
 
 EXPOSE 8000
+ENTRYPOINT ["./scripts/entrypoint.sh"]
+CMD ["./scripts/runserver.sh"]
 
+LABEL version="0.3.0" \
+      description="Backend service for the Verboheit Mathematics League Competition." \
+      maintainer="Joseph Ezekiel <theolujay@gmail.com>"
 # ==========================================================================
-# Development
+FROM production AS staging
+
+ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
+    PYTHONOPTIMIZE=2 \
+    SERVER_SOFTWARE=
 # ==========================================================================
-FROM base AS development
+FROM runtime-base AS development
+
+COPY --from=builder-development --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
+
 USER root
 
 RUN apt-get update && \
@@ -102,34 +120,12 @@ USER verboheit
 ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     PYTHONDEBUG=1 \
     DEBUG=1 \
-    PYTHONOPTIMIZE=0
+    PYTHONOPTIMIZE=0 \
+    PATH="/home/verboheit/build/.venv/bin:${PATH}"
 
+COPY --chown=verboheit:verboheit . .
+RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+EXPOSE 8000
 ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-# ==========================================================================
-# Staging
-# ==========================================================================
-FROM base AS staging
-
-ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
-    PYTHONOPTIMIZE=2 \
-    SERVER_SOFTWARE=
-
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/runserver.sh"]
-# ==========================================================================
-# Production
-# ==========================================================================
-FROM base AS production
-
-ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
-    PYTHONOPTIMIZE=2 \
-    SERVER_SOFTWARE= \
-    PYTHONPATH=/home/verboheit/web
-
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/runserver.sh"]
-
-LABEL version="0.3.0" \
-      description="Backend service for the Verboheit Mathematics League Competition." \
-      maintainer="Joseph Ezekiel <theolujay@gmail.com>"
