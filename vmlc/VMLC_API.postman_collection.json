@@ -33,7 +33,13 @@
  					"name": "API Root",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/root/",
  							"host": [
@@ -112,7 +118,13 @@
 					"name": "Logout",
 					"request": {
 						"method": "POST",
-						"header": [],
+						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
@@ -141,7 +153,13 @@
                             "name": "Invalid Token",
                             "originalRequest": {
                                 "method": "POST",
-                                "header": [],
+                                "header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
                                 "body": {
                                     "mode": "raw",
                                     "raw": "{\n    \"refresh\": \"invalidtoken\"\n}",
@@ -182,7 +200,13 @@
  					"name": "Refresh Token",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}",
@@ -213,7 +237,13 @@
  					"name": "Password Change > Request OTP",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"user@example.com\"\n}",
@@ -243,7 +273,13 @@
  					"name": "Password Change > Confirm OTP",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\"\n}",
@@ -273,7 +309,13 @@
  					"name": "Password Change > Set New Password",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newstrongpassword123\",\n    \"confirm_password\": \"newstrongpassword123\"\n}",
@@ -302,7 +344,13 @@
  					"name": "Password Change > Resend OTP",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"user@example.com\"\n}",
@@ -407,7 +455,13 @@
  					"name": "Verify Email OTP",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"otp\": \"123456\"\n}",
@@ -435,7 +489,13 @@
  					"name": "Resend Email OTP",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"email\": \"candidate@example.com\"\n}",
@@ -468,7 +528,13 @@
  					"name": "List Candidates",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/candidates/",
  							"host": [
@@ -488,7 +554,13 @@
  					"name": "Get Candidate Detail",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
  							"host": [
@@ -509,7 +581,13 @@
  					"name": "Update Candidate Detail",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"school\": \"New Example High School\"\n}",
@@ -539,7 +617,13 @@
  					"name": "Delete Candidate (Soft)",
  					"request": {
  						"method": "DELETE",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
  							"host": [
@@ -560,7 +644,13 @@
  					"name": "Assign Candidate Role",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"role\": \"league\"\n}",
@@ -592,7 +682,13 @@
  					"name": "Get Candidate Scores",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/scores/",
  							"host": [
@@ -614,7 +710,13 @@
  					"name": "Get Candidate Exam History",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
  							"host": [
@@ -651,7 +753,13 @@
  					"name": "List Staff",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/staff/",
  							"host": [
@@ -671,7 +779,13 @@
  					"name": "Get Staff Detail",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
  							"host": [
@@ -692,7 +806,13 @@
  					"name": "Update Staff Detail",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"occupation\": \"Head of Department\"\n}",
@@ -722,7 +842,13 @@
  					"name": "Delete Staff (Soft)",
  					"request": {
  						"method": "DELETE",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
  							"host": [
@@ -743,7 +869,13 @@
  					"name": "Assign Staff Role",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"role\": \"admin\"\n}",
@@ -790,7 +922,13 @@
  					"name": "List Exams",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/",
  							"host": [
@@ -810,7 +948,13 @@
  					"name": "Create Exam",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"exam_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
@@ -839,7 +983,13 @@
  					"name": "Get Exam Detail",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
  							"host": [
@@ -860,7 +1010,13 @@
  					"name": "Update Exam",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"is_active\": false\n}",
@@ -890,7 +1046,13 @@
  					"name": "Delete Exam",
  					"request": {
  						"method": "DELETE",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
  							"host": [
@@ -911,7 +1073,13 @@
  					"name": "Get Exam Questions",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/questions/",
  							"host": [
@@ -933,7 +1101,13 @@
  					"name": "Get Exam Results",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/results/",
  							"host": [
@@ -955,7 +1129,13 @@
  					"name": "Candidate: Take Exam",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/take-exam/",
  							"host": [
@@ -977,7 +1157,13 @@
  					"name": "Candidate: Submit Answers",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"answers\": [\n        {\n            \"question\": {{question_id_1}},\n            \"selected_option\": \"A\"\n        },\n        {\n            \"question\": {{question_id_2}},\n            \"selected_option\": \"C\"\n        }\n    ]\n}",
@@ -1008,7 +1194,13 @@
  					"name": "Staff: Submit Manual Score",
  					"request": {
  						"method": "PUT",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"candidate_id\": \"{{candidate_id}}\",\n    \"score\": \"85.50\"\n}",
@@ -1054,7 +1246,13 @@
  					"name": "List Questions",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/questions/",
  							"host": [
@@ -1074,7 +1272,13 @@
  					"name": "Create Question",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
@@ -1103,7 +1307,13 @@
  					"name": "Get Question Detail",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
  							"host": [
@@ -1124,7 +1334,13 @@
  					"name": "Update Question",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"difficulty\": \"medium\"\n}",
@@ -1154,7 +1370,13 @@
  					"name": "Delete Question",
  					"request": {
  						"method": "DELETE",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
  							"host": [
@@ -1190,7 +1412,13 @@
  					"name": "Publish Scores",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/publish-scores/",
  							"host": [
@@ -1210,7 +1438,13 @@
  					"name": "Toggle Leaderboard Visibility",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"open\": true\n}",
@@ -1239,7 +1473,13 @@
  					"name": "Publish Leaderboard",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/publish-leaderboard/",
  							"host": [
@@ -1259,7 +1499,13 @@
  					"name": "Load Leaderboard",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/load-leaderboard/",
  							"host": [
@@ -1294,7 +1540,13 @@
  					"name": "Get Candidate Dashboard",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/dashboard/candidate/",
  							"host": [
@@ -1315,7 +1567,13 @@
  					"name": "Get Staff Dashboard",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/dashboard/staff/",
  							"host": [
@@ -1336,7 +1594,13 @@
  					"name": "Get Own Account Info",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/account-management/",
  							"host": [
@@ -1356,7 +1620,13 @@
  					"name": "Update Own Account Info",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
@@ -1385,7 +1655,13 @@
  					"name": "Admin: Get User Account Info",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
  							"host": [
@@ -1406,7 +1682,13 @@
  					"name": "Admin: Update User Account Info",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"profile\": {\n        \"school\": \"Admin Updated School Name\"\n    }\n}",
@@ -1451,7 +1733,13 @@
  					"name": "Get Verification Status",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/user/verification/status/",
  							"host": [
@@ -1473,7 +1761,13 @@
  					"name": "Admin: Get User Verification Status",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
  							"raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
  							"host": [
@@ -1496,7 +1790,13 @@
  					"name": "Upload Verification Documents",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "formdata",
  							"formdata": [
@@ -1538,7 +1838,13 @@
  					"name": "Update Verification Documents",
  					"request": {
  						"method": "PATCH",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "formdata",
  							"formdata": [
@@ -1570,7 +1876,13 @@
  					"name": "Get Own Verification Document",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
  							"host": [
@@ -1593,7 +1905,13 @@
  					"name": "Admin: Get User Verification Document",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
  							"host": [
@@ -1617,7 +1935,13 @@
  					"name": "Admin: List Verification Requests",
  					"request": {
  						"method": "GET",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"url": {
 							"raw": "{{baseUrl}}/v1/user/verification/list/",
  							"host": [
@@ -1639,7 +1963,13 @@
  					"name": "Admin: Action on Verification Request",
  					"request": {
  						"method": "POST",
- 						"header": [],
+ 						"header": [
+ 							{
+								"key": "X-Api-Key",
+								"value": "{{apiKey}}",
+ 								"type": "text"
+ 							}
+ 						],
  						"body": {
  							"mode": "raw",
  							"raw": "{\n    \"is_verified\": true\n}",
@@ -1677,6 +2007,127 @@
  						"type": "string"
  					}
  				]
+ 			}
+ 		},
+ 		{
+ 			"name": "Broadcast Management",
+ 			"item": [
+ 				{
+ 					"name": "List Broadcasts",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+ 							"raw": "{{baseUrl}}/v1/broadcasts/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"broadcasts",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires `manager` or higher role. Lists all created broadcasts."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Create Broadcast",
+ 					"request": {
+ 						"method": "POST",
+ 						"header": [],
+ 						"body": {
+ 							"mode": "raw",
+ 							"raw": "{\n    \"subject\": \"Important Update for League Candidates\",\n    \"message\": \"Please check the portal for a new practice exam.\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": [\"league\"]\n}",
+ 							"options": {
+ 								"raw": {
+ 									"language": "json"
+ 								}
+ 							}
+ 						},
+ 						"url": {
+ 							"raw": "{{baseUrl}}/v1/broadcasts/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"broadcasts",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires `manager` or higher role. Creates a new broadcast and queues it for sending. This will trigger a real-time notification for connected clients."
+ 					},
+ 					"response": []
+ 				},
+ 				{
+ 					"name": "Get Broadcast Details",
+ 					"request": {
+ 						"method": "GET",
+ 						"header": [],
+ 						"url": {
+ 							"raw": "{{baseUrl}}/v1/broadcasts/{{broadcast_id}}/",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"broadcasts",
+ 								"{{broadcast_id}}",
+ 								""
+ 							]
+ 						},
+ 						"description": "Requires `manager` or higher role. Retrieves the details and sending logs for a specific broadcast."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"auth": {
+ 				"type": "bearer",
+ 				"bearer": [
+ 					{
+ 						"key": "token",
+ 						"value": "{{accessToken}}",
+ 						"type": "string"
+ 					}
+ 				]
+ 			},
+ 			"description": "Endpoints for creating and managing broadcasts to users."
+ 		},
+ 		{
+ 			"name": "WebSockets",
+ 			"item": [
+ 				{
+ 					"name": "Real-time Notifications",
+ 					"id": "websocket-notifications",
+ 					"request": {
+ 						"url": {
+ 							"raw": "{{baseUrl}}",
+ 							"host": [
+ 								"{{baseUrl}}"
+ 							],
+ 							"path": [
+ 								"v1",
+ 								"ws",
+ 								"notifications"
+ 							],
+ 							"query": [
+ 								{
+ 									"key": "token",
+ 									"value": "{{accessToken}}"
+ 								}
+ 							],
+ 							"protocol": "ws"
+ 						},
+ 						"description": "Establishes a WebSocket connection to receive real-time notifications.\n\n**How to use:**\n1. Log in as a user (e.g., a candidate) to get an `accessToken`.\n2. Open this request and click 'Connect'.\n3. In another tab, log in as a `manager` and use the 'Create Broadcast' request to send a message to the first user's role.\n4. Observe the incoming message in the 'Messages' pane below."
+ 					},
+ 					"response": []
+ 				}
+ 			],
+ 			"description": "Requests for handling real-time communication via WebSockets.",
+ 			"protocolProfileBehavior": {
+ 				"disabledSystemHeaders": {}
  			}
  		}
  	],
@@ -1733,6 +2184,12 @@
  			"value": "2",
  			"type": "string"
  		},
+ 		{
+ 			"key": "broadcast_id",
+ 			"value": "1",
+ 			"type": "string",
+ 			"description": "The ID of a broadcast to retrieve."
+ 		},
 		{
 			"key": "file_type",
 			"value": "profile_photo",
@@ -1741,7 +2198,7 @@
 		},
  		{
  			"key": "apiKey",
- 			"value": "fftlKYeR.R117tf9J8nHGbWcRQU7I2Urs6C66lARo",
+ 			"value": "<your-api-key-here>",
  			"type": "string",
  			"description": "API Key for accessing public endpoints like login and registration."
  		}

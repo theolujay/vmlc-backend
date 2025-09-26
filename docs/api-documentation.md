@@ -21,6 +21,7 @@
   - [Scoring & Submissions](#scoring--submissions)
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
+  - [Nofications](#notifications)
   - [Broadcast Management](#broadcast-management)
 - [Advanced Topics](#advanced-topics)
   - [Query Parameters](#query-parameters)
@@ -183,6 +184,7 @@ The API now uses a hierarchical role system. Users with a higher role inherit al
 | Role (Hierarchy) | Description | Key Permissions |
 |------------------|-------------|-----------------|
 | `volunteer` | Basic staff member. | Restricted permissions. Access to apply for user verification. |
+| `volunteer` | Basic staff member. | Restricted permissions. Can apply for user verification. |
 | `sponsor` | Vanity role. | Unused. |
 | `moderator` | Responsible for basic moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
 | `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing). |
@@ -1691,6 +1693,62 @@ X-Api-Key: <your_api_key>
 
 ---
 
+### Notifications with WebSockets
+The VMLC API provides real-time communication capabilities for notifications using WebSockets, allowing clients to receive instant updates without needing to poll the server.
+
+#### Real-time Notifications
+Connect to this endpoint to receive platform notifications in real-time.
+
+**Endpoint:** `ws://<host>/v1/ws/notifications/` (or `wss://` for secure connections)
+
+**Authentication:**
+Authentication is handled via a JWT access token passed as a query parameter.
+
+`ws://127.0.0.1:8000/v1/ws/notifications/?token=<your_access_token>`
+
+**Receiving Messages (Server-to-Client):**
+When a new notification is generated for the authenticated user (e.g., via a broadcast), the server will push a JSON message with the following structure:
+
+```json
+{
+    "type": "notification_activity",
+    "message": {
+        "id": 123,
+        "subject": "New Exam Available",
+        "message": "The final stage exam is now open. Good luck!",
+        "read": false,
+        "created_at": "2025-09-21T12:00:00.123456Z"
+    }
+}
+```
+
+**Sending Messages (Client-to-Server):**
+Clients can send messages to the server to perform actions, like `mark_as_read`. The message must be a JSON object with an `action` and a `data` payload.
+
+**Action: `mark_as_read`**
+Marks a specific notification as read.
+
+**Request Payload:**
+```json
+{
+    "action": "mark_as_read",
+    "data": {
+        "notification_id": 123
+    }
+}
+```
+
+**Server Response:**
+If the action is unknown or the payload is invalid, the server will send back an error message:
+```json
+{
+    "type": "error",
+    "message": "Unknown action: <action_name>"
+}
+```
+
+---
+
 ### Broadcast Management
 The broadcast system allows authorized staff to send targeted communications to candidates. Broadcasts are sent asynchronously, and their status can be tracked.
 
@@ -1756,11 +1814,12 @@ X-Api-Key: <your_api_key>
     "logs": []
 }
 ```
-*Note: Creating a broadcast triggers an asynchronous task. The response includes the `task_id` for tracking. The initial status is `pending`.*
+*Note: Creating a broadcast triggers an asynchronous task. The response includes the task_id for tracking. If platform is a medium, a real-time notification will be pushed to connected clients via WebSockets.*
 
 #### Get Broadcast Details
 **Endpoint:** `GET /broadcasts/{broadcast_id}/`  
-**Required Role:** `manager` or higher  
+**Required Role:** `manager` or higher
+*Note: The response for this endpoint is cached for performance. The cache is invalidated when the broadcast sending task completes.*
 **Response:** `200 OK` (Returns the detailed broadcast object, including the status and logs of sending attempts)
 
 ---
@@ -1847,6 +1906,8 @@ The API returns errors in a standardized format to ensure consistency and ease o
 | `invalid` | Invalid input (e.g., validation errors in request body). |
 | `invalid_token` | Token is invalid or expired. |
 | `rate_limit_exceeded` | You have exceeded the rate limit. |
+| `no_recipients_found` | A broadcast operation found no recipients for the specified target. |
+| `invalid_medium` | The specified broadcast medium is invalid or not implemented. |
 | `registration_closed` | Registration for this type of user is currently disabled by a feature flag. |
 | `email_not_verified` | User's email address has not been verified. |
 | `already_verified` | User is already verified and cannot resubmit verification documents. |
@@ -1931,7 +1992,15 @@ For technical support, API key requests, or questions:
 ---
 
 ## Changelog
-### Version 0.3.0 (Current)
+### Version 0.3.1 (Current)
+- **Real-time Notifications**: Introduced WebSocket support (`/v1/ws/notifications/`) for instant delivery of platform notifications.
+- **Interactive Notifications**: Added client-to-server actions via WebSockets, starting with `mark_as_read`.
+- **Performance Improvements**: Implemented caching for the broadcast detail view to reduce database load. Cache is automatically invalidated upon broadcast completion.
+- **Improved Error Handling**: Enhanced the broadcast system with more specific custom exceptions (`NoRecipientsFoundError`, `InvalidMediumError`) for clearer error logging and handling.
+- **Code Refactoring**: Refactored the asynchronous broadcast task for better modularity and maintainability.
+
+
+### Version 0.3.0
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.

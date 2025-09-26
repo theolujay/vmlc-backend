@@ -1,8 +1,10 @@
 import logging
 
 from django.db import models, transaction
+from django.core.cache import cache
 from rest_framework import mixins
 from rest_framework.settings import api_settings
+from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
 
 from comms.models import Broadcast, BroadcastLog
@@ -104,6 +106,29 @@ class BroadcastView(ListCreateRetrieveAPIView):
             )
             
         return queryset
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a broadcast instance, using caching for performance.
+        The cache is invalidated when the broadcast task completes.
+        """
+        broadcast_id = self.kwargs.get(self.lookup_url_kwarg)
+        cache_key = f"broadcast_detail_{broadcast_id}"
+
+        # Try to fetch from cache first
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached data for broadcast {broadcast_id}")
+            return Response(cached_data)
+
+        # If not in cache, proceed with the standard retrieve logic
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        # Cache the result for future requests
+        cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour
+        return Response(data)
 
     def perform_create(self, serializer):
         """

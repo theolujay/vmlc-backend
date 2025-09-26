@@ -76,7 +76,7 @@ services:
     command: celery -A config worker --queues=comms --concurrency=2 --loglevel=INFO --hostname=comms@%h --max-tasks-per-child=1000
     volumes: *dev-volumes
     healthcheck:
-      test: ["CMD-SHELL", "celery -A config inspect ping -d comms@$$HOSTNAME"]
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*comms"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -88,7 +88,7 @@ services:
     command: celery -A config worker --queues=scoring,files --concurrency=2 --loglevel=INFO --hostname=processing@%h --max-tasks-per-child=1000
     volumes: *dev-volumes
     healthcheck:
-      test: ["CMD-SHELL", "celery -A config inspect ping -d processing@$$HOSTNAME"]
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*(scoring|files)"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -100,7 +100,7 @@ services:
     command: celery -A config worker --queues=reports,cache --concurrency=1 --loglevel=INFO --hostname=background@%h --max-tasks-per-child=1000
     volumes: *dev-volumes
     healthcheck:
-      test: ["CMD-SHELL", "celery -A config inspect ping -d background@$$HOSTNAME"]
+      test: ["CMD", "pgrep", "-f", "celery.*worker.*(reports|cache)"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -119,7 +119,7 @@ services:
 
   flower:
     <<: *backend-base
-    command: celery -A config flower --address=0.0.0.0 --port=5555 --basic_auth=admin:admin
+    command: celery -A config flower --address=0.0.0.0 --port=5555
     volumes: *dev-volumes
     ports:
       - "5555:5555"
@@ -133,7 +133,7 @@ services:
       celery_background:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://admin:admin@localhost:5555/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5555/"]
       interval: 60s
       timeout: 5s
       retries: 3
@@ -166,6 +166,9 @@ services:
       - GF_SERVER_HTTP_PORT=3030
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=
+      - GF_PLUGINS_DISABLE_INSTALLATION=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_UPDATE_CHECK_FOR_UPDATES=false
     ports:
       - "3030:3030"
     depends_on:

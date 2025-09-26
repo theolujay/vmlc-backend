@@ -23,7 +23,7 @@ async def test_notification_consumer_receives_broadcast():
 
     # 2. Instantiate the communicator for our consumer
     communicator = WebsocketCommunicator(
-        NotificationConsumer.as_asgi(), f"/ws/notifications/?user_id={user.id}"
+        NotificationConsumer.as_asgi(), f"/v1/ws/notifications/?user_id={user.id}"
     )
     # Add the user to the scope to simulate authentication
     communicator.scope["user"] = user

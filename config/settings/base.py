@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "django_prometheus",
-    "channels",
     "corsheaders",
     "drf_yasg",
     "django_filters",
@@ -75,6 +74,21 @@ TEMPLATES = [
         },
     },
 ]
+
+# ============================================================================
+# CHANNELS CONFIGURATION
+# ============================================================================
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.environ.get("REDIS_HOST", "127.0.0.1"), 6379)],
+        },
+    },
+}
+
 
 WSGI_APPLICATION = "config.wsgi.application"
 
@@ -185,6 +199,7 @@ CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_TASK_ROUTES = {
     # HIGH PRIORITY - User-facing tasks
     "send_mail_task": {"queue": "emails", "priority": 9},
+    "send_broadcast_task": {"queue": "comms", "priority": 8},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
     # MEDIUM PRIORITY - Background processing
     "calculate_and_save_auto_score_task": {"queue": "scoring", "priority": 6},

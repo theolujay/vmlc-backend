@@ -1,5 +1,7 @@
 import logging
 from celery import shared_task
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail, send_mass_mail
@@ -7,10 +9,89 @@ from django.core.mail.backends.smtp import EmailBackend
 from django.utils import timezone
 from smtplib import SMTPException
 from django.db import DatabaseError
-
-from vmlc.utils.exceptions import ServerError
+from vmlc.utils.exceptions import (
+    ServerError,
+    ValidationError,
+    NoRecipientsFoundError,
+    InvalidMediumError,
+)
 
 logger = logging.getLogger(__name__)
+
+def _send_email_broadcast(broadcast, recipients):
+    """Helper function to handle email sending logic."""
+    valid_emails = [r['user__email'] for r in recipients if r.get('user__email')]
+    if not valid_emails:
+        raise NoRecipientsFoundError(f"No valid email addresses found for role '{broadcast.target_roles}'")
+    
+    mail_details = (
+        broadcast.subject,
+        broadcast.message,
+        settings.DEFAULT_FROM_EMAIL,
+        valid_emails,
+    )
+    # This can raise SMTPException, which will be caught by the main task loop
+    send_mass_mail((mail_details,), fail_silently=False)
+    
+    logger.info(
+        "Email queued successfully for broadcast %s to %d recipients (roles: %s)",
+        broadcast.id, len(valid_emails), ", ".join(broadcast.target_roles)
+    )
+
+def _send_platform_broadcast(broadcast, recipients):
+    """Helper function to handle platform notification logic."""
+    from comms.models import Notification
+    from comms.signals import notifications_created
+
+    user_ids = [r['user__id'] for r in recipients if r.get('user__id')]
+    if not user_ids:
+        raise NoRecipientsFoundError(f"No user IDs found for role '{broadcast.target_roles}'")
+
+    notifications_to_create = [
+        Notification(
+            recipient_id=user_id,
+            subject=broadcast.subject,
+            message=broadcast.message
+        )
+        for user_id in user_ids
+    ]
+    
+    try:
+        created_notifications = Notification.objects.bulk_create(notifications_to_create)
+    except DatabaseError as e:
+        logger.error("Database error during notification bulk_create for broadcast %s: %s", broadcast.id, e)
+        # Re-raise as a ServerError to be handled by the main loop
+        raise ServerError("Failed to save notifications to the database.") from e
+
+    # Manually send messages to the channel layer
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        logger.error("Could not get channel layer. Real-time notifications will not be sent for broadcast %s.", broadcast.id)
+        # This is a critical configuration error, but we don't want to fail the whole task.
+        # The notifications are saved, but not pushed in real-time.
+        return
+
+    for notification in created_notifications:
+        group_name = f"user__{notification.recipient_id}"
+        message_payload = {
+            "type": "notification_activity",
+            "message": {
+                "id": notification.id,
+                "subject": notification.subject,
+                "message": notification.message,
+                "read": notification.read,
+                "created_at": notification.created_at.isoformat(),
+            }
+        }
+        try:
+            async_to_sync(channel_layer.group_send)(group_name, message_payload)
+        except Exception as e:
+            # Log if a single group_send fails, but don't stop the others
+            logger.error("Failed to send notification to group %s for broadcast %s: %s", group_name, broadcast.id, e)
+
+    # Send our custom signal for other potential listeners
+    notifications_created.send(sender=send_broadcast_task, notifications=created_notifications)
+    logger.info("Platform notifications created and pushed for %d users (roles: %s)", len(user_ids), ", ".join(broadcast.target_roles))
 
 
 @shared_task(
@@ -35,6 +116,7 @@ def send_broadcast_task(self, broadcast_id):
     """
     from vmlc.models import Candidate
     from comms.models import Broadcast, BroadcastLog, Notification
+    from comms.signals import notifications_created
 
     try:
         broadcast = Broadcast.objects.select_related("created_by__user").get(id=broadcast_id)
@@ -86,58 +168,19 @@ def send_broadcast_task(self, broadcast_id):
                 recipients = recipients_by_role[role]
                 
                 if not recipients:
-                    raise ValueError(f"No active candidates found for role '{role}'")
+                    raise NoRecipientsFoundError(f"No active candidates found for role '{role}'")
 
+                # --- Delegate sending to helper functions ---
                 if medium == Broadcast.Mediums.EMAIL:
-                    valid_emails = [r['user__email'] for r in recipients if r.get('user__email')]
-                    
-                    if not valid_emails:
-                        raise ValueError(f"No valid email addresses found for role '{role}'")
-                    
-                    mail_details = (
-                        broadcast.subject,
-                        broadcast.message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        valid_emails,
-                    )
-                    send_mass_mail((mail_details,), fail_silently=False)
-                    
-                    logger.info(
-                        "Email sent successfully for broadcast %s to %d recipients (role: %s)",
-                        broadcast_id, len(valid_emails), role
-                    )
-
+                    _send_email_broadcast(broadcast, recipients)
                 elif medium == Broadcast.Mediums.PLATFORM:
-                    user_ids = [r['user__id'] for r in recipients if r.get('user__id')]
-                    notifications_to_create = [
-                        Notification(
-                            recipient_id=user_id,
-                            subject=broadcast.subject,
-                            message=broadcast.message
-                        )
-                        for user_id in user_ids
-                    ]
-                    Notification.objects.bulk_create(notifications_to_create)
-                    
-                    logger.info("Platform notifications created for %d users (role: %s)", len(user_ids), role)
+                    _send_platform_broadcast(broadcast, recipients)
                 elif medium == Broadcast.Mediums.SMS:
-                    # TODO: Integrate SMS provider (Twilio, AWS SNS, etc.)
-                    logger.warning(
-                        "SMS notifications not yet implemented for broadcast %s (role: %s)",
-                        broadcast_id, role
-                    )
-                    # Consider raising NotImplementedError here instead
-
+                    raise NotImplementedError("SMS medium is not implemented.")
                 elif medium == Broadcast.Mediums.WHATSAPP:
-                    # TODO: Integrate WhatsApp Business API
-                    logger.warning(
-                        "WhatsApp notifications not yet implemented for broadcast %s (role: %s)",
-                        broadcast_id, role
-                    )
-                    # Consider raising NotImplementedError here instead
-                
+                    raise NotImplementedError("WhatsApp medium is not implemented.")
                 else:
-                    raise ValueError(f"Unknown medium: {medium}")
+                    raise InvalidMediumError(f"Unknown medium specified: {medium}")
 
                 # If we get here, the sending was successful
                 log.status = BroadcastLog.MediumStatus.SENT
@@ -156,7 +199,7 @@ def send_broadcast_task(self, broadcast_id):
                     broadcast_id, medium, role, str(e)
                 )
                 
-            except ValueError as e:
+            except ValidationError as e: # Catch specific validation errors
                 overall_success = False
                 partial_success = True
                 log.status = BroadcastLog.MediumStatus.FAILED
@@ -164,6 +207,17 @@ def send_broadcast_task(self, broadcast_id):
                 log.save(update_fields=["status", "message"])
                 logger.warning(
                     "Validation error for broadcast %s (%s -> %s): %s",
+                    broadcast_id, medium, role, str(e)
+                )
+
+            except NotImplementedError as e:
+                overall_success = False
+                partial_success = True
+                log.status = BroadcastLog.MediumStatus.FAILED
+                log.message = f"Not Implemented: {str(e)}"
+                log.save(update_fields=["status", "message"])
+                logger.warning(
+                    "Not implemented for broadcast %s (%s -> %s): %s",
                     broadcast_id, medium, role, str(e)
                 )
                 
@@ -177,8 +231,6 @@ def send_broadcast_task(self, broadcast_id):
                     "Unexpected error for broadcast %s (%s -> %s): %s",
                     broadcast_id, medium, role, str(e)
                 )
-                raise self.retry(exc=e)
-
     if overall_success:
         broadcast.status = Broadcast.Status.SENT
         logger.info("Broadcast %s completed successfully", broadcast_id)
@@ -193,6 +245,9 @@ def send_broadcast_task(self, broadcast_id):
         logger.error("Broadcast %s failed completely", broadcast_id)
     
     broadcast.save(update_fields=["status"])
+    
+    # Invalidate the cache for this broadcast's detail view
+    cache.delete(f"broadcast_detail_{broadcast_id}")
     
     # Return summary for monitoring/debugging
     return {

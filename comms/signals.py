@@ -1,9 +1,13 @@
 import logging
 from django.conf import settings
+from django.dispatch import Signal
 from django.core.mail import mail_admins
 from celery.signals import task_success, task_failure
 
+from vmlc.utils.exceptions import ValidationError
+
 logger = logging.getLogger(__name__)
+notifications_created = Signal()
 
 @task_success.connect
 def task_success_handler(sender=None, result=None, **kwargs):
@@ -36,14 +40,20 @@ def task_failure_handler(sender=None, task_id=None, exception=None, traceback=No
     """Handle failed tasks"""
     if sender and sender.name == 'send_broadcast_task':
         logger.error(
-            "Broadcast task %s failed: %s",
-            task_id, str(exception)
+            "Broadcast task %s failed with exception: %s",
+            task_id, repr(exception)
         )
 
-        mail_admins(
-            subject="Broadcast Task Failed",
-            message=f"Task {task_id} failed with error: {exception}\n\nTraceback:\n{traceback}"
-        )
+        # Only alert admins for critical, unexpected errors, not for simple validation issues.
+        if not isinstance(exception, ValidationError):
+            mail_admins(
+                subject=f"CRITICAL: Broadcast Task Failed - {type(exception).__name__}",
+                message=(
+                    f"Task {task_id} failed with a critical error.\n\n"
+                    f"Exception: {repr(exception)}\n\n"
+                    f"Traceback:\n{einfo.traceback if einfo else 'Not available'}"
+                )
+            )
         
 # You could even create webhooks to notify external systems
 @task_success.connect

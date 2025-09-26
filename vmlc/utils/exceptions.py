@@ -44,6 +44,18 @@ class ValidationError(VMLCException):
     default_code = "invalid"
 
 
+class NoRecipientsFoundError(ValidationError):
+    """
+    Raised when a broadcast operation finds no recipients for a given target.
+    """
+    default_detail = "No recipients found for the specified target."
+    default_code = "no_recipients_found"
+
+class InvalidMediumError(ValidationError):
+    """Raised when an unknown broadcast medium is specified."""
+    default_detail = "The specified broadcast medium is invalid."
+    default_code = "invalid_medium"
+
 class InvalidTokenError(VMLCException):
     status_code = 401
     default_detail = "Token is invalid or expired."
