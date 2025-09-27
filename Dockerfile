@@ -27,7 +27,7 @@ COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
 # ==========================================================================
 FROM builder-base AS builder-production
 
-RUN uv sync --only-group main --frozen --no-cache --compile-bytecode && \
+RUN uv sync --only-group prod --frozen --no-cache --compile-bytecode && \
     rm -rf /tmp/uv-cache
 # ==========================================================================
 FROM builder-base AS builder-development
@@ -89,7 +89,7 @@ EXPOSE 8000
 ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["./scripts/runserver.sh"]
 
-LABEL version="0.3.0" \
+LABEL version="0.3.1" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"
 # ==========================================================================

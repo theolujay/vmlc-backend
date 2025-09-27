@@ -25,27 +25,26 @@ show_time() {
 trap show_time EXIT
 
 # Step 1: Build the base backend image (this is the slow part)
-echo "📦 Step 1: Building backend base image..."
+echo "Step 1: Building common image [vmlc-backend:dev]..."
 docker build \
     --target development \
     --tag vmlc-backend:dev \
-    --build-arg BUILDKIT_INLINE_CACHE=1 \
-    .
+    --build-arg BUILDKIT_INLINE_CACHE=1 . \
 
 echo "Backend base image built successfully!"
 
 # Step 2: Start services (they'll all use the same base image now)
 echo "Step 2: Starting services..."
-docker compose up -d --build
+docker compose up -d
 
-echo "All services started!"
-echo ""
+echo "All services started! \n"
+
 echo "Available services:"
 echo "   • Web API: http://localhost:8000"
 echo "   • Flower (Celery Monitor): http://localhost:5555 (admin/admin)"
 echo "   • Grafana: http://localhost:3030"
 echo "   • Prometheus: http://localhost:9090"
-echo ""
+
 echo "Useful commands:"
 echo "   • View logs: docker compose logs -f [service_name]"
 echo "   • Stop all: docker compose down"

@@ -15,7 +15,7 @@ services:
     type: web
     runtime: image
     image:
-      url: docker.io/theolujay/vmlc-backend:0.3.0
+      url: docker.io/theolujay/vmlc-backend:0.3.1
       creds:
         fromRegistryCreds:
           name: vmlc-creds
@@ -40,7 +40,7 @@ services:
   #   region: frankfurt
   #   runtime: image
   #   image:
-  #     url: docker.io/theolujay/vmlc-backend:0.3.0
+  #     url: docker.io/theolujay/vmlc-backend:0.3.1
   #     creds:
   #       fromRegistryCreds:
   #         name: vmlc-creds
@@ -64,7 +64,7 @@ services:
   #   runtime: image
   #   plan: free
   #   image:
-  #     url: docker.io/theolujay/vmlc-backend:0.3.0
+  #     url: docker.io/theolujay/vmlc-backend:0.3.1
   #     creds:
   #       fromRegistryCreds:
   #         name: vmlc-creds
@@ -76,7 +76,7 @@ services:
     region: frankfurt
     runtime: image
     image:
-      url: docker.io/theolujay/vmlc-backend:0.3.0
+      url: docker.io/theolujay/vmlc-backend:0.3.1
       creds:
         fromRegistryCreds:
           name: vmlc-creds

@@ -15,4 +15,4 @@ Verboheit MLC API documentation
    :maxdepth: 2
    :caption: Contents:
 
-   api-documentation
+   api

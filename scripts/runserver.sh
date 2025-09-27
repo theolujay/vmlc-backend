@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-exec gunicorn config.wsgi:application \
+exec gunicorn config.asgi:application \
     -k uvicorn_worker.UvicornWorker \
     -w 2 \
     -b 0.0.0.0:8000 \

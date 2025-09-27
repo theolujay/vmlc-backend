@@ -6,10 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Verboheit MLC API"
-copyright = "2025, Joseph Ezekiel"
+project = "VMLC Portal"
+copyright = "2025, Verboheit"
 author = "Joseph Ezekiel"
-release = "0.3.0"
+release = "0.3.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
