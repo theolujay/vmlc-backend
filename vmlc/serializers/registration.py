@@ -1,16 +1,13 @@
 from django.contrib.auth import password_validation
 from django.db import transaction
-
+from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
-
 
 from ..models import (
     Candidate,
     Staff,
     User,
 )
-from .user import UserSerializer
-
 
 class BaseRegistrationSerializer(serializers.ModelSerializer):
     """
@@ -18,7 +15,12 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     Handles common user creation and password validation logic.
     """
 
-    user = UserSerializer()
+    email = serializers.EmailField(
+        validators=[UniqueValidator(queryset=User.objects.all())]
+    )
+    first_name = serializers.CharField(max_length=30)
+    last_name = serializers.CharField(max_length=30)
+    phone = serializers.CharField(max_length=17)
     password = serializers.CharField(
         write_only=True,
         required=True,
@@ -32,7 +34,13 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         label="Confirm password",
     )
+    def validate_phone(self, value):
+        """Validate phone number format."""
+        import re
 
+        if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
+            raise serializers.ValidationError("Enter a valid Nigerian phone number.")
+        return value
     def validate(self, attrs):
         """Validate that passwords match"""
         if attrs["password"] != attrs["password2"]:
@@ -40,6 +48,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create_user(self, user_data, password):
+        """Helper to create a user instance."""
         return User.objects.create_user(
             email=user_data["email"],
             password=password,
@@ -50,7 +59,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Handles the creation of a User and its associated profile.
+        Handles the creation of a User and its associated profile (from a flat structure).
         """
         password = validated_data.pop("password")
         validated_data.pop("password2")
@@ -73,7 +82,10 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     class Meta:
         model = Candidate
         fields = [
-            "user",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
             "password",
             "password2",
             "school",
@@ -88,7 +100,10 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
     class Meta:
         model = Staff
         fields = [
-            "user",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
             "password",
             "password2",
             "occupation",
