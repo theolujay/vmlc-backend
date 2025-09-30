@@ -3,8 +3,6 @@ include:
 
 services:
   web:
-    build:
-      target: development
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
@@ -32,8 +30,6 @@ services:
       - "6379:6379"
 
   celery_worker:
-    build:
-      target: development
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
@@ -49,8 +45,6 @@ services:
       opentelemetry:
         condition: service_started
   celery_beat:
-    build:
-      target: development
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
@@ -67,8 +61,6 @@ services:
         condition: service_started
 
   flower:
-    build:
-      target: development
     ports:
       - "5555:5555"
     env_file: .env

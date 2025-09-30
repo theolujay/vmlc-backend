@@ -1,6 +1,6 @@
 # Base Docker Compose configuration for production
 
-x-django-build: &django-build
+x-vmlc-build: &vmlc-build
   context: .
   target: production
   args:
@@ -8,7 +8,7 @@ x-django-build: &django-build
     UV_VERSION: 0.8.15
     GOSU_VERSION: 1.17
 
-x-django-deploy: &django-deploy
+x-vmlc-deploy: &vmlc-deploy
   resources:
     limits:
       memory: 1G
@@ -17,7 +17,7 @@ x-django-deploy: &django-deploy
       memory: 512M
       cpus: '0.5'
 
-x-django-security: &django-security
+x-vmlc-security: &vmlc-security
   cap_drop:
     - ALL
   cap_add:
@@ -29,7 +29,8 @@ x-django-security: &django-security
 
 services:
   web:
-    build: *django-build
+    build: *vmlc-build
+    image: vmlc-backend:prod
     command: ["/home/verboheit/web/scripts/runserver.sh"]
     volumes:
       - media_data:/home/verboheit/web/media
@@ -47,8 +48,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy: *django-deploy
-    security: *django-security
+    deploy: *vmlc-deploy
+    security: *vmlc-security
     logging:
       driver: "json-file"
       options:
@@ -113,7 +114,7 @@ services:
       - backend
 
   celery_worker:
-    build: *django-build
+    build: *vmlc-build
     command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=1000", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
     volumes:
       - media_data:/home/verboheit/web/media
@@ -124,8 +125,8 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-    deploy: *django-deploy
-    security: *django-security
+    deploy: *vmlc-deploy
+    security: *vmlc-security
     networks:
       - backend
     healthcheck:
@@ -136,7 +137,7 @@ services:
       start_period: 30s
 
   celery_beat:
-    build: *django-build
+    build: *vmlc-build
     command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     volumes:
       - vmlc_logs:/home/verboheit/web/logs
@@ -146,13 +147,13 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-    deploy: *django-deploy
-    security: *django-security
+    deploy: *vmlc-deploy
+    security: *vmlc-security
     networks:
       - backend
 
   flower:
-    build: *django-build
+    build: *vmlc-build
     command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}"]
     depends_on:
       redis:
@@ -168,7 +169,7 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
-    security: *django-security
+    security: *vmlc-security
     networks:
       - backend
       - frontend

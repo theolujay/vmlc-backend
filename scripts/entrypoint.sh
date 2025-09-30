@@ -173,19 +173,10 @@ setup_django_env() {
     
     # Static files collection (only in production/staging)
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
-        log_info "Ensuring required directories exist..."
-        local required_dirs=("/home/verboheit/web/staticfiles" "/home/verboheit/web/media" "/home/verboheit/web/logs")
-        for dir in "${required_dirs[@]}"; do
-            if [[ ! -d "$dir" ]]; then
-                log_warn "Directory '$dir' not found. Creating it..."
-                if ! mkdir -p "$dir"; then
-                    log_error "Failed to create directory '$dir'. Please check permissions."
-                    exit 1
-                fi
-            fi
-        done
-        log_info "All required directories are present."
-
+        log_info "Setting up directories..."
+        mkdir -p /home/verboheit/web/staticfiles
+        mkdir -p /home/verboheit/web/media
+        log_info "Directories setup completed"
         log_info "Collecting static files..."
         python manage.py collectstatic --no-input --clear
         log_info "Static files collection completed"

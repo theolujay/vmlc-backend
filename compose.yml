@@ -1,10 +1,5 @@
-x-django-base: &django-base
-  build:
-    context: .
-    args:
-      PYTHON_VERSION: 3.13.7
-      UV_VERSION: 0.8.15
-      GOSU_VERSION: 1.17
+x-vmlc-base: &vmlc-base
+  image: vmlc-backend:dev
   restart: unless-stopped
   depends_on:
     db:
@@ -19,14 +14,15 @@ x-dev-volumes: &dev-volumes
   - ./dev_data/media:/home/verboheit/web/media
   - ./dev_data/logs:/home/verboheit/web/logs
 
-x-django-security: &django-security
+x-vmlc-security: &vmlc-security
   cap_drop: [ALL]
   cap_add: [CHOWN, SETGID, SETUID]
   security_opt: [no-new-privileges:true]
 
 services:
   web:
-    <<: *django-base
+    <<: *vmlc-base
+
     container_name: web
     command: ["/home/verboheit/web/scripts/runserver.sh"]
     volumes: *dev-volumes
@@ -36,7 +32,7 @@ services:
 
   db:
     image: postgres:17.2-bookworm
-    container_name: postgres
+    container_name: db
     volumes:
       - ./dev_data/db:/var/lib/postgresql/data
       - ./docker/postgresql/init:/docker-entrypoint-initdb.d:ro
@@ -65,7 +61,7 @@ services:
       - backend
 
   celery_worker:
-    <<: *django-base
+    <<: *vmlc-base
     container_name: celery_worker
     command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "-Q", "default,emails,comms,scoring,files,reports,cache"]
     volumes: *dev-volumes
@@ -77,13 +73,13 @@ services:
       start_period: 30s
 
   celery_beat:
-    <<: *django-base
+    <<: *vmlc-base
     container_name: celery_beat
     command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     volumes: *dev-volumes
 
   flower:
-    <<: *django-base
+    <<: *vmlc-base
     container_name: flower
     command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555"]
     depends_on:

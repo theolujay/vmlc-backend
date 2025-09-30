@@ -61,24 +61,23 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         """
         Handles the creation of a User and its associated profile (from a flat structure).
         """
-        email = validated_data.pop("email")
-        first_name = validated_data.pop("first_name")
-        last_name = validated_data.pop("last_name")
-        phone = validated_data.pop("phone")
+        user_data = {
+            "email": validated_data.pop("email"),
+            "first_name": validated_data.pop("first_name"),
+            "last_name": validated_data.pop("last_name"),
+            "phone": validated_data.pop("phone"),
+        }
         password = validated_data.pop("password")
         validated_data.pop("password2")
-        user_data = {
-            "email": email,
-            "first_name": first_name,
-            "last_name": last_name,
-            "phone": phone,
-        }
 
         try:
             with transaction.atomic():
                 user = self.create_user(user_data, password)
-                profile = self.Meta.model.objects.create(user=user, **validated_data)
-                return profile
+                self.Meta.model.objects.create(user=user, **validated_data)
+
+                response_data = user_data.copy()
+                response_data.update(validated_data)
+                return response_data
         except Exception as e:
             raise serializers.ValidationError(f"Registration failed: {str(e)}")
 
@@ -87,6 +86,7 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new candidates.
     """
+    school = serializers.CharField(max_length=150)
 
     class Meta:
         model = Candidate
@@ -105,6 +105,8 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
     """
     Serializer for registering new staff.
     """
+    
+    occupation = serializers.CharField(max_length=50)
 
     class Meta:
         model = Staff

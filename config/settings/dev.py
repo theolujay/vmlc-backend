@@ -48,13 +48,10 @@ ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 #     }
 # }
 
-DATABASE_URL=os.getenv("NEON_DB_URL")
+
 DATABASES = {
-    "default": dj_database_url.config(
-        default=DATABASE_URL,
-        conn_max_age=0,
-        conn_health_checks=True,
-        engine="django.db.backends.postgresql",
+    "default": dj_database_url.parse(
+        os.getenv("NEON_DB_URL", "sqlite:///db.sqlite3")
     )
 }
 

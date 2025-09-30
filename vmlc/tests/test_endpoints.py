@@ -39,15 +39,13 @@ class AuthEndpointsTest(APITestCase):
     def test_candidate_registration(self):
         url = reverse('vmlc:register-candidate')
         data = {
-            'user': {
-                'email': 'newcandidate@example.com',
-                'first_name': 'New',
-                'last_name': 'Candidate',
-                'phone': '08012345678'
-            },
+            'email': 'newcandidate@example.com',
+            'first_name': 'New',
+            'last_name': 'Candidate',
+            'phone': '08012345678',
             'password': 'newpassword123',
             'password2': 'newpassword123',
-            'school': 'New School'
+            'school': 'New School',
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

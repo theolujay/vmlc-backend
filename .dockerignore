@@ -6,14 +6,14 @@
 
 # Docker
 Dockerfile*
+Dockerfile
 .dockerignore
-docker-compose*.yml
 compose*.yml
 
 # Python
+.venv
 __pycache__/
 *.py[cod]
-*$py.class
 .Python
 .venv/
 venv*/
@@ -31,6 +31,9 @@ share/python-wheels/
 *.manifest
 *.spec
 MANIFEST
+# Environment
+.env
+.env.*
 
 # Test / Coverage
 .tox/
@@ -45,20 +48,19 @@ htmlcov/
 
 # Django
 local_settings.py
-db.sqlite3*
-# Don't exclude these - they're needed:
-# media/
-# staticfiles/
+db.sqlite3
+db.sqlite3-*
 
 # Env & Secrets
 *.env
 !.env.example
-secrets/
-.envrc
 
 # Logs
+# Local data
+dev_data/
+media/
+staticfiles/
 *.log
-logs/
 
 # IDE / Editor
 .vscode/
@@ -103,9 +105,6 @@ prometheus.yml
 render.yaml
 
 # CI/CD
-.gitlab-ci.yml
-.travis.yml
-.circleci/
 azure-pipelines.yml
 Jenkinsfile
 
@@ -142,9 +141,6 @@ Desktop.ini
 *.svg
 # Keep README
 !README.md
-
-# Scripts (only if you don't need them in image)
-# scripts/*.sh
 
 # Database dumps
 *.dump

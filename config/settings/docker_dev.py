@@ -251,8 +251,8 @@ else:
     }
 
 # Docker container logging
-LOG_DIR = Path("/home/verboheit/web/logs")
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+# LOG_DIR = Path("/home/verboheit/web/logs")
+# LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Development logging configuration
 LOGGING = {
@@ -283,16 +283,16 @@ LOGGING = {
             # "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
             "formatter": "colored",
         },
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-            "formatter": "json",
-            "maxBytes": 5 * 1024 * 1024,  # 5MB
-            "backupCount": 3,
-            "encoding": "utf-8",
-            "delay": True,
-        },
+    #     "file": {
+    #         "level": "DEBUG",
+    #         "class": "logging.handlers.RotatingFileHandler",
+    #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
+    #         "formatter": "json",
+    #         "maxBytes": 5 * 1024 * 1024,  # 5MB
+    #         "backupCount": 3,
+    #         "encoding": "utf-8",
+    #         "delay": True,
+    #     },
     },
     "root": {
         "level": "WARNING",
@@ -302,25 +302,25 @@ LOGGING = {
         # Your app - keep detailed logging
         "vmlc": {
             "level": "DEBUG",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         "comms": {
             "level": "DEBUG",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         
         # Django - only important stuff
         "django": {
             "level": "WARNING",  # Only warnings/errors
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         # Celery - moderate logging
         "celery": {
             "level": "INFO",  # Changed from DEBUG
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         # Third-party noise reduction
