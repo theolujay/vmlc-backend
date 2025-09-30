@@ -12,8 +12,8 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 django.setup()
 
 from channels.routing import ProtocolTypeRouter, URLRouter
-
-from vmlc.utils.middleware import JWTAuthMiddleware
+from channels.security.websocket import AllowedHostsOriginValidator
+from vmlc.utils.middleware import JWTAuthMiddlewareStack
 import comms.routing
 
 django_asgi_app = get_asgi_application()
@@ -21,8 +21,10 @@ django_asgi_app = get_asgi_application()
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": JWTAuthMiddleware(
-            URLRouter(comms.routing.websocket_urlpatterns)
+        "websocket": AllowedHostsOriginValidator(
+            JWTAuthMiddlewareStack(
+                URLRouter(comms.routing.websocket_urlpatterns)
+            )
         ),
     }
 )

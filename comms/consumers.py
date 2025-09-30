@@ -52,7 +52,7 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
             group_name = f'user__{user.pk}'
             await self.channel_layer.group_discard(group_name, self.channel_name)
             logger.info(f"Unsubscribed from group: {group_name}")
-        logger.info(f"WebSocket disconnected with code: {close_code} for user: {user.email if user else 'anonymous'}")
+        logger.info(f"WebSocket disconnected with code: {close_code} for anonymous user")
 
     async def receive_json(self, content, **kwargs):
         """
