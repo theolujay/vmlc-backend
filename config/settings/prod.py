@@ -7,6 +7,7 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers, default_methods
 from django.core.exceptions import ImproperlyConfigured
 import warnings
 
@@ -170,6 +171,17 @@ if cors_origins:
     ]
 else:
     CORS_ALLOWED_ORIGINS = []
+
+CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+CORS_ALLOW_METHODS = (
+    *default_methods,
+)
+
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    "x-api-key",
+)
 
 # === EMAIL CONFIGURATION ===
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

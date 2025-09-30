@@ -21,7 +21,7 @@
   - [Scoring & Submissions](#scoring--submissions)
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
-  - [Nofications](#notifications)
+  - [Notifications](#notifications)
   - [Broadcast Management](#broadcast-management)
 - [Advanced Topics](#advanced-topics)
   - [Query Parameters](#query-parameters)
@@ -36,25 +36,30 @@
 ---
 
 ## Overview
-The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with robust user management and role-based access control.
+The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the two types of users--staff and candidate
 
 ---
 
 ## Getting Started
 
 ### Base URL
-```
-https://vmlc-api.onrender.com/v1/
-```
-All endpoints are relative to this base URL. A discoverable list of endpoints is available at the `root/` endpoint.
+
+`https://vmlc-api.onrender.com/v1/`
+
+All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
 ---
 
 ### Authentication
-The API uses `X-Api-Key` for authentication. The API key should be provided in the `X-Api-Key` header:
-```text
-X-Api-Key: <your_api_key>
-```
+The API uses `X-Api-Key` for general authentication. The API key should be provided in the `X-Api-Key` header:
+
+`X-Api-Key: <your_api_key>`
+
+For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header:
+
+`Authorization: Bearer <access-token>`
+
+This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources.
 
 #### Login Flow
 **Endpoint:** `POST /auth/login/`
@@ -155,11 +160,11 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "root": "https://vmlc-api.onrender.com/v1/root/",
+  "root": "<base_url>/v1/root/",
   "authentication": {
-    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
-    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
-    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
+    "login": "<base_url>/v1/auth/login/",
+    "logout": "<base_url>/v1/auth/logout/",
+    "token_refresh": "<base_url>/v1/auth/token/refresh/"
   },
   // ... other endpoints ...
 }
@@ -175,7 +180,7 @@ The VMLC API implements a robust Role-Based Access Control (RBAC) system, ensuri
 |------|-------------|-------------|
 | `screening` | Default role for new candidates. | Access to candidate dashboard, participate in screening exams, view own profile and verification status. |
 | `league` | Candidates who have progressed past the screening stage (staff-assigned). | All `screening` permissions, plus access to league exams and leaderboard. |
-| `final` | Top performers from the league stage (staff-assigned). | All `league` permissions, plus access to final stage exams. |
+| `final` | Top performers from the league stage (staff-assigned). | All `league` permissions, plus access to (although not on the portal) final stage exams. |
 | `winner` | The ultimate competition winner (staff-assigned). | Ceremonial role with all candidate permissions. |
 
 ### Staff Roles
@@ -183,12 +188,11 @@ The API now uses a hierarchical role system. Users with a higher role inherit al
 
 | Role (Hierarchy) | Description | Key Permissions |
 |------------------|-------------|-----------------|
-| `volunteer` | Basic staff member. | Restricted permissions. Access to apply for user verification. |
 | `volunteer` | Basic staff member. | Restricted permissions. Can apply for user verification. |
 | `sponsor` | Vanity role. | Unused. |
 | `moderator` | Responsible for basic moderation. | All `volunteer` permissions, plus ability to view candidates/staff lists and manage questions (CRUD). |
 | `admin` | Operations administrator. | All `moderator` permissions, plus full management of candidates (CRUD, role assignment), exams (CRUD), scores (manual submission, publishing), and leaderboard (publishing). |
-| `manager` | Senior administrator. | All `admin` permissions, plus ability to manage staff members (CRUD, role assignment) and access to user verfication process and documents. Cannot assign `manager` or `superadmin` roles. |
+| `manager` | Senior administrator. | All `admin` permissions, plus ability to manage staff members (CRUD, role assignment) and access to user verification process and documents. Cannot assign `manager` or `superadmin` roles. |
 | `superadmin` | Platform administrator with full control. | All `manager` permissions, plus ability to assign any staff role (excluding `superadmin`). |
 
 ### Role Progression
@@ -460,7 +464,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 150,
-  "next": "https://verboheit-backend.onrender.com/v1/candidates/?page=2",
+  "next": "<base_url>/v1/candidates/?page=2",
   "previous": null,
   "results": [
     {
@@ -714,7 +718,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 25,
-  "next": "https://verboheit-backend.onrender.com/v1/exams/?page=2",
+  "next": "<base_url>/v1/exams/?page=2",
   "previous": null,
   "results": [
     {
@@ -1977,8 +1981,8 @@ The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 
 ## Interactive Documentation
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
-- **Swagger UI**: `https://vmlc-api.onrender.com/docs/swagger/`
-- **ReDoc**: `https://vmlc-api.onrender.com/docs/redoc/`
+- **Swagger UI**: `<base_url>/docs/swagger/`
+- **ReDoc**: `<base_url>/docs/redoc/`
 
 ---
 

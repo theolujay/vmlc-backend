@@ -114,7 +114,7 @@ services:
 
   celery_worker:
     build: *django-build
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=1000", "--time-limit=300"]
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=1000", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
     volumes:
       - media_data:/home/verboheit/web/media
       - vmlc_logs:/home/verboheit/web/logs
@@ -129,7 +129,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@%h"]
       interval: 60s
       timeout: 10s
       retries: 3

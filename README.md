@@ -21,6 +21,7 @@ Built with Django and Django REST Framework, this project is designed to scale a
 - **Feature Flag System**: Introduced a generic `FeatureFlag` model and associated views to dynamically enable/disable key application features (e.g., candidate/staff registration, leaderboard visibility).
 - **Monitoring & Health Checks**: Includes a health check endpoint for API status and Celery signal handlers for monitoring critical background tasks like broadcasts.
 - **Interactive API Documentation**: Powered by Swagger UI and ReDoc for easy API exploration.
+- **Observability**: Integrated observability stack with OpenTelemetry, Prometheus, and Grafana for monitoring and tracing.
 - **Dockerized Setup**: For development and staging environments.
 
 ---
@@ -40,6 +41,9 @@ vmlc-backend/
 ├── compose.yml          # Base Docker Compose configuration for all environments
 ├── compose.prod.yml     # Production-specific Docker Compose configuration
 ├── compose.staging.yml  # Staging-specific Docker Compose configuration
+├── compose.observability.yml # Docker Compose for observability stack
+├── otel-collector-config.yaml # OpenTelemetry Collector configuration
+├── prometheus.yml       # Prometheus configuration
 ````
 
 ---
@@ -76,6 +80,17 @@ cp .env.example .staging.env
 docker compose -f compose.yml -f compose.staging.yml up -d --build
 docker compose -f compose.yml -f compose.staging.yml exec web python manage.py migrate
 ```
+
+### Observability Stack
+
+To run the observability stack (OpenTelemetry, Prometheus, Grafana), use the following command:
+
+```bash
+docker compose -f compose.observability.yml up -d
+```
+
+- **Grafana**: `http://localhost:3030`
+- **Prometheus**: `http://localhost:9090`
 
 ---
 
@@ -116,6 +131,9 @@ pytest
 * Docker & Docker Compose
 * Pytest
 * AWS S3 (for media storage)
+* OpenTelemetry
+* Prometheus
+* Grafana
 
 ---
 

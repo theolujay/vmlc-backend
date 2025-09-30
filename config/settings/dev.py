@@ -9,6 +9,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
@@ -40,11 +41,21 @@ if 'test' not in sys.argv:
 
 ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
+
+DATABASE_URL=os.getenv("NEON_DB_URL")
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=0,
+        conn_health_checks=True,
+        engine="django.db.backends.postgresql",
+    )
 }
 
 SIMPLE_JWT.update(
