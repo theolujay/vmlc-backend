@@ -118,28 +118,29 @@ create_superuser() {
     if [[ -n "${SUPERUSER_EMAIL:-}" ]] && [[ -n "${SUPERUSER_PASSWORD:-}" ]]; then
         log_info "Creating superuser if not exists..."
 
-        python manage.py shell << EOF
-import os
+        # Use python -c to execute a self-contained script. This is more robust than using a heredoc with `manage.py shell`.
+        python manage.py shell -c "
+import os, sys
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 
 User = get_user_model()
 email = os.environ.get('SUPERUSER_EMAIL')
 password = os.environ.get('SUPERUSER_PASSWORD')
 
-if email and password:
-    if not User.objects.filter(email=email).exists():
-        try:
-            User.objects.create_superuser(email, password)
-            print(f'Superuser created successfully')
-        except Exception as e:
-            print(f'Error creating superuser: {e}')
-            exit(1)
-    else:
-        print('Django: Superuser already exists')
+if not email or not password:
+    print('Django: Missing superuser credentials, skipping creation.')
+elif User.objects.filter(email=email).exists():
+    print('Django: Superuser already exists.')
 else:
-    print('Django: Missing superuser credentials')
-EOF
-        log_info "Superuser created or already exists"
+    try:
+        User.objects.create_superuser(email=email, password=password)
+        print('Superuser created successfully.')
+    except (IntegrityError, ValueError) as e:
+        print(f'Error creating superuser: {e}', file=sys.stderr)
+        sys.exit(1)
+"
+        log_info "Superuser creation check completed."
     else
         log_info "Superuser credentials not provided, skipping superuser creation"
     fi
@@ -172,10 +173,19 @@ setup_django_env() {
     
     # Static files collection (only in production/staging)
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
-        log_info "Setting up directories..."
-        mkdir -p /home/verboheit/web/staticfiles
-        mkdir -p /home/verboheit/web/media
-        log_info "Directories setup completed"
+        log_info "Ensuring required directories exist..."
+        local required_dirs=("/home/verboheit/web/staticfiles" "/home/verboheit/web/media" "/home/verboheit/web/logs")
+        for dir in "${required_dirs[@]}"; do
+            if [[ ! -d "$dir" ]]; then
+                log_warn "Directory '$dir' not found. Creating it..."
+                if ! mkdir -p "$dir"; then
+                    log_error "Failed to create directory '$dir'. Please check permissions."
+                    exit 1
+                fi
+            fi
+        done
+        log_info "All required directories are present."
+
         log_info "Collecting static files..."
         python manage.py collectstatic --no-input --clear
         log_info "Static files collection completed"
@@ -185,7 +195,12 @@ setup_django_env() {
 }
 
 setup_application() {
-    local command="$1"
+    if [[ "$1" == "opentelemetry-instrument" ]]; then
+        local command="$6"
+    else
+        local command="$1"
+    fi
+    
     local should_setup=false
     
     case "$command" in
