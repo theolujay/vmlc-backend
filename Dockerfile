@@ -18,7 +18,7 @@ RUN groupadd --system --gid 999 verboheit && \
     useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
 
 USER verboheit
-WORKDIR /home/verboheit/build
+WORKDIR /home/verboheit/web
 ENV PATH="/home/verboheit/.local/bin:${PATH}" \
     UV_CACHE_DIR=/tmp/uv-cache
 
@@ -27,12 +27,19 @@ COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
 # ==========================================================================
 FROM builder-base AS builder-production
 
-RUN uv sync --only-group prod --frozen --no-cache --compile-bytecode && \
+RUN uv sync --frozen --no-cache --compile-bytecode \
+    --no-dev --no-group test --no-group docs --no-group debug && \
+    # Clean up to reduce image size
+    find .venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find .venv -type f -name "*.pyc" -delete && \
+    find .venv -type f -name "*.pyo" -delete && \
     rm -rf /tmp/uv-cache
 # ==========================================================================
 FROM builder-base AS builder-development
 
-RUN uv sync --group dev --group test --frozen --no-cache --compile-bytecode && \
+# Install all dependency groups
+# --all-groups includes: dev (default), test, docs, debug
+RUN uv sync --frozen --no-cache --compile-bytecode --all-groups && \
     rm -rf /tmp/uv-cache
 # ==========================================================================
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime-base
@@ -74,16 +81,18 @@ WORKDIR /home/verboheit/web
 # ==========================================================================
 FROM runtime-base AS production
 
-COPY --from=builder-production --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
+COPY --from=builder-production --chown=verboheit:verboheit /home/verboheit/web/.venv /home/verboheit/web/.venv
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
+ENV PATH="/home/verboheit/web/.venv/bin:${PATH}" \
+    DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE= \
-    PYTHONPATH=/home/verboheit/web \
-    PATH="/home/verboheit/build/.venv/bin:${PATH}"
+    PYTHONPATH=/home/verboheit/web
 
 COPY --chown=verboheit:verboheit . .
 RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+RUN mkdir -p staticfiles media logs
 
 EXPOSE 8000
 ENTRYPOINT ["./scripts/entrypoint.sh"]
@@ -101,31 +110,36 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
 # ==========================================================================
 FROM runtime-base AS development
 
-COPY --from=builder-development --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
+COPY --from=builder-development --chown=verboheit:verboheit /home/verboheit/web/.venv /home/verboheit/web/.venv
+
+ENV PATH="/home/verboheit/web/.venv/bin:${PATH}" \
+    DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
+    PYTHONDEBUG=1 \
+    DEBUG=1 \
+    PYTHONOPTIMIZE=0
 
 USER root
-
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
         vim \
+        nano \
         redis-tools \
         procps \
-        iputils-ping && \
+        iputils-ping \
+        less \
+        tree && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 USER verboheit
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
-    PYTHONDEBUG=1 \
-    DEBUG=1 \
-    PYTHONOPTIMIZE=0 \
-    PATH="/home/verboheit/build/.venv/bin:${PATH}"
-
 COPY --chown=verboheit:verboheit . .
-RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+RUN chmod +x ./scripts/*.sh
+
+RUN mkdir -p dev_data/logs dev_data/media dev_data/staticfiles
 
 EXPOSE 8000
 ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["daphne", "-b 0.0.0.0", "-p 8000", "config.asgi:application"]
