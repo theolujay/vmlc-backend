@@ -61,9 +61,18 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         """
         Handles the creation of a User and its associated profile (from a flat structure).
         """
+        email = validated_data.pop("email")
+        first_name = validated_data.pop("first_name")
+        last_name = validated_data.pop("last_name")
+        phone = validated_data.pop("phone")
         password = validated_data.pop("password")
         validated_data.pop("password2")
-        user_data = validated_data.pop("user")
+        user_data = {
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "phone": phone,
+        }
 
         try:
             with transaction.atomic():
