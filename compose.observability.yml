@@ -1,0 +1,63 @@
+# Docker Compose configuration for the observability stack
+
+networks:
+  backend:
+
+services:
+  opentelemetry:
+    image: otel/opentelemetry-collector-contrib:0.106.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4318:4318" # OTLP HTTP receiver
+      - "9464:9464" # Prometheus metrics exporter
+    networks:
+      - backend
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - backend
+    restart: unless-stopped
+
+    depends_on:
+      # Wait for the collector to be up before trying to scrape it
+      - opentelemetry
+
+  grafana:
+    image: grafana/grafana:11.2.1
+    container_name: grafana
+    environment:
+      - GF_SERVER_HTTP_PORT=3030
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+      - GF_PLUGINS_DISABLE_INSTALLATION=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_UPDATE_CHECK_FOR_UPDATES=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3030:3030"
+    networks:
+      - backend
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:
