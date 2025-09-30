@@ -44,7 +44,7 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ### Base URL
 
-`https://vmlc-api.onrender.com/v1/`
+`base_url = https://vmlc-api.onrender.com/v1/`
 
 All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
@@ -55,9 +55,10 @@ The API uses `X-Api-Key` for general authentication. The API key should be provi
 
 `X-Api-Key: <your_api_key>`
 
-For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header:
+For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
 
 `Authorization: Bearer <access-token>`
+
 
 This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources.
 
@@ -160,11 +161,11 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "root": "<base_url>/v1/root/",
+  "root": "https://vmlc-api.onrender.com/v1/root/",
   "authentication": {
-    "login": "<base_url>/v1/auth/login/",
-    "logout": "<base_url>/v1/auth/logout/",
-    "token_refresh": "<base_url>/v1/auth/token/refresh/"
+    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
+    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
+    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
   },
   // ... other endpoints ...
 }
@@ -215,12 +216,10 @@ X-Api-Key: <your_api_key>
 **Request Body:**
 ```json
 {
-  "user": {
-    "email": "john@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone": "+23490xxxxxxxx"
-  },
+  "email": "john@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone": "+23490xxxxxxxx",
   "password": "secure_password_123",
   "password2": "secure_password_123",
   "school": "Mathematics High School"
@@ -233,7 +232,7 @@ X-Api-Key: <your_api_key>
   "message": "Registration successful."
 }
 ```
-*Note: If candidate registration is closed, a `403 Forbidden` response will be returned.*
+*Note: If candidate registration is closed, a `403 Forbidden` response will be returned. Kindly reach the developer.*
 
 **Staff Registration**  
 **Endpoint:** `POST /register/staff/`  
@@ -244,12 +243,10 @@ X-Api-Key: <your_api_key>
 **Request Body:**
 ```json
 {
-  "user": {
-    "email": "jane@example.com",
-    "first_name": "Jane",
-    "last_name": "Smith",
-    "phone": "+23490xxxxxxxx"
-  },
+  "email": "jane@example.com",
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "phone": "+23490xxxxxxxx",
   "password": "secure_password_123",
   "password2": "secure_password_123",
   "occupation": "Mathematics Teacher"
@@ -464,7 +461,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 150,
-  "next": "<base_url>/v1/candidates/?page=2",
+  "next": "https://vmlc-api.onrender.com/v1/candidates/?page=2",
   "previous": null,
   "results": [
     {
@@ -718,7 +715,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 25,
-  "next": "<base_url>/v1/exams/?page=2",
+  "next": "https://vmlc-api.onrender.com/v1/exams/?page=2",
   "previous": null,
   "results": [
     {
@@ -1139,7 +1136,7 @@ X-Api-Key: <your_api_key>
     "role": "Screening",
     "is_verified": false,
     "date_joined": "2024-01-15T10:30:00Z",
-    "profile_photo": "https://verboheit.s3.eu-north-1.amazonaws.com/candidate_profile_photos/8.jpg"
+    "profile_photo": "https://vmlc.s3.amazonaws.com/candidate_profile_photos/8.jpg"
   },
   "exam_stats": {
     "total_exams_taken": 3,
@@ -1194,7 +1191,7 @@ X-Api-Key: <your_api_key>
     "occupation": "Automation Engineer",
     "is_verified": true,
     "date_joined": "2024-01-01T08:00:00Z",
-    "profile_photo": "https://verboheit.s3.eu-north-1.amazonaws.com/staff_profile_photos/7.jpg"
+    "profile_photo": "https://vmlc.s3.amazonaws.com/staff_profile_photos/7.jpg"
   },
   "candidates": {
     "total": 150,
@@ -1981,8 +1978,8 @@ The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 
 ## Interactive Documentation
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
-- **Swagger UI**: `<base_url>/docs/swagger/`
-- **ReDoc**: `<base_url>/docs/redoc/`
+- **Swagger UI**: `https://vmlc-api.onrender.com/v1/docs/swagger/`
+- **ReDoc**: `https://vmlc-api.onrender.com/v1/docs/redoc/`
 
 ---
 
@@ -1993,16 +1990,9 @@ For technical support, API key requests, or questions:
 - **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests.
 
----
 
-## Changelog
-### Version 0.3.1 (Current)
-- **Real-time Notifications**: Introduced WebSocket support (`/v1/ws/notifications/`) for instant delivery of platform notifications.
-- **Interactive Notifications**: Added client-to-server actions via WebSockets, starting with `mark_as_read`.
-- **Performance Improvements**: Implemented caching for the broadcast detail view to reduce database load. Cache is automatically invalidated upon broadcast completion.
-- **Improved Error Handling**: Enhanced the broadcast system with more specific custom exceptions (`NoRecipientsFoundError`, `InvalidMediumError`) for clearer error logging and handling.
-- **Code Refactoring**: Refactored the asynchronous broadcast task for better modularity and maintainability.
-
+### Version 0.3.2
+- **Registration**: Now takes flat rather than nested structure.
 
 ### Version 0.3.0
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
@@ -2022,4 +2012,4 @@ For technical support, API key requests, or questions:
 - Leaderboard functionality
 - Role-based access control
 
-_Last Updated: September 2025_
+_Last Updated: October 2025_
