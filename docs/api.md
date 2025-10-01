@@ -1695,17 +1695,21 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Notifications with WebSockets
-The VMLC API provides real-time communication capabilities for notifications using WebSockets, allowing clients to receive instant updates without needing to poll the server.
+
+Clients receive notifcations usin WebSockets. For example, [broadcasts](#create-broadcast) made via the `platform` medium at target users (or roles) will come through the notifications endpoint, allowing clients to receive instant updates without needing to poll the server.
 
 #### Real-time Notifications
-Connect to this endpoint to receive platform notifications in real-time.
+Connect to this endpoint to receive `platform` notifications in real-time.
 
-**Endpoint:** `ws://<host>/v1/ws/notifications/` (or `wss://` for secure connections)
+**Endpoint:** `ws://<host>/v1/ws/notifications/` (preferrably `wss://` for secure connections in production)
 
-**Authentication:**
-Authentication is handled via a JWT access token passed as a query parameter.
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
 
-`ws://127.0.0.1:8000/v1/ws/notifications/?token=<your_access_token>`
+**Required Role:** Any authenticated user (for self)
 
 **Receiving Messages (Server-to-Client):**
 When a new notification is generated for the authenticated user (e.g., via a broadcast), the server will push a JSON message with the following structure:
@@ -1993,6 +1997,7 @@ For technical support, API key requests, or questions:
 
 ### Version 0.3.2
 - **Registration**: Now takes flat rather than nested structure.
+- **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.
 
 ### Version 0.3.0
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
