@@ -26,6 +26,21 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
         Called when the websocket is trying to connect.
         If the user is not authenticated the connection will be rejected.
         """
+        is_fully_authenticated = self.scope.get("fully_authenticated", False)
+        
+        if not is_fully_authenticated:
+            api_key_ok = self.scope.get("api_key_authenticated", False)
+            jwt_ok = self.scope.get("jwt_authenticated", False)
+            
+            if not api_key_ok and not jwt_ok:
+                logger.warning("Connection rejected: Missing both API Key and JWT token")
+            elif not api_key_ok:
+                logger.warning("Connection rejected: Invalid or missing API key")
+            elif not jwt_ok:
+                logger.warning("Connection rejected: Invalid or missing JWT token")
+            await self.close(code=4003)
+            return
+        
         user = self.scope['user']
         logger.info(f"Connecting user: {user}")
         
