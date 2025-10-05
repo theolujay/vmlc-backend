@@ -151,7 +151,7 @@ services:
       - "traefik.http.routers.web.rule=Host('staging-api.verboheit.org')"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
-      - - "com.centurylinklabs.watchtower.enable=true"
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
       interval: 60s
