@@ -30,7 +30,7 @@ x-prod-base: &prod-base
 services:
   watchtower:
     image: containrrr/watchtower
-    container_name: staging_watchtower
+    container_name: prod_watchtower
     command:
       - "--label-enable"
       - "--internal"
@@ -38,7 +38,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
   reverse-proxy:
-    image: traefik:v3.53
+    image: traefik:v3.5.3
     container_name: prod_reverse_proxy
     command:
       - "--api.dashboard=true"
