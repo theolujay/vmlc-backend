@@ -36,7 +36,10 @@ services:
       - "--interval"
       - "30"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - staging_backend
+    restart: unless-stopped
   reverse-proxy:
     image: traefik:v3.5.3
     container_name: staging_reverse_proxy
@@ -57,7 +60,10 @@ services:
       - "8000:8000"
     volumes:
       - staging_letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - staging_backend
+    restart: unless-stopped
   db:
     image: postgres:17.2-bookworm
     container_name: staging_db
@@ -145,9 +151,7 @@ services:
       - "traefik.http.routers.web.rule=Host('staging-api.verboheit.org')"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
-      - "com.centurylinklabs.watchtower.enable=Ture"
-    ports:
-      - "8000:8000"
+      - - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
       interval: 60s
@@ -204,8 +208,14 @@ services:
     depends_on:
       celery_worker:
         condition: service_started
-    ports:
-      - "5555:5555"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flower.rule=Host(`staging-flower.verboheit.org`)"
+      - "traefik.http.routers.flower.entrypoints=websecure"
+      - "traefik.http.routers.flower.tls.certresolver=myresolver"
+      - "traefik.http.services.flower.loadbalancer.server.port=5555"
+      - "com.centurylinklabs.watchtower.enable=true"
+    
     deploy:
       resources:
         limits:
