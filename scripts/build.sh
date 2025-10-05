@@ -9,12 +9,12 @@
 #   push_option    Optional. Use 'p' to build multi-arch image and push to Docker Hub.
 #
 # Examples:
-#   ./script.sh                 # Build vmlc-backend:latest with cache
-#   ./script.sh 1.0             # Build vmlc-backend:1.0 with cache
-#   ./script.sh 1.0 nc          # Build vmlc-backend:1.0 with --no-cache
-#   ./script.sh "" "" p         # Build & push vmlc-backend:latest
-#   ./script.sh 1.0 "" p        # Build & push vmlc-backend:1.0
-#   ./script.sh 1.0 nc p        # Build & push vmlc-backend:1.0 (no cache)
+#   ./script.sh                 # Build ghcr.io/verboheit/vmlc-backend:latest with cache
+#   ./script.sh 1.0             # Build ghcr.io/verboheit/vmlc-backend:1.0 with cache
+#   ./script.sh 1.0 nc          # Build ghcr.io/verboheit/vmlc-backend:1.0 with --no-cache
+#   ./script.sh "" "" p         # Build & push ghcr.io/verboheit/vmlc-backend:latest
+#   ./script.sh 1.0 "" p        # Build & push ghcr.io/verboheit/vmlc-backend:1.0
+#   ./script.sh 1.0 nc p        # Build & push ghcr.io/verboheit/vmlc-backend:1.0 (no cache)
 
 set -e
 
@@ -57,25 +57,25 @@ case "${push:-}" in
         case "${version:-}" in
             "")
                 echo "No version provided - building vmlc-backend with 'latest'..."
-                if ! run_with_clean_logging "docker build --target production -t vmlc-backend:latest ."; then
+                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:latest ."; then
                     echo "Build failed!"
                     echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1
                 fi
-                echo "Built as 'vmlc-backend:latest'"
+                echo "Built as 'ghcr.io/verboheit/vmlc-backend:latest'"
                 ;;
             *)
                 # Version provided - check cache option
                 if [[ "$no_cache" == "nc" ]]; then
                     echo "Building vmlc-backend v$version with no cache"
-                    if ! run_with_clean_logging "docker build --target production -t vmlc-backend:$version . --no-cache"; then
+                    if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version . --no-cache"; then
                         echo "Build failed!"
                         echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                         exit 1
                     fi
                 else
                     echo "Building v$version with cache"
-                    if ! run_with_clean_logging "docker build --target production -t vmlc-backend:$version ."; then
+                    if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version ."; then
                         echo "Build failed!"
                         echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                         exit 1
@@ -87,16 +87,16 @@ case "${push:-}" in
     "p")
         case "${version:-}" in
             "")
-                echo "Building then pushing vlatest to repo: theolujay/vmlc-backend"
-                if ! run_with_clean_logging "docker build --target production -t theolujay/vmlc-backend:latest --push ."; then
+                echo "Building then pushing vlatest to repo: ghcr.io/verboheit/vmlc-backend"
+                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:latest --push ."; then
                     echo "Build then push failed!"
                     echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1
                 fi
                 ;;
             *)
-                echo "Building then pushing v$version to repo: theolujay/vmlc-backend"
-                if ! run_with_clean_logging "docker build --target production -t theolujay/vmlc-backend:$version --push ."; then
+                echo "Building then pushing v$version to repo: ghcr.io/verboheit/vmlc-backend"
+                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version --push ."; then
                     echo "Build then push failed!"
                     echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1

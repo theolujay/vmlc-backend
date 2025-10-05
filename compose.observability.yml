@@ -1,12 +1,9 @@
-# Docker Compose configuration for the observability stack
-
 networks:
   backend:
 
 services:
-  opentelemetry:
+  otel-collector:
     image: otel/opentelemetry-collector-contrib:0.106.0
-    container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
@@ -36,7 +33,7 @@ services:
 
     depends_on:
       # Wait for the collector to be up before trying to scrape it
-      - opentelemetry
+      - otel-collector
 
   grafana:
     image: grafana/grafana:11.2.1

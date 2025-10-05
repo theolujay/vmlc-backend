@@ -10,6 +10,7 @@ ARG UV_VERSION
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
+        python3-dev \
         libpq-dev \
         build-essential \
         curl && \
@@ -19,12 +20,10 @@ RUN apt-get update && \
 RUN groupadd --system --gid 999 verboheit && \
     useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
 
-USER verboheit
 WORKDIR /home/verboheit/build
-ENV PATH="/home/verboheit/.local/bin:${PATH}" \
-    UV_CACHE_DIR=/tmp/uv-cache
-RUN pip install --no-cache-dir --user uv==${UV_VERSION}
-COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
+ENV UV_CACHE_DIR=/tmp/uv-cache
+RUN pip install --no-cache-dir uv==${UV_VERSION}
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-cache --compile-bytecode --no-dev && \
     rm -rf /tmp/uv-cache
 
@@ -60,24 +59,24 @@ RUN apt-get update && \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONOPTIMIZE=1 \
     PYTHONHASHSEED=random \
     PYTHONIOENCODING=utf-8 \
     TERM=xterm-256color \
-    PATH="/home/verboheit/build/.venv/bin:${PATH}" \
-    DJANGO_SETTINGS_MODULE=config.settings.prod
+    PATH="/home/verboheit/build/.venv/bin:${PATH}"
 
 RUN groupadd --system --gid 999 verboheit && \
     useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
 
-USER verboheit
-
 COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
 
+USER verboheit
 WORKDIR /home/verboheit/web
+
 COPY --chown=verboheit:verboheit . .
 
-RUN chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles & \
+    chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
 
 EXPOSE 8000
 
@@ -86,6 +85,8 @@ EXPOSE 8000
 # ==========================================================================
 FROM base AS development
 USER root
+
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -99,13 +100,17 @@ RUN apt-get update && \
 
 USER verboheit
 
+COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
+
+RUN uv sync --frozen --no-cache --only-group dev
+
 ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     PYTHONDEBUG=1 \
     DEBUG=1 \
     PYTHONOPTIMIZE=0
 
 ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["daphne", "-b 0.0.0.0", "-p 8000", "config.asgi:application"]
 # ==========================================================================
 # Staging
 # ==========================================================================
@@ -130,6 +135,6 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
 ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["./scripts/runserver.sh"]
 
-LABEL version="0.3.2" \
+LABEL version="0.3.3" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"

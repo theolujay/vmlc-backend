@@ -1,3 +1,6 @@
+include:
+  - compose.observability.yml
+
 x-vmlc-base: &vmlc-base
   image: vmlc-backend:dev
   restart: unless-stopped
@@ -12,7 +15,6 @@ x-dev-volumes: &dev-volumes
   - .:/home/verboheit/web
   - ./dev_data/staticfiles:/home/verboheit/web/staticfiles
   - ./dev_data/media:/home/verboheit/web/media
-  - ./dev_data/logs:/home/verboheit/web/logs
 
 x-vmlc-security: &vmlc-security
   cap_drop: [ALL]
@@ -22,10 +24,21 @@ x-vmlc-security: &vmlc-security
 services:
   web:
     <<: *vmlc-base
-
-    container_name: web
-    command: ["/home/verboheit/web/scripts/runserver.sh"]
     volumes: *dev-volumes
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://opentelemetry:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    depends_on:
+      otel-collector:
+        condition: service_started
     networks:
       - backend
       - frontend
@@ -43,6 +56,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    ports:
+      - "5432:5432"
+    env_file: .env
     networks:
       - backend
 
@@ -57,14 +73,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    ports:
+      - "6379:6379"
     networks:
       - backend
 
   celery_worker:
     <<: *vmlc-base
     container_name: celery_worker
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      celery -A config worker -l info --events --concurrency=4 --hostname=dev-worker@%h -Q default,emails,comms,scoring,files,reports,cache
     volumes: *dev-volumes
+    env_file: .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://opentelemetry:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    depends_on:
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@%h"]
       interval: 60s
@@ -75,8 +104,19 @@ services:
   celery_beat:
     <<: *vmlc-base
     container_name: celery_beat
-    command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes: *dev-volumes
+    env_file: .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://opentelemetry:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    depends_on:
+      otel-collector:
+        condition: service_started
 
   flower:
     <<: *vmlc-base
@@ -87,6 +127,9 @@ services:
         condition: service_healthy
       celery_worker:
         condition: service_started
+    ports:
+      - "5555:5555"
+    env_file: .env
     networks:
       - backend
       - frontend

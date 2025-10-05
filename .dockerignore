@@ -54,7 +54,7 @@ db.sqlite3-*
 # Env & Secrets
 *.env
 !.env.example
-
+secrets/
 # Logs
 # Local data
 dev_data/
@@ -103,6 +103,7 @@ credentials.txt
 otel-collector-config.yaml
 prometheus.yml
 render.yaml
+prod_*/
 
 # CI/CD
 azure-pipelines.yml

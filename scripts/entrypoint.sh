@@ -148,8 +148,7 @@ else:
 
 setup_django_env() {
     log_info "Setting up Django environment..."
-    
-    # Run Django system checks first
+
     log_info "Running Django system checks..."
     if ! python manage.py check --deploy --fail-level WARNING; then
         if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
@@ -164,7 +163,6 @@ setup_django_env() {
     log_info "Checking for database migrations..."
     if python manage.py showmigrations --plan | grep -q '\[ \]'; then
         log_info "Running pending database migrations..."
-        python manage.py makemigrations
         python manage.py migrate --no-input
         log_info "Database migrations completed"
     else

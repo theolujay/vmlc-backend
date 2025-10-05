@@ -1,152 +1,262 @@
-services:
-  web:
-    build:
-      target: staging
-    ports:
-      - "8000:8000"
-    env_file: staging.env
-    deploy:
-      resources:
-        limits:
-          memory: 1.5G
-          cpus: '1.5'
-        reservations:
-          memory: 768M
-          cpus: '0.75'
-    cap_add:
-      - SYS_PTRACE
-    healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
-      interval: 45s
-      timeout: 15s
-      retries: 3
-      start_period: 90s
+x-staging-security: &staging-security
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
+  security_opt:
+    - no-new-privileges:true
 
-  db:
+x-staging-base: &staging-base
+  image: ghcr.io/verboheit/vmlc-backend:staging
+  volumes:
+    - staging_media:/home/verboheit/web/media
+    - staging_static:/home/verboheit/web/staticfiles
+  env_file: staging.env
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - staging_backend
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+  <<: *staging-security
+
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: staging_watchtower
+    command:
+      - "--label-enable"
+      - "--internal"
+      - "30"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  reverse-proxy:
+    image: traefik:v3.53
+    container_name: prod_reverse_proxy
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=verboheitconsulting@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
     ports:
-      - "5432:5432"
-    env_file: staging.env
+      - "80:80"
+      - "443:443"
+      - "8000:8000"
+    volumes:
+      - staging_letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock
+  db:
+    image: postgres:17.2-bookworm
+    container_name: staging_db
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.max=10000
+      -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
-      -c log_destination=stderr
       -c log_statement=ddl
-      -c log_duration=true
-      -c log_min_duration_statement=1000ms
-      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d '
-      -c max_connections=100
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
+      -c log_min_duration_statement=2000
+      -c max_connections=30
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    ports:
+      - "5432:5432"
+    env_file: staging.env
+    volumes:
+      - staging_db:/var/lib/postgresql/data
+      - ./docker/postgresql/init:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.4'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
+    <<: *staging-security
+    networks:
+      - staging_backend
 
   redis:
+    image: redis:7.2.4-alpine
+    container_name: staging_redis
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --loglevel warning
+      --tcp-backlog 128
+      --timeout 300
     ports:
       - "6379:6379"
-    command: [
-      "redis-server",
-      "--appendonly", "yes",
-      "--maxmemory", "512mb",
-      "--maxmemory-policy", "allkeys-lru",
-      "--save", "900", "1",
-      "--save", "300", "10",
-      "--save", "60", "10000",
-      "--loglevel", "notice"
-    ]
+    volumes:
+      - staging_redis:/data
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
+          memory: 128M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+    <<: *staging-security
+    networks:
+      - staging_backend
+
+  web:
+    <<: *staging-base
+    container_name: staging_web
+    command: ["./scripts/runserver.sh"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host('staging-api.verboheit.org')"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=myresolver"
+      - "com.centurylinklabs.watchtower.enable=Ture"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
+    deploy:
+      mode: replicated
+      replicas: 3
+      resources:
+        limits:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.4'
         reservations:
           memory: 256M
-          cpus: '0.25'
+          cpus: '0.2'
 
   celery_worker:
-    build:
-      target: staging
-    env_file: staging.env
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--events", "--max-tasks-per-child=500", "--time-limit=600", "-Q", "default,emails,comms,scoring,files,reports,cache"]
-    deploy:
-      resources:
-        limits:
-          memory: 1.5G
-          cpus: '1.5'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
-
-  celery_beat:
-    build:
-      target: staging
-    env_file: staging.env
-    command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    <<: *staging-base
+    container_name: staging_celery_worker
+    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=1", "--max-tasks-per-child=500", "--time-limit=600", "-Q", "default,emails,comms,scoring,files,reports,cache"]
     deploy:
       resources:
         limits:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.3'
         reservations:
           memory: 256M
-          cpus: '0.25'
-
-  flower:
-    build:
-      target: staging
-    ports:
-      - "5555:5555"
-    env_file: staging.env
-
-  nginx:
-    image: nginx:1.25.3-alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./docker/nginx/staging.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d/staging:/etc/nginx/conf.d:ro
-      - static_data:/var/www/static:ro
-      - media_data:/var/www/media:ro
-    depends_on:
-      - web
-    networks:
-      - frontend
-    user: nginx
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    read_only: true
-    tmpfs:
-      - /var/cache/nginx
-      - /var/run
-      - /tmp
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
+          cpus: '0.15'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health/"]
-      interval: 30s
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@%h"]
+      interval: 90s
       timeout: 10s
       retries: 3
-    restart: unless-stopped
-    profiles:
-      - nginx
+      start_period: 30s
+
+  celery_beat:
+    <<: *staging-base
+    container_name: staging_celery_beat
+    command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.15'
+        reservations:
+          memory: 96M
+          cpus: '0.075'
+
+  flower:
+    <<: *staging-base
+    container_name: staging_flower
+    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}", "--max-tasks=1000"]
+    depends_on:
+      celery_worker:
+        condition: service_started
+    ports:
+      - "5555:5555"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.15'
+        reservations:
+          memory: 64M
+          cpus: '0.075'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/workers", "--max-time", "5"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  staging_letsencrypt:
+  staging_db:
+  staging_redis:
+  staging_media:
+  staging_static:
 
 networks:
-  backend:
-    internal: false
+  staging_backend:
+    driver: bridge
+  staging_frontend:
+    driver: bridge
+
+secrets:
+  AWS_ACCESS_KEY_ID:
+    file: ./secrets/staging/AWS_ACCESS_KEY_ID.txt
+  AWS_S3_REGION_NAME:
+    file: ./secrets/staging/AWS_S3_REGION_NAME.txt
+  AWS_SECRET_ACCESS_KEY:
+    file: ./secrets/staging/AWS_SECRET_ACCESS_KEY.txt
+  AWS_STORAGE_BUCKET_NAME:
+    file: ./secrets/staging/AWS_STORAGE_BUCKET_NAME.txt
+  DATABASE_URL:
+    file: ./secrets/staging/DATABASE_URL.txt
+  EMAIL_HOST_PASSWORD:
+    file: ./secrets/staging/EMAIL_HOST_PASSWORD.txt
+  EMAIL_HOST_USER:
+    file: ./secrets/staging/EMAIL_HOST_USER.txt
+  POSTGRES_DB:
+    file: ./secrets/staging/POSTGRES_DB.txt
+  POSTGRES_PASSWORD:
+    file: ./secrets/staging/POSTGRES_PASSWORD.txt
+  POSTGRES_USER:
+    file: ./secrets/staging/POSTGRES_USER.txt
+  SECRET_KEY:
+    file: ./secrets/staging/SECRET_KEY.txt
+  SUPERUSER_EMAIL:
+    file: ./secrets/staging/SUPERUSER_EMAIL.txt
+  SUPERUSER_PASSWORD:
+    file: ./secrets/staging/SUPERUSER_PASSWORD.txt

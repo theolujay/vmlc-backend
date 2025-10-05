@@ -52,6 +52,7 @@ db.sqlite3-journal
 media/
 static/
 staticfiles/
+prod_*/
 
 # Testing / Coverage
 htmlcov/
