@@ -37,6 +37,9 @@ services:
       - "30"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /home/verboheit/.docker/config.json:/config.json:ro
+    environment:
+      - DOCKER_CONFIG=/
     networks:
       - staging_backend
     restart: unless-stopped
@@ -215,7 +218,6 @@ services:
       - "traefik.http.routers.flower.tls.certresolver=myresolver"
       - "traefik.http.services.flower.loadbalancer.server.port=5555"
       - "com.centurylinklabs.watchtower.enable=true"
-    
     deploy:
       resources:
         limits:
