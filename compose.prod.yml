@@ -153,7 +153,7 @@ services:
     command: ["./scripts/runserver.sh"]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host('api.verboheit.org')"
+      - "traefik.http.routers.web.rule=Host(`api.verboheit.org`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
       - "traefik.http.services.web.loadbalancer.server.port=8000"
