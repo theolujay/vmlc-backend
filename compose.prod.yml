@@ -33,7 +33,7 @@ services:
     container_name: prod_watchtower
     command:
       - "--label-enable"
-      - "--internal"
+      - "--interval"
       - "30"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
