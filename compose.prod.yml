@@ -140,7 +140,6 @@ services:
 
   web:
     <<: *prod-base
-    container_name: prod_web
     command: ["./scripts/runserver.sh"]
     labels:
       - "traefik.enable=true"

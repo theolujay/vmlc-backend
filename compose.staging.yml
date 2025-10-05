@@ -155,8 +155,8 @@ services:
       retries: 3
       start_period: 90s
     deploy:
-      mode: replicated
-      replicas: 3
+      # mode: replicated
+      # replicas: 3
       resources:
         limits:
           memory: 512M
