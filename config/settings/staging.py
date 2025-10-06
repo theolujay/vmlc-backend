@@ -3,16 +3,21 @@ Staging environment settings.
 """
 
 import os
+from pathlib import Path
 
-from dotenv import load_dotenv
 import dj_database_url
+from dotenv import load_dotenv
+from corsheaders.defaults import default_headers, default_methods
 from django.core.exceptions import ImproperlyConfigured
+import warnings
+
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="pycparser")
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / "staging.env")
 
 from .base import *
 
-load_dotenv(BASE_DIR / "staging.env")
-
-DEBUG = False
+DEBUG = os.getenv("DEBUG").lower() == "true"
 
 # === SECURITY SETTINGS ===
 INTERNAL_IPS = [
@@ -23,7 +28,7 @@ ALLOWED_HOSTS = [
     host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-ADMIN_URL = os.getenv("DJANGO_ADMIN_URL")
+ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
 
 # === DATABASE CONFIG ===
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -96,21 +101,38 @@ STORAGES = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "skip_static_requests": {
+            "()": "django.utils.log.CallbackFilter",
+            "callback": lambda record: not (
+                "GET /static/" in record.getMessage() and record.args[1] == "200"
+            ),
+        }
+    },
     "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
+        # "verbose": {
+        #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+        #     "style": "{",
+        # },
         "json": {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
+        },
+        "access": {
+            "format": "%(message)s",
         },
     },
     "handlers": {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
+        },
+        "access_console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "access",
+            "filters": ["skip_static_requests"],
         },
     },
     "root": {
@@ -118,17 +140,12 @@ LOGGING = {
         "handlers": ["console"],
     },
     "loggers": {
-        "django": {
+        "vmlc": {
             "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },
-        "django.request": {
-            "level": "ERROR",
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "vmlc": {
+        "comms": {
             "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
@@ -138,19 +155,18 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "boto3": {
+        "django": {
             "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
-        "botocore": {
-            "level": "WARNING",
-            "handlers": ["console"],
+        "gunicorn.access": {
+            "level": "INFO",
+            "handlers": ["access_console"],
             "propagate": False,
         },
     },
 }
-
 
 # === CORS CONFIGURATION ===
 cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
@@ -161,8 +177,19 @@ if cors_origins:
 else:
     CORS_ALLOWED_ORIGINS = []
 
+CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+CORS_ALLOW_METHODS = (
+    *default_methods,
+)
+
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    "x-api-key",
+)
+
 # === EMAIL CONFIGURATION ===
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
@@ -189,7 +216,6 @@ TOS_URL = os.getenv("TOS_URL")
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
 CONTACT_URL = os.getenv("CONTACT_URL")
 LICENSE_URL = os.getenv("LICENSE_URL")
-LOGO_URL = os.getenv("LOGO_URL")
 # === REDIS CONFIGURATION ===
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
@@ -197,78 +223,85 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
 # CELERY CONFIGURATION - Staging Environment
 # ============================================================================
 
-# External Redis service (could be AWS ElastiCache, etc.)
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://staging-redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv(
-    "CELERY_RESULT_BACKEND", "redis://staging-redis:6379/0"
-)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
 # Staging-specific overrides
 CELERY_WORKER_LOG_COLOR = False  # No colors in staging logs
 CELERY_TASK_ALWAYS_EAGER = False  # Always use real async processing
 CELERY_TASK_EAGER_PROPAGATES = False  # Don't propagate in staging
 
-# Performance settings for staging (moderate load)
-CELERY_WORKER_CONCURRENCY = 4
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Restart workers periodically
+# Optimized for 8GB/2vCPU VPS with production + staging
+CELERY_WORKER_CONCURRENCY = 2  # Match available vCPUs (was 8)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Keep as-is
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 300000  # ~300MB (was 200MB, you have 768MB limit)
 
-# Enhanced monitoring for staging
+# Production monitoring and reliability
 CELERY_TASK_TRACK_STARTED = True
 CELERY_SEND_TASK_EVENTS = True
 CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
-# More conservative time limits
-CELERY_TASK_SOFT_TIME_LIMIT = 180  # 3 minutes
-CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
+# Keep time limits
+CELERY_TASK_SOFT_TIME_LIMIT = 120
+CELERY_TASK_TIME_LIMIT = 300  # Increased to 5min (you set --time-limit=300 in compose)
+
+# Optimized broker settings
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 1800,  # 30min (reduced from 1hr, faster retry)
+    "fanout_prefix": True,
+    "fanout_patterns": True,
+}
+
+# Shorter result expiry to save Redis memory
+CELERY_RESULT_EXPIRES = 900  # 15 minutes (was 30, Redis is only 192MB)
+
 
 # ============================================================================
 # CACHE CONFIGURATION - Staging Environment
 # ============================================================================
-
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://staging-redis:6379/1"),
+        "LOCATION": [
+            os.getenv("CACHE_REDIS_URL"),
+        ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
                 "retry_on_timeout": True,
-                "health_check_interval": 30,
-                "socket_connect_timeout": 10,
-                "socket_timeout": 10,
+                "health_check_interval": 60,
+                "socket_connect_timeout": 3,
+                "socket_timeout": 3,
                 "max_connections": 20,
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc_staging_sync",
-        "TIMEOUT": 600,  # Longer timeout for staging
-    },
-    "async": {
-        "BACKEND": "django_async_redis.cache.RedisCache",
-        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://staging-redis:6379/2"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {
-                "max_connections": 10,
-                "socket_connect_timeout": 10,
-                "socket_timeout": 10,
-            },
-        },
-        "KEY_PREFIX": "vmlc_staging_async",
+        "KEY_PREFIX": "vmlc_staging",
         "TIMEOUT": 600,
     },
 }
-
 # === PERFORMANCE OPTIMIZATIONS ===
 # Enable persistent database connections
 CONN_MAX_AGE = 600
 
 # Security headers
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
 
+# HSTS - Make browsers stick to HTTPS
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SAMESITE = "Lax"
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
@@ -278,14 +311,3 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # Maximum file sizes for different upload types
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-
-
-# Staging-specific security settings
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-
-# HSTS - Make browsers stick to HTTPS
-SECURE_HSTS_SECONDS = 3600  #
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True

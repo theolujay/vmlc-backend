@@ -250,11 +250,6 @@ else:
         },
     }
 
-# Docker container logging
-# LOG_DIR = Path("/home/verboheit/web/logs")
-# LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-# Development logging configuration
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

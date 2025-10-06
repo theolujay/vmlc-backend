@@ -17,7 +17,7 @@ load_dotenv(BASE_DIR / "prod.env")
 
 from .base import *
 
-DEBUG = False
+DEBUG = os.getenv("DEBUG").lower() == "true"
 
 # === SECURITY SETTINGS ===
 INTERNAL_IPS = [
@@ -145,8 +145,13 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "celery": {
+        "comms": {
             "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "celery": {
+            "level": "ERROR",
             "handlers": ["console"],
             "propagate": False,
         },
@@ -155,6 +160,11 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
+        "django.request": {
+        "level": "ERROR",
+        "handlers": ["console"],
+        "propagate": False,
+    },
         "gunicorn.access": {
             "level": "INFO",
             "handlers": ["access_console"],
@@ -211,7 +221,6 @@ TOS_URL = os.getenv("TOS_URL")
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
 CONTACT_URL = os.getenv("CONTACT_URL")
 LICENSE_URL = os.getenv("LICENSE_URL")
-LOGO_URL = os.getenv("LOGO_URL")
 # === REDIS CONFIGURATION ===
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
@@ -220,20 +229,18 @@ CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
 # ============================================================================
 
 # Production Redis (AWS ElastiCache, etc.)
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://prod-redis-cluster:6379/0")
-CELERY_RESULT_BACKEND = os.getenv(
-    "CELERY_RESULT_BACKEND", "redis://prod-redis-cluster:6379/0"
-)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
 # Production-specific overrides
 CELERY_WORKER_LOG_COLOR = False  # No colors in production logs
 CELERY_TASK_ALWAYS_EAGER = False  # Never use eager mode in production
 CELERY_TASK_EAGER_PROPAGATES = False
 
-# Production performance settings
-CELERY_WORKER_CONCURRENCY = 8  # Higher concurrency for production
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Restart workers to prevent memory leaks
-CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000  # ~200MB memory limit per worker
+# Optimized for 8GB/2vCPU VPS with production + staging
+CELERY_WORKER_CONCURRENCY = 2  # Match available vCPUs (was 8)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Keep as-is
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 300000  # ~300MB (was 200MB, you have 768MB limit)
 
 # Production monitoring and reliability
 CELERY_TASK_TRACK_STARTED = True
@@ -241,68 +248,44 @@ CELERY_SEND_TASK_EVENTS = True
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
-# Stricter time limits for production
-CELERY_TASK_SOFT_TIME_LIMIT = 120  # 2 minutes
-CELERY_TASK_TIME_LIMIT = 180  # 3 minutes
+# Keep time limits
+CELERY_TASK_SOFT_TIME_LIMIT = 120
+CELERY_TASK_TIME_LIMIT = 300  # Increased to 5min (you set --time-limit=300 in compose)
 
-# Production-specific broker settings
+# Optimized broker settings
 CELERY_BROKER_TRANSPORT_OPTIONS = {
-    "visibility_timeout": 3600,  # 1 hour
+    "visibility_timeout": 1800,  # 30min (reduced from 1hr, faster retry)
     "fanout_prefix": True,
     "fanout_patterns": True,
 }
 
-# Result backend settings for production
-CELERY_RESULT_EXPIRES = 1800  # 30 minutes (shorter than base)
-CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
-    "master_name": "mymaster",  # For Redis Sentinel
-}
+# Shorter result expiry to save Redis memory
+CELERY_RESULT_EXPIRES = 900  # 15 minutes (was 30, Redis is only 192MB)
 
 # ============================================================================
 # CACHE CONFIGURATION - Production Environment
 # ============================================================================
-
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": [
-            # Multiple Redis nodes for high availability
             os.getenv("CACHE_REDIS_URL"),
-            # os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/1"),
         ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
                 "retry_on_timeout": True,
-                "health_check_interval": 30,
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
-                "max_connections": 50,  # Higher connection pool
+                "health_check_interval": 60,
+                "socket_connect_timeout": 3,
+                "socket_timeout": 3,
+                "max_connections": 20,
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
-        "KEY_PREFIX": "vmlc_prod_sync",
-        "TIMEOUT": 900,  # 15 minutes default timeout
+        "KEY_PREFIX": "vmlc_prod",
+        "TIMEOUT": 600,
     },
-    # "async": {
-    #     "BACKEND": "django_async_redis.cache.RedisCache",
-    #     "LOCATION": [
-    #         os.getenv("CACHE_REDIS_PRIMARY", "redis://prod-redis-1:6379/2"),
-    #         os.getenv("CACHE_REDIS_REPLICA", "redis://prod-redis-2:6379/2"),
-    #     ],
-    #     "OPTIONS": {
-    #         "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
-    #         "CONNECTION_POOL_KWARGS": {
-    #             "max_connections": 25,
-    #             "socket_connect_timeout": 5,
-    #             "socket_timeout": 5,
-    #             "retry_on_timeout": True,
-    #         },
-    #     },
-    #     "KEY_PREFIX": "vmlc_prod_async",
-    #     "TIMEOUT": 900,
-    # }
 }
 
 # === PERFORMANCE OPTIMIZATIONS ===
@@ -323,7 +306,6 @@ CSRF_COOKIE_HTTPONLY = True
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-# Trust Fly.io"s proxy headers for SSL
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SAMESITE = "Lax"
 # === FILE UPLOAD SETTINGS ===
