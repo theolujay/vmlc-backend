@@ -16,7 +16,6 @@ dependencies = [
     "gunicorn==23.0.0",
     "uvicorn[standard]==0.35.0",
     "uvicorn-worker==0.3.0",
-    "whitenoise==6.9.0",
     "asgiref==3.9.1",
     # WebSockets & Channels
     "channels==4.3.1",
@@ -127,6 +126,7 @@ dependencies = [
     "six==1.17.0",
     "typing-extensions==4.14.1",
     "pip>=25.2",
+    "servestatic>=3.1.0",
 ]
 
 # ---------------------------------------

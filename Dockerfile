@@ -11,15 +11,18 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
         python3-dev \
+        libffi-dev \
         libpq-dev \
         build-essential \
-        curl && \
+        curl \
+        pkg-config \
+        libssl-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN groupadd --system --gid 999 verboheit && \
-    useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
-
+RUN groupadd --system --gid 5000 verboheit && \
+    useradd --system --uid 5000 --gid verboheit --home /home/verboheit --create-home verboheit
+    
 WORKDIR /home/verboheit/build
 ENV UV_CACHE_DIR=/tmp/uv-cache
 RUN pip install --no-cache-dir uv==${UV_VERSION}

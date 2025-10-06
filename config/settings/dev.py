@@ -32,6 +32,8 @@ if 'test' not in sys.argv:
     INSTALLED_APPS += [
         "debug_toolbar",
         "django_extensions",
+        "servestatic.runserver_nostatic",
+        "django.contrib.staticfiles",
         # "silk",  # SQL profiling
     ]
     MIDDLEWARE += [
@@ -194,7 +196,7 @@ if USE_S3:
             },
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
         },
     }
 else:
@@ -203,7 +205,7 @@ else:
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
         },
     }
 

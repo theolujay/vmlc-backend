@@ -93,7 +93,7 @@ STORAGES = {
         },
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
     },
 }
 

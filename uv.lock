@@ -2680,6 +2680,18 @@ wheels = [
 ]
 
 [[package]]
+name = "servestatic"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asgiref" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/68/8d3f4b0d29ba4ebfb4a346f095ce06f092c045a286e98cbe4e6fb9e21d33/servestatic-3.1.0.tar.gz", hash = "sha256:3d0c191e0c570b56a387c7ed400ca535b4a37f73cd9a68a50be4d1abd735a000", size = 24376, upload-time = "2025-06-11T00:32:20.164Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/e5/cdbe73e08e68497dc3a5441e2abff9d1a40da7bc6598f0b21e84915c5f08/servestatic-3.1.0-py3-none-any.whl", hash = "sha256:9ca4257a155d053047c60c196fc230ee2193a80b810761022e53584c3309eea9", size = 28425, upload-time = "2025-06-11T00:32:18.419Z" },
+]
+
+[[package]]
 name = "service-identity"
 version = "24.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3131,6 +3143,7 @@ dependencies = [
     { name = "rich" },
     { name = "roman-numerals-py" },
     { name = "s3transfer" },
+    { name = "servestatic" },
     { name = "six" },
     { name = "typing-extensions" },
     { name = "tzdata" },
@@ -3138,7 +3151,6 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "uvicorn-worker" },
     { name = "vine" },
-    { name = "whitenoise" },
 ]
 
 [package.dev-dependencies]
@@ -3270,6 +3282,7 @@ requires-dist = [
     { name = "rich", specifier = "==14.1.0" },
     { name = "roman-numerals-py", specifier = "==3.1.0" },
     { name = "s3transfer", specifier = "==0.13.0" },
+    { name = "servestatic", specifier = ">=3.1.0" },
     { name = "six", specifier = "==1.17.0" },
     { name = "typing-extensions", specifier = "==4.14.1" },
     { name = "tzdata", specifier = "==2025.2" },
@@ -3277,7 +3290,6 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = "==0.35.0" },
     { name = "uvicorn-worker", specifier = "==0.3.0" },
     { name = "vine", specifier = "==5.1.0" },
-    { name = "whitenoise", specifier = "==6.9.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3461,15 +3473,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9f/69/83029f1f6300c5fb2471d621ab06f6ec6b3324685a2ce0f9777fd4a8b71e/werkzeug-3.1.3.tar.gz", hash = "sha256:60723ce945c19328679790e3282cc758aa4a6040e4bb330f53d30fa546d44746", size = 806925, upload-time = "2024-11-08T15:52:18.093Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/24/ab44c871b0f07f491e5d2ad12c9bd7358e527510618cb1b803a88e986db1/werkzeug-3.1.3-py3-none-any.whl", hash = "sha256:54b78bf3716d19a65be4fceccc0d1d7b89e608834989dfae50ea87564639213e", size = 224498, upload-time = "2024-11-08T15:52:16.132Z" },
-]
-
-[[package]]
-name = "whitenoise"
-version = "6.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b9/cf/c15c2f21aee6b22a9f6fc9be3f7e477e2442ec22848273db7f4eb73d6162/whitenoise-6.9.0.tar.gz", hash = "sha256:8c4a7c9d384694990c26f3047e118c691557481d624f069b7f7752a2f735d609", size = 25920, upload-time = "2025-02-06T22:16:34.957Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/b2/2ce9263149fbde9701d352bda24ea1362c154e196d2fda2201f18fc585d7/whitenoise-6.9.0-py3-none-any.whl", hash = "sha256:c8a489049b7ee9889617bb4c274a153f3d979e8f51d2efd0f5b403caf41c57df", size = 20161, upload-time = "2025-02-06T22:16:32.589Z" },
 ]
 
 [[package]]

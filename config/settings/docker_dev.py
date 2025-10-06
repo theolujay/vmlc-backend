@@ -164,19 +164,6 @@ CACHES = {
         "KEY_PREFIX": "vmlc_docker_dev_sync",
         "TIMEOUT": 300,
     },
-    # "async": {
-    #     "BACKEND": "django_async_redis.cache.RedisCache",
-    #     "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/2"),
-    #     "OPTIONS": {
-    #         "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
-    #         "CONNECTION_POOL_KWARGS": {
-    #             "socket_connect_timeout": 5,
-    #             "socket_timeout": 5,
-    #         },
-    #     },
-    #     "KEY_PREFIX": "vmlc_docker_dev_async",
-    #     "TIMEOUT": 300,
-    # }
 }
 
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
@@ -236,17 +223,16 @@ if USE_S3:
             },
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
         },
     }
-
 else:
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
         },
     }
 
