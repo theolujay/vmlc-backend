@@ -167,6 +167,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateDetailSerializer
     lookup_url_kwarg = "candidate_id"
+    http_method_names = ["get", "patch", "delete"]
 
     def get_queryset(self):
         logger.info(

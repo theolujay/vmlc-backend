@@ -13,10 +13,10 @@ All views are organized and grouped by functionality for clarity.
 """
 
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     root,
+    RefreshTokenView,
     LoginView,
     LogoutView,
     RequestPasswordChangeView,
@@ -71,7 +71,7 @@ urlpatterns = [
     path("root/", root, name="root"),
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
-    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/token/refresh/", RefreshTokenView.as_view(), name="token-refresh"),
     # Password Change
     path(
         "auth/password-change/request/",

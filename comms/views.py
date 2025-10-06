@@ -66,8 +66,8 @@ class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, 
 @method_decorator(
     name="get",
     decorator=swagger_auto_schema(
-        operation_summary="List Broadcasts",
-        operation_description="List all broadcasts.",
+        operation_summary="List/retrieve Broadcast(s)",
+        operation_description="List all broadcasts or retrieve a specific one.",
         responses={
             200: broadcast_list_response_schema,
             401: error_response_401,
@@ -154,18 +154,6 @@ class BroadcastView(ListCreateRetrieveAPIView):
             
         return queryset
 
-    @swagger_auto_schema(
-        operation_summary="Get Broadcast Details",
-        operation_description="Retrieve a broadcast instance.",
-        responses={
-            200: broadcast_detail_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=['Broadcast'],
-        manual_parameters=[api_key, bearer_auth]
-    )
     def retrieve(self, request, *args, **kwargs):
         """
         Retrieve a broadcast instance, using caching for performance.

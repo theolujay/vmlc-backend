@@ -170,6 +170,7 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = StaffDetailSerializer
     queryset = Staff.objects.select_related("user", "user__verification").all()
     lookup_url_kwarg = "staff_id"
+    http_method_names = ["get", "patch", "delete"]
 
     def perform_update(self, serializer):
         """
@@ -241,7 +242,7 @@ class AssignStaffRoleView(UpdateAPIView):
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"
-    http_method_names = ["put", "patch"]
+    http_method_names = ["put"]
 
     def perform_update(self, serializer):
         old_role = serializer.instance.role
