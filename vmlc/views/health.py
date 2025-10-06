@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
     operation_description="Health check endpoint.",
     tags=["Health"],
 )
-@api_view(["GET"])
+@api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
 def health_check(request):
     """

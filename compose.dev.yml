@@ -4,7 +4,7 @@ include:
 x-dev-otel-env: &dev-otel-env
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-  OTEL_SERVICE_NAME: vmlc-backend-dev
+  OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_dev
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=development
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
   OTEL_TRACES_SAMPLER_ARG: "0.5"
@@ -33,10 +33,27 @@ x-dev-base: &dev-base
     otel-collector:
         condition: service_started
   networks:
-    - dev_backend
+    - dev
 
 
 services:
+  traefik:
+    image: traefik:v3.5.3
+    container_name: dev_traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dev
+    restart: unless-stopped
+
   web:
     <<: *dev-base
     container_name: dev_web
@@ -44,15 +61,19 @@ services:
       opentelemetry-instrument
       --traces_exporter otlp
       --metrics_exporter otlp
-      daphne -b 0.0.0.0 -p 8000 config.asgi:application
+      ./scripts/runserver.sh
     ports:
       - "8000:8000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
-      interval: 30s
+      interval: 60s
       timeout: 15s
       retries: 3
       start_period: 90s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`dev-api.verboheit.org`)"
+      - "traefik.http.services.web.loadbalancer.server.port=8000"
 
   db:
     image: postgres:17.2-bookworm
@@ -71,7 +92,7 @@ services:
       - "5432:5432"
     env_file: .env
     networks:
-      - dev_backend
+      - dev
 
   redis:
     image: redis:7.2.4-alpine
@@ -87,7 +108,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - dev_backend
+      - dev
 
   celery_worker:
     <<: *dev-base
@@ -107,11 +128,7 @@ services:
   celery_beat:
     <<: *dev-base
     container_name: dev_celery_beat
-    command: >
-      opentelemetry-instrument
-      --traces_exporter otlp
-      --metrics_exporter otlp
-      celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: ["celery", "-A", "config", "beat", "-l", "INFO", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
 
   flower:
     <<: *dev-base
@@ -131,7 +148,6 @@ services:
       retries: 3
 
 networks:
-  dev_backend:
-    driver: bridge
-  dev_frontend:
-    driver: bridge
+  dev:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME}_dev

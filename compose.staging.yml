@@ -1,16 +1,6 @@
 include:
   - compose.observability.yml
 
-x-staging-security: &staging-security
-  cap_drop:
-    - ALL
-  cap_add:
-    - CHOWN
-    - SETGID
-    - SETUID
-  security_opt:
-    - no-new-privileges:true
-
 x-staging-base: &staging-base
   image: ghcr.io/verboheit/vmlc-backend:staging
   volumes:
@@ -24,16 +14,15 @@ x-staging-base: &staging-base
     redis:
       condition: service_healthy
   networks:
-    - staging_backend
+    - staging
   dns:
     - 8.8.8.8
     - 8.8.4.4
-  <<: *staging-security
 
 x-staging-otel-env: &staging-otel-env
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-  OTEL_SERVICE_NAME: vmlc-backend-staging
+  OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
   OTEL_TRACES_SAMPLER_ARG: "0.1"  # Sample 10% of traces to reduce overhead
@@ -53,7 +42,7 @@ services:
     environment:
       - DOCKER_CONFIG=/
     networks:
-      - staging_backend
+      - staging
     restart: unless-stopped
     deploy:
       resources:
@@ -61,28 +50,50 @@ services:
           memory: 64M
           cpus: '0.05'
 
-  reverse-proxy:
+  traefik:
     image: traefik:v3.5.3
-    container_name: staging_reverse_proxy
+    container_name: staging_traefik
     command:
-      - "--api.insecure=true"
-      - "--providers.docker"
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entryPoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=verboheitconsulting@gmail.com"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--providers.docker.network=staging"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=false"
+      - "--metrics.otlp=true"
+      - "--metrics.otlp.http=true"
+      - "--metrics.otlp.grpc=false"
+      - "--metrics.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+      - "--metrics.otlp.serviceName=traefik"
+      - "--metrics.otlp.addEntryPointsLabels=true"
+      - "--metrics.otlp.addRoutersLabels=true"
+      - "--metrics.otlp.addServicesLabels=true"
     ports:
+      - "80:80"
       - "443:443"
-      - "8000:8000"
     volumes:
       - staging_letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik-staging.verboheit.org`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=le"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=theolujay:$$apr1$$yvdwosdp$$3/QCmJs6D7LUmDlCKjUTu/"
     networks:
-      - staging_backend
+      - staging
     restart: unless-stopped
     deploy:
       resources:
@@ -106,8 +117,6 @@ services:
       -c maintenance_work_mem=16MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
-    ports:
-      - "5432:5432"
     env_file: staging.env
     volumes:
       - staging_db:/var/lib/postgresql/data
@@ -127,25 +136,19 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
-    <<: *staging-security
     networks:
-      - staging_backend
+      - staging
 
   redis:
     image: redis:7.2.4-alpine
     container_name: staging_redis
     command: >
       redis-server
-      --aof-use-rdb-preamble yes
-      --appendonly yes
       --maxmemory 64mb
-      --maxmemory-policy allkeys-lru
-      --save ""
+      --maxmemory-policy noeviction
       --loglevel warning
       --tcp-backlog 64
       --timeout 300
-    ports:
-      - "6379:6379"
     volumes:
       - staging_redis:/data
     restart: unless-stopped
@@ -162,13 +165,11 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
-    <<: *staging-security
     networks:
-      - staging_backend
+      - staging
 
   web:
     <<: *staging-base
-    # container_name: staging_web
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
@@ -185,16 +186,21 @@ services:
         condition: service_started
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.web-http.rule=Host(`staging-api.verboheit.org`)"
+      - "traefik.http.routers.web-http.entrypoints=web"
+      - "traefik.http.routers.web-http.middlewares=redirect-to-https"
       - "traefik.http.routers.web.rule=Host(`staging-api.verboheit.org`)"
       - "traefik.http.routers.web.entrypoints=websecure"
-      - "traefik.http.routers.web.tls.certresolver=myresolver"
+      - "traefik.http.routers.web.tls.certresolver=le"
+      - "traefik.http.routers.web.tls=true"
+      - "traefik.http.services.web.loadbalancer.server.port=8000"
       - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
-      interval: 60s
-      timeout: 15s
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
+      interval: 45s
+      timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 60s
     deploy:
       mode: replicated
       replicas: 2
@@ -209,7 +215,11 @@ services:
   celery_worker:
     <<: *staging-base
     container_name: staging_celery_worker
-    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=1", "--max-tasks-per-child=100", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      celery -A config worker -l warning --concurrency=1 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *staging-otel-env
     deploy:
@@ -239,35 +249,6 @@ services:
         reservations:
           memory: 64M
           cpus: '0.05'
-
-  flower:
-    <<: *staging-base
-    container_name: staging_flower
-    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}", "--max-tasks=500"]
-    depends_on:
-      celery_worker:
-        condition: service_started
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.flower.rule=Host(`staging-flower.verboheit.org`)"
-      - "traefik.http.routers.flower.entrypoints=websecure"
-      - "traefik.http.routers.flower.tls.certresolver=myresolver"
-      - "traefik.http.services.flower.loadbalancer.server.port=5555"
-      - "com.centurylinklabs.watchtower.enable=true"
-    deploy:
-      resources:
-        limits:
-          memory: 96M
-          cpus: '0.1'
-        reservations:
-          memory: 48M
-          cpus: '0.05'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/", "--max-time", "5"]
-      interval: 120s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
   
 volumes:
   staging_letsencrypt:
@@ -277,10 +258,9 @@ volumes:
   staging_static:
 
 networks:
-  staging_backend:
-    driver: bridge
-  staging_frontend:
-    driver: bridge
+  staging:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME}_staging
 
 secrets:
   AWS_ACCESS_KEY_ID:
