@@ -1,6 +1,9 @@
 import logging
 
 from django.db.models import Avg, Count
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.generics import (
@@ -22,6 +25,21 @@ from ..permissions import (
     VerifiedAdminPermissions,
     CandidatePermissions,
 )
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    exam_list_response_schema,
+    exam_detail_request_body,
+    exam_detail_response_schema,
+    exam_result_response_schema,
+    question_detail_list_response_schema,
+    candidate_exam_score_list_response_schema,
+    candidate_exam_response_schema,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
 from ..utils.query_filters import ExamFilter
 from ..utils.exceptions import PermissionDenied, NotFound
 
@@ -29,6 +47,36 @@ from ..utils.exceptions import PermissionDenied, NotFound
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Exams",
+        operation_description="List all exams.",
+        responses={
+            200: exam_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Create Exam",
+        operation_description="Create a new exam.",
+        request_body=exam_detail_request_body,
+        responses={
+            201: exam_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ExamListView(ListCreateAPIView):
     """
     API view to list all exams or create a new exam.
@@ -76,6 +124,70 @@ class ExamListView(ListCreateAPIView):
         )
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Exam Details",
+        operation_description="Retrieve an exam.",
+        responses={
+            200: exam_detail_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="put",
+    decorator=swagger_auto_schema(
+        operation_summary="Update Exam",
+        operation_description="Update an exam.",
+        request_body=exam_detail_request_body,
+        responses={
+            200: exam_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Partially Update Exam",
+        operation_description="Partially update an exam.",
+        request_body=exam_detail_request_body,
+        responses={
+            200: exam_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="delete",
+    decorator=swagger_auto_schema(
+        operation_summary="Delete Exam",
+        operation_description="Delete an exam.",
+        responses={
+            204: openapi.Response("Exam deleted successfully."),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ExamDetailView(RetrieveUpdateDestroyAPIView):
     """
     API view to retrieve, update, or delete a single exam instance.
@@ -104,6 +216,21 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     # `perform_destroy` is handled by the parent class, no need to override.
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Exam Results",
+        operation_description="Get results for an exam.",
+        responses={
+            200: exam_result_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ExamResultsView(ListAPIView):
     """
     API view to retrieve the results of a specific exam.
@@ -136,6 +263,21 @@ class ExamResultsView(ListAPIView):
         )
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Exam Questions",
+        operation_description="Get questions for an exam.",
+        responses={
+            200: question_detail_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ExamQuestionsView(ListAPIView):
     """
     API view to list all questions belonging to a specific exam.
@@ -164,6 +306,21 @@ class ExamQuestionsView(ListAPIView):
         return exam.questions.filter(is_active=True)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Exam History",
+        operation_description="Get exam history for a candidate.",
+        responses={
+            200: candidate_exam_score_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ExamHistoryView(ListAPIView):
     """
     API view to retrieve the exam history and scores of a specific candidate.
@@ -196,6 +353,19 @@ class ExamHistoryView(ListAPIView):
         )
 
 
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Take Exam",
+    operation_description="Allows a candidate to retrieve the questions for a specific exam if they are eligible.",
+    responses={
+        200: candidate_exam_response_schema,
+        401: error_response_401,
+        403: error_response_403,
+        404: error_response_404,
+    },
+    tags=["Exams"],
+    manual_parameters=[api_key, bearer_auth],
+)
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam(request, exam_id):

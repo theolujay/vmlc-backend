@@ -1,5 +1,6 @@
 import logging
 
+from django.utils.decorators import method_decorator
 from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
@@ -9,6 +10,8 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.settings import api_settings
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from ..models import Candidate
 from ..permissions import (
@@ -22,6 +25,18 @@ from ..serializers import (
     CandidateRoleSerializer,
     MinimalCandidateSerializer,
 )
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    candidate_me_response_schema,
+    candidate_list_response_schema,
+    candidate_detail_response_schema,
+    candidate_role_request_body,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
 from ..utils.dashboard_utils import get_candidate_dashboard_data
 from ..utils.query_filters import filter_candidates
 from ..utils.exceptions import ValidationError
@@ -29,6 +44,20 @@ from ..utils.exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get My Profile",
+        operation_description="Retrieve the authenticated candidate's own profile.",
+        responses={
+            200: candidate_me_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class CandidateMeView(RetrieveAPIView):
     """
     Retrieve the authenticated candidate's own profile.
@@ -37,14 +66,27 @@ class CandidateMeView(RetrieveAPIView):
     permission_classes = CandidatePermissions
     serializer_class = MinimalCandidateSerializer
 
-    def get(self, request, *args, **kwargs):
+    def get_object(self):
         """
         Returns a structured data payload for the authenticated candidate.
         """
-        data = Candidate.objects.get(request.user)
-        return Response(data)
+        return self.request.user.candidate_profile
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Candidates",
+        operation_description="List all candidates. Required roles: moderator or higher",
+        responses={
+            200: candidate_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class CandidateListView(ListAPIView):
     """
     List all candidates.
@@ -68,7 +110,53 @@ class CandidateListView(ListAPIView):
         queryset = Candidate.objects.select_related("user").order_by("-date_created")
         return filter_candidates(queryset, self.request.query_params)
 
-
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Candidate Details",
+        operation_description="Retrieve details for candidate with given 'id'.",
+        responses={
+            200: candidate_detail_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Update Candidate Details",
+        operation_description="Update details for candidate with given 'id'.",
+        request_body=CandidateDetailSerializer,
+        responses={
+            200: candidate_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="delete",
+    decorator=swagger_auto_schema(
+        operation_summary="Delete Candidate",
+        operation_description="Delete candidate with given 'id'.",
+        responses={
+            204: openapi.Response("Candidate deleted successfully."),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+)
 class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or delete a specific candidate profile.
@@ -89,7 +177,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             .prefetch_related("scores__exam", "scores__submitted_by__user")
             .all()
         )
-
+        
     def retrieve(self, request, *args, **kwargs):
         """
         Custom retrieve method to return structured candidate data.
@@ -112,7 +200,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             serializer.validated_data,
         )
         serializer.save(updated_by=self.request.user.staff_profile)
-
+        
     def perform_destroy(self, instance):
         """
         Soft-delete candidate by setting `is_active` to False.
@@ -125,7 +213,23 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         instance.is_active = False
         instance.save()
 
-
+@method_decorator(
+    name="put",
+    decorator=swagger_auto_schema(
+        operation_summary="Assign Candidate Role",
+        operation_description="Assign role to candidate with given 'id'.",
+        request_body=candidate_role_request_body,
+        responses={
+            200: CandidateRoleSerializer,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Candidates"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+)
 class AssignCandidateRoleView(UpdateAPIView):
     """
     Assign a new role to a candidate.
@@ -137,7 +241,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
-    http_method_names = ["put", "patch"]
+    http_method_names = ["put"]
 
     def perform_update(self, serializer):
         """

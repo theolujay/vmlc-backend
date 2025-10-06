@@ -6,6 +6,9 @@ from botocore.exceptions import ClientError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -26,6 +29,17 @@ from ..serializers import (
     UserVerificationListSerializer,
 )
 from ..tasks import validate_user_verification_files_task
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    user_verification_status_response_schema,
+    user_verification_list_response_schema,
+    user_verification_action_request_body,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
 from ..utils.exceptions import PermissionDenied, NotFound, ValidationError, APIException
 
 logger = logging.getLogger(__name__)
@@ -38,7 +52,21 @@ class UserVerificationStatusView(APIView):
 
     permission_classes = AuthenticatedUser
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Get User Verification Status",
+        operation_description="Get the verification status of a user.",
+        responses={
+            200: user_verification_status_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Verification"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def get(self, request, user_id=None):
+        return self._get_user_verification_status(request.user, user_id)
+
     def _get_user_verification_status(self, user, user_id):
         logger.info(
             f"UserVerificationStatusView: request from user {user.id} for user {user_id}"
@@ -120,10 +148,87 @@ class UserVerificationStatusView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def get(self, request, user_id=None):
-        return self._get_user_verification_status(request.user, user_id)
 
-
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Upload Verification Documents",
+        operation_description="Upload verification documents for the authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                'profile_photo',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="Profile photo",
+                required=True,
+            ),
+            openapi.Parameter(
+                'id_card',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="ID card",
+                required=True,
+            ),
+            openapi.Parameter(
+                'verification_document',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="Verification document",
+                required=True,
+            ),
+            api_key,
+            bearer_auth,
+        ],
+        responses={
+            202: openapi.Response(
+                "Documents uploaded successfully. Validation is in progress."
+            ),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["User Verification"],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Update Verification Documents",
+        operation_description="Update verification documents for the authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                'profile_photo',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="Profile photo",
+            ),
+            openapi.Parameter(
+                'id_card',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="ID card",
+            ),
+            openapi.Parameter(
+                'verification_document',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="Verification document",
+            ),
+            api_key,
+            bearer_auth,
+        ],
+        responses={
+            202: openapi.Response(
+                "Verification data updated successfully. Validation is in progress."
+            ),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Verification"],
+    ),
+)
 class UserVerificationUploadView(APIView):
     """
     Upload verification documents for the authenticated user.
@@ -132,7 +237,6 @@ class UserVerificationUploadView(APIView):
     permission_classes = AuthenticatedUser
     parser_classes = [MultiPartParser, FormParser]
 
-    # @database_sync_to_async
     def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
@@ -198,7 +302,6 @@ class UserVerificationUploadView(APIView):
     def post(self, request):
         return self._upload_verification_documents(request)
 
-    # @database_sync_to_async
     def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
         logger.info(
@@ -264,6 +367,62 @@ class UserVerificationDocumentView(APIView):
     """
 
     permission_classes = AuthenticatedUser
+
+    @swagger_auto_schema(
+        operation_summary="Get Verification Document",
+        operation_description="Access verification documents for a user.",
+        responses={
+            200: openapi.Response("File content"),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Verification"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def get(self, request, file_type, user_id=None):
+        file, storage_prefix, _ = self._get_verification_document(
+            request, file_type, user_id
+        )
+
+        try:
+            s3_client = boto3.client("s3")
+            bucket_name = "vmlc-s3"
+            object_key = f"{storage_prefix}/{file.name}"
+
+            logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
+
+            # Get the object from S3
+            s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+
+            # Get content type
+            content_type = s3_response.get("ContentType", "application/octet-stream")
+
+            # Stream the content
+            file_content = s3_response["Body"].read()
+
+            return HttpResponse(file_content, content_type=content_type)
+
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "NoSuchKey":
+                logger.error(f"S3 object not found: {object_key}")
+                raise NotFound(
+                    f"The {file_type.replace('_', ' ')} file is no longer available."
+                )
+            if error_code == "AccessDenied":
+                logger.error(f"S3 access denied: {object_key}")
+                raise PermissionDenied("Access denied to file storage.")
+
+            logger.error(f"S3 error ({error_code}): {e}")
+            exc = APIException(
+                "Could not retrieve file from storage.",
+            )
+            exc.status_code = status.HTTP_502_BAD_GATEWAY
+            raise exc
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            raise APIException("Could not retrieve file from storage.")
 
     def _get_verification_document(self, request, file_type, user_id=None):
         logger.info(
@@ -333,51 +492,21 @@ class UserVerificationDocumentView(APIView):
 
         return file, storage_prefix, target_user
 
-    def get(self, request, file_type, user_id=None):
-        file, storage_prefix, _ = self._get_verification_document(
-            request, file_type, user_id
-        )
 
-        try:
-            s3_client = boto3.client("s3")
-            bucket_name = "vmlc-s3"
-            object_key = f"{storage_prefix}/{file.name}"
-
-            logger.info(f"Accessing S3: bucket='{bucket_name}', key='{object_key}'")
-
-            # Get the object from S3
-            s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-
-            # Get content type
-            content_type = s3_response.get("ContentType", "application/octet-stream")
-
-            # Stream the content
-            file_content = s3_response["Body"].read()
-
-            return HttpResponse(file_content, content_type=content_type)
-
-        except ClientError as e:
-            error_code = e.response["Error"]["Code"]
-            if error_code == "NoSuchKey":
-                logger.error(f"S3 object not found: {object_key}")
-                raise NotFound(
-                    f"The {file_type.replace('_', ' ')} file is no longer available."
-                )
-            if error_code == "AccessDenied":
-                logger.error(f"S3 access denied: {object_key}")
-                raise PermissionDenied("Access denied to file storage.")
-
-            logger.error(f"S3 error ({error_code}): {e}")
-            exc = APIException(
-                "Could not retrieve file from storage.",
-            )
-            exc.status_code = status.HTTP_502_BAD_GATEWAY
-            raise exc
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            raise APIException("Could not retrieve file from storage.")
-
-
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Verification Requests",
+        operation_description="List all verification requests for manager review.",
+        responses={
+            200: user_verification_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["User Verification"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
@@ -401,7 +530,23 @@ class UserVerificationActionView(APIView):
 
     permission_classes = VerifiedManagerPermissions
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Perform Verification Action",
+        operation_description="Handle user verification actions (approve/reject).",
+        request_body=user_verification_action_request_body,
+        responses={
+            200: openapi.Response("User verification action successful."),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Verification"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def post(self, request, user_id):
+        return self._verification_action(request, user_id)
+
     def _verification_action(self, request, user_id):
         logger.info(
             f"UserVerificationActionView: request from user {request.user.id} for user {user_id}"
@@ -454,6 +599,3 @@ class UserVerificationActionView(APIView):
             f"UserVerificationActionView: validation failed: {serializer.errors}"
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request, user_id):
-        return self._verification_action(request, user_id)

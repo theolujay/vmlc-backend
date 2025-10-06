@@ -2,6 +2,8 @@ import logging
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,6 +11,17 @@ from rest_framework.views import APIView
 from ..models import CandidateAnswer, CandidateScore, Exam
 from ..permissions import CandidatePermissions
 from ..serializers import CandidateAnswerBulkSerializer
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    submit_answers_request_body,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
+from ..utils.helpers import sanitize_data
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +34,23 @@ class SubmitAnswersView(APIView):
     permission_classes = CandidatePermissions
     serializer_class = CandidateAnswerBulkSerializer
 
+    @swagger_auto_schema(
+        operation_summary="Submit Exam Answers",
+        operation_description="Submit answers for a specific exam.",
+        request_body=submit_answers_request_body,
+        responses={
+            201: openapi.Response("Answers submitted successfully!"),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Exams"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def post(self, request, exam_id):
+        return self._submit_answers(request, exam_id)
+
     def _submit_answers(self, request, exam_id):
         """
         Validates and saves a bulk submission of answers for an exam.
@@ -32,8 +62,9 @@ class SubmitAnswersView(APIView):
         """
         candidate = request.user.candidate_profile
         exam = get_object_or_404(Exam, pk=exam_id)
+        safe_data = sanitize_data(request.data)
         logger.info(
-            f"SubmitAnswersView: request from user {request.user.id} (candidate_id: {candidate.pk}) for exam {exam_id} with data: {request.data}"
+            f"SubmitAnswersView: request from user {request.user.id} (candidate_id: {candidate.pk}) for exam {exam_id} with data: {safe_data}"
         )
 
         # 1. Business Logic Validation
@@ -104,6 +135,3 @@ class SubmitAnswersView(APIView):
             {"message": "Answers submitted successfully!"},
             status=status.HTTP_201_CREATED,
         )
-
-    def post(self, request, exam_id):
-        return self._submit_answers(request, exam_id)

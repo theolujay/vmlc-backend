@@ -4,6 +4,7 @@ This package contains all the views for the API.
 
 from .answer import SubmitAnswersView
 from .auth import (
+    RefreshTokenView,
     VerifyEmailOTPView,
     ResendEmailOTPView,
     RequestPasswordChangeView,
@@ -73,6 +74,7 @@ __all__ = [
     # answer
     "SubmitAnswersView",
     # auth
+    "RefreshTokenView",
     "VerifyEmailOTPView",
     "ResendEmailOTPView",
     "RequestPasswordChangeView",

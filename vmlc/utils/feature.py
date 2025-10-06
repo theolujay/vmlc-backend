@@ -1,6 +1,7 @@
 import logging
 
 from django.core.exceptions import ImproperlyConfigured
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 
 from ..models import FeatureFlag
 from ..permissions import HasMinimumStaffRole
+from .swagger_schemas import api_key, bearer_auth
 
 
 logger = logging.getLogger(__name__)
@@ -20,14 +22,20 @@ class ToggleFeatureFlagView(APIView):
     A generic view to toggle a boolean feature flag.
     Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
-
+    swagger_schema = None
     permission_classes = [
         IsAuthenticated,
         HasMinimumStaffRole("manager"),
     ]
     feature_flag_key = None
 
-    # @database_sync_to_async
+    # @swagger_auto_schema(
+    #     operation_description="Toggle a feature flag.",
+    #     manual_parameters=[api_key, bearer_auth],
+    # )
+    def post(self, request, *args, **kwargs):
+        return self._toggle_feature_flag(request, *args, **kwargs)
+
     def _toggle_feature_flag(self, request, *args, **kwargs):
         logger.info(
             f"{self.__class__.__name__}: request from user {request.user.id} with data: {request.data}"
@@ -81,6 +89,3 @@ class ToggleFeatureFlagView(APIView):
             {"message": message},
             status=status.HTTP_200_OK,
         )
-
-    def post(self, request, *args, **kwargs):
-        return self._toggle_feature_flag(request, *args, **kwargs)

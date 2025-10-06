@@ -1,5 +1,8 @@
 import logging
 
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
@@ -11,7 +14,17 @@ from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
 )
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    candidate_registration_request_body,
+    staff_registration_request_body,
+    error_response_400,
+    error_response_403,
+    error_response_401,
+)
 from ..utils.exceptions import PermissionDenied
+from ..utils.helpers import sanitize_data
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +37,10 @@ class BaseRegistrationView(CreateAPIView):
     feature_flag_key = None  # Subclasses must define this
 
     def create(self, request, *args, **kwargs):
-        logger.info(f"{self.__class__.__name__}: request data: {request.data}")
+        safe_data = sanitize_data(request.data)
+        logger.info(
+            f"{self.__class__.__name__}: Registration attempt with data: {safe_data}"
+        )
         if request.user.is_authenticated:
             logger.warning(
                 f"Authenticated user {request.user.id} attempted to register a new account."
@@ -58,6 +74,21 @@ class BaseRegistrationView(CreateAPIView):
         )
 
 
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Register Candidate",
+        operation_description="Register a new candidate.",
+        request_body=candidate_registration_request_body,
+        responses={
+            201: openapi.Response("Registration successful."),
+            400: error_response_400,
+            403: error_response_403,
+        },
+        tags=["Registration"],
+        manual_parameters=[api_key],
+    ),
+)
 class CandidateRegistrationView(BaseRegistrationView):
     """Register a new candidate"""
 
@@ -65,6 +96,21 @@ class CandidateRegistrationView(BaseRegistrationView):
     feature_flag_key = "candidate_registration"
 
 
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Register Staff",
+        operation_description="Register a new staff member.",
+        request_body=staff_registration_request_body,
+        responses={
+            201: openapi.Response("Registration successful."),
+            400: error_response_400,
+            403: error_response_403,
+        },
+        tags=["Registration"],
+        manual_parameters=[api_key],
+    ),
+)
 class StaffRegistrationView(BaseRegistrationView):
     """
     Register a new staff member
@@ -74,15 +120,45 @@ class StaffRegistrationView(BaseRegistrationView):
     feature_flag_key = "staff_registration"
 
 
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Toggle Candidate Registration",
+        operation_description="Toggle candidate registration.",
+        responses={
+            200: openapi.Response("Feature flag toggled successfully."),
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Registration"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
+    swagger_schema = None
     permission_classes = VerifiedManagerPermissions
     feature_flag_key = "candidate_registration_open"
 
 
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Toggle Staff Registration",
+        operation_description="Toggle staff registration.",
+        responses={
+            200: openapi.Response("Feature flag toggled successfully."),
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Registration"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
+    swagger_schema = None
     permission_classes = VerifiedManagerPermissions
     feature_flag_key = "staff_registration_open"

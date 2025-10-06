@@ -8,7 +8,21 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    candidate_dashboard_response_schema,
+    staff_dashboard_response_schema,
+    account_management_response_schema,
+    account_management_request_body,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+    error_response_400,
+)
 from ..models import User
 from ..permissions import (
     AuthenticatedUser,
@@ -36,6 +50,20 @@ class CandidateDashboardView(APIView):
 
     permission_classes = CandidatePermissions
 
+    @swagger_auto_schema(
+        operation_summary="Get Candidate Dashboard",
+        operation_description="Retrieve dashboard data for the currently authenticated candidate.",
+        responses={
+            200: candidate_dashboard_response_schema,
+            202: openapi.Response(
+                "Dashboard data is being generated. Please check back in a few moments."
+            ),
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Dashboard"],
+        manual_parameters=[api_key, bearer_auth],
+    )
     def get(self, request):
         """
         Returns candidate-specific dashboard stats and profile data.
@@ -72,6 +100,20 @@ class StaffDashboardView(APIView):
 
     permission_classes = VerifiedModeratorPermissions
 
+    @swagger_auto_schema(
+        operation_summary="Get Staff Dashboard",
+        operation_description="Retrieve dashboard data for the currently authenticated staff member.",
+        responses={
+            200: staff_dashboard_response_schema,
+            202: openapi.Response(
+                "Dashboard data is being generated. Please check back in a few moments."
+            ),
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Dashboard"],
+        manual_parameters=[api_key, bearer_auth],
+    )
     def get(self, request):
         """
         Returns staff-specific dashboard metrics and profile data from cache if available.
@@ -112,9 +154,7 @@ class AccountManagementView(APIView):
     """
 
     permission_classes = AuthenticatedUser
-    # parser_classes = [MultiPartParser, FormParser]
 
-    # @database_sync_to_async
     def _get_target_user(self, request, user_id=None):
         """
         Determines the target user for the action and checks permissions.
@@ -133,7 +173,6 @@ class AccountManagementView(APIView):
             raise PermissionDenied("You are not authorized to manage this user.")
         return target_user
 
-    # @database_sync_to_async
     def _get_profile_and_serializer(self, user):
         """
         Gets the user's profile (Candidate or Staff) and the appropriate serializer.
@@ -144,6 +183,18 @@ class AccountManagementView(APIView):
             return user.staff_profile, StaffDetailSerializer
         return None, None
 
+    @swagger_auto_schema(
+        operation_summary="Get User Account",
+        operation_description="Retrieve the account and profile data of the target user.",
+        responses={
+            200: account_management_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Account Management"],
+        manual_parameters=[api_key, bearer_auth],
+    )
     def get(self, request, user_id=None):
         """
         Retrieve the account and profile data of the target user.
@@ -168,7 +219,6 @@ class AccountManagementView(APIView):
 
         return Response({"profile": profile_data})
 
-    # @database_sync_to_async
     def _update_account(self, request, partial, user_id=None):
         """
         Handles the update logic for both user and profile data.
@@ -210,12 +260,20 @@ class AccountManagementView(APIView):
             }
         )
 
-    # def put(self, request, user_id=None):
-    #     """
-    #     Fully update both user and profile data.
-    #     """
-    #     return self._update_account(request, partial=False, user_id=user_id)
-
+    @swagger_auto_schema(
+        operation_summary="Update User Account",
+        operation_description="Partially update user and/or profile data.",
+        request_body=account_management_request_body,
+        responses={
+            200: openapi.Response("Account updated successfully."),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Account Management"],
+        manual_parameters=[api_key, bearer_auth],
+    )
     def patch(self, request, user_id=None):
         """
         Partially update user and/or profile data.

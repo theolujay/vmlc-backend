@@ -1,18 +1,27 @@
 import logging
 
 from django.urls.exceptions import NoReverseMatch
-from django.views.decorators.cache import cache_page, never_cache
+from django.views.decorators.cache import never_cache
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view, permission_classes
 
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
 from ..permissions import HasXAPIKey
+from ..utils.swagger_schemas import api_key
 
 logger = logging.getLogger(__name__)
 
+
+@swagger_auto_schema(
+    method="get",
+    operation_summary="API Root",
+    operation_description="API root",
+    manual_parameters=[api_key],
+    tags=["Root"],
+)
 @never_cache
-# @cache_page(60 * 15)
 @api_view(["GET"])
 @permission_classes([HasXAPIKey])
 def root(request, format_kw=None):
@@ -63,8 +72,8 @@ def root(request, format_kw=None):
                 "token_refresh": safe_reverse("vmlc:token-refresh"),
             },
             "registration": {
-                "toggle_candidate": safe_reverse("vmlc:toggle-candidate-registration"),
-                "toggle_staff": safe_reverse("vmlc:toggle-staff-registration"),
+                # "toggle_candidate": safe_reverse("vmlc:toggle-candidate-registration"),
+                # "toggle_staff": safe_reverse("vmlc:toggle-staff-registration"),
                 "candidate": safe_reverse("vmlc:register-candidate"),
                 "staff": safe_reverse("vmlc:register-staff"),
             },

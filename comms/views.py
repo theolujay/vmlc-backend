@@ -2,6 +2,9 @@ import logging
 
 from django.db import models, transaction
 from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework import mixins
 from rest_framework.settings import api_settings
 from rest_framework.response import Response
@@ -15,6 +18,19 @@ from comms.serializers import (
 from comms.tasks import send_broadcast_task
 from vmlc.permissions import VerifiedManagerPermissions
 from vmlc.utils.exceptions import NotFound
+from vmlc.utils.helpers import sanitize_data
+from vmlc.utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    broadcast_list_response_schema,
+    broadcast_detail_request_body,
+    broadcast_detail_response_schema,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +63,36 @@ class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, 
         return self.create(request, *args, **kwargs)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Broadcasts",
+        operation_description="List all broadcasts.",
+        responses={
+            200: broadcast_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=['Broadcast'],
+        manual_parameters=[api_key, bearer_auth]
+    ),
+)
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Create Broadcast",
+        operation_description="Create a new broadcast.",
+        request_body=broadcast_detail_request_body,
+        responses={
+            201: broadcast_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=['Broadcast'],
+        manual_parameters=[api_key, bearer_auth]
+    ),
+)
 class BroadcastView(ListCreateRetrieveAPIView):
     """
     Combined view for broadcasts that handles:
@@ -100,13 +146,26 @@ class BroadcastView(ListCreateRetrieveAPIView):
             )
         else:
             queryset = queryset.order_by("-created_at")
+            safe_params = sanitize_data(self.request.query_params)
             logger.info(
                 f"BroadcastView (list): request from user {self.request.user.pk} "
-                f"with query params: {self.request.query_params}"
+                f"with query params: {safe_params}"
             )
             
         return queryset
 
+    @swagger_auto_schema(
+        operation_summary="Get Broadcast Details",
+        operation_description="Retrieve a broadcast instance.",
+        responses={
+            200: broadcast_detail_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=['Broadcast'],
+        manual_parameters=[api_key, bearer_auth]
+    )
     def retrieve(self, request, *args, **kwargs):
         """
         Retrieve a broadcast instance, using caching for performance.

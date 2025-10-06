@@ -4,13 +4,17 @@ Authentication-related API views for login, logout, and registration.
 
 import logging
 
+from django.utils.decorators import method_decorator
+from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from ..models import User
 from ..permissions import HasXAPIKey
@@ -23,15 +27,53 @@ from ..serializers import (
     MinimalStaffSerializer,
     VerifyEmailOTPSerializer,
 )
+from ..utils.helpers import sanitize_data
+from ..utils.swagger_schemas import (
+    api_key, 
+    bearer_auth,
+    login_request_body,
+    login_response_schema,
+    logout_request_body,
+    token_refresh_request_body,
+    token_refresh_response_schema,
+    error_response_400,
+    error_response_401,
+    error_response_404,
+    verify_email_otp_request_body,
+    resend_email_otp_request_body,
+    request_password_change_request_body,
+    password_change_otp_confirm_request_body,
+    password_change_request_body,
+    resend_password_change_otp_request_body,
+)
 from ..tasks import send_mail_task
 from ..utils.exceptions import (
     InvalidTokenError,
     NotFound,
+    ServerError,
     ValidationError,
 )
 
 logger = logging.getLogger(__name__)
 
+
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Refresh Access Token",
+        operation_description="Takes a refresh token and returns an access token.",
+        request_body=token_refresh_request_body,
+        responses={
+            200: token_refresh_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+class RefreshTokenView(TokenRefreshView):
+    permission_classes = [HasXAPIKey]
 
 class VerifyEmailOTPView(APIView):
     """
@@ -40,7 +82,21 @@ class VerifyEmailOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Verify Email with OTP",
+        operation_description="Verifies a user's email address using an OTP.",
+        request_body=verify_email_otp_request_body,
+        responses={
+            200: openapi.Response("Email verified successfully."),
+            400: error_response_400,
+            404: error_response_404,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._verify_email(request.data)
+
     def _verify_email(self, data):
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
@@ -61,16 +117,10 @@ class VerifyEmailOTPView(APIView):
                 raise NotFound("User not found.")
             except RuntimeError as e:
                 logger.error(f"Error during email verification: {str(e)}")
-                return Response(
-                    {"error": "Verification failed. Please try again."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                raise ServerError("Verification failed. Please try again.")
 
         logger.warning(f"Email verification failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        return self._verify_email(request.data)
 
 
 class ResendEmailOTPView(APIView):
@@ -80,7 +130,21 @@ class ResendEmailOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Resend Email OTP",
+        operation_description="Resends an OTP to a user's email address for verification.",
+        request_body=resend_email_otp_request_body,
+        responses={
+            200: openapi.Response("OTP has been resent to your email address"),
+            400: error_response_400,
+            429: openapi.Response("Rate limit exceeded"),
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._resend_email_otp(request.data)
+
     def _resend_email_otp(self, data):
         serializer = ResendEmailOTPSerializer(data=data)
 
@@ -109,15 +173,9 @@ class ResendEmailOTPView(APIView):
                 raise exc
             except RuntimeError as e:
                 logger.error(f"Unexpected error in resend OTP: {str(e)}")
-                return Response(
-                    {"error": "Failed to resend OTP. Please try again later."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                raise ServerError("Failed to resend OTP. Please try again later.")
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        return self._resend_email_otp(request.data)
 
 
 class RequestPasswordChangeView(APIView):
@@ -127,7 +185,23 @@ class RequestPasswordChangeView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Request Password Change",
+        operation_description="Requests a password change and sends an OTP to the user's email.",
+        request_body=request_password_change_request_body,
+        responses={
+            200: openapi.Response(
+                "Password change verification code sent to your email"
+            ),
+            400: error_response_400,
+            429: openapi.Response("Rate limit exceeded"),
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._request_password_change(request.data)
+
     def _request_password_change(self, data):
         """
         Send OTP to user's email for password change verification.
@@ -164,17 +238,11 @@ class RequestPasswordChangeView(APIView):
                 raise exc
             except RuntimeError as e:
                 logger.error(f"Error requesting password change OTP: {str(e)}")
-                return Response(
-                    {
-                        "error": "Failed to send verification code. Please try again later."
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise ServerError(
+                    "Failed to send verification code. Please try again later."
                 )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        return self._request_password_change(request.data)
 
 
 class PasswordChangeOTPConfirmView(APIView):
@@ -184,7 +252,22 @@ class PasswordChangeOTPConfirmView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Confirm Password Change with OTP",
+        operation_description="Confirms a password change request using an OTP.",
+        request_body=password_change_otp_confirm_request_body,
+        responses={
+            200: openapi.Response(
+                "OTP verified. User confirmed for password change. Proceed to change password."
+            ),
+            400: error_response_400,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._confirm_password_change_otp(request.data)
+
     def _confirm_password_change_otp(self, data):
         """
         Change user password after OTP verification.
@@ -206,9 +289,6 @@ class PasswordChangeOTPConfirmView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request):
-        return self._confirm_password_change_otp(request.data)
-
 
 class PasswordChangeView(APIView):
     """
@@ -217,7 +297,22 @@ class PasswordChangeView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Change Password",
+        operation_description="Changes a user's password after OTP verification.",
+        request_body=password_change_request_body,
+        responses={
+            200: openapi.Response(
+                "Password changed successfully. Please log in with your new password."
+            ),
+            400: error_response_400,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._change_password(request.data)
+
     def _change_password(self, data):
         """
         Change password after OTP verification.
@@ -250,15 +345,9 @@ class PasswordChangeView(APIView):
 
             except RuntimeError as e:
                 logger.error(f"Error changing password: {str(e)}")
-                return Response(
-                    {"error": "Failed to change password. Please try again."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                raise ServerError("Failed to change password. Please try again.")
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        return self._change_password(request.data)
 
 
 class ResendPasswordChangeOTPView(APIView):
@@ -268,7 +357,21 @@ class ResendPasswordChangeOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="Resend Password Change OTP",
+        operation_description="Resends a password change OTP to the user's email.",
+        request_body=resend_password_change_otp_request_body,
+        responses={
+            200: openapi.Response("Password change verification code has been resent"),
+            400: error_response_400,
+            429: openapi.Response("Rate limit exceeded"),
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._resend_password_change_otp(request.data)
+
     def _resend_password_change_otp(self, data):
         """
         Resend password change OTP.
@@ -326,15 +429,9 @@ class ResendPasswordChangeOTPView(APIView):
             raise exc
         except RuntimeError as e:
             logger.error(f"Unexpected error in resend password change OTP: {str(e)}")
-            return Response(
-                {
-                    "error": "Failed to resend verification code. Please try again later."
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise ServerError(
+                "Failed to resend verification code. Please try again later."
             )
-
-    def post(self, request):
-        return self._resend_password_change_otp(request.data)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -369,6 +466,18 @@ class LoginView(TokenObtainPairView):
     permission_classes = [HasXAPIKey]
     throttle_scope = "login"
 
+    @swagger_auto_schema(
+        operation_summary="User Login",
+        operation_description="Authenticates a user and returns access and refresh tokens.",
+        request_body=login_request_body,
+        responses={
+            200: login_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         email = request.data.get("email", "N/A")
@@ -387,7 +496,20 @@ class LogoutView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    # @database_sync_to_async
+    @swagger_auto_schema(
+        operation_summary="User Logout",
+        operation_description="Blacklists a refresh token to log a user out.",
+        request_body=logout_request_body,
+        responses={
+            204: openapi.Response("Successfully logged out."),
+            400: error_response_400,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key],
+    )
+    def post(self, request):
+        return self._logout(request.get("refresh_token"))
+
     def _logout(self, refresh_token):
         """
         Expects a 'refresh' token in the request body.
@@ -414,10 +536,4 @@ class LogoutView(APIView):
             raise InvalidTokenError("Invalid or expired refresh token")
         except RuntimeError as e:
             logger.error("Logout failed with an unexpected error: %s", str(e))
-            return Response(
-                {"error": "Logout failed"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    def post(self, request):
-        return self._logout(request.get("refresh_token"))
+            raise ServerError("Logout failed")

@@ -1,5 +1,8 @@
 import logging
 
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     ListAPIView,
@@ -21,11 +24,37 @@ from ..serializers import (
     StaffRoleSerializer,
     MinimalStaffSerializer,
 )
+from ..utils.swagger_schemas import (
+    api_key,
+    bearer_auth,
+    staff_me_response_schema,
+    staff_list_response_schema,
+    staff_detail_response_schema,
+    staff_role_request_body,
+    error_response_400,
+    error_response_401,
+    error_response_403,
+    error_response_404,
+)
 from ..utils.query_filters import filter_staffs
 
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get My Profile",
+        operation_description="Retrieve the authenticated staff member's own profile.",
+        responses={
+            200: staff_me_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class StaffMeView(RetrieveAPIView):
     """
     Retrieve the authenticated staff member's own profile.
@@ -42,6 +71,20 @@ class StaffMeView(RetrieveAPIView):
         return data
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Staff",
+        operation_description="List all staff members.",
+        responses={
+            200: staff_list_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class StaffListView(ListAPIView):
     """
     List all staff members with pagination and optional filtering.
@@ -65,6 +108,53 @@ class StaffListView(ListAPIView):
         return filter_staffs(queryset, self.request.query_params)
 
 
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get Staff Details",
+        operation_description="Retrieve a staff member.",
+        responses={
+            200: staff_detail_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Partially Update Staff",
+        operation_description="Partially update a staff member.",
+        request_body=StaffDetailSerializer,
+        responses={
+            200: staff_detail_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="delete",
+    decorator=swagger_auto_schema(
+        operation_summary="Delete Staff",
+        operation_description="Delete a staff member.",
+        responses={
+            204: openapi.Response("Staff member deleted successfully."),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class StaffDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff member.
@@ -92,19 +182,53 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
         )
         serializer.save()
 
-    # def perform_destroy(self, instance):
-    #     """
-    #     Soft-delete staff by setting `is_active` to False.
-    #     """
-    #     logger.info(
-    #         "Soft-deleting staff %s by user %s",
-    #         instance.pk,
-    #         self.request.user.id,
-    #     )
-    #     instance.is_active = False
-    #     instance.save()
+    def perform_destroy(self, instance):
+        """
+        Soft-delete staff by setting `is_active` to False.
+        """
+        logger.info(
+            "Soft-deleting staff %s by user %s",
+            instance.pk,
+            self.request.user.id,
+        )
+        instance.is_active = False
+        instance.save()
 
 
+@method_decorator(
+    name="put",
+    decorator=swagger_auto_schema(
+        operation_summary="Assign Staff Role",
+        operation_description="Assign a new role to a staff member.",
+        request_body=staff_role_request_body,
+        responses={
+            200: StaffRoleSerializer,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Partially Assign Staff Role",
+        operation_description="Partially assign a new role to a staff member.",
+        request_body=staff_role_request_body,
+        responses={
+            200: StaffRoleSerializer,
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Staff"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class AssignStaffRoleView(UpdateAPIView):
     """
     Assign a new role to a staff member.
