@@ -1,7 +1,51 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 60s  # Increased to reduce CPU usage
+  evaluation_interval: 60s
+  external_labels:
+    cluster: 'vmlc-backend'
 
 scrape_configs:
-  - job_name: "vmlc-otel"
+  # Scrape OpenTelemetry Collector metrics
+  - job_name: 'otel-collector'
     static_configs:
-      - targets: ["opentelemetry:9464"]
+      - targets: ['otel-collector:9464']
+        labels:
+          environment: 'shared'
+
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape staging containers (if they expose metrics)
+  - job_name: 'staging-web'
+    static_configs:
+      - targets: ['staging_web:8000']
+        labels:
+          environment: 'staging'
+          service: 'web'
+    metrics_path: '/metrics'  # If you add django-prometheus
+    scrape_interval: 120s
+
+  # Scrape production containers (if they expose metrics)
+  - job_name: 'production-web'
+    static_configs:
+      - targets: ['prod_web:8000']
+        labels:
+          environment: 'production'
+          service: 'web'
+    metrics_path: '/metrics'
+    scrape_interval: 120s
+
+  # Optional: Add exporters for Redis/Postgres if you install them later
+  # - job_name: 'redis-exporter'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         environment: 'shared'
+  
+  # - job_name: 'postgres-exporter'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         environment: 'shared'

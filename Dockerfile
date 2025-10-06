@@ -101,9 +101,8 @@ RUN apt-get update && \
 USER verboheit
 
 COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
-
-RUN uv sync --frozen --no-cache --only-group dev
-
+ENV UV_PROJECT_ENVIRONMENT=/home/verboheit/build/.venv
+RUN uv sync --frozen --no-cache --group dev
 ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     PYTHONDEBUG=1 \
     DEBUG=1 \

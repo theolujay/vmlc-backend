@@ -1,3 +1,6 @@
+include:
+  - compose.observability.yml
+
 x-staging-security: &staging-security
   cap_drop:
     - ALL
@@ -27,6 +30,14 @@ x-staging-base: &staging-base
     - 8.8.4.4
   <<: *staging-security
 
+x-staging-otel-env: &staging-otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_SERVICE_NAME: vmlc-backend-staging
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "0.1"  # Sample 10% of traces to reduce overhead
+
 services:
   watchtower:
     image: containrrr/watchtower
@@ -35,14 +46,21 @@ services:
       - "--label-enable"
       - "--interval"
       - "30"
+      - "--rolling-restart"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /home/verboheit/.docker/config.json:/config.json:ro
+      - ~/.docker/config.json:/config.json:ro
     environment:
       - DOCKER_CONFIG=/
     networks:
       - staging_backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.05'
+
   reverse-proxy:
     image: traefik:v3.5.3
     container_name: staging_reverse_proxy
@@ -58,7 +76,6 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
     ports:
-      - "80:80"
       - "443:443"
       - "8000:8000"
     volumes:
@@ -67,6 +84,12 @@ services:
     networks:
       - staging_backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
   db:
     image: postgres:17.2-bookworm
     container_name: staging_db
@@ -75,13 +98,12 @@ services:
       -c shared_preload_libraries=pg_stat_statements
       -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
-      -c log_statement=ddl
-      -c log_min_duration_statement=2000
-      -c max_connections=30
-      -c shared_buffers=128MB
-      -c effective_cache_size=384MB
-      -c work_mem=2MB
-      -c maintenance_work_mem=32MB
+      -c log_min_duration_statement=5000
+      -c max_connections=20
+      -c shared_buffers=64MB
+      -c effective_cache_size=192MB
+      -c work_mem=1MB
+      -c maintenance_work_mem=16MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
     ports:
@@ -93,18 +115,18 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 15s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.4'
-        reservations:
           memory: 256M
           cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
     <<: *staging-security
     networks:
       - staging_backend
@@ -114,41 +136,53 @@ services:
     container_name: staging_redis
     command: >
       redis-server
+      --aof-use-rdb-preamble yes
       --appendonly yes
-      --maxmemory 128mb
+      --maxmemory 64mb
       --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
+      --save ""
       --loglevel warning
-      --tcp-backlog 128
+      --tcp-backlog 64
       --timeout 300
     ports:
       - "6379:6379"
     volumes:
       - staging_redis:/data
     restart: unless-stopped
-    
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
+      interval: 30s
       timeout: 5s
       retries: 3
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.2'
-        reservations:
           memory: 64M
           cpus: '0.1'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
     <<: *staging-security
     networks:
       - staging_backend
 
   web:
     <<: *staging-base
-    container_name: staging_web
-    command: ["./scripts/runserver.sh"]
+    # container_name: staging_web
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      ./scripts/runserver.sh
+    environment:
+      <<: *staging-otel-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`staging-api.verboheit.org`)"
@@ -162,31 +196,33 @@ services:
       retries: 3
       start_period: 90s
     deploy:
-      # mode: replicated
-      # replicas: 3
+      mode: replicated
+      replicas: 2
       resources:
         limits:
-          memory: 512M
-          cpus: '0.4'
+          memory: 320M
+          cpus: '0.3'
         reservations:
-          memory: 256M
-          cpus: '0.2'
+          memory: 160M
+          cpus: '0.12'
 
   celery_worker:
     <<: *staging-base
     container_name: staging_celery_worker
-    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=1", "--max-tasks-per-child=500", "--time-limit=600", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=1", "--max-tasks-per-child=100", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    environment:
+      <<: *staging-otel-env
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.3'
-        reservations:
           memory: 256M
-          cpus: '0.15'
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@%h"]
-      interval: 90s
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      interval: 120s
       timeout: 10s
       retries: 3
       start_period: 30s
@@ -198,16 +234,16 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
-          cpus: '0.15'
+          memory: 128M
+          cpus: '0.1'
         reservations:
-          memory: 96M
-          cpus: '0.075'
+          memory: 64M
+          cpus: '0.05'
 
   flower:
     <<: *staging-base
     container_name: staging_flower
-    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}", "--max-tasks=1000"]
+    command: ["celery", "-A", "config", "flower", "--address=0.0.0.0", "--port=5555", "--basic-auth=${SUPERUSER_EMAIL}:${SUPERUSER_PASSWORD}", "--max-tasks=500"]
     depends_on:
       celery_worker:
         condition: service_started
@@ -221,17 +257,18 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.15'
+          memory: 96M
+          cpus: '0.1'
         reservations:
-          memory: 64M
-          cpus: '0.075'
+          memory: 48M
+          cpus: '0.05'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/workers", "--max-time", "5"]
-      interval: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:5555/", "--max-time", "5"]
+      interval: 120s
       timeout: 10s
       retries: 3
-
+      start_period: 30s
+  
 volumes:
   staging_letsencrypt:
   staging_db:

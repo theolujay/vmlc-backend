@@ -1,9 +1,7 @@
-networks:
-  backend:
-
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.106.0
+    container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
@@ -11,7 +9,9 @@ services:
       - "4318:4318" # OTLP HTTP receiver
       - "9464:9464" # Prometheus metrics exporter
     networks:
-      - backend
+      - dev_backend
+      - staging_backend
+      - prod_backend
     restart: unless-stopped
 
   prometheus:
@@ -28,11 +28,11 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - backend
+      - dev_backend
+      - staging_backend
+      - prod_backend
     restart: unless-stopped
-
     depends_on:
-      # Wait for the collector to be up before trying to scrape it
       - otel-collector
 
   grafana:
@@ -50,7 +50,9 @@ services:
     ports:
       - "3030:3030"
     networks:
-      - backend
+      - dev_backend
+      - staging_backend
+      - prod_backend
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -58,3 +60,11 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+
+networks:
+  dev_backend:
+    driver: bridge
+  staging_backend:
+    driver: bridge
+  prod_backend:
+    driver: bridge

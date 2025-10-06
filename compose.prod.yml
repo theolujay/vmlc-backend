@@ -1,3 +1,6 @@
+include:
+  - compose.observability.yml
+
 x-prod-security: &prod-security
   cap_drop:
     - ALL
@@ -27,6 +30,14 @@ x-prod-base: &prod-base
     - 8.8.4.4
   <<: *prod-security
 
+x-prod-otel-env: &prod-otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_SERVICE_NAME: vmlc-backend-production
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "0.05"  # Sample 5% of traces in prod (lower overhead)
+
 services:
   watchtower:
     image: containrrr/watchtower
@@ -35,14 +46,20 @@ services:
       - "--label-enable"
       - "--interval"
       - "30"
+      - "--rolling-restart"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /home/verboheit/.docker/config.json:/config.json:ro
+      - ~/.docker/config.json:/config.json:ro
     environment:
       - DOCKER_CONFIG=/
     networks:
       - prod_backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.05'
 
   reverse-proxy:
     image: traefik:v3.5.3
@@ -61,7 +78,6 @@ services:
       - "--certificatesresolvers.myresolver.acme.email=verboheitconsulting@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
-      - "80:80"
       - "443:443"
     volumes:
       - prod_letsencrypt:/letsencrypt
@@ -69,24 +85,30 @@ services:
     networks:
       - prod_backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
 
   db:
     image: postgres:17.2-bookworm
     container_name: prod_db
     command: >
       postgres
-      -c max_connections=50
+      -c max_connections=30
       -c shared_buffers=128MB
-      -c effective_cache_size=512MB
-      -c maintenance_work_mem=64MB
+      -c effective_cache_size=384MB
+      -c maintenance_work_mem=32MB
       -c checkpoint_completion_target=0.9
       -c wal_buffers=4MB
       -c default_statistics_target=100
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
       -c work_mem=2MB
-      -c min_wal_size=1GB
-      -c max_wal_size=4GB
+      -c min_wal_size=512MB
+      -c max_wal_size=2GB
+      -c log_min_duration_statement=3000
     ports:
       - "5433:5432"
     env_file: prod.env
@@ -96,18 +118,18 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 15s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '0.7'
-        reservations:
           memory: 512M
-          cpus: '0.35'
+          cpus: '0.4'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
     <<: *prod-security
     networks:
       - prod_backend
@@ -118,7 +140,7 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --maxmemory 192mb
+      --maxmemory 128mb
       --maxmemory-policy allkeys-lru
       --save 900 1
       --save 300 10
@@ -132,25 +154,39 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
+      interval: 30s
       timeout: 5s
       retries: 3
     deploy:
       resources:
         limits:
-          memory: 192M
-          cpus: '0.2'
+          memory: 128M
+          cpus: '0.15'
         reservations:
-          memory: 96M
-          cpus: '0.1'
+          memory: 64M
+          cpus: '0.075'
     <<: *prod-security
     networks:
       - prod_backend
 
   web:
     <<: *prod-base
-    container_name: prod_web
-    command: ["./scripts/runserver.sh"]
+    # container_name: prod_web
+    command: >
+      opentelemetry-instrument
+      --traces_exporter otlp
+      --metrics_exporter otlp
+      --logs_exporter none
+      ./scripts/runserver.sh
+    environment:
+      <<: *prod-otel-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`api.verboheit.org`)"
@@ -165,22 +201,24 @@ services:
       retries: 3
       start_period: 60s
     deploy:
-      # mode: replicated
-      # replicas: 3
+      mode: replicated
+      replicas: 4
       resources:
         limits:
-          memory: 768M
+          memory: 640M
           cpus: '0.6'
         reservations:
-          memory: 384M
+          memory: 320M
           cpus: '0.3'
 
   celery_worker:
     <<: *prod-base
     container_name: prod_celery_worker
-    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=2", "--max-tasks-per-child=1000", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    command: ["celery", "-A", "config", "worker", "-l", "warning", "--concurrency=2", "--max-tasks-per-child=500", "--time-limit=300", "-Q", "default,emails,comms,scoring,files,reports,cache"]
+    environment:
+      <<: *prod-otel-env
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@%h"]
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
       interval: 90s
       timeout: 10s
       retries: 3
@@ -188,11 +226,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-          cpus: '0.6'
+          memory: 512M
+          cpus: '0.4'
         reservations:
-          memory: 384M
-          cpus: '0.3'
+          memory: 256M
+          cpus: '0.2'
 
   celery_beat:
     <<: *prod-base
@@ -201,11 +239,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.2'
+          memory: 192M
+          cpus: '0.15'
         reservations:
-          memory: 128M
-          cpus: '0.1'
+          memory: 96M
+          cpus: '0.075'
 
   flower:
     <<: *prod-base
@@ -224,16 +262,17 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
-          cpus: '0.2'
+          memory: 128M
+          cpus: '0.15'
         reservations:
-          memory: 96M
-          cpus: '0.1'
+          memory: 64M
+          cpus: '0.075'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/workers", "--max-time", "5"]
-      interval: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:5555/", "--max-time", "5"]
+      interval: 120s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
 volumes:
   prod_letsencrypt:
