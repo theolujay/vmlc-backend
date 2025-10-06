@@ -44,7 +44,8 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ### Base URL
 
-`base_url = https://vmlc-api.onrender.com/v1/`
+`https://api.verboheit.org/v1/` ~ production
+`https://staging-api.verboheit.org/v1/`~ staging
 
 All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
@@ -56,11 +57,6 @@ The API uses `X-Api-Key` for general authentication. The API key should be provi
 `X-Api-Key: <your_api_key>`
 
 For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
-
-`Authorization: Bearer <access-token>`
-
-
-This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources.
 
 #### Login Flow
 **Endpoint:** `POST /auth/login/`
@@ -1249,16 +1245,16 @@ X-Api-Key: <your_api_key>
 
 ### Leaderboard
 The leaderboard displays candidate rankings and can be dynamically controlled by staff.
-
+<!-- 
 #### Toggle Leaderboard Visibility
-Allows 'admin' or higher to enable or disable the public visibility of the leaderboard.
+Allows 'manager' or higher to enable or disable the public visibility of the leaderboard.
 
 **Endpoint:** `POST /toggle-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `admin` or higher  
+**Required Role:** `manager` or higher  
 **Request Body:**
 ```json
 {
@@ -1278,7 +1274,7 @@ X-Api-Key: <your_api_key>
 {
   "message": "Leaderboard is now hidden."
 }
-```
+``` -->
 
 #### Publish Leaderboard
 Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
