@@ -13,29 +13,29 @@ scrape_configs:
           environment: 'shared'
 
   # Scrape Prometheus itself
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
+  # - job_name: 'prometheus'
+  #   static_configs:
+  #     - targets: ['localhost:9090']
 
   # Scrape staging containers (if they expose metrics)
-  - job_name: 'staging-web'
-    static_configs:
-      - targets: ['staging_web:8000']
-        labels:
-          environment: 'staging'
-          service: 'web'
-    metrics_path: '/metrics'  # If you add django-prometheus
-    scrape_interval: 120s
+  # - job_name: 'staging-web'
+  #   static_configs:
+  #     - targets: ['staging_web:8000']
+  #       labels:
+  #         environment: 'staging'
+  #         service: 'web'
+  #   metrics_path: '/metrics'  # If you add django-prometheus
+  #   scrape_interval: 120s
 
   # Scrape production containers (if they expose metrics)
-  - job_name: 'production-web'
-    static_configs:
-      - targets: ['prod_web:8000']
-        labels:
-          environment: 'production'
-          service: 'web'
-    metrics_path: '/metrics'
-    scrape_interval: 120s
+  # - job_name: 'production-web'
+  #   static_configs:
+  #     - targets: ['prod_web:8000']
+  #       labels:
+  #         environment: 'production'
+  #         service: 'web'
+  #   metrics_path: '/metrics'
+  #   scrape_interval: 120s
 
   # Optional: Add exporters for Redis/Postgres if you install them later
   # - job_name: 'redis-exporter'
