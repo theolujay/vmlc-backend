@@ -61,7 +61,7 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=staging"
+      - "--providers.docker.network=vmlc-backend_staging"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls=true"
@@ -270,7 +270,7 @@ services:
         reservations:
           memory: 50M
           cpus: '0.05'
-  
+
 volumes:
   staging_letsencrypt:
   staging_db:

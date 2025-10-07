@@ -14,7 +14,7 @@ cache:
 
 query_frontend:
   mcp_server:
-    enabled: true
+    enabled: false
   search:
     duration_slo: 5s
     throughput_bytes_slo: 1.073741824e+09
