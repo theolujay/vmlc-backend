@@ -12,6 +12,8 @@ exporters:
     endpoint: "http://tempo:4318"
     tls:
       insecure: true
+    protocols:
+      http:
 
   debug:
     verbosity: detailed

@@ -57,7 +57,7 @@ case "${push:-}" in
         case "${version:-}" in
             "")
                 echo "No version provided - building vmlc-backend with 'latest'..."
-                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:latest ."; then
+                if ! run_with_clean_logging "docker build --target staging -t ghcr.io/verboheit/vmlc-backend:latest ."; then
                     echo "Build failed!"
                     echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1
@@ -68,14 +68,14 @@ case "${push:-}" in
                 # Version provided - check cache option
                 if [[ "$no_cache" == "nc" ]]; then
                     echo "Building vmlc-backend v$version with no cache"
-                    if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version . --no-cache"; then
+                    if ! run_with_clean_logging "docker build --target staging -t ghcr.io/verboheit/vmlc-backend:$version . --no-cache"; then
                         echo "Build failed!"
                         echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                         exit 1
                     fi
                 else
                     echo "Building v$version with cache"
-                    if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version ."; then
+                    if ! run_with_clean_logging "docker build --target staging -t ghcr.io/verboheit/vmlc-backend:$version ."; then
                         echo "Build failed!"
                         echo "===== Build Failed at $(date) =====" >> "$LOG_FILE"
                         exit 1
@@ -88,7 +88,7 @@ case "${push:-}" in
         case "${version:-}" in
             "")
                 echo "Building then pushing vlatest to repo: ghcr.io/verboheit/vmlc-backend"
-                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:latest --push ."; then
+                if ! run_with_clean_logging "docker build --target staging -t ghcr.io/verboheit/vmlc-backend:latest --push ."; then
                     echo "Build then push failed!"
                     echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1
@@ -96,7 +96,7 @@ case "${push:-}" in
                 ;;
             *)
                 echo "Building then pushing v$version to repo: ghcr.io/verboheit/vmlc-backend"
-                if ! run_with_clean_logging "docker build --target production -t ghcr.io/verboheit/vmlc-backend:$version --push ."; then
+                if ! run_with_clean_logging "docker build --target staging -t ghcr.io/verboheit/vmlc-backend:$version --push ."; then
                     echo "Build then push failed!"
                     echo "===== Build Then Push Failed at $(date) =====" >> "$LOG_FILE"
                     exit 1
