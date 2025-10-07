@@ -227,11 +227,11 @@ services:
         reservations:
           memory: 256M
           cpus: '0.25'
-        restart_policy:
-          condition: on-failure
-          delay: 5s
-          max_attempts: 3
-          window: 120s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
   celery_worker:
     <<: *staging-base
