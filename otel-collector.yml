@@ -20,10 +20,7 @@ exporters:
     tls:
       insecure: true
   
-  debug:
-    verbosity: detailed
-    sampling_initial: 5
-    sampling_thereafter: 200
+
 
 service:
   pipelines:
@@ -35,4 +32,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/tempo, debug]
+      exporters: [otlphttp/tempo]
