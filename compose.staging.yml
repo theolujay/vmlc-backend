@@ -47,8 +47,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M
+          memory: 50M
           cpus: '0.05'
+        reservations:
+          memory: 25M
+          cpus: '0.02'
 
   traefik:
     image: traefik:v3.5.3
@@ -105,8 +108,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.1'
+          memory: 100M
+          cpus: '0.15'
+        reservations:
+          memory: 50M
+          cpus: '0.05'
 
   db:
     image: postgres:17.2-bookworm
@@ -117,13 +123,15 @@ services:
       -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
       -c log_min_duration_statement=5000
-      -c max_connections=20
-      -c shared_buffers=64MB
-      -c effective_cache_size=192MB
-      -c work_mem=1MB
-      -c maintenance_work_mem=16MB
+      -c max_connections=30
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
+      -c effective_io_concurrency=200
+      -c wal_buffers=4MB
     env_file: staging.env
     volumes:
       - staging_db:/var/lib/postgresql/data
@@ -138,11 +146,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.2'
+          memory: 512M
+          cpus: '0.4'
         reservations:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256MB
+          cpus: '0.2'
     networks:
       - staging
 
@@ -151,11 +159,12 @@ services:
     container_name: staging_redis
     command: >
       redis-server
-      --maxmemory 64mb
-      --maxmemory-policy noeviction
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
       --loglevel warning
       --tcp-backlog 64
       --timeout 300
+      --save ""
     volumes:
       - staging_redis:/data
     restart: unless-stopped
@@ -167,10 +176,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M
-          cpus: '0.1'
+          memory: 150M
+          cpus: '0.15'
         reservations:
-          memory: 32M
+          memory: 75M
           cpus: '0.05'
     networks:
       - staging
@@ -210,14 +219,19 @@ services:
       start_period: 60s
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
       resources:
         limits:
-          memory: 320M
-          cpus: '0.3'
+          memory: 512M
+          cpus: '0.5'
         reservations:
-          memory: 160M
-          cpus: '0.12'
+          memory: 256M
+          cpus: '0.25'
+        restart_policy:
+          condition: on-failure
+          delay: 5s
+          max_attempts: 3
+          window: 120s
 
   celery_worker:
     <<: *staging-base
@@ -229,20 +243,20 @@ services:
       celery -A config worker -l warning --concurrency=1 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *staging-otel-env
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.2'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
     healthcheck:
       test: ["CMD", "sh", "-c", "OTEL_SDK_DISABLED=true celery -A config inspect ping"]
       interval: 120s
       timeout: 10s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.3'
+        reservations:
+          memory: 192M
+          cpus: '0.15'
 
   celery_beat:
     <<: *staging-base
@@ -251,10 +265,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 100M
           cpus: '0.1'
         reservations:
-          memory: 64M
+          memory: 50M
           cpus: '0.05'
   
 volumes:
