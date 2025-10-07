@@ -67,8 +67,6 @@ services:
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--log.level=INFO"
-      - "--accesslog=true"
       - "--metrics.prometheus=false"
       - "--metrics.otlp=true"
       - "--metrics.otlp.http=true"
@@ -78,6 +76,15 @@ services:
       - "--metrics.otlp.addEntryPointsLabels=true"
       - "--metrics.otlp.addRoutersLabels=true"
       - "--metrics.otlp.addServicesLabels=true"
+      - "--tracing=true"
+      - "--tracing.serviceName=traefik"
+      - "--tracing.sampleRate=0.05"
+      - "--tracing.otlp.grpc=false"
+      - "--tracing.otlp.http=true"
+      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
     ports:
       - "80:80"
       - "443:443"
@@ -86,11 +93,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik-staging.verboheit.org`)"
+      - "traefik.http.routers.dashboard.rule=Host(`staging-api.verboheit.org`) && (PathPrefix(`/traefik`))"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver=le"
       - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+      - "traefik.http.routers.dashboard.middlewares=auth"
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=theolujay:$$apr1$$yvdwosdp$$3/QCmJs6D7LUmDlCKjUTu/"
     networks:
       - staging
@@ -231,7 +238,7 @@ services:
           memory: 128M
           cpus: '0.1'
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      test: ["CMD", "sh", "-c", "OTEL_SDK_DISABLED=true celery -A config inspect ping"]
       interval: 120s
       timeout: 10s
       retries: 3
