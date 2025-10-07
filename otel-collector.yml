@@ -5,7 +5,9 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
-  batch: {}
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
 
 exporters:
   prometheus:
@@ -13,13 +15,15 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
 
-  otlphttp/loki:
-    endpoint: "http://loki:3100/loki/api/v1/push"
-
   otlphttp/tempo:
-    endpoint: "http://tempo:3200/v1/traces"
+    endpoint: "http://tempo:4318"  # ✅ No path!
+    tls:
+      insecure: true
+  
   debug:
     verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
 
 service:
   pipelines:
@@ -27,11 +31,8 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlphttp/loki]
+    
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/tempo]
+      exporters: [otlphttp/tempo, debug]

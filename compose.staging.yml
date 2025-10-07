@@ -1,7 +1,17 @@
 include:
   - compose.observability.yml
 
-x-staging-base: &staging-base
+x-staging-security: &staging-security
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
+  security_opt:
+    - no-new-privileges:true
+
+x-app-base: &app-base
   image: ghcr.io/verboheit/vmlc-backend:staging
   volumes:
     - staging_media:/home/verboheit/web/media
@@ -18,6 +28,7 @@ x-staging-base: &staging-base
   dns:
     - 8.8.8.8
     - 8.8.4.4
+  <<: *staging-security
 
 x-staging-otel-env: &staging-otel-env
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -47,10 +58,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 50M
+          memory: 128M
           cpus: '0.05'
         reservations:
-          memory: 25M
+          memory: 50M
           cpus: '0.02'
 
   traefik:
@@ -84,7 +95,7 @@ services:
       - "--tracing.sampleRate=0.05"
       - "--tracing.otlp.grpc=false"
       - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
       - "--log.level=INFO"
       - "--log.format=json"
       - "--accesslog=true"
@@ -108,11 +119,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 100M
+          memory: 128M
           cpus: '0.15'
         reservations:
           memory: 50M
           cpus: '0.05'
+    security_opt:
+      - no-new-privileges:true
 
   db:
     image: postgres:17.2-bookworm
@@ -129,7 +142,6 @@ services:
       -c work_mem=2MB
       -c maintenance_work_mem=32MB
       -c random_page_cost=1.1
-      -c effective_io_concurrency=200
       -c effective_io_concurrency=200
       -c wal_buffers=4MB
     env_file: staging.env
@@ -151,6 +163,7 @@ services:
         reservations:
           memory: 256MB
           cpus: '0.2'
+    <<: *staging-security
     networks:
       - staging
 
@@ -164,7 +177,8 @@ services:
       --loglevel warning
       --tcp-backlog 64
       --timeout 300
-      --save ""
+      --save 900 1
+      --save 300 10
     volumes:
       - staging_redis:/data
     restart: unless-stopped
@@ -181,11 +195,12 @@ services:
         reservations:
           memory: 75M
           cpus: '0.05'
+    <<: *staging-security
     networks:
       - staging
 
   web:
-    <<: *staging-base
+    <<: *app-base
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
@@ -234,7 +249,7 @@ services:
         window: 120s
 
   celery_worker:
-    <<: *staging-base
+    <<: *app-base
     container_name: staging_celery_worker
     command: >
       opentelemetry-instrument
@@ -259,17 +274,23 @@ services:
           cpus: '0.15'
 
   celery_beat:
-    <<: *staging-base
+    <<: *app-base
     container_name: staging_celery_beat
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     deploy:
       resources:
         limits:
-          memory: 100M
+          memory: 256M
           cpus: '0.1'
         reservations:
           memory: 50M
           cpus: '0.05'
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep -v grep | grep 'celery.*beat'"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   staging_letsencrypt:

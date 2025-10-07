@@ -86,11 +86,14 @@ services:
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_UPDATE_CHECK_FOR_UPDATES=false
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`staging-api.verboheit.org`) && (PathPrefix(`/traefik`))"
-      - "traefik.http.routers.web.entrypoints=websecure"
-      - "traefik.http.routers.web.tls.certresolver=le"
-      - "traefik.http.routers.web.tls=true"
+    - "traefik.enable=true"
+    - "traefik.http.routers.grafana.rule=Host(`staging-api.verboheit.org`) && PathPrefix(`/grafana`)"
+    - "traefik.http.routers.grafana.entrypoints=websecure"
+    - "traefik.http.routers.grafana.tls=true"
+    - "traefik.http.routers.grafana.tls.certresolver=le"
+    - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    - "traefik.http.middlewares.grafana-strip.stripprefix.prefixes=/grafana"
+    - "traefik.http.routers.grafana.middlewares=grafana-strip"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
