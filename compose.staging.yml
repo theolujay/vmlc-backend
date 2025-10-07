@@ -107,12 +107,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`staging-api.verboheit.org`) && (PathPrefix(`/traefik`))"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik-staging.verboheit.org`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver=le"
       - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=dashboard-stripprefix,dashboard-auth"
-      - "traefik.http.middlewares.dashboard-stripprefix.stripprefix.prefixes=/traefik"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=theolujay:$$apr1$$yvdwosdp$$3/QCmJs6D7LUmDlCKjUTu/"
     networks:
       - staging
@@ -216,7 +215,7 @@ services:
         condition: service_started
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`staging-api.verboheit.org`) && !PathPrefix(`/api`) && !PathPrefix(`/traefik`)"
+      - "traefik.http.routers.web.rule=Host(`staging-api.verboheit.org`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=le"
       - "traefik.http.routers.web.tls=true"
