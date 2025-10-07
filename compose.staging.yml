@@ -163,7 +163,6 @@ services:
         reservations:
           memory: 256MB
           cpus: '0.2'
-    <<: *staging-security
     networks:
       - staging
 
@@ -195,7 +194,6 @@ services:
         reservations:
           memory: 75M
           cpus: '0.05'
-    <<: *staging-security
     networks:
       - staging
 
