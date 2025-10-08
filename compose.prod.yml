@@ -1,5 +1,5 @@
-include:
-  - compose.observability.yml
+# include:
+#   - compose.observability.yml
 
 x-prod-base: &prod-base
   image: ghcr.io/verboheit/vmlc-backend:prod
