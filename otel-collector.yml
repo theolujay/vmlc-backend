@@ -15,11 +15,14 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
 
+  otlphttp/loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+
   otlphttp/tempo:
-    endpoint: "http://tempo:4318"  # ✅ No path!
+    endpoint: "http://tempo:4318/v1/traces"
     tls:
       insecure: true
-  
+
 
 
 service:
@@ -28,6 +31,11 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
     
     traces:
       receivers: [otlp]

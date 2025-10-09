@@ -30,8 +30,8 @@ x-dev-base: &dev-base
       condition: service_healthy
     redis:
       condition: service_healthy
-    otel-collector:
-        condition: service_started
+    # otel-collector:
+    #     condition: service_started
   networks:
     - dev
 

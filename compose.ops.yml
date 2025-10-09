@@ -1,25 +1,29 @@
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-collector
+    container_name: staging_otel_collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector.yml:/etc/otel-collector-config.yaml:ro
     ports:
-      - "4318:4318" # OTLP HTTP receiver
-      - "9464:9464" # Prometheus metrics exporter
+      - "4318:4318"
+      - "9464:9464"
     networks:
-      - dev
       - staging
-      - prod
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
+    container_name: staging_prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
       - '--enable-feature=exemplar-storage'
       - '--enable-feature=native-histograms'
       - '--web.enable-remote-write-receiver'
@@ -27,103 +31,108 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+      - staging_prometheus:/prometheus
     ports:
       - "9090:9090"
     networks:
-      - dev
       - staging
-      - prod
     restart: unless-stopped
     depends_on:
       - otel-collector
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.15'
 
   loki:
     image: grafana/loki:latest
-    container_name: loki
+    container_name: staging_loki
     user: root
     volumes:
       - ./loki.yml:/etc/loki/local-config.yaml
-      - loki_data:/loki
+      - staging_loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
     networks:
-      - dev
       - staging
-      - prod
     restart: unless-stopped
     depends_on:
       - otel-collector
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.15'
 
   tempo:
     image: grafana/tempo:latest
-    container_name: tempo
+    container_name: staging_tempo
     user: "0:0"
     volumes:
       - ./tempo.yml:/etc/tempo/tempo-local.yaml:ro
-      - tempo_data:/tmp/tempo
+      - staging_tempo:/tmp/tempo
     command: ["-config.file=/etc/tempo/tempo-local.yaml"]
     ports:
       - "3200:3200"
     networks:
-      - dev
       - staging
-      - prod
     restart: unless-stopped
     depends_on:
       - otel-collector
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.15'
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
+    container_name: staging_grafana
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=le"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana-staging.rule=Host(`staging-ops.verboheit.org`)"
+      - "traefik.http.routers.grafana-staging.entrypoints=websecure"
+      - "traefik.http.routers.grafana-staging.tls.certresolver=le"
+      - "traefik.http.services.grafana-staging.loadbalancer.server.port=3000"
     environment:
       - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_USER=admin 
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_INSTALL_PLUGINS=
       - GF_PLUGINS_DISABLE_INSTALLATION=true
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_UPDATE_CHECK_FOR_UPDATES=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
-      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - staging_grafana:/var/lib/grafana
+      - ./grafana/provisioning/datasources/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/provisioning/dashboards/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
       - ./grafana/dashboards/:/var/lib/grafana/dashboards:ro
-    ports:
-      - "3000:3000"
     networks:
-      - dev
       - staging
-      - prod
     restart: unless-stopped
     depends_on:
       - prometheus
       - tempo
       - loki
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
 
 volumes:
-  prometheus_data:
-  loki_data:
-  tempo_data:
-  grafana_data:
-
+  staging_loki:
+  staging_tempo:
+  staging_grafana:
+  staging_prometheus:
 
 networks:
-  dev:
-    external: true
-    name: ${COMPOSE_PROJECT_NAME}_dev
   staging:
     external: true
     name: ${COMPOSE_PROJECT_NAME}_staging
-  prod:
-    external: true
-    name: ${COMPOSE_PROJECT_NAME}_prod
