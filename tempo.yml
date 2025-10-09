@@ -12,9 +12,9 @@ storage:
   trace:
     backend: local
     local:
-      path: /tmp/tempo/blocks
+      path: /var/tempo/blocks
     wal:
-      path: /tmp/tempo/wal
+      path: /var/tempo/wal
     pool:
       max_workers: 100
       queue_depth: 10000
@@ -32,13 +32,7 @@ ingester:
 
 compactor:
   compaction:
-    block_retention: 24h  # Keep traces for 1 day
-    compacted_block_retention: 1h
-    compaction_window: 1h
-    max_compaction_objects: 1000000
-  ring:
-    kvstore:
-      store: inmemory
+    block_retention: 48h 
 
 metrics_generator:
   registry:
@@ -46,10 +40,10 @@ metrics_generator:
       source: tempo
       cluster: vmlc-backend
   storage:
-    path: /tmp/tempo/generator/wal
+    path: /var/tempo/generator/wal
     remote_write:
-      - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true
+    - url: http://localhost:9090/api/v1/write
+      send_exemplars: true
 
 querier:
   max_concurrent_queries: 20
