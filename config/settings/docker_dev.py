@@ -48,14 +48,25 @@ DATABASE_URL = os.getenv(
     f"db:5432/{os.getenv('POSTGRES_DB', 'vmlc_dev')}",
 )
 
-DATABASES = {
-    "default": dj_database_url.config(
+db_config = dj_database_url.config(
         default=DATABASE_URL,
-        conn_max_age=0,
+        engine="dj_db_conn_pool.backends.postgresql",
         conn_health_checks=True,
-        engine="django.db.backends.postgresql",
     )
+
+db_config['POOL_OPTIONS'] = {
+    'POOL_SIZE': 5,
+    'MAX_OVERFLOW': 10,
+    'RECYCLE': 3600,
+    'PRE_PING': True,
 }
+
+db_config.pop('CONN_MAX_AGE', None)
+
+DATABASES = {
+    "default": db_config
+}
+
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "anon": "10000/day",  # Unauthenticated
     "user": "100000/day",  # Authenticated users

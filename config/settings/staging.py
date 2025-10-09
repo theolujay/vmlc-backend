@@ -35,14 +35,26 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL environment variable is required")
 
-DATABASES = {
-    "default": dj_database_url.config(
+db_config = dj_database_url.config(
         default=DATABASE_URL,
-        conn_max_age=600,
+        engine="dj_db_conn_pool.backends.postgresql",
         conn_health_checks=True,
     )
+
+db_config['POOL_OPTIONS'] = {
+    'POOL_SIZE': 5,
+    'MAX_OVERFLOW': 10,
+    'RECYCLE': 3600,
+    'PRE_PING': True,
 }
 
+db_config.pop('CONN_MAX_AGE', None)
+
+DATABASES = {
+    "default": db_config
+}
+
+# === AWS S3 CONFIGURATION ===
 REQUIRED_AWS_VARS = [
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
