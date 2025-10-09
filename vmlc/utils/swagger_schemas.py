@@ -17,7 +17,7 @@ api_key = openapi.Parameter(
     openapi.IN_HEADER,
     description="API key for authentication.",
     type=openapi.TYPE_STRING,
-    required=False,
+    required=True,
 )
 
 pagination_limit = openapi.Parameter(
