@@ -69,7 +69,6 @@ services:
     command: ["-config.file=/etc/tempo/tempo-local.yaml"]
     ports:
       - "3200:3200"
-      - "4318:4318"
     networks:
       - staging
     restart: unless-stopped
