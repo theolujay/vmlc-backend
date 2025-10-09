@@ -41,7 +41,6 @@ x-staging-otel-env: &staging-otel-env
 services:
   watchtower:
     image: containrrr/watchtower
-    container_name: staging_watchtower
     command:
       - "--label-enable"
       - "--interval"
@@ -66,7 +65,6 @@ services:
 
   traefik:
     image: traefik:v3.5.3
-    container_name: staging_traefik
     command:
       - "--api.insecure=false"
       - "--api.dashboard=true"
@@ -122,7 +120,6 @@ services:
 
   db:
     image: postgres:17.2-bookworm
-    container_name: staging_db
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
@@ -161,7 +158,6 @@ services:
 
   redis:
     image: redis:7.2.4-alpine
-    container_name: staging_redis
     command: >
       redis-server
       --maxmemory 128mb
@@ -222,11 +218,11 @@ services:
       start_period: 60s
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           memory: 512M
-          cpus: '0.3'
+          cpus: '0.25'
         reservations:
           memory: 256M
           cpus: '0.2'
@@ -238,12 +234,11 @@ services:
 
   celery_worker:
     <<: *app-base
-    container_name: staging_celery_worker
     command: >
       opentelemetry-instrument
       --traces_exporter otlp
       --metrics_exporter otlp
-      celery -A config worker -l warning --concurrency=1 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
+      celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *staging-otel-env
     healthcheck:
@@ -263,7 +258,6 @@ services:
 
   celery_beat:
     <<: *app-base
-    container_name: staging_celery_beat
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     deploy:
       resources:
