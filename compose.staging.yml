@@ -188,12 +188,15 @@ services:
 
   web:
     <<: *app-base
-    command: >
-      opentelemetry-instrument
-      --traces_exporter otlp
-      --metrics_exporter otlp
-      --logs_exporter otlp
-      ./scripts/runserver.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - ./scripts/runserver.sh
     environment:
       <<: *staging-otel-env
     depends_on:
@@ -235,12 +238,25 @@ services:
 
   celery_worker:
     <<: *app-base
-    command: >
-      opentelemetry-instrument
-      --traces_exporter otlp
-      --metrics_exporter otlp
-      --logs_exporter otlp
-      celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - warning
+      - --concurrency=2
+      - --max-tasks-per-child=100
+      - --time-limit=300
+      - -Q
+      - default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *staging-otel-env
     healthcheck:
