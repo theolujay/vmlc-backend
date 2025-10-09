@@ -1,14 +1,18 @@
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: ["--config=/etc/otel/config.yml"]
     volumes:
-      - ./otel-collector.yml:/etc/otel-collector-config.yaml:ro
+      - ./otel.yml:/etc/otel/config.yml:ro
     ports:
       - "4318:4318"
     networks:
       - staging
     restart: unless-stopped
+    depends_on:
+      - loki
+      - prometheus
+      - tempo
     deploy:
       resources:
         limits:
@@ -34,8 +38,6 @@ services:
     networks:
       - staging
     restart: unless-stopped
-    depends_on:
-      - otel-collector
     deploy:
       resources:
         limits:
@@ -54,8 +56,6 @@ services:
     networks:
       - staging
     restart: unless-stopped
-    depends_on:
-      - otel-collector
     deploy:
       resources:
         limits:
@@ -73,8 +73,6 @@ services:
     networks:
       - staging
     restart: unless-stopped
-    depends_on:
-      - otel-collector
     deploy:
       resources:
         limits:
@@ -102,16 +100,12 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
     volumes:
-      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
-      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
-      - ./grafana/dashboards/:/var/lib/grafana/dashboards:ro
+      - staging_grafana:/etc/grafana/provisioning/datasources
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
     networks:
       - staging
     restart: unless-stopped
-    depends_on:
-      - prometheus
-      - tempo
-      - loki
     deploy:
       resources:
         limits:

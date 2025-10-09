@@ -15,8 +15,8 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
 
-  otlphttp/loki:
-    endpoint: http://loki:3100/otlp
+  otlphttp/logs:
+    endpoint: http://loki/otlp
     tls:
       insecure: true
 
@@ -24,8 +24,6 @@ exporters:
     endpoint: http://tempo:4318
     tls:
       insecure: true
-
-
 
 service:
   pipelines:
@@ -37,7 +35,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/loki]
+      exporters: [otlphttp/logs]
     
     traces:
       receivers: [otlp]
