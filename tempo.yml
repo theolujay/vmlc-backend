@@ -1,3 +1,6 @@
+server:
+  http_listen_port: 3200
+
 distributor:
   receivers:
     otlp:
@@ -12,20 +15,54 @@ storage:
       path: /tmp/tempo/blocks
     wal:
       path: /tmp/tempo/wal
+    pool:
+      max_workers: 100
+      queue_depth: 10000
 
 ingester:
-  trace_idle_period: 30s
-  max_block_duration: "5m"
+  trace_idle_period: 10s
+  max_block_bytes: 1_000_000
+  max_block_duration: 5m
   lifecycler:
     ring:
       kvstore:
         store: inmemory
       replication_factor: 1
+    final_sleep: 0s
 
 compactor:
   compaction:
-    block_retention: 1h
+    block_retention: 24h  # Keep traces for 1 day
+    compacted_block_retention: 1h
+    compaction_window: 1h
+    max_compaction_objects: 1000000
+  ring:
+    kvstore:
+      store: inmemory
 
-querier: {}  # Must be added, otherwise it will automatically exit
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: vmlc-backend
+  storage:
+    path: /tmp/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
 
-multitenancy_enabled: false  # To avoid single-tenant environment errors
+querier:
+  max_concurrent_queries: 20
+  frontend_worker:
+    match_max_concurrent: true
+
+query_frontend:
+  search:
+    max_duration: 0s  # No limit on trace search duration
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
+
+multitenancy_enabled: false
