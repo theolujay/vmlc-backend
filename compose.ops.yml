@@ -109,9 +109,8 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
     volumes:
-      - staging_grafana:/var/lib/grafana
-      - ./grafana/datasources.yml:/etc/grafana/datasources.yml:ro
-      - ./grafana/dashboards.yml:/etc/grafana/dashboards.yml:ro
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
       - ./grafana/dashboards/:/var/lib/grafana/dashboards:ro
     networks:
       - staging
