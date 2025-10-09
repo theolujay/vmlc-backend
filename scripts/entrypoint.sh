@@ -185,7 +185,7 @@ setup_django_env() {
 
 setup_application() {
     if [[ "$1" == "opentelemetry-instrument" ]]; then
-        local command="$6"
+        local command="$8"
     else
         local command="$1"
     fi

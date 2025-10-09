@@ -192,6 +192,7 @@ services:
       opentelemetry-instrument
       --traces_exporter otlp
       --metrics_exporter otlp
+      --logs_exporter otlp
       ./scripts/runserver.sh
     environment:
       <<: *staging-otel-env
@@ -238,6 +239,7 @@ services:
       opentelemetry-instrument
       --traces_exporter otlp
       --metrics_exporter otlp
+      --logs_exporter otlp
       celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *staging-otel-env

@@ -46,7 +46,6 @@ services:
 
   loki:
     image: grafana/loki:latest
-    user: "10001:10001"
     volumes:
       - ./loki.yml:/etc/loki/local-config.yaml
       - staging_loki:/loki

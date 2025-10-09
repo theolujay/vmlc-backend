@@ -1,16 +1,25 @@
-# loki.yml - Single instance configuration
+# loki.yml - Single instance configuration with proper paths
 
 auth_enabled: false
 
 server:
   http_listen_port: 3100
-  grpc_listen_port: 9096
-
 # Use memberlist for single instance
 memberlist:
   join_members: []
 
+# Common path configuration
+common:
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
 ingester:
+  wal:
+    enabled: true
+    dir: /loki/wal
   lifecycler:
     ring:
       kvstore:
@@ -45,9 +54,14 @@ storage_config:
   tsdb_shipper:
     active_index_directory: /loki/index
     cache_location: /loki/index_cache
-    shared_store: filesystem
   filesystem:
     directory: /loki/chunks
+
+# Compactor configuration
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: false
 
 pattern_ingester:
   enabled: true
