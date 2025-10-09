@@ -72,7 +72,7 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=vmlc-backend_staging"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_staging"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls=true"
