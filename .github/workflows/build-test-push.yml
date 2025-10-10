@@ -23,7 +23,8 @@ jobs:
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       - name: Extract metadata
         id: meta
@@ -40,24 +41,24 @@ jobs:
           load: true # Load to local Docker daemon for testing
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
-      
+            
       - name: Run tests
         run: |
-          docker network create test-network; \
-          docker build . --target test -t vmlc-backend:test && \
+          docker network create test-network
           docker run -d --rm \
             -e POSTGRES_USER=testuser \
             -e POSTGRES_PASSWORD=testpassword \
             -e POSTGRES_DB=testdb \
             --network test-network \
             --name db \
-            postgres:17.2-bookworm && \
-          sleep 5 && \
+            postgres:17.2-bookworm
+          sleep 10
           docker run --rm \
             --network test-network \
-            docker run --rm ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
-            sh -c "python manage.py migrate --no-input && python manage.py test --noinput --keepdb" ; \
-          docker stop db && \
+            --entrypoint "" \
+            ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
+            sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
+          docker stop db
           docker network rm test-network
         timeout-minutes: 10
 
