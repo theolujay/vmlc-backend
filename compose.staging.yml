@@ -16,6 +16,8 @@ x-app-base: &app-base
   volumes:
     - staging_media:/home/verboheit/web/media
     - staging_static:/home/verboheit/web/staticfiles
+  labels:
+    - "com.centurylinklabs.watchtower.enable=true"
   env_file: staging.env
   restart: unless-stopped
   depends_on:
@@ -216,7 +218,6 @@ services:
       - "traefik.http.routers.web.tls.certresolver=le"
       - "traefik.http.routers.web.tls=true"
       - "traefik.http.services.web.loadbalancer.server.port=8000"
-      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
       interval: 45s
