@@ -37,6 +37,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: test
           tags: ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }}
           load: true # Load to local Docker daemon for testing
           cache-from: type=local,src=/tmp/.buildx-cache
