@@ -2,6 +2,12 @@
 
 auth_enabled: false
 
+distributor:
+  otlp:
+    protocols:
+      http:
+        enabled: true
+        
 server:
   http_listen_port: 3100
 # Use memberlist for single instance

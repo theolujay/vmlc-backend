@@ -16,9 +16,7 @@ exporters:
       enabled: true
 
   otlphttp/logs:
-    endpoint: http://loki/otlp
-    tls:
-      insecure: true
+    endpoint: http://loki:3100/otlp
 
   otlphttp/tempo:
     endpoint: http://tempo:4318
