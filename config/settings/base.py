@@ -9,12 +9,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("The SECRET_KEY environment variable is not set.")
-
-
 AUTH_USER_MODEL = "vmlc.User"
 APPEND_SLASH = True
 # Grouping apps by origin (Django, third-party, local) improves clarity.

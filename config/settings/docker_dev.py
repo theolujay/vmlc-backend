@@ -16,6 +16,10 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("The SECRET_KEY environment variable is not set.")
+
 from .base import *
 
 DEBUG = True
@@ -107,7 +111,7 @@ CORS_ALLOW_HEADERS = [
 
 ADMINS = [
     ("Olujay", "olujay.dev@gmail.com"),
-    # ("Verboheit", "verboheit@gmail.com"),
+    # ("Verboheit Consulting", "verboheitconsulting@gmail.com"),
 ]
 
 EMAIL_SUBJECT_PREFIX = "[VMLC Portal]"

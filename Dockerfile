@@ -20,9 +20,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN groupadd --system --gid 5000 verboheit && \
-    useradd --system --uid 5000 --gid verboheit --home /home/verboheit --create-home verboheit
-    
 WORKDIR /home/verboheit/build
 ENV UV_CACHE_DIR=/tmp/uv-cache
 RUN pip install --no-cache-dir uv==${UV_VERSION}
@@ -67,28 +64,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     TERM=xterm-256color \
     PATH="/home/verboheit/build/.venv/bin:${PATH}"
 
-RUN groupadd --system --gid 999 verboheit && \
-    useradd --system --uid 999 --gid verboheit --home /home/verboheit --create-home verboheit
-
-COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
-
-USER verboheit
-WORKDIR /home/verboheit/web
-
-COPY --chown=verboheit:verboheit . .
-
-RUN mkdir -p media staticfiles && \
-    chmod -R 755 media staticfiles & \
-    chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
-
-EXPOSE 8000
-
+RUN groupadd --system --gid 5000 verboheit && \
+    useradd --system --uid 5000 --gid verboheit --home /home/verboheit --create-home verboheit
 # ==========================================================================
 # Development
 # ==========================================================================
 FROM base AS development
-USER root
 
+COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 RUN apt-get update && \
@@ -111,24 +94,64 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     DEBUG=1 \
     PYTHONOPTIMIZE=0
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["daphne", "-b 0.0.0.0", "-p 8000", "config.asgi:application"]
-# ==========================================================================
-# Staging
-# ==========================================================================
-FROM base AS staging
+WORKDIR /home/verboheit/web
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
-    PYTHONOPTIMIZE=2 \
-    SERVER_SOFTWARE=
+USER root
 
+COPY --chown=verboheit:verboheit . .
+USER verboheit
+WORKDIR /home/verboheit/web
+
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles & \
+    chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+EXPOSE 8000
 ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/runserver.sh"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+# ==========================================================================
+# Test
+# ==========================================================================
+FROM base AS test
+USER root
+COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
+
+USER verboheit
+COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
+ENV UV_PROJECT_ENVIRONMENT=/home/verboheit/build/.venv
+RUN uv sync --frozen --no-cache --group test
+ENV DJANGO_SETTINGS_MODULE=config.settings.test
+WORKDIR /home/verboheit/web
+
+USER root
+
+COPY --chown=verboheit:verboheit . .
+USER verboheit
+WORKDIR /home/verboheit/web
+
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles & \
+    chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+EXPOSE 8000
 # ==========================================================================
 # Production
 # ==========================================================================
-FROM base AS production
+FROM base AS staging
+COPY --from=builder --chown=verboheit:verboheit /home/verboheit/build/.venv /home/verboheit/build/.venv
 
+WORKDIR /home/verboheit/web
+
+USER root
+
+COPY --chown=verboheit:verboheit . .
+USER verboheit
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles & \
+    chmod +x ./scripts/entrypoint.sh ./scripts/runserver.sh
+
+EXPOSE 8000
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE= \
@@ -140,3 +163,12 @@ CMD ["./scripts/runserver.sh"]
 LABEL version="0.3.3" \
       description="Backend service for the Verboheit Mathematics League Competition." \
       maintainer="Joseph Ezekiel <theolujay@gmail.com>"
+# ==========================================================================
+# Staging
+# ==========================================================================
+FROM staging AS production
+
+ENV DJANGO_SETTINGS_MODULE=config.settings.staging
+
+ENTRYPOINT ["./scripts/entrypoint.sh"]
+CMD ["./scripts/runserver.sh"]

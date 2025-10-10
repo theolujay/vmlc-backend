@@ -96,7 +96,7 @@ ipython_config.py
 
 # Project Specific - Development Data
 dev_data/
-vmlc/tests/
+
 models_erd.*
 fly.toml
 credentials.txt

@@ -1,24 +1,19 @@
 
-import boto3
-from moto import mock_aws
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 
 from vmlc.models import Staff, UserVerification
-from vmlc.models import Candidate, Exam, Question, Staff, UserVerification
-from comms.models import Broadcast, BroadcastLog
+from vmlc.models import Staff, UserVerification
 
 User = get_user_model()
 
 from rest_framework_api_key.models import APIKey
 
-from vmlc.models import FeatureFlag
 
 class BroadcastTest(APITestCase):
-    
+
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)
@@ -33,7 +28,7 @@ class BroadcastTest(APITestCase):
         self.client.force_authenticate(user=self.staff_user)
 
     def test_create_broadcast(self):
-        url = reverse('comms:broadcast')
+        url = reverse('comms:broadcast-list-create')
         data = {
             "subject": "Test Subject",
             "message": "Test message...",
@@ -44,7 +39,7 @@ class BroadcastTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_list_broadcast(self):
-        url = reverse('comms:broadcast')
+        url = reverse('comms:broadcast-list-create')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         

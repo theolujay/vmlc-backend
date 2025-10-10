@@ -15,6 +15,10 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="pycparser")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "prod.env")
 
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("The SECRET_KEY environment variable is not set.")
+
 from .base import *
 
 DEBUG = os.getenv("DEBUG").lower() == "true"

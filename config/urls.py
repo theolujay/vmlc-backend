@@ -78,7 +78,6 @@ urlpatterns = [
     # === Docs ===
     path("docs/", include(docs_urlpatterns)),
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
-    path("", include('django_prometheus.urls')),
 ]
 
 if settings.DEBUG:
