@@ -120,7 +120,7 @@ FROM base AS test
 USER root
 
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
-
+USER verboheit
 COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
 ENV UV_PROJECT_ENVIRONMENT=/home/verboheit/build/.venv
 RUN uv sync --frozen --no-cache --group test
