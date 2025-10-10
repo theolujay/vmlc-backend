@@ -15,13 +15,20 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
 
-  otlphttp/logs:
-    endpoint: http://loki:3100/otlp
+  otlphttp/loki:
+    endpoint: http://loki:3100/
+    tls:
+      insecure: true
 
   otlphttp/tempo:
     endpoint: http://tempo:4318
     tls:
       insecure: true
+
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
 
 service:
   pipelines:
@@ -33,9 +40,14 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/logs]
+      exporters: [otlphttp/loki, debug]
     
     traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/tempo]
+
+  telemetry:
+    logs:
+      level: debug
+
