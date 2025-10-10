@@ -6,8 +6,11 @@ on:
       - 'release/**'
 
 jobs:
-  build-test-push:
+ build-test-push:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write 
 
     steps:
       - name: Checkout source code
