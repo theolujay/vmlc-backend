@@ -1,75 +1,75 @@
-# include:
-#   - compose.observability.yml
+x-prod-security: &prod-security
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
+  security_opt:
+    - no-new-privileges:true
 
-x-prod-base: &prod-base
-  image: ghcr.io/verboheit/vmlc-backend:prod
+x-vmlc-common: &vmlc-common
   volumes:
     - prod_media:/home/verboheit/web/media
     - prod_static:/home/verboheit/web/staticfiles
   env_file: prod.env
-  restart: unless-stopped
-  depends_on:
-    db:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
   networks:
     - prod
   dns:
     - 8.8.8.8
     - 8.8.4.4
+  <<: *prod-security
 
 x-prod-otel-env: &prod-otel-env
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_prod
-  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
-  OTEL_TRACES_SAMPLER_ARG: "0.05"  # Sample 5% of traces in prod (lower overhead)
+  OTEL_TRACES_SAMPLER_ARG: "0.1"  # Sample 10% of traces to reduce overhead
 
 services:
-  watchtower:
-    image: containrrr/watchtower
-    container_name: prod_watchtower
-    command:
-      - "--label-enable"
-      - "--interval"
-      - "30"
-      - "--rolling-restart"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ~/.docker/config.json:/config.json:ro
-    environment:
-      - DOCKER_CONFIG=/
-    networks:
-      - prod
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-          cpus: '0.05'
+  # watchtower:
+    # image: containrrr/watchtower
+    # command:
+    #   - "--label-enable"
+    #   - "--interval"
+    #   - "30"
+    #   - "--rolling-restart"
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock:ro
+    #   - ~/.docker/config.json:/config.json:ro
+    # environment:
+    #   - DOCKER_CONFIG=/
+    # networks:
+    #   - prod
+    # restart: unless-stopped
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 128M
+    #       cpus: '0.05'
+    #     reservations:
+    #       memory: 50M
+    #       cpus: '0.02'
 
   traefik:
     image: traefik:v3.5.3
-    container_name: prod_traefik
     command:
       - "--api.insecure=false"
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=prod"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_prod"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls=true"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--log.level=INFO"
-      - "--accesslog=true"
+      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
       - "--metrics.prometheus=false"
       - "--metrics.otlp=true"
       - "--metrics.otlp.http=true"
@@ -79,20 +79,21 @@ services:
       - "--metrics.otlp.addEntryPointsLabels=true"
       - "--metrics.otlp.addRoutersLabels=true"
       - "--metrics.otlp.addServicesLabels=true"
+      - "--tracing=true"
+      - "--tracing.serviceName=traefik"
+      - "--tracing.sampleRate=0.05"
+      - "--tracing.otlp.grpc=false"
+      - "--tracing.otlp.http=true"
+      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - prod_letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.verboheit.org`)"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=le"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=theolujay:$apr1$yvdwosdp$3/QCmJs6D7LUmDlCKjUTu/"
     networks:
       - prod
     restart: unless-stopped
@@ -101,35 +102,35 @@ services:
         limits:
           memory: 128M
           cpus: '0.1'
+        reservations:
+          memory: 50M
+          cpus: '0.05'
+    security_opt:
+      - no-new-privileges:true
 
   db:
     image: postgres:17.2-bookworm
-    container_name: prod_db
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
       -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
-      -c log_min_duration_statement=3000
+      -c log_min_duration_statement=5000
       -c max_connections=30
       -c shared_buffers=128MB
       -c effective_cache_size=384MB
+      -c work_mem=2MB
       -c maintenance_work_mem=32MB
-      -c checkpoint_completion_target=0.9
-      -c wal_buffers=4MB
-      -c default_statistics_target=100
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
-      -c work_mem=2MB
-      -c min_wal_size=512MB
-      -c max_wal_size=2GB
+      -c wal_buffers=4MB
     env_file: prod.env
     volumes:
       - prod_db:/var/lib/postgresql/data
       - ./docker/postgresql/init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -138,24 +139,24 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: '0.4'
+          cpus: '0.25'
         reservations:
-          memory: 256M
-          cpus: '0.2'
+          memory: 256MB
+          cpus: '0.15'
     networks:
       - prod
 
   redis:
     image: redis:7.2.4-alpine
-    container_name: prod_redis
     command: >
       redis-server
       --maxmemory 128mb
-      --maxmemory-policy noeviction
-      --tcp-backlog 128
-      --timeout 300
-      --tcp-keepalive 60
+      --maxmemory-policy allkeys-lru
       --loglevel warning
+      --tcp-backlog 64
+      --timeout 300
+      --save 900 1
+      --save 300 10
     volumes:
       - prod_redis:/data
     restart: unless-stopped
@@ -167,41 +168,64 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.15'
+          memory: 150M
+          cpus: '0.1'
         reservations:
-          memory: 64M
-          cpus: '0.075'
+          memory: 75M
+          cpus: '0.05'
     networks:
       - prod
 
-  web:
-    <<: *prod-base
-    command: >
-      opentelemetry-instrument
-      --traces_exporter otlp
-      --metrics_exporter otlp
-      ./scripts/runserver.sh
-    environment:
-      <<: *prod-otel-env
+  migrate:
+    <<: *vmlc-common
+    image: &vmlcImage ghcr.io/verboheit/vmlc-backend:prod
+    pull_policy: always
+    entrypoint: ""
+    command: ["./scripts/runmigrations.sh"]
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-      otel-collector:
-        condition: service_started
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: "no"
+    deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+
+  web:
+    <<: *vmlc-common
+    image: *vmlcImage
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - ./scripts/runserver.sh
+    environment:
+      <<: *prod-otel-env
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=web
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+        restart: true
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web-http.rule=Host(`api.verboheit.org`)"
-      - "traefik.http.routers.web-http.entrypoints=web"
-      - "traefik.http.routers.web-http.middlewares=redirect-to-https"
       - "traefik.http.routers.web.rule=Host(`api.verboheit.org`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=le"
       - "traefik.http.routers.web.tls=true"
       - "traefik.http.services.web.loadbalancer.server.port=8000"
-      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
       interval: 45s
@@ -210,64 +234,215 @@ services:
       start_period: 60s
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       resources:
         limits:
-          memory: 640M
-          cpus: '0.6'
+          memory: 512M
+          cpus: '0.25'
         reservations:
-          memory: 320M
-          cpus: '0.3'
+          memory: 256M
+          cpus: '0.2'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
   celery_worker:
-    <<: *prod-base
-    container_name: prod_celery_worker
-    command: >
-      opentelemetry-instrument
-      --traces_exporter otlp
-      --metrics_exporter otlp
-      celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=500 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
+    <<: *vmlc-common
+    image: *vmlcImage
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - warning
+      - --concurrency=2
+      - --max-tasks-per-child=100
+      - --time-limit=300
+      - -Q
+      - default,emails,comms,scoring,files,reports,cache
     environment:
       <<: *prod-otel-env
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=celery_worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+        restart: true
     healthcheck:
       test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
-      interval: 90s
-      timeout: 10s
+      interval: 120s
+      timeout: 20s
       retries: 3
       start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.4'
+          memory: 384M
+          cpus: '0.15'
         reservations:
-          memory: 256M
-          cpus: '0.2'
+          memory: 192M
+          cpus: '0.075'
 
   celery_beat:
-    <<: *prod-base
-    container_name: prod_celery_beat
+    <<: *vmlc-common
+    image: *vmlcImage
+    entrypoint: ./scripts/entrypoint.sh
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+        restart: true
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     deploy:
       resources:
         limits:
-          memory: 192M
-          cpus: '0.15'
+          memory: 256M
+          cpus: '0.05'
         reservations:
-          memory: 96M
-          cpus: '0.075'
+          memory: 50M
+          cpus: '0.03'
 
-volumes:
-  prod_letsencrypt:
-  prod_db:
-  prod_redis:
-  prod_media:
-  prod_static:
-  
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel/config.yml"]
+    volumes:
+      - ./otel.yml:/etc/otel/config.yml:ro
+    ports:
+      - "4318:4318"
+    networks:
+      - prod
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - prometheus
+      - tempo
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.1'
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+      - '--web.enable-remote-write-receiver'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prod_prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - prod
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.1'
+
+  loki:
+    image: grafana/loki:latest
+    volumes:
+      - ./loki.yml:/etc/loki/local-config.yaml
+      - prod_loki:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - prod
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.1'
+
+  tempo:
+    image: grafana/tempo:latest
+    volumes:
+      - ./tempo.yml:/etc/tempo/tempo-local.yaml:ro
+      - prod_tempo:/tmp/tempo
+    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
+    ports:
+      - "3200:3200"
+    networks:
+      - prod
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.1'
+
+  grafana:
+    image: grafana/grafana:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    environment:
+      - GF_SERVER_ROOT_URL=https://ops.verboheit.org
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+      - GF_PLUGINS_DISABLE_INSTALLATION=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_UPDATE_CHECK_FOR_UPDATES=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - prod_grafana:/var/lib/grafana
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - prod
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
+
 networks:
   prod:
     external: true
     name: ${COMPOSE_PROJECT_NAME}_prod
+
+volumes:
+  prod_db:
+  prod_redis:
+  prod_media:
+  prod_static:
+  prod_loki:
+  prod_tempo:
+  prod_grafana:
+  prod_prometheus:
+  prod_letsencrypt:
 
 secrets:
   AWS_ACCESS_KEY_ID:

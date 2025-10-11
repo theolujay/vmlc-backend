@@ -96,13 +96,16 @@ ipython_config.py
 
 # Project Specific - Development Data
 dev_data/
-
+grafana/
+logs/
+requirements.txt
+data/
+.python-version
 models_erd.*
 fly.toml
 credentials.txt
-otel-collector-config.yaml
-prometheus.yml
-render.yaml
+*.yml
+*.yaml
 prod_*/
 
 # CI/CD
