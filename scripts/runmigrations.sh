@@ -2,6 +2,14 @@
 
 set -euo pipefail
 
+# If running as root, fix permissions and re-execute as the correct user
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[INFO] Running as root, fixing volume permissions..."
+    chown -R verboheit:verboheit /home/verboheit/web/media /home/verboheit/web/staticfiles
+    # Use exec to replace the current process with the new one
+    exec gosu verboheit "$0" "$@"
+fi
+
 log_info() {
     echo -e "[INFO] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
 }
