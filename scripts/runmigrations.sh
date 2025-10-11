@@ -2,13 +2,13 @@
 
 set -euo pipefail
 
-# If running as root, fix permissions and re-execute as the correct user
-if [ "$(id -u)" -eq 0 ]; then
-    echo "[INFO] Running as root, fixing volume permissions..."
-    chown -R verboheit:verboheit /home/verboheit/web/media /home/verboheit/web/staticfiles
-    # Use exec to replace the current process with the new one
-    exec gosu verboheit "$0" "$@"
-fi
+# # If running as root, fix permissions and re-execute as the correct user
+# if [ "$(id -u)" -eq 0 ]; then
+#     echo "[INFO] Running as root, fixing volume permissions..."
+#     chown -R verboheit:verboheit /home/verboheit/web/media /home/verboheit/web/staticfiles
+#     # Use exec to replace the current process with the new one
+#     exec gosu verboheit "$0" "$@"
+# fi
 
 log_info() {
     echo -e "[INFO] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
@@ -30,11 +30,11 @@ trap cleanup SIGTERM SIGINT SIGQUIT SIGHUP
 
 
 security_check() {
-    # if [[ "$(id -u)" -eq 0 ]]; then
-    #     log_error "Security violation: Container is running as root user!"
-    #     log_error "This is a serious security risk. Exiting..."
-    #     exit 1 # '1' mark as failure
-    # fi
+    if [[ "$(id -u)" -eq 0 ]]; then
+        log_error "Security violation: Container is running as root user!"
+        log_error "This is a serious security risk. Exiting..."
+        exit 1 # '1' mark as failure
+    fi
 
     # Verify we're running as the expected non-root user
     local current_user

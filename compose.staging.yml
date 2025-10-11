@@ -180,7 +180,6 @@ services:
     <<: *vmlc-common
     image: &vmlcImage ghcr.io/verboheit/vmlc-backend:staging
     pull_policy: always
-    user: root
     entrypoint: ""
     command: ["./scripts/runmigrations.sh"]
     depends_on:
