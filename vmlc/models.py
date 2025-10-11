@@ -108,9 +108,9 @@ def validate_id_card_file(value):
             f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 2MB.")
+    # Check file size (max 10MB)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("File size cannot exceed 10MB.")
 
 
 def validate_profile_photo(
@@ -127,9 +127,9 @@ def validate_profile_photo(
             f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB for images)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Image size cannot exceed 2MB.")
+    # Check file size (max 10MB for images)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 10MB.")
 
 
 def validate_document_file(value):
@@ -144,9 +144,9 @@ def validate_document_file(value):
             f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB for documents)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 2MB.")
+    # Check file size (max 10MB for documents)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 10MB.")
 
 
 class UserVerification(ExportModelOperationsMixin('user_verification'), models.Model):
