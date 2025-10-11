@@ -49,6 +49,9 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     scores: serializers.SerializerMethodField = serializers.SerializerMethodField(
         help_text="Detailed score breakdown for the candidate."
     )
+    profile_photo = serializers.SerializerMethodField()
+    id_card = serializers.SerializerMethodField()
+    verification_document = serializers.SerializerMethodField()
 
     class Meta:
         model: Candidate = Candidate

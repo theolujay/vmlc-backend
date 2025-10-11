@@ -72,6 +72,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
 
         # Mark email as verified
         user.is_email_verified = True
+        user.is_active = True
         user.save()
 
         # Invalidate the OTP (mark as expired instead of deleting for audit)

@@ -41,6 +41,9 @@ class StaffDetailSerializer(serializers.ModelSerializer):
     """
 
     user = UserSerializer(read_only=True)
+    profile_photo = serializers.SerializerMethodField()
+    id_card = serializers.SerializerMethodField()
+    verification_document = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff

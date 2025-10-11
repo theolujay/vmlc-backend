@@ -58,6 +58,23 @@ DATABASES = {
     "default": db_config
 }
 
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "anon": "1000/day",  # Unauthenticated
+    "user": "100000/day",  # Authenticated users
+    "login": "500/min",  # Login endpoint
+    "burst": "1000/min",  # For sensitive or POST-heavy endpoints
+    "sustained": "1000000/hour",  # For sustained traffic
+}
+
+SIMPLE_JWT.update(
+    {
+        "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
+        "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+        "ROTATE_REFRESH_TOKENS": True,
+    }
+)
+
+
 # === AWS S3 CONFIGURATION ===
 REQUIRED_AWS_VARS = [
     "AWS_ACCESS_KEY_ID",
