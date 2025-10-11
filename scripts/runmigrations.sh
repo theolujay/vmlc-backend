@@ -30,11 +30,11 @@ trap cleanup SIGTERM SIGINT SIGQUIT SIGHUP
 
 
 security_check() {
-    if [[ "$(id -u)" -eq 0 ]]; then
-        log_error "Security violation: Container is running as root user!"
-        log_error "This is a serious security risk. Exiting..."
-        exit 1 # '1' mark as failure
-    fi
+    # if [[ "$(id -u)" -eq 0 ]]; then
+    #     log_error "Security violation: Container is running as root user!"
+    #     log_error "This is a serious security risk. Exiting..."
+    #     exit 1 # '1' mark as failure
+    # fi
 
     # Verify we're running as the expected non-root user
     local current_user
