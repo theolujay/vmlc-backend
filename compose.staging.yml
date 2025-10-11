@@ -276,7 +276,7 @@ services:
     environment:
       <<: *staging-otel-env
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
-    restart: unless-
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
     depends_on:
