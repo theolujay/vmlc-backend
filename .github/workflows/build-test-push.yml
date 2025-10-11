@@ -3,7 +3,7 @@ name: CI/CD - VMLC Backend App w/Docker
 on:
   push:
     branches:
-      - 'release/**'
+      - 'release'
 
 jobs:
  build-test-push:
