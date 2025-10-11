@@ -118,7 +118,6 @@ services:
 
   migrate:
     <<: *app-base
-    pull_policy: always
     image: &vmlcImage vmlc-backend:dev
     build:
       context: .
@@ -162,6 +161,8 @@ services:
       migrate:
         condition: service_completed_successfully
         restart: true
+      otel-collector:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`dev-api.localhost`)"
@@ -215,6 +216,8 @@ services:
       migrate:
         condition: service_completed_successfully
         restart: true
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
       interval: 20s
@@ -246,10 +249,16 @@ services:
     networks:
       - dev
     restart: unless-stopped
-    depends_on:
-      - loki
-      - prometheus
-      - tempo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:13133"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # depends_on:
+    #   - loki
+    #   - prometheus
+    #   - tempo
 
   prometheus:
     image: prom/prometheus:latest
