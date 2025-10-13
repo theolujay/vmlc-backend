@@ -77,6 +77,7 @@ urlpatterns = [
     path("", include(comms_urlpatterns)),
     # === Docs ===
     path("docs/", include(docs_urlpatterns)),
+    path("v1/docs/spec/", RedirectView.as_view(url="https://vmlc-api.readthedocs.io/latest", permanent=False), name="api-spec-redirect"),
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
 ]
 

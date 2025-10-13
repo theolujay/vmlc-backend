@@ -50,7 +50,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     list_display = [
         "user",
         "verification_status",
-        "has_profile_photo",
+        "has_face_id",
         "has_id_card",
         "has_verification_document",
         "date_created",
@@ -66,7 +66,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {"fields": ("user", "is_pending", "is_verified")}),
-        ("Files", {"fields": ("profile_photo", "id_card", "verification_document")}),
+        ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
             {"fields": ("date_created", "date_updated"), "classes": ("collapse",)},
@@ -80,12 +80,12 @@ class UserVerificationAdmin(admin.ModelAdmin):
             return format_html('<span style="color: green;">✓ Verified</span>')
         elif obj.is_pending:
             return format_html('<span style="color: orange;">⏳ Pending</span>')
-        else:
+        elif obj.is_rejected:
             return format_html('<span style="color: red;">❌ Rejected</span>')
 
     @admin.display(description="Photo", boolean=True)
-    def has_profile_photo(self, obj):
-        return bool(obj.profile_photo)
+    def has_face_id(self, obj):
+        return bool(obj.face_id)
 
     @admin.display(description="ID", boolean=True)
     def has_id_card(self, obj):
