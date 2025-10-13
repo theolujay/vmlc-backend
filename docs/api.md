@@ -500,7 +500,7 @@ X-Api-Key: <your_api_key>
     "date_joined": "2024-01-15T10:30:00Z"
   },
   "school": "Mathematics High School",
-  "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
+  "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
   "role": "league",
   "is_active": true,
   "is_verified": true,
@@ -661,7 +661,7 @@ X-Api-Key: <your_api_key>
     "date_joined": "2024-01-01T08:00:00Z"
   },
   "occupation": "Mathematics Teacher",
-  "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/jane_smith.jpg",
+  "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",
   "is_active": true,
   "is_verified": true,
@@ -1136,8 +1136,7 @@ X-Api-Key: <your_api_key>
     "school": "Real Harvard Law",
     "role": "Screening",
     "is_verified": false,
-    "date_joined": "2024-01-15T10:30:00Z",
-    "profile_photo": "https://vmlc.s3.amazonaws.com/candidate_profile_photos/8.jpg"
+    "date_joined": "2024-01-15T10:30:00Z"
   },
   "exam_stats": {
     "total_exams_taken": 3,
@@ -1191,8 +1190,7 @@ X-Api-Key: <your_api_key>
     "role": "Moderator",
     "occupation": "Automation Engineer",
     "is_verified": true,
-    "date_joined": "2024-01-01T08:00:00Z",
-    "profile_photo": "https://vmlc.s3.amazonaws.com/staff_profile_photos/7.jpg"
+    "date_joined": "2024-01-01T08:00:00Z"
   },
   "candidates": {
     "total": 150,
@@ -1240,6 +1238,27 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
+
+<!-- ### Scoring & Submissions -->
+
+<!-- #### Publish Scores
+
+This endpoint works in hand with the scores displayed in candidates' dashboards. Candidates only see last "published scores" and only see the latest (i.e. exams they recently took) after it's **published** via this endpoint.
+
+**Endpoint:** `POST /publish-scores/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin` or higher  
+**Request Body:** empty (just a POST signal is required)
+**Response:** `200 OK`
+```json
+{
+  "message": "Scores snapshot generation has been started and will be available shortly.
+}
+```
+*Note: This endpoint will trigger an asynchronous task to publish the scores (to candidates' dashboards).* -->
 
 ---
 
@@ -1381,7 +1400,7 @@ The API returns a consistent JSON object with a `status` field that indicates th
           "date_created": "2025-09-01T10:00:00Z",
           "date_updated": "2025-09-01T10:00:00Z",
           "documents_uploaded": {
-              "profile_photo": true,
+              "face_id": true,
               "id_card": true,
               "verification_document": true
           }
@@ -1417,7 +1436,7 @@ Content-Type: multipart/form-data
 ```
 
 **Form Data:**
-- `profile_photo` (file): Your profile picture (max 2MB, JPG/JPEG/PNG).
+- `face_id` (file): Your profile picture (max 2MB, JPG/JPEG/PNG).
 - `id_card` (file): A valid identification document (max 2MB, JPG/JPEG/PNG/PDF).
 - `verification_document` (file): Additional verification document (max 2MB, PDF/DOC/DOCX/JPG/JPEG/PNG).
 
@@ -1427,7 +1446,7 @@ Content-Type: multipart/form-data
     "detail": "Documents uploaded successfully. Validation is in progress.",
     "verification_data": {
         "status": "pending_validation",
-        "has_profile_photo": true,
+        "has_face_id": true,
         "has_id_card": true,
         "has_verification_document": true
     }
@@ -1456,7 +1475,7 @@ X-Api-Key: <your_api_key>
 - `manager` or higher to access another user's documents.
 
 **URL Parameters:**
-- `file_type` (string): `id_card`, `verification_document`, or `profile_photo`.
+- `file_type` (string): `id_card`, `verification_document`, or `face_id`.
 - `user_id` (uuid, optional): The ID of the user whose document to access (required for managers or higher accessing other users' documents).
 
 **Successful Response:**
@@ -1492,7 +1511,7 @@ X-Api-Key: <your_api_key>
         "is_pending": true,
         "is_verified": false,
         "is_rejected": false,
-        "has_profile_photo": true,
+        "has_face_id": true,
         "has_id_card": true,
         "has_verification_document": false,
         "date_created": "2025-08-30T16:33:19Z"
@@ -1570,7 +1589,7 @@ X-Api-Key: <your_api_key>
       "date_joined": "2024-01-15T10:30:00Z"
     },
     "school": "Mathematics High School",
-    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
+    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
     "is_verified": true,
@@ -1618,7 +1637,7 @@ X-Api-Key: <your_api_key>
       "date_joined": "2024-01-01T08:00:00Z"
     },
     "occupation": "Mathematics Teacher",
-    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/jane_smith.jpg",
+    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
     "role": "moderator",
     "is_active": true,
     "is_verified": true,
@@ -1667,7 +1686,7 @@ X-Api-Key: <your_api_key>
       "date_joined": "2024-01-15T10:30:00Z"
     },
     "school": "New High School",
-    "profile_photo": "https://vmlc.s3.amazonaws.com/profile_photos/john_doe.jpg",
+    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
     "is_verified": true,
@@ -1996,6 +2015,9 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+### Version 0.3.3
+- **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
+
 ### Version 0.3.2
 - **Registration**: Now takes flat rather than nested structure.
 - **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.

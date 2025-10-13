@@ -156,10 +156,10 @@ class UserVerificationStatusView(APIView):
         operation_description="Upload verification documents for the authenticated user.",
         manual_parameters=[
             openapi.Parameter(
-                'profile_photo',
+                'face_id',
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
-                description="Profile photo",
+                description="Face ID",
                 required=True,
             ),
             openapi.Parameter(
@@ -197,10 +197,10 @@ class UserVerificationStatusView(APIView):
         operation_description="Update verification documents for the authenticated user.",
         manual_parameters=[
             openapi.Parameter(
-                'profile_photo',
+                'face_id',
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
-                description="Profile photo",
+                description="Face ID",
             ),
             openapi.Parameter(
                 'id_card',
@@ -285,7 +285,7 @@ class UserVerificationUploadView(APIView):
                     "detail": "Documents uploaded successfully. Validation is in progress.",
                     "verification_data": {
                         "status": "pending_validation",
-                        "has_profile_photo": bool(verification.profile_photo),
+                        "has_face_id": bool(verification.face_id),
                         "has_id_card": bool(verification.id_card),
                         "has_verification_document": bool(
                             verification.verification_document
@@ -343,7 +343,7 @@ class UserVerificationUploadView(APIView):
                     "detail": "Verification data updated successfully. Validation is in progress.",
                     "verification_data": {
                         "status": "pending_validation",
-                        "has_profile_photo": bool(verification.profile_photo),
+                        "has_face_id": bool(verification.face_id),
                         "has_id_card": bool(verification.id_card),
                         "has_verification_document": bool(
                             verification.verification_document
@@ -477,8 +477,8 @@ class UserVerificationDocumentView(APIView):
         elif file_type == "verification_document":
             file = verification.verification_document
             storage_prefix = "media/private"  # PrivateMediaStorage
-        elif file_type == "profile_photo":
-            file = verification.profile_photo
+        elif file_type == "face_id":
+            file = verification.face_id
             storage_prefix = "media/public"  # PublicMediaStorage
         else:
             logger.error(f"Invalid file type: {file_type}")

@@ -244,14 +244,14 @@ def validate_user_verification_files_task(user_verification_id):
     try:
         verification = UserVerification.objects.get(pk=user_verification_id)
 
-        # Validate profile photo
-        if verification.profile_photo:
-            _validate_file_size(verification.profile_photo, 2, "Profile photo")
+        # Validate face ID
+        if verification.face_id:
+            _validate_file_size(verification.face_id, 2, "face ID")
             allowed_types = ["image/jpg", "image/jpeg", "image/png"]
             _validate_file_type(
-                verification.profile_photo, allowed_types, "Profile photo"
+                verification.face_id, allowed_types, "face ID"
             )
-            _validate_image_file(verification.profile_photo, "profile photo")
+            _validate_image_file(verification.face_id, "face ID")
 
         # Validate ID card
         if verification.id_card:

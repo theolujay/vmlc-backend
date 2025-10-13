@@ -9,7 +9,22 @@ import vmlc.storage_backends
 from django.conf import settings
 from django.db import migrations, models
 
+def validate_profile_photo(
+    value,
+):
+    """Validate profile photo file"""
+    if not value:
+        return
 
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+        )
+
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 10MB.")
 class Migration(migrations.Migration):
 
     initial = True
@@ -456,7 +471,7 @@ class Migration(migrations.Migration):
                         null=True,
                         storage=vmlc.storage_backends.PublicMediaStorage(),
                         upload_to="profile_photos/",
-                        validators=[vmlc.models.validate_profile_photo],
+                        validators=[validate_profile_photo],
                     ),
                 ),
                 (
