@@ -67,7 +67,7 @@ class StaffMeView(RetrieveAPIView):
         """
         Return the staff profile for the currently authenticated user.
         """
-        data = Staff.objects.get(self.request.user)
+        data = Staff.objects.get(user=self.request.user)
         return data
 
 

@@ -70,7 +70,8 @@ class CandidateMeView(RetrieveAPIView):
         """
         Returns a structured data payload for the authenticated candidate.
         """
-        return self.request.user.candidate_profile
+        data = Candidate.objects.get(user=self.request.user)
+        return data
 
 
 @method_decorator(
