@@ -56,7 +56,6 @@ dependencies = [
     "django-filter==25.1",
     # Monitoring & Observability
     "django-health-check==3.20.0",
-    "django-prometheus==2.4.1",
     "prometheus-client==0.22.1",
     # OpenTelemetry Core
     "opentelemetry-api==1.37.0",
