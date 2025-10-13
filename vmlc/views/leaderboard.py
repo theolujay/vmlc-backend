@@ -52,12 +52,13 @@ class PublishLeaderboardView(APIView):
         """
         Triggers an asynchronous task to generate and publish the leaderboard.
         """
-        from ..tasks import generate_leaderboard_snapshot_task
+        from ..tasks import generate_scores_snapshot_task, generate_leaderboard_snapshot_task
 
         staff_id = request.user.staff_profile.pk
         logger.info(
             f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
+        generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 
         logger.info(f"Leaderboard generation triggered by staff {staff_id}")
