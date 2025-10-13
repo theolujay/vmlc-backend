@@ -164,7 +164,7 @@ class SubmitScoreView(APIView):
 class PublishScoresView(APIView):
     """
     Refreshes and publishes the scores.
-    Admin/Superadmin only.
+    Admin or higher.
     """
 
     permission_classes = VerifiedAdminPermissions

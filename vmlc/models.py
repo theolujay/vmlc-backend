@@ -130,8 +130,6 @@ def validate_face_id(
     if value.size > 10 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 10MB.")
 
-# # TODO: remove tis in the future, especially when adding a new 'profile_photo' field
-# validate_profile_photo = validate_face_id
 
 def validate_document_file(value):
     """Validate verification document file"""
