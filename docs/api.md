@@ -2017,6 +2017,7 @@ For technical support, API key requests, or questions:
 ## Changelog
 ### Version 0.3.3
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
+- **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
 
 ### Version 0.3.2
 - **Registration**: Now takes flat rather than nested structure.
