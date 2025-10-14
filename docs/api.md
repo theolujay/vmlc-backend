@@ -210,7 +210,7 @@ This is a high-level overview of the core features and users' perspectives.
 
 ### Feature: Onboarding, Email Verification & First Login
 
-```
+```gherkin
 Feature: Registration, Email verification, and initial redirect
   In order to use the platform correctly
   As a new user (candidate or staff)
@@ -244,7 +244,7 @@ Feature: Registration, Email verification, and initial redirect
 
 ### Feature: User Verification, Role Promotions & Tour Unlocking
 
-```
+```gherkin
 Feature: Verification and role promotion flow
   In order to enable role-based features and the Tour card
   As verification / admin staff
@@ -269,7 +269,7 @@ Feature: Verification and role promotion flow
 
 ### Feature: Dashboards & Role-based Access (Acceptance criteria)
 
-```
+```gherkin
 Feature: Dashboards and permissions
   So that each role only sees and does what it should
 
