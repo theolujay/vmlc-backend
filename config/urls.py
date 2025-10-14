@@ -9,10 +9,11 @@ Includes:
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from django.views.static import serve
 from rest_framework.permissions import AllowAny
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -68,6 +69,8 @@ docs_urlpatterns = [
         schema_view.with_ui("redoc", cache_timeout=0),
         name="schema-redoc",
     ),
+    path('spec/', serve, {'document_root': settings.BASE_DIR / 'docs/views', 'path': 'index.html'}),
+    re_path(r'^spec/(?P<path>.*)$', serve, {'document_root': settings.BASE_DIR / 'docs/views'}),
 ]
 
 urlpatterns = [
@@ -77,7 +80,6 @@ urlpatterns = [
     path("", include(comms_urlpatterns)),
     # === Docs ===
     path("docs/", include(docs_urlpatterns)),
-    path("v1/docs/spec/", RedirectView.as_view(url="https://vmlc-api.readthedocs.io/", permanent=False), name="api-spec-redirect"),
     path("", RedirectView.as_view(url="/docs/swagger/", permanent=False)),
 ]
 
