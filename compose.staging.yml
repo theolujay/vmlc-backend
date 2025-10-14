@@ -26,7 +26,7 @@ x-staging-otel-env: &staging-otel-env
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
-  OTEL_TRACES_SAMPLER_ARG: "0.1"  # Sample 10% of traces to reduce overhead
+  OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
 
 services:
   # watchtower:
@@ -138,10 +138,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 256M
           cpus: '0.25'
         reservations:
-          memory: 256MB
+          memory: 128M
           cpus: '0.15'
     networks:
       - staging
@@ -168,10 +168,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 150M
+          memory: 96M
           cpus: '0.1'
         reservations:
-          memory: 75M
+          memory: 48M
           cpus: '0.05'
     networks:
       - staging
@@ -294,10 +294,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '0.15'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.075'
 
   celery_beat:
@@ -340,7 +340,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 128M
           cpus: '0.1'
 
   prometheus:
@@ -365,7 +365,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 192M
           cpus: '0.1'
 
   loki:
@@ -382,7 +382,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 128M
           cpus: '0.1'
 
   tempo:
@@ -399,7 +399,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 384M
           cpus: '0.1'
 
   grafana:
@@ -433,7 +433,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
           cpus: '0.1'
 
 networks:
