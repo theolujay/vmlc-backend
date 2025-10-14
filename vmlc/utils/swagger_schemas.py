@@ -273,7 +273,7 @@ candidate_detail_response_schema = openapi.Schema(
     properties={
         'user': openapi.Schema(type=openapi.TYPE_OBJECT),
         'school': openapi.Schema(type=openapi.TYPE_STRING),
-        'profile_photo': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
+        'face_id': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'role': openapi.Schema(type=openapi.TYPE_STRING),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -567,7 +567,7 @@ staff_detail_response_schema = openapi.Schema(
     properties={
         'user': openapi.Schema(type=openapi.TYPE_OBJECT),
         'occupation': openapi.Schema(type=openapi.TYPE_STRING),
-        'profile_photo': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
+        'face_id': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'role': openapi.Schema(type=openapi.TYPE_STRING),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),

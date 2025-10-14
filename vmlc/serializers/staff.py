@@ -41,7 +41,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
     """
 
     user = UserSerializer(read_only=True)
-    profile_photo = serializers.SerializerMethodField()
+    face_id = serializers.SerializerMethodField()
     id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
 
@@ -50,7 +50,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         fields = [
             "user",
             "occupation",
-            "profile_photo",
+            "face_id",
             "role",
             "is_active",
             "is_verified",
@@ -61,13 +61,13 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["date_created", "date_updated", "user"]
         
-    def get_profile_photo(self, obj: Staff):
+    def get_face_id(self, obj: Staff):
         """
-        Safely returns the profile photo URL if it exists, otherwise returns None.
-        This prevents errors when a staff member hasn't uploaded a profile photo.
+        Safely returns the face ID URL if it exists, otherwise returns None.
+        This prevents errors when a staff member hasn't uploaded a face ID.
         """
-        if obj.profile_photo and hasattr(obj.profile_photo, 'url'):
-            return obj.profile_photo.url
+        if obj.face_id and hasattr(obj.face_id, 'url'):
+            return obj.face_id.url
         return None
     def get_verification_document(self, obj: Staff):
         """

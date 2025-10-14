@@ -205,19 +205,19 @@ urlpatterns = [
     # =============================================================================
     # SCORING & RESULTS
     # =============================================================================
-    path(
-        "publish-scores/",
-        PublishScoresView.as_view(),
-        name="publish-scores",
-    ),
+    # path(
+    #     "publish-scores/",
+    #     PublishScoresView.as_view(),
+    #     name="publish-scores",
+    # ),
     # =============================================================================
     # LEADERBOARD
     # =============================================================================
-    path(
-        "toggle-leaderboard/",
-        ToggleLeaderboardVisibilityView.as_view(),
-        name="toggle-leaderboard",
-    ),
+    # path(
+    #     "toggle-leaderboard/",
+    #     ToggleLeaderboardVisibilityView.as_view(),
+    #     name="toggle-leaderboard",
+    # ),
     path(
         "publish-leaderboard/",
         PublishLeaderboardView.as_view(),

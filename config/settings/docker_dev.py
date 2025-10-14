@@ -326,7 +326,7 @@ LOGGING = {
         "botocore": {"level": "ERROR"},  # Only errors
         "django.db.backends": {"level": "ERROR"},  # No query spam
         # Additional noise reducers
-        "django.request": {"level": "ERROR"},  # Only 4xx/5xx requests
+        "django.request": {"level": "WARNING"},  # Log 4xx responses
         "django.security": {"level": "WARNING"},  # Security warnings only
         # "asyncio": {"level": "WARNING"},        # Async noise reduction
     },

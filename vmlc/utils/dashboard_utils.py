@@ -137,9 +137,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "role": candidate.get_role_display(),
             "is_verified": candidate.is_verified,
             "date_joined": candidate.date_created,
-            "profile_photo": (
-                candidate.profile_photo.url if candidate.profile_photo else None
-            ),
+            # "face_id": (
+            #     candidate.face_id.url if candidate.face_id else None
+            # ),
         },
         "exam_stats": {
             "total_exams_taken": score_stats["total_exams_taken"],
@@ -276,7 +276,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "occupation": staff.occupation,
         "is_verified": staff.is_verified,
         "date_joined": staff.date_created,
-        "profile_photo": staff.profile_photo.url if staff.profile_photo else None,
+        # "face_id": staff.face_id.url if staff.face_id else None,
     }
 
     dashboard_data = {

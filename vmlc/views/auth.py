@@ -508,7 +508,7 @@ class LogoutView(APIView):
         manual_parameters=[api_key],
     )
     def post(self, request):
-        return self._logout(request.get("refresh_token"))
+        return self._logout(request.data.get("refresh"))
 
     def _logout(self, refresh_token):
         """

@@ -37,7 +37,6 @@ if 'test' not in sys.argv:
         "debug_toolbar",
         "django_extensions",
         "servestatic.runserver_nostatic",
-        "django.contrib.staticfiles",
         # "silk",  # SQL profiling
     ]
     MIDDLEWARE += [

@@ -12,7 +12,6 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
-from django_prometheus.models import ExportModelOperationsMixin
 
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
@@ -108,15 +107,15 @@ def validate_id_card_file(value):
             f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 2MB.")
+    # Check file size (max 10MB)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("File size cannot exceed 10MB.")
 
 
-def validate_profile_photo(
+def validate_face_id(
     value,
 ):  # TODO: swap and reconfigure for `avatar` and `face_id`
-    """Validate profile photo file"""
+    """Validate face ID file"""
     if not value:
         return
 
@@ -127,9 +126,9 @@ def validate_profile_photo(
             f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB for images)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Image size cannot exceed 2MB.")
+    # Check file size (max 10MB for images)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 10MB.")
 
 
 def validate_document_file(value):
@@ -144,12 +143,12 @@ def validate_document_file(value):
             f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 2MB for documents)
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 2MB.")
+    # Check file size (max 10MB for documents)
+    if value.size > 10 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 10MB.")
 
 
-class UserVerification(ExportModelOperationsMixin('user_verification'), models.Model):
+class UserVerification(models.Model):
     """Model for user verification data."""
 
     user = models.OneToOneField(
@@ -158,12 +157,12 @@ class UserVerification(ExportModelOperationsMixin('user_verification'), models.M
     is_pending = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
-    profile_photo = models.ImageField(
-        upload_to="profile_photos/",
+    face_id = models.ImageField(
+        upload_to="face_ids/",
         blank=True,
         null=True,
-        storage=PublicMediaStorage(),
-        validators=[validate_profile_photo],
+        storage=PrivateMediaStorage(),
+        validators=[validate_face_id],
     )
     id_card = models.FileField(
         upload_to="id_cards/",
@@ -187,10 +186,10 @@ class UserVerification(ExportModelOperationsMixin('user_verification'), models.M
         return f"Verification for {self.user.get_full_name()}"
 
     # Helper methods to get secure URLs
-    def get_profile_photo_url(self):
-        """Returns public URL for profile photo (no expiration)"""
-        if self.profile_photo:
-            return self.profile_photo.url
+    def get_face_id_url(self):
+        """Returns public URL for face ID (no expiration)"""
+        if self.face_id:
+            return self.face_id.url
         return None
 
     def get_secure_id_card_url(self):
@@ -213,7 +212,7 @@ class UserVerification(ExportModelOperationsMixin('user_verification'), models.M
         verbose_name = "User Verification"
 
 
-class EmailOTP(ExportModelOperationsMixin('email_otp'), models.Model):  # pylint: disable=too-few-public-methods
+class EmailOTP(models.Model):  # pylint: disable=too-few-public-methods
     """One-time password for email verification"""
 
     user = models.ForeignKey("User", on_delete=models.CASCADE)
@@ -230,7 +229,7 @@ class EmailOTP(ExportModelOperationsMixin('email_otp'), models.Model):  # pylint
         return f"OTP for {self.user.email}"
 
 
-class Staff(ExportModelOperationsMixin('staff'), models.Model):
+class Staff(models.Model):
     """
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
@@ -265,10 +264,10 @@ class Staff(ExportModelOperationsMixin('staff'), models.Model):
         return self.user.is_active
 
     @property
-    def profile_photo(self):
-        """Get profile photo from UserVerification with error handling"""
+    def face_id(self):
+        """Get face ID from UserVerification with error handling"""
         try:
-            return self.user.verification.profile_photo
+            return self.user.verification.face_id
         except (
             AttributeError,
             UserVerification.DoesNotExist,
@@ -319,7 +318,7 @@ class Staff(ExportModelOperationsMixin('staff'), models.Model):
         return f"{self.user.get_full_name()} ({self.role})"
 
 
-class Question(ExportModelOperationsMixin('question'), models.Model):
+class Question(models.Model):
     """
     A question belonging to one or more exams. Includes text, difficulty, and staff author.
     """
@@ -373,7 +372,7 @@ class Question(ExportModelOperationsMixin('question'), models.Model):
         return f"Q{self.id}: {self.text[:50]}..."
 
 
-class Exam(ExportModelOperationsMixin('exam'), models.Model):
+class Exam(models.Model):
     """
     Represents a collection of questions scheduled at a specific date for a stage of competition.
     """
@@ -497,7 +496,7 @@ class CandidateManager(models.Manager):
         return self.filter(role=role, user__is_active=True)
 
 
-class Candidate(ExportModelOperationsMixin('candidate'), models.Model):
+class Candidate(models.Model):
     """
     Represents a student or participant in the exam system.
     Linked to a User, assigned a role, and tracks their profile and score history.
@@ -537,10 +536,10 @@ class Candidate(ExportModelOperationsMixin('candidate'), models.Model):
         return self.user.is_active
 
     @property
-    def profile_photo(self):
-        """Get profile photo from UserVerification with error handling"""
+    def face_id(self):
+        """Get face ID from UserVerification with error handling"""
         try:
-            return self.user.verification.profile_photo
+            return self.user.verification.face_id
         except (
             AttributeError,
             UserVerification.DoesNotExist,
@@ -684,7 +683,7 @@ class Candidate(ExportModelOperationsMixin('candidate'), models.Model):
         ]
 
 
-class CandidateScore(ExportModelOperationsMixin('candidate_score'), models.Model):
+class CandidateScore(models.Model):
     """
     A score representing a candidate's performance in an exam.
 
@@ -736,7 +735,7 @@ class CandidateScore(ExportModelOperationsMixin('candidate_score'), models.Model
         self.save()
 
 
-class CandidateAnswer(ExportModelOperationsMixin('candidate_answer'), models.Model):
+class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_score = models.ForeignKey(

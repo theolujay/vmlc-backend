@@ -1,5 +1,8 @@
 # VMLC API Documentation
 
+<details>
+<summary>Table of Contents</summary>
+
 ## Table of Contents
 - [Overview](#overview)
 - [Getting Started](#getting-started)
@@ -31,36 +34,59 @@
   - [Rate Limiting](#rate-limiting)
   - [Versioning](#versioning)
 - [Support & More](#support--more)
-  - [Interactive Documentation](#interactive-documentation)
-  - [Support](#support)
-  - [Changelog](#changelog)
+  - Interactive Documentation
+  - Support
+  - Changelog
 
 ---
+</details>
+
+<details>
+<summary>Overview</summary>
 
 ## Overview
-The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the two types of users--staff and candidate
+
+The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the awo types of users--staff and candidate
 
 ---
+</details>
+
+<details>
+<summary>Getting Started</summary>
 
 ## Getting Started
 
+<details>
+<summary>Base URL</summary>
+
 ### Base URL
 
-`https://api.verboheit.org/v1/` ~ production
-`https://staging-api.verboheit.org/v1/`~ staging
+`https://api.verboheit.org/v1/` for production
+
+`https://staging-api.verboheit.org/v1/`for staging
 
 All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
 ---
+</details>
+
+<details>
+<summary>Authentication</summary>
 
 ### Authentication
+
 The API uses `X-Api-Key` for general authentication. The API key should be provided in the `X-Api-Key` header:
 
 `X-Api-Key: <your_api_key>`
 
 For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
 
+
+<details>
+<summary>Login Flow</summary>
+
 #### Login Flow
+
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
@@ -97,9 +123,20 @@ Content-Type: application/json
 }
 ```
 *Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
+</details>
+
+<details>
+<summary>Token Management</summary>
 
 #### Token Management
+
+</details>
+
+<details>
+<summary>Refresh Token</summary>
+
 ##### Refresh Token
+
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
@@ -116,8 +153,13 @@ Content-Type: application/json
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
+</details>
+
+<details>
+<summary>Logout</summary>
 
 ##### Logout
+
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
@@ -129,8 +171,17 @@ Content-Type: application/json
 **Response:** `204 No Content`
 
 ---
+</details>
+</details>
+</details>
+
+<details>
+<summary>Health & Root</summary>
 
 ## Health & Root
+
+<details>
+<summary>Health Check</summary>
 
 ### Health Check
 The health check endpoint provides a simple way to verify the API's operational status.
@@ -145,8 +196,13 @@ The health check endpoint provides a simple way to verify the API's operational 
   "timestamp": "2025-09-18T10:00:00.000000Z"
 }
 ```
+</details>
+
+<details>
+<summary>Root Endpoint</summary>
 
 ### Root Endpoint
+
 The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
 
 **Endpoint:** `GET /root/`
@@ -170,10 +226,19 @@ X-Api-Key: <your_api_key>
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>User Roles, Permissions, and API Access</summary>
 
 ## User Roles, Permissions, and API Access
 
 This table provides a detailed breakdown of each user role, its key abilities on the platform, and the primary API endpoints it has access to.
+
+
+<details>
+<summary>Candidate User Type</summary>
 
 ### Candidate User Type
 
@@ -183,6 +248,10 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
 | **`final`** | • All `league` abilities.<br>• Access to (offline) final-stage exams. | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`) |
 | **`winner`** | • Ceremonial role with all candidate permissions. Registered winner of the final stage. | • All `final` endpoints. |
+</details>
+
+<details>
+<summary>Staff User Type</summary>
 
 ### Staff User Type
 
@@ -198,16 +267,30 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
 
 **NOTE**: Users must already have their emails verified and be user-verified to perform actions beyond `get-started`.
+</details>
+
+<details>
+<summary>Role Progression</summary>
 
 #### Role Progression
+
 - **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
 - **Staff**: Roles are assigned by a `manager` or `superadmin`.
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Feature Walkthroughs and User Stories</summary>
 
 ## Feature Walkthroughs and User Stories
 
 This is a high-level overview of the core features and users' perspectives.
+
+
+<details>
+<summary>Feature: Onboarding, Email Verification & First Login</summary>
 
 ### Feature: Onboarding, Email Verification & First Login
 
@@ -242,6 +325,10 @@ Feature: Registration, Email verification, and initial redirect
     Then they are redirected to the "Get Started" page
     And the Tour card remains locked until the user is promoted to at least "moderator"
 ```
+</details>
+
+<details>
+<summary>Feature: User Verification, Role Promotions & Tour Unlocking</summary>
 
 ### Feature: User Verification, Role Promotions & Tour Unlocking
 
@@ -267,6 +354,10 @@ Feature: Verification and role promotion flow
     Then the Tour card becomes unlocked on their Get Started page
     And moderator-level navigation (candidate lists, question management) becomes available
 ```
+</details>
+
+<details>
+<summary>Feature: Dashboards & Role-based Access (Acceptance criteria)</summary>
 
 ### Feature: Dashboards & Role-based Access (Acceptance criteria)
 
@@ -312,6 +403,11 @@ Feature: Dashboards and permissions
     When they view any staff profile
     Then they can assign any staff role (except creating another superadmin)
 ```
+</details>
+
+<details>
+<summary>Endpoint mapping</summary>
+
 ### Endpoint mapping
 
 > Notes applicable to most endpoints
@@ -326,6 +422,10 @@ Feature: Dashboards and permissions
 >     
 
 ---
+</details>
+
+<details>
+<summary>Health & discovery</summary>
 
 #### Health & discovery
 
@@ -333,6 +433,10 @@ Feature: Dashboards and permissions
     
 - `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
     
+</details>
+
+<details>
+<summary>Interactive docs</summary>
 
 #### Interactive docs
 
@@ -344,6 +448,10 @@ Feature: Dashboards and permissions
     
 
 ---
+</details>
+
+<details>
+<summary>Authentication</summary>
 
 #### Authentication
 
@@ -355,6 +463,10 @@ Feature: Dashboards and permissions
     
 
 ---
+</details>
+
+<details>
+<summary>Registration</summary>
 
 #### Registration
 
@@ -364,6 +476,10 @@ Feature: Dashboards and permissions
     
 
 ---
+</details>
+
+<details>
+<summary>Email & password flows</summary>
 
 #### Email & password flows
 
@@ -384,6 +500,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>"Me" profile endpoints</summary>
 
 #### "Me" profile endpoints
 
@@ -393,6 +513,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Candidate management (staff-facing)</summary>
 
 #### Candidate management (staff-facing)
 
@@ -408,6 +532,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Staff management (staff-facing)</summary>
 
 #### Staff management (staff-facing)
 
@@ -421,6 +549,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>User verification endpoints</summary>
 
 #### User verification endpoints
 
@@ -440,6 +572,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Exam management</summary>
 
 #### Exam management
 
@@ -459,6 +595,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Question management</summary>
 
 #### Question management
 
@@ -468,6 +608,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Dashboards</summary>
 
 #### Dashboards
 
@@ -477,6 +621,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Leaderboard & publishing</summary>
 
 #### Leaderboard & publishing
 
@@ -488,6 +636,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Broadcasts & notifications</summary>
 
 #### Broadcasts & notifications
 
@@ -499,6 +651,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Account management & misc</summary>
 
 #### Account management & misc
 
@@ -508,6 +664,10 @@ Password-change:
     
 
 ---
+</details>
+
+<details>
+<summary>Rate limits / error codes</summary>
 
 #### Rate limits / error codes
 
@@ -516,12 +676,26 @@ Password-change:
 - Standard error JSON: `{ "detail": "...", "code": "error_code" }`. Common error codes: `permission_denied`, `invalid_otp`, `leaderboard_hidden`, `registration_closed`, etc. Use these in negative tests.
 
 ---
+</details>
+</details>
+
+<details>
+<summary>API Endpoints</summary>
 
 ## API Endpoints
+
+<details>
+<summary>Registration</summary>
+
 ### Registration
 Registration endpoints allow new users to sign up as either candidates or staff members. Registration can be dynamically enabled or disabled via feature flags.
 
+
+<details>
+<summary>Register New Users</summary>
+
 #### Register New Users
+
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
 **Headers:**
@@ -570,10 +744,19 @@ X-Api-Key: <your_api_key>
 *Note: If staff registration is closed, a `403 Forbidden` response will be returned.*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Email & Password</summary>
 
 ### Email & Password
 
+<details>
+<summary>Verify Email with OTP</summary>
+
 #### Verify Email with OTP
+
 **Endpoint:** `POST /verify-email-otp/`  
 **Headers:**
 ```text
@@ -593,8 +776,13 @@ X-Api-Key: <your_api_key>
   "message": "Email verified successfully."
 }
 ```
+</details>
+
+<details>
+<summary>Resend Email OTP</summary>
 
 #### Resend Email OTP
+
 **Endpoint:** `POST /resend-email-otp/`
 **Headers:**
 ```text
@@ -615,8 +803,13 @@ X-Api-Key: <your_api_key>
   "expires_in_minutes": 10
 }
 ```
+</details>
+
+<details>
+<summary>Request Password Change OTP</summary>
 
 #### Request Password Change OTP
+
 **Endpoint:** `POST /auth/password-change/request/`
 **Headers:**
 ```text
@@ -637,8 +830,13 @@ X-Api-Key: <your_api_key>
   "expires_in_minutes": 10
 }
 ```
+</details>
+
+<details>
+<summary>Confirm OTP for Password Change</summary>
 
 #### Confirm OTP for Password Change
+
 **Endpoint:** `POST /auth/password-change/confirm-otp/`
 **Headers:**
 ```text
@@ -657,8 +855,13 @@ X-Api-Key: <your_api_key>
   "message": "OTP verified. User confirmed for password change. Proceed to change password."
 }
 ```
+</details>
+
+<details>
+<summary>Change Password</summary>
 
 #### Change Password
+
 **Endpoint:** `POST /auth/password-change/`
 **Headers:**
 ```text
@@ -680,8 +883,13 @@ X-Api-Key: <your_api_key>
   "message": "Password changed successfully. Please log in with your new password."
 }
 ```
+</details>
+
+<details>
+<summary>Resend Password Change OTP</summary>
 
 #### Resend Password Change OTP
+
 **Endpoint:** `POST /auth/password-change/resend-otp/`
 **Headers:**
 ```text
@@ -704,10 +912,19 @@ X-Api-Key: <your_api_key>
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>User Profiles "Me" Endpoints</summary>
 
 ### User Profiles "Me" Endpoints
 
+<details>
+<summary>Get Authenticated Candidate's Profile</summary>
+
 #### Get Authenticated Candidate's Profile
+
 **Endpoint:** `GET /candidates/me/`
 **Headers:**
 ```text
@@ -729,8 +946,13 @@ X-Api-Key: <your_api_key>
   "role": "screening"
 }
 ```
+</details>
+
+<details>
+<summary>Get Authenticated Staff Member's Profile</summary>
 
 #### Get Authenticated Staff Member's Profile
+
 **Endpoint:** `GET /staff/me/`
 **Headers:**
 ```text
@@ -754,10 +976,19 @@ X-Api-Key: <your_api_key>
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Candidate Management</summary>
 
 ### Candidate Management
 
+<details>
+<summary>List Candidates</summary>
+
 #### List Candidates
+
 **Endpoint:** `GET /candidates/`  
 **Headers:**
 ```text
@@ -794,8 +1025,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Get Candidate Details</summary>
 
 #### Get Candidate Details
+
 **Endpoint:** `GET /candidates/{candidate_id}/`
 **Headers:**
 ```text
@@ -853,8 +1089,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Assign Candidate Role</summary>
 
 #### Assign Candidate Role
+
 **Endpoint:** `PUT /candidates/{candidate_id}/roles/assign/`  
 **Headers:**
 ```text
@@ -874,8 +1115,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: A candidate must be verified before a role can be assigned.*
+</details>
+
+<details>
+<summary>Get Candidate Scores</summary>
 
 #### Get Candidate Scores
+
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
 **Required Role:** `admin` or higher  
 **Response:** `200 OK`
@@ -908,8 +1154,13 @@ X-Api-Key: <your_api_key>
   }
 ]
 ```
+</details>
+
+<details>
+<summary>Get Candidate Exam History</summary>
 
 #### Get Candidate Exam History
+
 Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
 
 **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
@@ -930,10 +1181,19 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Staff Management</summary>
 
 ### Staff Management
 
+<details>
+<summary>List Staff</summary>
+
 #### List Staff
+
 **Endpoint:** `GET /staff/`  
 **Headers:**
 ```text
@@ -970,8 +1230,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Get Staff Details</summary>
 
 #### Get Staff Details
+
 **Endpoint:** `GET /staff/{staff_id}/`
 **Headers:**
 ```text
@@ -1001,8 +1266,13 @@ X-Api-Key: <your_api_key>
   "date_updated": "2024-01-05T09:00:00Z"
 }
 ```
+</details>
+
+<details>
+<summary>Assign Staff Role</summary>
 
 #### Assign Staff Role
+
 **Endpoint:** `PUT /staff/{staff_id}/roles/assign/`  
 **Headers:**
 ```text
@@ -1023,11 +1293,22 @@ X-Api-Key: <your_api_key>
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Exam Management</summary>
 
 ### Exam Management
+
 The API provides comprehensive management for exams, including CRUD operations, question association, and result viewing.
 
+
+<details>
+<summary>List Exams</summary>
+
 #### List Exams
+
 **Endpoint:** `GET /exams/`  
 **Headers:**
 ```text
@@ -1060,8 +1341,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Create Exam</summary>
 
 #### Create Exam
+
 **Endpoint:** `POST /exams/`  
 **Headers:**
 ```text
@@ -1109,8 +1395,13 @@ X-Api-Key: <your_api_key>
   "date_created": "2025-09-18T12:00:00Z"
 }
 ```
+</details>
+
+<details>
+<summary>Get Exam Details</summary>
 
 #### Get Exam Details
+
 **Endpoint:** `GET /exams/{exam_id}/`  
 **Headers:**
 ```text
@@ -1146,8 +1437,13 @@ X-Api-Key: <your_api_key>
   "date_created": "2024-01-10T09:00:00Z"
 }
 ```
+</details>
+
+<details>
+<summary>Update Exam</summary>
 
 #### Update Exam
+
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
 **Headers:**
 ```text
@@ -1161,8 +1457,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 **Response:** `200 OK` (Returns updated exam details)
+</details>
+
+<details>
+<summary>Delete Exam</summary>
 
 #### Delete Exam
+
 **Endpoint:** `DELETE /exams/{exam_id}/`  
 **Headers:**
 ```text
@@ -1170,8 +1471,13 @@ X-Api-Key: <your_api_key>
 ```
 **Required Role:** `admin` or higher  
 **Response:** `204 No Content`
+</details>
+
+<details>
+<summary>View Exam Questions (Admin/Staff)</summary>
 
 #### View Exam Questions (Admin/Staff)
+
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
 **Headers:**
 ```text
@@ -1206,8 +1512,13 @@ X-Api-Key: <your_api_key>
   }
 ]
 ```
+</details>
+
+<details>
+<summary>Get Exam Results (Admin/Staff)</summary>
 
 #### Get Exam Results (Admin/Staff)
+
 **Endpoint:** `GET /exams/{exam_id}/results/`
 **Headers:**
 ```text
@@ -1228,8 +1539,13 @@ X-Api-Key: <your_api_key>
   }
 ]
 ```
+</details>
+
+<details>
+<summary>Candidate Take Exam</summary>
 
 #### Candidate Take Exam
+
 Allows an eligible and verified candidate to retrieve the questions for a specific exam.
 
 **Endpoint:** `GET /exams/{exam_id}/take-exam/`  
@@ -1261,8 +1577,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: This endpoint will return a `403 Forbidden` if the candidate is not verified, their role does not match the exam stage, or the exam is not currently open for submissions.*
+</details>
+
+<details>
+<summary>Submit Exam Answers (Candidate)</summary>
 
 #### Submit Exam Answers (Candidate)
+
 Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
 
 **Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
@@ -1295,8 +1616,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
+</details>
+
+<details>
+<summary>Submit Exam Score (Manual by Staff)</summary>
 
 #### Submit Exam Score (Manual by Staff)
+
 Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
 
 **Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
@@ -1327,11 +1653,22 @@ X-Api-Key: <your_api_key>
 *Note: If the score is being submitted for the first time, the message will be "Score submitted."*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Question Management</summary>
 
 ### Question Management
+
 The API provides CRUD operations for managing exam questions.
 
+
+<details>
+<summary>List Questions</summary>
+
 #### List Questions
+
 **Endpoint:** `GET /questions/`  
 **Required Role:** `moderator` or higher  
 
@@ -1358,8 +1695,13 @@ The API provides CRUD operations for managing exam questions.
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Create Question</summary>
 
 #### Create Question
+
 **Endpoint:** `POST /questions/`  
 **Required Role:** `moderator` or higher  
 **Request Body:**
@@ -1400,8 +1742,13 @@ The API provides CRUD operations for managing exam questions.
   }
 }
 ```
+</details>
+
+<details>
+<summary>Get Question Details</summary>
 
 #### Get Question Details
+
 **Endpoint:** `GET /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `200 OK`
@@ -1430,8 +1777,13 @@ The API provides CRUD operations for managing exam questions.
   }
 }
 ```
+</details>
+
+<details>
+<summary>Update Question</summary>
 
 #### Update Question
+
 **Endpoint:** `PUT /questions/{question_id}/` or `PATCH /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Request Body (PATCH example):**
@@ -1441,19 +1793,35 @@ The API provides CRUD operations for managing exam questions.
 }
 ```
 **Response:** `200 OK` (Returns updated question details)
+</details>
+
+<details>
+<summary>Delete Question</summary>
 
 #### Delete Question
+
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
 *Note: Questions are soft-deleted by setting `is_active` to `False`.*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Dashboard</summary>
 
 ### Dashboard
+
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
 
+
+<details>
+<summary>Candidate Dashboard</summary>
+
 #### Candidate Dashboard
+
 **Endpoint:** `GET /dashboard/candidate/`  
 **Headers:**
 ```text
@@ -1507,8 +1875,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
+</details>
+
+<details>
+<summary>Staff Dashboard</summary>
 
 #### Staff Dashboard
+
 **Endpoint:** `GET /dashboard/staff/`  
 **Headers:**
 ```text
@@ -1595,8 +1968,14 @@ X-Api-Key: <your_api_key>
 *Note: This endpoint will trigger an asynchronous task to publish the scores (to candidates' dashboards).* -->
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Leaderboard</summary>
 
 ### Leaderboard
+
 The leaderboard displays candidate rankings and can be dynamically controlled by staff.
 <!-- 
 #### Toggle Leaderboard Visibility
@@ -1629,7 +2008,12 @@ X-Api-Key: <your_api_key>
 }
 ``` -->
 
+
+<details>
+<summary>Publish Leaderboard</summary>
+
 #### Publish Leaderboard
+
 Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
 
 **Endpoint:** `POST /publish-leaderboard/`  
@@ -1644,8 +2028,13 @@ X-Api-Key: <your_api_key>
   "message": "Leaderboard generation has been started and will be available shortly."
 }
 ```
+</details>
+
+<details>
+<summary>Load Leaderboard</summary>
 
 #### Load Leaderboard
+
 Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
 
 **Endpoint:** `GET /load-leaderboard/`  
@@ -1683,11 +2072,22 @@ X-Api-Key: <your_api_key>
 *Note: A `403 Forbidden` will be returned if the leaderboard is currently hidden.*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>User Verification</summary>
 
 ### User Verification
+
 User verification is a multi-step process involving email verification, document submission, and admin approval.
 
+
+<details>
+<summary>1. Get Verification Status</summary>
+
 #### 1. Get Verification Status
+
 Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
 
 **Endpoints:**
@@ -1757,8 +2157,13 @@ The API returns a consistent JSON object with a `status` field that indicates th
       "detail": "No verification request submitted."
   }
   ```
+</details>
+
+<details>
+<summary>2. Submit or Update Verification Documents</summary>
 
 #### 2. Submit or Update Verification Documents
+
 This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
 
 **Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
@@ -1791,8 +2196,13 @@ Content-Type: multipart/form-data
 **Error Responses:**
 - `403 Forbidden`: If the user's email is not verified.
 - `400 Bad Request`: If the user is already verified or has a pending request (for `POST`), or if file validation fails (e.g., invalid file type, size).
+</details>
+
+<details>
+<summary>3. Access Verification Documents</summary>
 
 #### 3. Access Verification Documents
+
 Access uploaded documents. The API serves the file content directly from secure storage (AWS S3). Private documents (`id_card`, `verification_document`) are served via signed URLs, ensuring temporary and secure access.
 
 **Endpoints:**
@@ -1819,8 +2229,13 @@ X-Api-Key: <your_api_key>
 - `404 Not Found`: If the file does not exist or has not been uploaded.
 - `403 Forbidden`: If you do not have permission to access the document.
 - `502 Bad Gateway`: If there is an issue retrieving the file from storage (e.g., S3 error).
+</details>
+
+<details>
+<summary>4. List All Verification Requests (Admin)</summary>
 
 #### 4. List All Verification Requests (Admin)
+
 Retrieve a paginated list of all user verification submissions for administrative review.
 
 **Endpoint:** `GET /user/verification/list/`
@@ -1854,8 +2269,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>5. Approve or Reject a Verification Request (Admin)</summary>
 
 #### 5. Approve or Reject a Verification Request (Admin)
+
 Allows a `manager` or higher to approve or reject a user's verification submission. This action is final and notifies the user via email.
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
@@ -1899,11 +2319,22 @@ To reject a user:
 *Note: An email notification is sent to the user upon approval or rejection.*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Account Management</summary>
 
 ### Account Management
+
 The account management endpoints allow users to view and update their own profile information. Superadmins have the ability to manage other users' accounts.
 
+
+<details>
+<summary>Get Account Details (Self)</summary>
+
 #### Get Account Details (Self)
+
 **Endpoint:** `GET /account-management/`
 **Headers:**
 ```text
@@ -1950,8 +2381,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
+</details>
+
+<details>
+<summary>Get Account Details (Admin)</summary>
 
 #### Get Account Details (Admin)
+
 **Endpoint:** `GET /account-management/{user_id}/`
 **Headers:**
 ```text
@@ -1984,8 +2420,13 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
+</details>
+
+<details>
+<summary>Update Account Details</summary>
 
 #### Update Account Details
+
 Allows authenticated users to update their own account and profile information. Superadmins can update other users' accounts.
 
 **Endpoint:** `PATCH /account-management/` (for self) or `PATCH /account-management/{user_id}/` (for superadmins)
@@ -2048,12 +2489,22 @@ X-Api-Key: <your_api_key>
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Notifications with WebSockets</summary>
 
 ### Notifications with WebSockets
 
 Clients receive notifcations usin WebSockets. For example, [broadcasts](#create-broadcast) made via the `platform` medium at target users (or roles) will come through the notifications endpoint, allowing clients to receive instant updates without needing to poll the server.
 
+
+<details>
+<summary>Real-time Notifications</summary>
+
 #### Real-time Notifications
+
 Connect to this endpoint to receive `platform` notifications in real-time.
 
 **Endpoint:** `ws://<host>/v1/ws/notifications/` (preferrably `wss://` for secure connections in production)
@@ -2108,11 +2559,22 @@ If the action is unknown or the payload is invalid, the server will send back an
 ```
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Broadcast Management</summary>
 
 ### Broadcast Management
+
 The broadcast system allows authorized staff to send targeted communications to candidates. Broadcasts are sent asynchronously, and their status can be tracked.
 
+
+<details>
+<summary>List Broadcasts</summary>
+
 #### List Broadcasts
+
 **Endpoint:** `GET /broadcasts/`  
 **Headers:**
 ```text
@@ -2143,8 +2605,13 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
+</details>
+
+<details>
+<summary>Create Broadcast</summary>
 
 #### Create Broadcast
+
 **Endpoint:** `POST /broadcasts/`  
 **Headers:**
 ```text
@@ -2176,27 +2643,53 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: Creating a broadcast triggers an asynchronous task. The response includes the task_id for tracking. If platform is a medium, a real-time notification will be pushed to connected clients via WebSockets.*
+</details>
+
+<details>
+<summary>Get Broadcast Details</summary>
 
 #### Get Broadcast Details
+
 **Endpoint:** `GET /broadcasts/{broadcast_id}/`  
 **Required Role:** `manager` or higher
 *Note: The response for this endpoint is cached for performance. The cache is invalidated when the broadcast sending task completes.*
 **Response:** `200 OK` (Returns the detailed broadcast object, including the status and logs of sending attempts)
 
 ---
+</details>
+</details>
+</details>
+
+<details>
+<summary>Advanced Topics</summary>
 
 ## Advanced Topics
 
+<details>
+<summary>Query Parameters</summary>
+
 ### Query Parameters
+
+</details>
+
+<details>
+<summary>Common Parameters</summary>
+
 #### Common Parameters
+
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
 | `page` | integer | Page number for pagination | `?page=2` |
 | `limit` | integer | Items per page (max: 100) | `?limit=25` |
 | `search` | string | Search across relevant fields (e.g., name, email, title) | `?search=john` |
 | `ordering` | string | Sort results (`field` or `-field` for descending) | `?ordering=-date_created` |
+</details>
+
+<details>
+<summary>Filtering Parameters</summary>
 
 #### Filtering Parameters
+
 | Endpoint | Parameter | Type | Description |
 |----------|-----------|------|-------------|
 | `/candidates/` | `role` | string | Filter by candidate role (`screening`, `league`, `final`, `winner`) |
@@ -2211,8 +2704,13 @@ X-Api-Key: <your_api_key>
 | `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
 | `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
 | `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
+</details>
+
+<details>
+<summary>Date Filtering</summary>
 
 #### Date Filtering
+
 Use ISO 8601 format for date parameters:
 
 | Parameter | Format | Example |
@@ -2223,8 +2721,16 @@ Use ISO 8601 format for date parameters:
 | `created_before` | YYYY-MM-DDTHH:MM:SS | `?created_before=2024-01-01T10:00:00` |
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Error Handling</summary>
 
 ## Error Handling
+
+<details>
+<summary>Standardized Error Response</summary>
 
 ### Standardized Error Response
 
@@ -2239,6 +2745,10 @@ The API returns errors in a standardized format to ensure consistency and ease o
 
 - **detail**: A human-readable message explaining the error.
 - **code**: A unique code for the specific error type.
+</details>
+
+<details>
+<summary>HTTP Status Codes</summary>
 
 ### HTTP Status Codes
 
@@ -2255,6 +2765,10 @@ The API returns errors in a standardized format to ensure consistency and ease o
 | 429 | Too Many Requests | You have exceeded the rate limit. |
 | 500 | Internal Server Error | An unexpected error occurred on the server. |
 | 502 | Bad Gateway | The server received an invalid response from an upstream server (e.g., S3 error). |
+</details>
+
+<details>
+<summary>Common Error Codes</summary>
 
 ### Common Error Codes
 
@@ -2272,7 +2786,7 @@ The API returns errors in a standardized format to ensure consistency and ease o
 | `registration_closed` | Registration for this type of user is currently disabled by a feature flag. |
 | `email_not_verified` | User's email address has not been verified. |
 | `already_verified` | User is already verified and cannot resubmit verification documents. |
-| `pending_verification` | User has a pending verification request and cannot submit a new one (for POST). |
+| `pending_verification` | User has a pending verification request and cannot submit a new one (for `POST`). |
 | `unverified_candidate` | Candidate must be verified to perform this action (e.g., take an exam, assign role). |
 | `unverified_staff` | Staff member must be verified to perform this action. |
 | `exam_not_open` | The exam is not currently open for submissions. |
@@ -2288,9 +2802,19 @@ The API returns errors in a standardized format to ensure consistency and ease o
 | `password_validation_failed` | The new password does not meet security requirements. |
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Rate Limiting</summary>
 
 ## Rate Limiting
+
+<details>
+<summary>Rate Limit Policy</summary>
+
 ### Rate Limit Policy
+
 **Authenticated Users:**
 - 1000 requests per day
 - 60 requests per hour
@@ -2299,8 +2823,13 @@ The API returns errors in a standardized format to ensure consistency and ease o
 **Anonymous Users:**
 - 60 requests per day
 - 5 requests per minute
+</details>
+
+<details>
+<summary>Rate Limit Headers</summary>
 
 ### Rate Limit Headers
+
 When a rate limit is applied, the following headers are included in the response:
 ```text
 X-RateLimit-Limit: 1000
@@ -2310,8 +2839,13 @@ X-RateLimit-Reset: 1640995200
 - `X-RateLimit-Limit`: The maximum number of requests allowed in the current period.
 - `X-RateLimit-Remaining`: The number of requests remaining in the current period.
 - `X-RateLimit-Reset`: The UTC epoch seconds when the current rate limit window resets.
+</details>
+
+<details>
+<summary>Rate Limit Exceeded</summary>
 
 ### Rate Limit Exceeded
+
 If you exceed the allocated rate limit, the API will return a `429 Too Many Requests` response:
 **Response:** `429 Too Many Requests`
 ```json
@@ -2323,59 +2857,119 @@ If you exceed the allocated rate limit, the API will return a `429 Too Many Requ
 *Note: The exact `detail` message and `code` might vary slightly based on the throttling implementation.*
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Versioning</summary>
 
 ## Versioning
+
+<details>
+<summary>Current Version</summary>
+
 ### Current Version
+
 The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
+</details>
+
+<details>
+<summary>Versioning Strategy</summary>
 
 ### Versioning Strategy
+
 - **Backwards Compatibility**: Minor changes maintain backwards compatibility.
 - **Breaking Changes**: Major version increments for breaking changes.
 - **Deprecation**: 6-month notice period for deprecated endpoints.
 - **Version Support**: Latest 2 major versions supported.
 
 ---
+</details>
+</details>
+
+<details>
+<summary>Interactive Documentation</summary>
 
 ## Interactive Documentation
+
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
 - **Swagger UI**: `https://api.verboheit.org/v1/docs/swagger/`
 - **ReDoc**: `https://api.verboheit.org/v1/docs/redoc/`
 
 ---
+</details>
+
+<details>
+<summary>Support</summary>
 
 ## Support
+
 For technical support, API key requests, or questions:
 - **Email:** `theolujay@gmail.com`
 - **Discord:** `@olujay`
 - **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests.
+</details>
+
+<details>
+<summary>Changelog</summary>
 
 ## Changelog
 
+<details>
+<summary>Version 0.3.4</summary>
+
 ### Version 0.3.4
+
 - **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.
 - **API Docs**: Corrected permissions for several endpoints to match the codebase.
 - **API Docs**: Corrected the response payload for the `GET /candidates/{candidate_id}/` endpoint.
+</details>
+
+<details>
+<summary>Version 0.3.3</summary>
+
 ### Version 0.3.3
+
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
 - **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
+</details>
+
+<details>
+<summary>Version 0.3.2</summary>
 
 ### Version 0.3.2
+
 - **Registration**: Now takes flat rather than nested structure.
 - **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.
+</details>
+
+<details>
+<summary>Version 0.3.0</summary>
 
 ### Version 0.3.0
+
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
 - **Login:** Response now includes full profile (and not user details alone).
 - **RBAC**: Only `manager` and `superadmin` can view staff details.
+</details>
+
+<details>
+<summary>Version 0.2.0</summary>
 
 ### Version 0.2.0
+
 - **Base URL** is now `https://api.verboheit.org/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
+</details>
+
+<details>
+<summary>Version 0.1.0</summary>
 
 ### Version 0.1.0
+
 - Initial API release
 - Complete user management system
 - Exam administration features
@@ -2383,3 +2977,5 @@ For technical support, API key requests, or questions:
 - Role-based access control
 
 _Last Updated: October 2025_
+</details>
+</details>

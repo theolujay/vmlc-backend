@@ -56,7 +56,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
     user_id = serializers.CharField(source="user.id", read_only=True)
     user_name = serializers.CharField(source="user.get_full_name", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
-    has_profile_photo = serializers.SerializerMethodField()
+    has_face_id = serializers.SerializerMethodField()
     has_id_card = serializers.SerializerMethodField()
     has_verification_document = serializers.SerializerMethodField()
 
@@ -69,14 +69,14 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "is_pending",
             "is_verified",
             "is_rejected",
-            "has_profile_photo",
+            "has_face_id",
             "has_id_card",
             "has_verification_document",
             "date_created",
         ]
 
-    def get_has_profile_photo(self, obj):
-        return bool(obj.profile_photo)
+    def get_has_face_id(self, obj):
+        return bool(obj.face_id)
 
     def get_has_id_card(self, obj):
         return bool(obj.id_card)
@@ -106,7 +106,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
 
     def get_documents_uploaded(self, obj):
         return {
-            "profile_photo": bool(obj.profile_photo),
+            "face_id": bool(obj.face_id),
             "id_card": bool(obj.id_card),
             "verification_document": bool(obj.verification_document),
         }
@@ -121,7 +121,7 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserVerification
         fields = [
-            "profile_photo",
+            "face_id",
             "id_card",
             "verification_document",
         ]
