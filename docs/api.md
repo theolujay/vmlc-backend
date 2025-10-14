@@ -6,6 +6,7 @@
   - [Base URL](#base-url)
   - [Authentication](#authentication)
   - [User Roles, Permissions, and API Access](#user-roles-permissions-and-api-access)
+  - [Feature Walkthroughs & User Stories](#feature-walkthroughs--user-stories)
 - [API Endpoints](#api-endpoints)
   - [Health & Root](#health--root)
   - [Authentication](#authentication-endpoints)
@@ -157,11 +158,11 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "root": "https://vmlc-api.onrender.com/v1/root/",
+  "root": "https://api.verboheit.org/v1/root/",
   "authentication": {
-    "login": "https://vmlc-api.onrender.com/v1/auth/login/",
-    "logout": "https://vmlc-api.onrender.com/v1/auth/logout/",
-    "token_refresh": "https://vmlc-api.onrender.com/v1/auth/token/refresh/"
+    "login": "https://api.verboheit.org/v1/auth/login/",
+    "logout": "https://api.verboheit.org/v1/auth/logout/",
+    "token_refresh": "https://api.verboheit.org/v1/auth/token/refresh/"
   },
   // ... other endpoints ...
 }
@@ -200,6 +201,318 @@ This table provides a detailed breakdown of each user role, its key abilities on
 #### Role Progression
 - **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
 - **Staff**: Roles are assigned by a `manager` or `superadmin`.
+
+---
+
+## Feature Walkthroughs & User Stories
+
+This is a high-level overview of the core features and users' perspectives.
+
+### Feature: Onboarding, Email Verification & First Login
+
+```
+Feature: Registration, Email verification, and initial redirect
+  In order to use the platform correctly
+  As a new user (candidate or staff)
+  Flow = registration → verify → login → get-started
+
+  Scenario: Candidate signs up, verifies email, and reaches Get Started
+    Given a person navigates to the Candidate Registration page
+    When they submit valid registration details
+    Then the system creates the account with default role "screening"
+    And the system returns "201 Created"
+    And an OTP is sent to the provided email
+    When they POST the correct OTP to verify email
+    Then the system responds "200 OK" and marks email verified
+    When the user logs in with valid credentials
+    Then they are redirected to the "Get Started" page
+    And the user's role remains "screening"
+    And the Tour card is locked until the user is marked "user_verified"
+
+  Scenario: Staff signs up, verifies email, and reaches Get Started
+    Given a person navigates to the Staff Registration page
+    When they submit valid registration details
+    Then the system creates the account with default role "volunteer"
+    And the system returns "201 Created"
+    And an OTP is sent to the provided email
+    When they POST the correct OTP to verify email
+    Then the system responds "200 OK" and marks email verified
+    When the user logs in with valid credentials
+    Then they are redirected to the "Get Started" page
+    And the Tour card remains locked until the user is promoted to at least "moderator"
+```
+
+### Feature: User Verification, Role Promotions & Tour Unlocking
+
+```
+Feature: Verification and role promotion flow
+  In order to enable role-based features and the Tour card
+  As verification / admin staff
+  Action: move users between roles
+
+  Scenario: Candidate submits verification documents and gets approved
+    Given a logged-in candidate with email verified and role "screening"
+    When they upload verification documents (face_id, id_card, verification_document)
+    Then the verification status becomes "pending"
+    When a manager or superadmin approves the verification
+    Then the user's verification status becomes "verified"
+    And the candidate remains "screening" until staff assigns "league" or higher
+    And after being marked "verified" the candidate can access their candidate dashboard
+
+  Scenario: Staff promotion that unlocks the Tour card
+    Given a logged-in staff member currently role "volunteer"
+    And their email is verified and they have submitted verification documents
+    When a manager or superadmin assigns role "moderator" to the staff member
+    Then the Tour card becomes unlocked on their Get Started page
+    And moderator-level navigation (candidate lists, question management) becomes available
+```
+
+### Feature: Dashboards & Role-based Access (Acceptance criteria)
+
+```
+Feature: Dashboards and permissions
+  So that each role only sees and does what it should
+
+  Scenario: Screening candidate dashboard access
+    Given a logged-in candidate with role "screening" and is_verified = true
+    When they open their Dashboard
+    Then they see: available screening exams, exam history, profile information
+    And they do not see the leaderboard or league exams
+
+  Scenario: League candidate access and leaderboard
+    Given a logged-in candidate with role "league"
+    When they open the Leaderboards tab
+    Then they can view leaderboard results
+    And they can access league-stage exams only
+
+  Scenario: Moderator dashboard and CRUD questions
+    Given a logged-in staff member with role "moderator"
+    When they open the Staff Dashboard
+    Then they can view list of candidates and question management (CRUD)
+    And they can view the leaderboard
+    And they view candidate details, change candidate roles or manage the leaderboard
+
+  Scenario: Admin role permissions
+    Given a logged-in staff member with role "admin"
+    When they open the Admin Dashboard
+    Then they can view list of candidates, view candidate details, manage exams and questions
+    And they can assign candidate roles (screening → league → final → winner)
+    And they can update the leaderboard
+
+  Scenario: Manager permissions
+    Given a logged-in staff member with role "manager"
+    When they review verification queue
+    Then they can approve or reject user verification requests
+    And they can create broadcasts targeted at staff/candidates (per target_roles)
+    And they can manage staff roles except "manager" or "superadmin"
+
+  Scenario: Superadmin ultimate control (except superadmin creation)
+    Given a logged-in staff member with role "superadmin"
+    When they view any staff profile
+    Then they can assign any staff role (except creating another superadmin)
+```
+### Endpoint mapping
+
+> Notes applicable to most endpoints
+> 
+> - Header: `X-Api-Key: <your_api_key>` (required for all endpoints).
+>     
+> - Authenticated user endpoints also require `Authorization: Bearer <access-token>`.
+>     
+> - Role requirements shown when specified.
+>     
+> - Use JSON unless `multipart/form-data` is stated.
+>     
+
+---
+
+#### Health & discovery
+
+- `GET /health/` — public health check. `200 OK`.
+    
+- `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
+    
+
+#### Interactive docs
+
+- Swagger UI: `/docs/swagger/`
+    
+- ReDoc: `/docs/redoc/`
+    
+- Spec endpoint: `/docs/spec` (API doc).
+    
+
+---
+
+#### Authentication
+
+- `POST /auth/login/` — login. Request: `{ email, password }`. Returns `access`, `refresh`, `profile`. `200 OK`.
+    
+- `POST /auth/token/refresh/` — refresh token. `200 OK`.
+    
+- `POST /auth/logout/` — logout (body: refresh token). `204 No Content`.
+    
+
+---
+
+#### Registration
+
+- `POST /register/candidate/` — candidate signup. `201 Created`. Default role: `screening`.
+    
+- `POST /register/staff/` — staff signup. `201 Created`. Default role: `volunteer`.
+    
+
+---
+
+#### Email & password flows
+
+- `POST /verify-email-otp/` — verify registration OTP. Request: `{ email, otp }`. `200 OK`.
+    
+- `POST /resend-email-otp/` — resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
+    
+
+Password-change:
+
+- `POST /auth/password-change/request/` — request OTP to change password. `200 OK`.
+    
+- `POST /auth/password-change/confirm-otp/` — confirm OTP for password change. `200 OK`.
+    
+- `POST /auth/password-change/` — change password (otp + new_password). `200 OK`.
+    
+- `POST /auth/password-change/resend-otp/` — resend OTP for password change. `200 OK`.
+    
+
+---
+
+#### "Me" profile endpoints
+
+- `GET /candidates/me/` — authenticated candidate's profile. `200 OK`.
+    
+- `GET /staff/me/` — authenticated staff profile. `200 OK`.
+    
+
+---
+
+#### Candidate management (staff-facing)
+
+- `GET /candidates/` — list candidates. Required role: `moderator`+. Supports `page`, `search`, `role`, `school`, `verified`. `200 OK`.
+    
+- `GET /candidates/{candidate_id}/` — operation_description="Retrieve dashboard data for a specific candidate." Role: `admin`+. `200 OK`.
+    
+- `PUT /candidates/{candidate_id}/roles/assign/` — assign candidate role (e.g., `league`, `final`, `winner`). Role: `admin`+. `200 OK`.
+    
+- `GET /candidates/{candidate_id}/scores/` — get candidate scores. Role: `admin`+. `200 OK`.
+    
+- `GET /candidates/{candidate_id}/exam-history/` — full exam history. Role: `admin`+. `200 OK`.
+    
+
+---
+
+#### Staff management (staff-facing)
+
+- `GET /staff/` — list staff. Role: `moderator`+. Query filters: `page`, `search`, `role`, `occupation`. `200 OK`.
+    
+- `GET /staff/{staff_id}/` — staff details. Role: `manager` or `superadmin`. `200 OK`.
+    
+- `PUT /staff/{staff_id}/roles/assign/` — assign staff role (manager/superadmin allowed to assign except superadmin creation). Role: `manager` or `superadmin`. `200 OK`.
+    
+- `GET /account-management/{id}/` and `PATCH /account-management/{id}/` — account management endpoints used by staff (mentioned in role table). Role: `manager`+ or owner.
+    
+
+---
+
+#### User verification endpoints
+
+- `GET /user/verification/status/` — get current user's verification status. `200 OK`.
+    
+- `GET /user/verification/status/{user_id}/` — manager+ or owner view other users' status. `200 OK`.
+    
+- `POST /user/verification/upload/` — submit verification documents (multipart/form-data). Files: `face_id`, `id_card`, `verification_document`. Any authenticated user. `200 OK / 201`.
+    
+- `PATCH /user/verification/upload/` — update/resubmit verification docs. Any authenticated user. `200 OK`.
+    
+- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_verified`, `is_rejected`. `200 OK`.
+    
+- `POST /user/verification/action/{id}/` — approve/reject a verification (manager+). `200 OK`.
+    
+- `GET /user/verification/documents/{type}/{id}/` — download verification docs (manager+ or owner). `200 OK`.
+    
+
+---
+
+#### Exam management
+
+- `GET /exams/` — list exams. Role: `admin`+. Query filters: `page`, `stage`, `active`, `date_from`, `date_to`. `200 OK`.
+    
+- `POST /exams/` — create exam. Role: `admin`+. `201 Created`.
+    
+- `GET /exams/{id}/` — retrieve exam. Role: `admin`+. `200 OK`.
+    
+- `PUT /exams/{id}/`, `PATCH /exams/{id}/`, `DELETE /exams/{id}/` — update/delete exam. Role: `admin`+. `200/204`.
+    
+- `GET /exams/{id}/take-exam/` — candidate takes exam (stage-limited: screening/league/final). Candidate must be eligible. `200 OK`.
+    
+- `POST /exams/{id}/submit-exam-answers/` — candidate submits answers. `200 OK`.
+    
+- `PUT /exams/{id}/submit-exam-score/` — manual score submission (admin). `200 OK`.
+    
+
+---
+
+#### Question management
+
+- `GET /questions/` — list questions. `GET/POST /questions/` — create question (moderator+ for CRUD). `200/201 OK`.
+    
+- `GET /questions/{id}/`, `PUT /questions/{id}/`, `PATCH /questions/{id}/`, `DELETE /questions/{id}/` — CRUD single question (moderator+). `200/204`.
+    
+
+---
+
+#### Dashboards
+
+- `GET /dashboard/candidate/` — candidate dashboard (shows exams allowed, history, profile). Candidate role required. `200 OK`.
+    
+- `GET /dashboard/staff/` — staff dashboard (moderator+). `200 OK`. Contains staff info, candidate counts, exams, questions, scores. `200 OK`.
+    
+
+---
+
+#### Leaderboard & publishing
+
+- `POST /publish-leaderboard/` — start generation & publish snapshot (admin+). `202 Accepted`.
+    
+- `GET /load-leaderboard/` — fetch latest published snapshot. Role: `league` candidates and above + staff with moderator role or higher. Query: `limit`, `offset`. `200 OK`.
+    
+- `POST /toggle-leaderboard/` — (mentioned in spec / role table) toggle visibility (manager+). `200 OK` (may be feature-flagged / commented).
+    
+
+---
+
+#### Broadcasts & notifications
+
+- `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
+    
+- `GET /broadcasts/{id}/` — view broadcast. `200 OK`.
+    
+- Note: WebSocket notifications require both `X-Api-Key` and `Authorization` according to changelog.
+    
+
+---
+
+#### Account management & misc
+
+- `GET /account-management/{id}/`, `PATCH /account-management/{id}/` — staff/account admin endpoints (manager+).
+    
+- `POST /publish-scores/` — (commented/optional) publish scores snapshot (admin+). Triggers async task. May be present in code but commented in docs.
+    
+
+---
+
+#### Rate limits / error codes
+
+- Rate limits: Authenticated 1000/day, 60/hour, 10/min. Anonymous 60/day, 5/min. Rate-limit headers present.
+    
+- Standard error JSON: `{ "detail": "...", "code": "error_code" }`. Common error codes: `permission_denied`, `invalid_otp`, `leaderboard_hidden`, `registration_closed`, etc. Use these in negative tests.
 
 ---
 
@@ -462,7 +775,8 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 150,
-  "next": "https://vmlc-api.onrender.com/v1/candidates/?page=2",
+  "total_pages": 8,
+  "next": "https://api.verboheit.org/v1/candidates/?page=2",
   "previous": null,
   "results": [
     {
@@ -486,42 +800,56 @@ X-Api-Key: <your_api_key>
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `moderator` or higher
+**Required Role:** `admin` or higher
 
 **Response:** `200 OK`
 ```json
 {
-  "user": {
-    "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+  "candidate_info": {
+    "name": "John Doe",
     "email": "john@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
     "phone": "+23490xxxxxxxx",
+    "school": "Mathematics High School",
+    "role": "League",
+    "is_verified": true,
     "date_joined": "2024-01-15T10:30:00Z"
   },
-  "school": "Mathematics High School",
-  "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
-  "role": "league",
-  "is_active": true,
-  "is_verified": true,
-  "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
-  "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
-  "date_created": "2024-01-15T10:30:00Z",
-  "date_updated": "2024-01-20T11:00:00Z",
-  "scores": {
-    "total_score": 380.0,
-    "average_score": 95.0,
-    "scores": [
-      {
-        "exam_id": 1,
-        "exam_title": "Algebra Screening",
-        "score": 88.0,
-        "date_recorded": "2024-01-20T15:30:00Z",
-        "submitted_by": "Admin User",
-        "auto_score": true
-      }
-    ]
-  }
+  "exam_stats": {
+    "total_exams_taken": 1,
+    "available_exams_count": 1,
+    "average_score": 88.0,
+    "highest_score": 88.0,
+    "lowest_score": 88.0,
+    "latest_score": {
+      "score": 88.0,
+      "exam_title": "Algebra Screening",
+      "date": "2024-01-20T15:30:00Z"
+    }
+  },
+  "leaderboard_ranking": {
+    "current_rank": 15,
+    "total_candidates": 150
+  },
+  "recent_scores": [
+    {
+      "exam_title": "Algebra Screening",
+      "score": 88.0,
+      "date": "2024-01-20T15:30:00Z",
+      "exam_stage": "screening"
+    }
+  ],
+  "available_exams": [
+    {
+      "id": 2,
+      "title": "Geometry Challenge",
+      "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
+      "open_duration_hours": 12,
+      "exam_date": "2024-01-25T14:00:00Z",
+      "countdown_minutes": 90,
+      "question_count": 25,
+      "stage": "league"
+    }
+  ]
 }
 ```
 
@@ -622,6 +950,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 10,
+  "total_pages": 1,
   "next": null,
   "previous": null,
   "results": [
@@ -716,7 +1045,8 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 25,
-  "next": "https://vmlc-api.onrender.com/v1/exams/?page=2",
+  "total_pages": 2,
+  "next": "https://api.verboheit.org/v1/exams/?page=2",
   "previous": null,
   "results": [
     {
@@ -1014,6 +1344,9 @@ The API provides CRUD operations for managing exam questions.
 ```json
 {
   "count": 100,
+  "total_pages": 5,
+  "next": "https://api.verboheit.org/v1/questions/?page=2",
+  "previous": null,
   "results": [
     {
       "id": 1,
@@ -1501,6 +1834,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 10,
+  "total_pages": 1,
   "next": null,
   "previous": null,
   "results": [
@@ -1789,6 +2123,7 @@ X-Api-Key: <your_api_key>
 ```json
 {
   "count": 1,
+  "total_pages": 1,
   "next": null,
   "previous": null,
   "results": [
@@ -2002,8 +2337,8 @@ The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 
 ## Interactive Documentation
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
-- **Swagger UI**: `https://vmlc-api.onrender.com/v1/docs/swagger/`
-- **ReDoc**: `https://vmlc-api.onrender.com/v1/docs/redoc/`
+- **Swagger UI**: `https://api.verboheit.org/v1/docs/swagger/`
+- **ReDoc**: `https://api.verboheit.org/v1/docs/redoc/`
 
 ---
 
@@ -2015,6 +2350,11 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+### Version 0.3.4
+- **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.
+- **API Docs**: Corrected permissions for several endpoints to match the codebase.
+- **API Docs**: Corrected the response payload for the `GET /candidates/{candidate_id}/` endpoint.
 ### Version 0.3.3
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
 - **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
@@ -2031,7 +2371,7 @@ For technical support, API key requests, or questions:
 - **RBAC**: Only `manager` and `superadmin` can view staff details.
 
 ### Version 0.2.0
-- **Base URL** is now `https://vmlc-api.onrender.com/v1/`
+- **Base URL** is now `https://api.verboheit.org/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 
 ### Version 0.1.0
