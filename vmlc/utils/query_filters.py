@@ -110,7 +110,7 @@ def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Ques
     difficulty: Any = params.get("difficulty")
 
     if search:
-        queryset = queryset.filter(Q(description__icontains=search))
+        queryset = queryset.filter(Q(text__icontains=search))
 
     if difficulty:
         queryset = queryset.filter(difficulty=difficulty)

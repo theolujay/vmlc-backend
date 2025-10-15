@@ -1,9 +1,11 @@
 import logging
 
+from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
-from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from ..models import Question
@@ -68,6 +70,34 @@ class QuestionListView(ListCreateAPIView):
 
     permission_classes = VerifiedModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        meta = queryset.aggregate(
+            total_questions=Count("id"),
+            hard_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+            ),
+            medium_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.MEDIUM)
+            ),
+            easy_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+            ),
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["meta"] = meta
+            response.data["list"] = response.data.pop("results")
+            del response.data["count"]
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"meta": meta, "list": serializer.data})
 
     def get_serializer_class(self):
         """

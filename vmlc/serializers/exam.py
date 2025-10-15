@@ -1,4 +1,4 @@
-from django.db.models import Avg
+from django.db.models import Avg, Count, Q
 
 from rest_framework import serializers
 
@@ -8,7 +8,7 @@ from ..models import (
     Exam,
 )
 
-from .question import CandidateQuestionSerializer
+from .question import CandidateQuestionSerializer, QuestionDetailSerializer
 from .staff import MinimalStaffSerializer
 
 
@@ -79,6 +79,35 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"]
         )
         return float(avg or 0.0)
+
+    def to_representation(self, instance):
+        """
+        Customize the exam representation to include a nested structure
+        for questions with metadata.
+        """
+        representation = super().to_representation(instance)
+        questions_queryset = instance.questions.all()
+
+        meta = questions_queryset.aggregate(
+            total_count=Count("id"),
+            hard_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+            ),
+            medium_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.MEDIUM)
+            ),
+            easy_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+            ),
+        )
+
+        representation["questions"] = {
+            "meta": meta,
+            "list": QuestionDetailSerializer(
+                questions_queryset, many=True, context=self.context
+            ).data,
+        }
+        return representation
 
 
 class CandidateExamSerializer(serializers.ModelSerializer):

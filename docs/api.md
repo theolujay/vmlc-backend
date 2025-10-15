@@ -1145,15 +1145,32 @@ X-Api-Key: <your_api_key>
   "countdown_minutes": 90,
   "open_duration_hours": 24,
   "is_active": true,
-  "questions": [1, 4, 8],
+  "questions": {
+    "meta": {
+        "total_count": 3,
+        "hard_questions_count": 1,
+        "medium_questions_count": 1,
+        "easy_questions_count": 1
+    },
+    "list": [
+      {
+        "id": 1,
+        "text": "What is 2 + 2?",
+        "option_a": "3",
+        "option_b": "4",
+        "option_c": "5",
+        "option_d": "6",
+        "correct_answer": "B",
+        "difficulty": "easy"
+      }
+    ]
+  },
   "created_by": {
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "admin@example.com",
       "first_name": "Admin",
-      "last_name": "User",
-      "phone": "+23490xxxxxxxx",
-      "date_joined": "2024-01-01T08:00:00Z"
+      "last_name": "User"
     },
     "occupation": "Administrator",
     "role": "superadmin"
@@ -1361,11 +1378,15 @@ The API provides CRUD operations for managing exam questions.
 **Response:** `200 OK`
 ```json
 {
-  "count": 100,
-  "total_pages": 5,
   "next": "https://api.verboheit.org/v1/questions/?page=2",
   "previous": null,
-  "results": [
+  "meta": {
+    "total_count": 100,
+    "hard_questions_count": 20,
+    "medium_questions_count": 50,
+    "easy_questions_count": 30
+  },
+  "list": [
     {
       "id": 1,
       "text": "What is 5 × 5?",
@@ -2368,6 +2389,14 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+### Wed, 15th of Oct, 2025
+- **API**: Updated the response for `GET /questions/` to include a `meta` object with question counts by difficulty and pagination links. The question list is now under the `list` key.
+- **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
+- **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
+- **API**: Updated the response for `GET /candidates/{candidate_id}/` to include a more detailed `records` object containing performance stats and exam history.
+- **Exam**: `GET /exams/` now includes `exam_date` in response.
+- **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4
 - **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.

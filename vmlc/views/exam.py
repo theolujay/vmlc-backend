@@ -192,7 +192,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     """
     API view to retrieve, update, or delete a single exam instance.
 
-    - GET: Retrieve exam details.
+    - GET: Retrieve exam details, including questions with their options and correct answers.
     - PUT/PATCH: Update exam information.
     - DELETE: Remove the exam.
     """
@@ -209,8 +209,19 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         logger.info(
             f"ExamDetailView: request from user {self.request.user.id} for exam {self.kwargs.get(self.lookup_url_kwarg)}"
         )
-        return Exam.objects.annotate(average_score=Avg("scores__score")).select_related(
-            "created_by__user", "updated_by__user"
+        return (
+            Exam.objects.annotate(average_score=Avg("scores__score"))
+            .select_related("created_by__user", "updated_by__user")
+            .prefetch_related("questions")
+        )
+
+    def perform_update(self, serializer):
+        """
+        Saves the staff member who updated the exam
+        """
+        serializer.save(updated_by=self.request.user.staff_profile)
+        logger.info(
+            f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
 
     # `perform_destroy` is handled by the parent class, no need to override.
