@@ -2601,6 +2601,7 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+
 ### Wed, 15th of Oct, 2025
 - **API**: Updated the response for `GET /questions/` to include a `meta` object with question counts by difficulty and pagination links. The question list is now under the `list` key.
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
