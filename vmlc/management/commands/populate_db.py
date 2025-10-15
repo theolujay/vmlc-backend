@@ -39,21 +39,21 @@ class Command(BaseCommand):
             return f"{prefix}{random.randint(10000000, 99999999)}"
 
         # Clear existing data
-        CandidateAnswer.objects.all().delete()
-        CandidateScore.objects.all().delete()
-        Exam.objects.all().delete()
-        Question.objects.all().delete()
-        Staff.objects.all().delete()
-        Candidate.objects.all().delete()
-        UserVerification.objects.all().delete()
-        FeatureFlag.objects.all().delete()
-        LeaderboardSnapshot.objects.all().delete()
-        CandidateScoreSnapshot.objects.all().delete()
-        User.objects.filter(is_superuser=False).delete()
+        # CandidateAnswer.objects.all().delete()
+        # CandidateScore.objects.all().delete()
+        # Exam.objects.all().delete()
+        # Question.objects.all().delete()
+        # Staff.objects.all().delete()
+        # Candidate.objects.all().delete()
+        # UserVerification.objects.all().delete()
+        # FeatureFlag.objects.all().delete()
+        # LeaderboardSnapshot.objects.all().delete()
+        # CandidateScoreSnapshot.objects.all().delete()
+        # User.objects.filter(is_superuser=False).delete()
 
         # Create FeatureFlags
-        FeatureFlag.objects.create(key="candidate_registration", value=True)
-        FeatureFlag.objects.create(key="staff_registration", value=True)
+        # FeatureFlag.objects.create(key="candidate_registration", value=True)
+        # FeatureFlag.objects.create(key="staff_registration", value=True)
 
         # Create staff users
         staff_list = []
