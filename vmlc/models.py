@@ -1,3 +1,4 @@
+
 """
 This module defines the database models for the VMLC backend application.
 """
@@ -108,9 +109,8 @@ def validate_id_card_file(value):
             f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 10MB)
-    if value.size > 10 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 10MB.")
+    if value.size > 2 * 1024 * 1024:
+        raise ValidationError("File size cannot exceed 2MB.")
 
 
 def validate_face_id(
@@ -127,9 +127,8 @@ def validate_face_id(
             f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 10MB for images)
-    if value.size > 10 * 1024 * 1024:
-        raise ValidationError("Image size cannot exceed 10MB.")
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 5MB.")
 
 
 def validate_document_file(value):
@@ -144,9 +143,8 @@ def validate_document_file(value):
             f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    # Check file size (max 10MB for documents)
-    if value.size > 10 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 10MB.")
+    if value.size > 2 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 2MB.")
 
 
 class UserVerification(models.Model):
@@ -230,7 +228,7 @@ class EmailOTP(models.Model):  # pylint: disable=too-few-public-methods
         return f"OTP for {self.user.email}"
 
 
-class Staff(models.Model):
+class Staff(models.Model):  # pylint: disable=too-many-lines
     """
     Administrative user with a specific role for managing candidates, exams, and scores.
     """
@@ -287,10 +285,10 @@ class Staff(models.Model):
             return None
 
     @property
-    def verification_document(
-        self,
-    ):
-        """Get verification document from UserVerification with error handling"""
+    def verification_document(self):
+        """
+        Get verification document from UserVerification with error handling
+        """
         try:
             return self.user.verification.verification_document
         except (
@@ -903,3 +901,4 @@ class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-me
         """Meta options for the CandidateScoreSnapshot model."""
 
         ordering = ["-created_at"]
+
