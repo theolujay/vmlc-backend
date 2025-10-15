@@ -86,7 +86,7 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             candidate_score.score = round(score, 2)
 
         candidate_score.auto_score = True
-        candidate_score.date_recorded = timezone.now()
+        candidate_score.recorded_at = timezone.now()
         candidate_score.save()
 
         logger.info(
@@ -399,7 +399,7 @@ def update_candidate_ranking_cache_task():
             ranked_candidates = league_candidates.annotate(
                 total_score=Sum(
                     "scores__score",
-                    filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
+                    filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
                     default=0.0,
                 ),
                 rank=Window(

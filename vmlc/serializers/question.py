@@ -14,8 +14,8 @@ class QuestionListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ["id", "text", "difficulty", "date_created"]
-        read_only_fields = ["id", "date_created"]
+        fields = ["id", "text", "difficulty", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
@@ -36,10 +36,10 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "option_d",
             "correct_answer",
             "difficulty",
-            "date_created",
+            "created_at",
             "created_by",
         ]
-        read_only_fields = ["id", "date_created", "created_by"]
+        read_only_fields = ["id", "created_at", "created_by"]
 
 
 class CandidateQuestionSerializer(serializers.ModelSerializer):

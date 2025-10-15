@@ -124,7 +124,7 @@ class ExamFilter(django_filters.FilterSet):
 
     Supported filters:
         - search: Partial match on title or stage
-        - date_created: Exact match on creation date (YYYY-MM-DD)
+        - created_at: Exact match on creation date (YYYY-MM-DD)
 
     Args:
         queryset (QuerySet): The initial Exam queryset.
@@ -134,13 +134,13 @@ class ExamFilter(django_filters.FilterSet):
     search: django_filters.CharFilter = django_filters.CharFilter(
         method="filter_search", label="Search"
     )
-    date_created: django_filters.DateFilter = django_filters.DateFilter(
-        field_name="date_created", lookup_expr="date"
+    created_at: django_filters.DateFilter = django_filters.DateFilter(
+        field_name="created_at", lookup_expr="date"
     )
 
     class Meta:
         model: Exam = Exam
-        fields: List[str] = ("search", "date_created")
+        fields: List[str] = ("search", "created_at")
 
     def filter_search(
         self, queryset: QuerySet[Exam], name: str, value: str

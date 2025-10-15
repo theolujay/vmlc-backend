@@ -104,7 +104,7 @@ class StaffListView(ListAPIView):
             f"StaffListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset = Staff.objects.select_related("user").order_by("-date_created")
+        queryset = Staff.objects.select_related("user").order_by("-created_at")
         return filter_staffs(queryset, self.request.query_params)
 
 

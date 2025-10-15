@@ -111,7 +111,7 @@ class ExamListView(ListCreateAPIView):
         return (
             Exam.objects.annotate(question_count=Count("questions"))
             .select_related("created_by__user")
-            .order_by("-date_created")
+            .order_by("-created_at")
         )
 
     def perform_create(self, serializer):
@@ -349,7 +349,7 @@ class ExamHistoryView(ListAPIView):
         return (
             CandidateScore.objects.filter(candidate_id=candidate_id)
             .select_related("exam")
-            .order_by("-date_recorded")
+            .order_by("-recorded_at")
         )
 
 

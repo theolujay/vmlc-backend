@@ -51,7 +51,7 @@ from .registration import (
 )
 from .root import root
 from .score import (
-    CandidateScoreListView,
+    # CandidateScoreListView,
     SubmitScoreView,
     PublishScoresView,
 )
@@ -117,7 +117,7 @@ __all__ = [
     # health
     "health_check",
     # score
-    "CandidateScoreListView",
+    # "CandidateScoreListView",
     "SubmitScoreView",
     "PublishScoresView",
     # staff

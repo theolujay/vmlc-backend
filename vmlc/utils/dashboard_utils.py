@@ -50,7 +50,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     # Combine score stats and recent scores into one query if possible, or minimize separate hits
     scores_qs = CandidateScore.objects.filter(candidate=candidate)
     if latest_snapshot:
-        scores_qs = scores_qs.filter(date_recorded__lte=latest_snapshot.published_at)
+        scores_qs = scores_qs.filter(recorded_at__lte=latest_snapshot.published_at)
 
     score_stats = scores_qs.aggregate(
         total_exams_taken=Count("id"),
@@ -60,9 +60,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     )
 
     recent_scores_list = list(
-        scores_qs.order_by("-date_recorded")
+        scores_qs.order_by("-recorded_at")
         .select_related("exam")
-        .values("score", "exam__title", "date_recorded", "exam__stage")[:5]
+        .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
     )  # Convert to list to avoid re-querying
 
     latest_score_data = None
@@ -70,7 +70,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         latest_score_data = {
             "score": float(recent_scores_list[0]["score"]),
             "exam_title": recent_scores_list[0]["exam__title"],
-            "date": recent_scores_list[0]["date_recorded"],
+            "date": recent_scores_list[0]["recorded_at"],
         }
 
     # Optimize available_exams
@@ -108,7 +108,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         league_candidates_qs = Candidate.candidates_by_role("league").annotate(
             total_score=Sum(
                 "scores__score",
-                filter=Q(scores__date_recorded__lte=latest_snapshot.published_at),
+                filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
                 default=0.0,
             )
         )
@@ -136,7 +136,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "school": candidate.school,
             "role": candidate.get_role_display(),
             "is_verified": candidate.is_verified,
-            "date_joined": candidate.date_created,
+            "date_joined": candidate.created_at,
             # "face_id": (
             #     candidate.face_id.url if candidate.face_id else None
             # ),
@@ -161,7 +161,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             {
                 "exam_title": score["exam__title"],
                 "score": float(score["score"]),
-                "date": score["date_recorded"],
+                "date": score["recorded_at"],
                 "exam_stage": score["exam__stage"],
             }
             for score in recent_scores_list
@@ -206,7 +206,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         verified_candidates=Count(
             "user_id", filter=Q(user__verification__is_verified=True)
         ),
-        recent_registrations=Count("user_id", filter=Q(date_created__gte=last_week)),
+        recent_registrations=Count("user_id", filter=Q(created_at__gte=last_week)),
     )
 
     total_candidates = candidate_stats["total_candidates"]
@@ -222,7 +222,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
 
     exam_stats = Exam.objects.aggregate(
         total_exams=Count("id"),
-        recent_exams=Count("id", filter=Q(date_created__gte=last_week)),
+        recent_exams=Count("id", filter=Q(created_at__gte=last_week)),
     )
     total_exams = exam_stats["total_exams"]
     recent_exams = exam_stats["recent_exams"]
@@ -240,7 +240,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
 
     score_stats = CandidateScore.objects.aggregate(
         total_submissions=Count("id"),
-        recent_submissions=Count("id", filter=Q(date_recorded__gte=last_week)),
+        recent_submissions=Count("id", filter=Q(recorded_at__gte=last_week)),
         average_score=Avg("score"),
         highest_score=Max("score"),
     )
@@ -251,10 +251,10 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
 
     recent_activity_list = list(
         CandidateScore.objects.select_related("candidate__user", "exam")
-        .order_by("-date_recorded")
+        .order_by("-recorded_at")
         .values(
             "score",
-            "date_recorded",
+            "recorded_at",
             "candidate__user__first_name",
             "candidate__user__last_name",
             "exam__title",
@@ -275,7 +275,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "role": staff.get_role_display(),
         "occupation": staff.occupation,
         "is_verified": staff.is_verified,
-        "date_joined": staff.date_created,
+        "date_joined": staff.created_at,
         # "face_id": staff.face_id.url if staff.face_id else None,
     }
 
@@ -312,7 +312,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
                 "candidate_name": f"{activity['candidate__user__first_name']} {activity['candidate__user__last_name']}",
                 "exam_title": activity["exam__title"],
                 "score": float(activity["score"]),
-                "date": activity["date_recorded"],
+                "date": activity["recorded_at"],
                 "candidate_school": activity[
                     "candidate__school"
                 ],  # Assuming school is directly accessible

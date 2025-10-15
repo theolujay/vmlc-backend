@@ -72,7 +72,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "has_face_id",
             "has_id_card",
             "has_verification_document",
-            "date_created",
+            "created_at",
         ]
 
     def get_has_face_id(self, obj):
@@ -99,8 +99,8 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "is_pending",
             "is_verified",
             "is_rejected",
-            "date_created",
-            "date_updated",
+            "created_at",
+            "recorded_at",
             "documents_uploaded",
         ]
 

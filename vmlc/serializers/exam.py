@@ -26,7 +26,8 @@ class ExamListSerializer(serializers.ModelSerializer):
             "title",
             "stage",
             "question_count",
-            "date_created",
+            "exam_date",
+            "created_at",
         ]
 
     def get_question_count(self, obj):
@@ -66,9 +67,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "created_by",
             "updated_by",
             "average_score",
-            "date_created",
+            "created_at",
         ]
-        read_only_fields = ["id", "date_created", "created_by"]
+        read_only_fields = ["id", "created_at", "created_by"]
 
     def get_average_score(self, obj):
         """
@@ -115,5 +116,5 @@ class ExamResultSerializer(serializers.ModelSerializer):
             "score",
             "auto_score",
             "submitted_by",
-            "date_recorded",
+            "recorded_at",
         ]

@@ -520,7 +520,7 @@ class UserVerificationListView(ListAPIView):
             f"UserVerificationListView: request from user {self.request.user.id}"
         )
         # Ensure related user data is prefetched for efficiency
-        return super().get_queryset().order_by("-date_created")
+        return super().get_queryset().order_by("-created_at")
 
 
 class UserVerificationActionView(APIView):

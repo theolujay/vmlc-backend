@@ -87,7 +87,7 @@ class QuestionListView(ListCreateAPIView):
         queryset = (
             Question.objects.filter(is_active=True)
             .select_related("created_by__user")
-            .order_by("-date_created")
+            .order_by("-created_at")
         )
         return filter_questions(queryset, self.request.query_params)
 

@@ -30,7 +30,6 @@ from .views import (
     CandidateListView,
     CandidateDetailView,
     AssignCandidateRoleView,
-    CandidateScoreListView,
     ExamHistoryView,
     StaffListView,
     StaffDetailView,
@@ -136,11 +135,7 @@ urlpatterns = [
         AssignCandidateRoleView.as_view(),
         name="candidate-role-assign",
     ),
-    path(
-        "candidates/<uuid:candidate_id>/scores/",
-        CandidateScoreListView.as_view(),
-        name="candidate-scores",
-    ),
+
     path(
         "candidates/<uuid:candidate_id>/exam-history/",
         ExamHistoryView.as_view(),

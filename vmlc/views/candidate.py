@@ -108,7 +108,7 @@ class CandidateListView(ListAPIView):
             f"CandidateListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         # Eagerly fetch related user data to prevent N+1 queries by the serializer.
-        queryset = Candidate.objects.select_related("user").order_by("-date_created")
+        queryset = Candidate.objects.select_related("user").order_by("-created_at")
         return filter_candidates(queryset, self.request.query_params)
 
 @method_decorator(
@@ -179,17 +179,6 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             .prefetch_related("scores__exam", "scores__submitted_by__user")
             .all()
         )
-        
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Custom retrieve method to return structured candidate data.
-        """
-        candidate = self.get_object()
-        logger.info(
-            f"Retrieving dashboard data for candidate {candidate.pk} by user {request.user.id}"
-        )
-        data = get_candidate_dashboard_data(candidate)
-        return Response(data, status=status.HTTP_200_OK)
 
     def perform_update(self, serializer):
         """

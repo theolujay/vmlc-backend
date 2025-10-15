@@ -19,5 +19,5 @@ class ExamResultSerializer(serializers.ModelSerializer):
             "candidate_name",
             "candidate_school",
             "score",
-            "date_recorded",
+            "recorded_at",
         ]

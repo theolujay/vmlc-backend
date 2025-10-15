@@ -800,57 +800,74 @@ X-Api-Key: <your_api_key>
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
 **Required Role:** `admin` or higher
 
 **Response:** `200 OK`
 ```json
 {
-  "candidate_info": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "+23490xxxxxxxx",
-    "school": "Mathematics High School",
-    "role": "League",
-    "is_verified": true,
-    "date_joined": "2024-01-15T10:30:00Z"
-  },
-  "exam_stats": {
-    "total_exams_taken": 1,
-    "available_exams_count": 1,
-    "average_score": 88.0,
-    "highest_score": 88.0,
-    "lowest_score": 88.0,
-    "latest_score": {
-      "score": 88.0,
-      "exam_title": "Algebra Screening",
-      "date": "2024-01-20T15:30:00Z"
+    "user": {
+        "id": "17914269-19b2-43f6-aa7e-81e59330df2f",
+        "email": "candidate100@mail.com",
+        "first_name": "Robert",
+        "last_name": "Parker",
+        "phone": "08112463722",
+        "date_joined": "2025-10-15T11:39:50.742597+01:00"
+    },
+    "school": "Porter Ltd High",
+    "face_id": null,
+    "role": "league",
+    "is_active": true,
+    "is_verified": false,
+    "id_card": null,
+    "verification_document": null,
+    "created_at": "2025-10-15T11:39:51.353736+01:00",
+    "updated_at": "2025-10-15T11:39:51.353781+01:00",
+    "records": {
+        "performance": {
+            "stats": {
+                "total_score": 141.18,
+                "average_score": 70.59,
+                "leaderboard_ranking": {
+                    "current_rank": null,
+                    "total_candidates": 0
+                },
+                "latest_score": {
+                    "score": 99.88,
+                    "exam_title": "Organized interactive parallelism",
+                    "date": "2025-10-15T10:40:03.271586Z"
+                },
+                "highest_score": 99.88,
+                "total_exams_taken": 2,
+                "lowest_score": 41.3,
+                "highest_obtainable_score": 100.0
+            },
+            "exams": [
+                {
+                    "exam_id": 4,
+                    "exam_title": "Organized interactive parallelism",
+                    "exam_stage": "league",
+                    "exam_date": "2025-09-30T10:39:51.622476Z",
+                    "score": 99.88,
+                    "recorded_at": "2025-10-15T10:40:03.271586+00:00",
+                    "submitted_by": "Anne Bradshaw",
+                    "auto_score": false
+                },
+                {
+                    "exam_id": 2,
+                    "exam_title": "Customizable background utilization",
+                    "exam_stage": "screening",
+                    "exam_date": "2025-09-17T10:39:51.597446Z",
+                    "score": 41.3,
+                    "recorded_at": "2025-10-15T10:40:03.247026+00:00",
+                    "submitted_by": "Kenneth Pace",
+                    "auto_score": false
+                }
+            ]
+        },
+        "available_exams": []
     }
-  },
-  "leaderboard_ranking": {
-    "current_rank": 15,
-    "total_candidates": 150
-  },
-  "recent_scores": [
-    {
-      "exam_title": "Algebra Screening",
-      "score": 88.0,
-      "date": "2024-01-20T15:30:00Z",
-      "exam_stage": "screening"
-    }
-  ],
-  "available_exams": [
-    {
-      "id": 2,
-      "title": "Geometry Challenge",
-      "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
-      "open_duration_hours": 12,
-      "exam_date": "2024-01-25T14:00:00Z",
-      "countdown_minutes": 90,
-      "question_count": 25,
-      "stage": "league"
-    }
-  ]
 }
 ```
 
@@ -901,10 +918,10 @@ X-Api-Key: <your_api_key>
       "title": "Algebra Screening Exam",
       "stage": "screening",
       "question_count": 20,
-      "date_created": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z"
     },
     "score": 88.0,
-    "date_recorded": "2024-01-20T15:30:00Z"
+    "recorded_at": "2024-01-20T15:30:00Z"
   }
 ]
 ```
@@ -997,8 +1014,8 @@ X-Api-Key: <your_api_key>
   "is_verified": true,
   "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
   "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
-  "date_created": "2024-01-01T08:00:00Z",
-  "date_updated": "2024-01-05T09:00:00Z"
+  "created_at": "2024-01-01T08:00:00Z",
+  "updated_at": "2024-01-05T09:00:00Z"
 }
 ```
 
@@ -1055,7 +1072,7 @@ X-Api-Key: <your_api_key>
       "title": "Algebra Screening Exam",
       "stage": "screening",
       "question_count": 20,
-      "date_created": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z"
     }
   ]
 }
@@ -1106,7 +1123,7 @@ X-Api-Key: <your_api_key>
     "role": "superadmin"
   },
   "average_score": 0.0,
-  "date_created": "2025-09-18T12:00:00Z"
+  "created_at": "2025-09-18T12:00:00Z"
 }
 ```
 
@@ -1143,7 +1160,7 @@ X-Api-Key: <your_api_key>
   },
   "updated_by": null,
   "average_score": 78.5,
-  "date_created": "2024-01-10T09:00:00Z"
+  "created_at": "2024-01-10T09:00:00Z"
 }
 ```
 
@@ -1190,7 +1207,7 @@ X-Api-Key: <your_api_key>
     "option_d": "250",
     "correct_answer": "B",
     "difficulty": "easy",
-    "date_created": "2024-01-10T09:00:00Z",
+    "created_at": "2024-01-10T09:00:00Z",
     "created_by": {
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
@@ -1224,7 +1241,7 @@ X-Api-Key: <your_api_key>
     "score": 88.0,
     "auto_score": true,
     "submitted_by": null,
-    "date_recorded": "2024-01-20T15:30:00Z"
+    "recorded_at": "2024-01-20T15:30:00Z"
   }
 ]
 ```
@@ -1353,7 +1370,7 @@ The API provides CRUD operations for managing exam questions.
       "id": 1,
       "text": "What is 5 × 5?",
       "difficulty": "easy",
-      "date_created": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z"
     }
   ]
 }
@@ -1385,7 +1402,7 @@ The API provides CRUD operations for managing exam questions.
   "option_d": "Rome",
   "correct_answer": "C",
   "difficulty": "easy",
-  "date_created": "2025-09-18T12:30:00Z",
+  "created_at": "2025-09-18T12:30:00Z",
   "created_by": {
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
@@ -1415,7 +1432,7 @@ The API provides CRUD operations for managing exam questions.
   "option_d": "250",
   "correct_answer": "B",
   "difficulty": "easy",
-  "date_created": "2024-01-10T09:00:00Z",
+  "created_at": "2024-01-10T09:00:00Z",
   "created_by": {
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
@@ -1731,8 +1748,8 @@ The API returns a consistent JSON object with a `status` field that indicates th
           "is_pending": true,
           "is_verified": false,
           "is_rejected": false,
-          "date_created": "2025-09-01T10:00:00Z",
-          "date_updated": "2025-09-01T10:00:00Z",
+          "created_at": "2025-09-01T10:00:00Z",
+          "updated_at": "2025-09-01T10:00:00Z",
           "documents_uploaded": {
               "face_id": true,
               "id_card": true,
@@ -1849,7 +1866,7 @@ X-Api-Key: <your_api_key>
         "has_face_id": true,
         "has_id_card": true,
         "has_verification_document": false,
-        "date_created": "2025-08-30T16:33:19Z"
+        "created_at": "2025-08-30T16:33:19Z"
     }
   ]
 }
@@ -1930,8 +1947,8 @@ X-Api-Key: <your_api_key>
     "is_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
-    "date_created": "2024-01-15T10:30:00Z",
-    "date_updated": "2024-01-20T11:00:00Z",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T11:00:00Z",
     "scores": {
       "total_score": 380.0,
       "average_score": 95.0,
@@ -1940,7 +1957,7 @@ X-Api-Key: <your_api_key>
           "exam_id": 1,
           "exam_title": "Algebra Screening",
           "score": 88.0,
-          "date_recorded": "2024-01-20T15:30:00Z",
+          "recorded_at": "2024-01-20T15:30:00Z",
           "submitted_by": "Admin User",
           "auto_score": true
         }
@@ -1978,8 +1995,8 @@ X-Api-Key: <your_api_key>
     "is_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
-    "date_created": "2024-01-01T08:00:00Z",
-    "date_updated": "2024-01-05T09:00:00Z"
+    "created_at": "2024-01-01T08:00:00Z",
+    "updated_at": "2024-01-05T09:00:00Z"
   }
 }
 ```
@@ -2027,8 +2044,8 @@ X-Api-Key: <your_api_key>
     "is_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
-    "date_created": "2024-01-15T10:30:00Z",
-    "date_updated": "2024-01-20T11:00:00Z",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-20T11:00:00Z",
     "scores": {
       "total_score": 380.0,
       "average_score": 95.0,
@@ -2037,7 +2054,7 @@ X-Api-Key: <your_api_key>
           "exam_id": 1,
           "exam_title": "Algebra Screening",
           "score": 88.0,
-          "date_recorded": "2024-01-20T15:30:00Z",
+          "recorded_at": "2024-01-20T15:30:00Z",
           "submitted_by": "Admin User",
           "auto_score": true
         }
@@ -2194,7 +2211,7 @@ X-Api-Key: <your_api_key>
 | `page` | integer | Page number for pagination | `?page=2` |
 | `limit` | integer | Items per page (max: 100) | `?limit=25` |
 | `search` | string | Search across relevant fields (e.g., name, email, title) | `?search=john` |
-| `ordering` | string | Sort results (`field` or `-field` for descending) | `?ordering=-date_created` |
+| `ordering` | string | Sort results (`field` or `-field` for descending) | `?ordering=-created_at` |
 
 #### Filtering Parameters
 | Endpoint | Parameter | Type | Description |

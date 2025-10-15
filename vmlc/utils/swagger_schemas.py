@@ -279,8 +279,8 @@ candidate_detail_response_schema = openapi.Schema(
         'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'id_card': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'verification_document': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
-        'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-        'date_updated': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
         'scores': openapi.Schema(type=openapi.TYPE_OBJECT),
     }
 )
@@ -304,7 +304,7 @@ exam_list_response_schema = openapi.Schema(
                     'title': openapi.Schema(type=openapi.TYPE_STRING),
                     'stage': openapi.Schema(type=openapi.TYPE_STRING),
                     'question_count': openapi.Schema(type=openapi.TYPE_INTEGER),
-                    'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                 }
             )
         )
@@ -340,7 +340,7 @@ exam_detail_response_schema = openapi.Schema(
         'created_by': openapi.Schema(type=openapi.TYPE_OBJECT),
         'updated_by': openapi.Schema(type=openapi.TYPE_OBJECT),
         'average_score': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT),
-        'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
     }
 )
 
@@ -355,7 +355,7 @@ exam_result_response_schema = openapi.Schema(
                     'candidate_name': openapi.Schema(type=openapi.TYPE_STRING),
                     'candidate_school': openapi.Schema(type=openapi.TYPE_STRING),
                     'score': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_DECIMAL),
-                    'date_recorded': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'recorded_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                 }
             )
         )
@@ -378,7 +378,7 @@ question_detail_list_response_schema = openapi.Schema(
                     'option_d': openapi.Schema(type=openapi.TYPE_STRING),
                     'correct_answer': openapi.Schema(type=openapi.TYPE_STRING),
                     'difficulty': openapi.Schema(type=openapi.TYPE_STRING),
-                    'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                     'created_by': openapi.Schema(type=openapi.TYPE_OBJECT),
                 }
             )
@@ -447,7 +447,7 @@ question_list_response_schema = openapi.Schema(
                     'id': openapi.Schema(type=openapi.TYPE_INTEGER),
                     'text': openapi.Schema(type=openapi.TYPE_STRING),
                     'difficulty': openapi.Schema(type=openapi.TYPE_STRING),
-                    'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                 }
             )
         )
@@ -478,7 +478,7 @@ question_detail_response_schema = openapi.Schema(
         'option_d': openapi.Schema(type=openapi.TYPE_STRING),
         'correct_answer': openapi.Schema(type=openapi.TYPE_STRING),
         'difficulty': openapi.Schema(type=openapi.TYPE_STRING),
-        'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
         'created_by': openapi.Schema(type=openapi.TYPE_OBJECT),
     }
 )
@@ -521,7 +521,7 @@ candidate_score_list_response_schema = openapi.Schema(
                     'candidate': openapi.Schema(type=openapi.TYPE_OBJECT),
                     'exam': openapi.Schema(type=openapi.TYPE_OBJECT),
                     'score': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_DECIMAL),
-                    'date_recorded': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'recorded_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                 }
             )
         )
@@ -573,8 +573,8 @@ staff_detail_response_schema = openapi.Schema(
         'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'id_card': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'verification_document': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
-        'date_created': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-        'date_updated': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
     }
 )
 

@@ -56,10 +56,10 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "is_verified",
             "id_card",
             "verification_document",
-            "date_created",
-            "date_updated",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["date_created", "date_updated", "user"]
+        read_only_fields = ["created_at", "updated_at", "user"]
         
     def get_face_id(self, obj: Staff):
         """

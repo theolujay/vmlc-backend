@@ -10,7 +10,8 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, F, Max, Min, Q, Sum, Window
+from django.db.models.functions import Rank
 from django.utils import timezone
 
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
@@ -178,8 +179,8 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         """Return a string representation of the user verification."""
@@ -252,8 +253,8 @@ class Staff(models.Model):
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
     occupation = models.CharField(max_length=50, blank=True)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
         max_length=20, choices=Roles.choices, default=Roles.VOLUNTEER, db_index=True
     )
@@ -344,8 +345,8 @@ class Question(models.Model):
     option_c = models.CharField(max_length=255, blank=True)
     option_d = models.CharField(max_length=255, blank=True)
     correct_answer = models.CharField(max_length=1, choices=Options.choices)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
         Staff,
         blank=True,
@@ -392,8 +393,8 @@ class Exam(models.Model):
     exam_date = models.DateTimeField(blank=True, null=True, db_index=True)
     open_duration_hours = models.PositiveIntegerField(default=12)
     countdown_minutes = models.PositiveIntegerField(default=60)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     questions = models.ManyToManyField(Question, blank=True)
     created_by = models.ForeignKey(
         Staff,
@@ -522,8 +523,8 @@ class Candidate(models.Model):
         related_name="candidate_profile",
     )
     school = models.CharField(max_length=150)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
         max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True
     )
@@ -628,18 +629,96 @@ class Candidate(models.Model):
         """
         Returns the most recent score submitted for this candidate.
         """
-        return self.scores.latest("date_recorded")
+        return self.scores.latest("recorded_at")
 
-    def get_score_dict(self):
+    def get_records(self):
         """
-        Returns a dictionary of total, average, and per-exam scores for this candidate.
-        Uses annotated and prefetched data if available to avoid extra queries.
+        Returns a dictionary of a candidate's performance stats, scores, and available exams.
         """
-        # Use annotated values if they exist
-        total_score = getattr(self, "total_score", None)
-        average_score = getattr(self, "average_score", None)
+        latest_snapshot = (
+            CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
+            .order_by("-published_at")
+            .first()
+        )
 
-        # Use prefetched scores if they exist, otherwise query
+        scores_qs = self.scores.all()
+        if latest_snapshot:
+            scores_qs = scores_qs.filter(recorded_at__lte=latest_snapshot.published_at)
+
+        score_stats = scores_qs.aggregate(
+            total_exams_taken=Count("id"),
+            average_score=Avg("score"),
+            highest_score=Max("score"),
+            lowest_score=Min("score"),
+            total_score=Sum("score"),
+        )
+
+        recent_scores_list = list(
+            scores_qs.order_by("-recorded_at")
+            .select_related("exam")
+            .values("score", "exam__title", "recorded_at")[:1]
+        )
+
+        latest_score_data = None
+        if recent_scores_list:
+            latest_score_data = {
+                "score": float(recent_scores_list[0]["score"]),
+                "exam_title": recent_scores_list[0]["exam__title"],
+                "date": recent_scores_list[0]["recorded_at"],
+            }
+
+        # available_exams
+        available_exams_list = []
+        if self.is_verified:
+            all_relevant_exams = (
+                Exam.objects.filter(stage=self.role, is_active=True)
+                .annotate(question_count=Count("questions"))
+                .order_by("exam_date")[:5]
+            )
+
+            for exam in all_relevant_exams:
+                if exam.is_currently_open:
+                    available_exams_list.append(
+                        {
+                            "id": exam.id,
+                            "title": exam.title,
+                            "description": exam.description,
+                            "open_duration_hours": exam.open_duration_hours,
+                            "exam_date": exam.exam_date,
+                            "countdown_minutes": exam.countdown_minutes,
+                            "question_count": exam.question_count,
+                            "stage": exam.stage,
+                        }
+                    )
+
+        # leaderboard ranking
+        candidate_rank = None
+        total_league_candidates = 0
+        if self.role == self.Roles.LEAGUE and latest_snapshot:
+            league_candidates_qs = Candidate.candidates_by_role(
+                self.Roles.LEAGUE
+            ).annotate(
+                total_score=Sum(
+                    "scores__score",
+                    filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
+                    default=0.0,
+                )
+            )
+
+            ranked_candidates_qs = league_candidates_qs.annotate(
+                rank=Window(
+                    expression=Rank(),
+                    order_by=F("total_score").desc(nulls_last=True),
+                )
+            )
+
+            ranked_candidate = ranked_candidates_qs.filter(pk=self.pk).first()
+            if ranked_candidate:
+                candidate_rank = ranked_candidate.rank
+
+            total_league_candidates = league_candidates_qs.count()
+
+        # Use prefetched scores for the `exams` list
         if (
             hasattr(self, "_prefetched_objects_cache")
             and "scores" in self._prefetched_objects_cache
@@ -648,31 +727,51 @@ class Candidate(models.Model):
         else:
             scores = self.scores.select_related("exam", "submitted_by__user").all()
 
-        # If total/average scores were not annotated, calculate them from the scores list
-        if total_score is None and scores:
-            total_score = sum(s.score for s in scores if s.score is not None)
-        if average_score is None and scores:
-            average_score = total_score / len(scores) if scores else 0
+        exams_taken_list = [
+            {
+                "exam_id": s.exam.id,
+                "exam_title": s.exam.title,
+                "exam_stage": s.exam.stage,
+                "exam_date": s.exam.exam_date,
+                "score": float(s.score),
+                "recorded_at": s.recorded_at.isoformat(),
+                "submitted_by": (
+                    s.submitted_by.user.get_full_name()
+                    if s.submitted_by and s.submitted_by.user
+                    else None
+                ),
+                "auto_score": s.auto_score,
+            }
+            for s in scores
+        ]
 
-        return {
-            "total_score": float(total_score) if total_score is not None else 0.0,
-            "average_score": float(average_score) if average_score is not None else 0.0,
-            "scores": [
-                {
-                    "exam_id": s.exam.id,
-                    "exam_title": s.exam.title,
-                    "score": float(s.score),
-                    "date_recorded": s.date_recorded.isoformat(),
-                    "submitted_by": (
-                        s.submitted_by.user.get_full_name()
-                        if s.submitted_by and s.submitted_by.user
+        records = {
+            "performance": {
+                "stats": {
+                    "total_score": float(score_stats["total_score"] or 0),
+                    "average_score": round(
+                        float(score_stats["average_score"] or 0), 2
+                    ),
+                    "leaderboard_ranking": (
+                        {
+                            "current_rank": candidate_rank,
+                            "total_candidates": total_league_candidates,
+                        }
+                        if self.role == self.Roles.LEAGUE
                         else None
                     ),
-                    "auto_score": s.auto_score,
-                }
-                for s in scores
-            ],
+                    "latest_score": latest_score_data,
+                    "highest_score": float(score_stats["highest_score"] or 0),
+                    "total_exams_taken": score_stats["total_exams_taken"],
+                    "lowest_score": float(score_stats["lowest_score"] or 0),
+                    "highest_obtainable_score": 100.0,
+                },
+                "exams": exams_taken_list,
+            },
+            "available_exams": available_exams_list,
         }
+
+        return records
 
     class Meta:
         """Meta options for the Candidate model."""
@@ -695,8 +794,8 @@ class CandidateScore(models.Model):
     )
     exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="scores")
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
-    date_recorded = models.DateTimeField(default=timezone.now)
-    date_updated = models.DateTimeField(auto_now=True)
+    recorded_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
     submitted_by = models.ForeignKey(
         Staff, on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -706,7 +805,7 @@ class CandidateScore(models.Model):
         """Meta options for the CandidateScore model."""
 
         unique_together = ("candidate", "exam")
-        ordering = ["-date_recorded"]
+        ordering = ["-recorded_at"]
 
     def calculate_and_save_auto_score(self, submitted_answers):
         """
@@ -731,7 +830,7 @@ class CandidateScore(models.Model):
             self.score = round(score, 2)
 
         self.auto_score = True
-        self.date_recorded = timezone.now()
+        self.recorded_at = timezone.now()
         self.save()
 
 

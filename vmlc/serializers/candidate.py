@@ -27,6 +27,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
 
     user = MinimalUserSerializer(read_only=True)
 
+
     class Meta:
         model = Candidate
         fields = [
@@ -46,8 +47,8 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     """
 
     user: UserSerializer = UserSerializer(read_only=True)
-    scores: serializers.SerializerMethodField = serializers.SerializerMethodField(
-        help_text="Detailed score breakdown for the candidate."
+    records: serializers.SerializerMethodField = serializers.SerializerMethodField(
+        help_text="Contains a detailed breakdown of the candidate's performance and list of available exams."
     )
     face_id = serializers.SerializerMethodField()
     id_card = serializers.SerializerMethodField()
@@ -64,18 +65,17 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "is_verified",
             "id_card",
             "verification_document",
-            "date_created",
-            "date_updated",
-            "scores",
+            "created_at",
+            "updated_at",
+            "records",
         ]
-        read_only_fields = ["date_created", "date_updated", "user"]
+        read_only_fields = ["created_at", "updated_at", "user"]
 
-    def get_scores(self, obj: Candidate):
+    def get_records(self, obj: Candidate):
         """
-        Efficiently returns a dictionary of scores by leveraging the
-        annotated and prefetched data from the model's `get_score_dict` method.
+        Returns a dictionary containing candidate's records (performance and available exams).
         """
-        return obj.get_score_dict()
+        return obj.get_records()
     
     def get_face_id(self, obj: Candidate):
         """

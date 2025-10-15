@@ -53,14 +53,14 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "has_face_id",
         "has_id_card",
         "has_verification_document",
-        "date_created",
+        "created_at",
     ]
 
-    list_filter = ["is_pending", "is_verified", "date_created"]
+    list_filter = ["is_pending", "is_verified", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
-    readonly_fields = ["date_created", "date_updated"]
+    readonly_fields = ["created_at", "updated_at"]
     list_select_related = ("user",)
-    date_hierarchy = "date_created"
+    date_hierarchy = "created_at"
 
     actions = ["approve_selected", "reject_selected"]
 
@@ -69,7 +69,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
-            {"fields": ("date_created", "date_updated"), "classes": ("collapse",)},
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
 
@@ -125,19 +125,19 @@ class CandidateAdmin(admin.ModelAdmin):
         "exams_taken",
         "is_verified",
         "is_active",
-        "date_created",
+        "created_at",
     )
-    readonly_fields = ("date_created", "date_updated")
+    readonly_fields = ("created_at", "updated_at")
     # Fixed: Use actual database fields for filtering
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
         "user__verification__is_verified",  # Filter by verification status
-        "date_created",
+        "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "school")
     list_select_related = ("user", "user__verification")
-    date_hierarchy = "date_created"
+    date_hierarchy = "created_at"
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -192,19 +192,19 @@ class StaffAdmin(admin.ModelAdmin):
         "get_primary_key",
         "is_verified",
         "is_active",
-        "date_created",
+        "created_at",
     )
-    readonly_fields = ("date_created", "date_updated")
+    readonly_fields = ("created_at", "updated_at")
     # Fixed: Use actual database fields for filtering
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
         "user__verification__is_verified",  # Filter by verification status
-        "date_created",
+        "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "occupation")
     list_select_related = ("user", "user__verification")
-    date_hierarchy = "date_created"
+    date_hierarchy = "created_at"
 
     @admin.display(description="Email", ordering="user__email")
     def email(self, obj):
@@ -244,12 +244,12 @@ class ExamAdmin(admin.ModelAdmin):
         "get_question_count",
         "is_active",
         "view_results_link",
-        "date_created",
+        "created_at",
     )
-    readonly_fields = ("date_created", "date_updated")
+    readonly_fields = ("created_at", "updated_at")
     list_filter = ("stage", "is_active", "created_by")
     search_fields = ("title", "stage")
-    date_hierarchy = "date_created"
+    date_hierarchy = "created_at"
     filter_horizontal = ("questions",)
 
     @admin.display(description="Question Count", ordering="question_count")
@@ -278,12 +278,12 @@ class QuestionAdmin(admin.ModelAdmin):
     Displays question text, difficulty, and creator.
     """
 
-    list_display = ("id", "text", "difficulty", "creator_name", "date_created")
-    readonly_fields = ("date_created", "date_updated")
+    list_display = ("id", "text", "difficulty", "creator_name", "created_at")
+    readonly_fields = ("created_at", "updated_at")
     list_filter = ("difficulty", "created_by")
     search_fields = ("text", "created_by__user__email")
     list_select_related = ("created_by__user",)
-    date_hierarchy = "date_created"
+    date_hierarchy = "created_at"
 
     @admin.display(description="Created By", ordering="created_by__user__first_name")
     def creator_name(self, obj):
@@ -304,14 +304,14 @@ class CandidateScoreAdmin(admin.ModelAdmin):
         "candidate_email",
         "exam_title",
         "score",
-        "date_recorded",
+        "recorded_at",
         "auto_score",
     )
-    readonly_fields = ("date_recorded", "date_updated")
+    readonly_fields = ("recorded_at", "updated_at")
     list_filter = ("exam", "auto_score")
     search_fields = ("candidate__user__email", "exam__title")
     list_select_related = ("candidate__user", "exam")
-    date_hierarchy = "date_recorded"
+    date_hierarchy = "recorded_at"
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
     def candidate_email(self, obj):

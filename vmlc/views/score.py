@@ -36,49 +36,6 @@ from ..utils.swagger_schemas import (
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(
-    name="get",
-    decorator=swagger_auto_schema(
-        operation_summary="List Candidate Scores",
-        operation_description="Retrieve all scores for a given candidate.",
-        responses={
-            200: candidate_score_list_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["Scores"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
-class CandidateScoreListView(ListAPIView):
-    """
-    Retrieve all scores for a given candidate.
-
-    Accessible by staff with 'admin', 'manager', or 'superadmin' roles.
-    """
-
-    permission_classes = VerifiedAdminPermissions
-    serializer_class = CandidateScoreSerializer
-
-    def get_queryset(self):
-        """
-        Returns a queryset of scores for the specified candidate,
-        optimized with prefetching.
-        """
-        candidate_id = self.kwargs.get("candidate_id")
-        logger.info(
-            f"CandidateScoreListView: request from user {self.request.user.id} for candidate {candidate_id}"
-        )
-        # Ensure the candidate exists before proceeding
-        get_object_or_404(Candidate, pk=candidate_id)
-        return (
-            CandidateScore.objects.filter(candidate_id=candidate_id)
-            .select_related("candidate__user", "exam")
-            .order_by("-date_recorded")
-        )
-
-
 class SubmitScoreView(APIView):
     """
     Submit or update a candidate's score for a specific exam.
@@ -135,7 +92,7 @@ class SubmitScoreView(APIView):
                 "score": score,
                 "submitted_by": staff,
                 "auto_score": False,
-                "date_recorded": timezone.now(),
+                "recorded_at": timezone.now(),
             },
         )
 

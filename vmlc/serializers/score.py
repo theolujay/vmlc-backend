@@ -19,8 +19,8 @@ class CandidateScoreSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CandidateScore
-        fields = ["id", "candidate", "exam", "score", "date_recorded"]
-        read_only_fields = ["id", "date_created"]
+        fields = ["id", "candidate", "exam", "score", "recorded_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class SubmitScoreSerializer(serializers.Serializer):
