@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60, queue="comms")
-def send_mail_task(self, subject, message, recipient_list):
+def send_mail_task(self, subject, message, recipient_list, html_message=None):
     """
     Celery task to send an email asynchronously.
 
@@ -23,9 +23,10 @@ def send_mail_task(self, subject, message, recipient_list):
         send_mail(
             subject=subject,
             message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            # from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=recipient_list,
             fail_silently=False,
+            html_message=html_message,
         )
         logger.info(f"Successfully sent email to {recipient_list}")
     except Exception as exc:

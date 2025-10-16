@@ -9,6 +9,7 @@ from typing import Tuple, Any
 
 from ..models import EmailOTP, User
 from ..tasks import send_mail_task
+from .email import create_email_html
 
 logger = logging.getLogger(__name__)
 
@@ -109,19 +110,13 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
         # Send email
         subject: str = "Your OTP Code" + (" (Resent)" if is_resend else "")
         message: str = f"Your OTP code is {otp}. It expires in 10 minutes."
-
-        # send_mail(
-        #     subject=subject,
-        #     message=message,
-        #     from_email="no-reply@verboheit.org",
-        #     recipient_list=[user.email],
-        #     fail_silently=False,
-        # )
+        html_message = create_email_html(subject=subject, message=message, otp=otp)
 
         send_mail_task.delay(
             subject=subject,
             message=message,
             recipient_list=[user.email],
+            html_message=html_message,
         )
 
         logger.info(f"OTP email {action} successfully to user {user.id}")
@@ -183,14 +178,23 @@ def send_password_change_otp(user: User) -> None:
         logger.info(f"Password change OTP created for user {user.id}")
 
         # Send email with password-specific message
+        subject = "Password Change Verification"
+        message = (
+            f"Your verification code for password change is {otp}. "
+            f"This code expires in 10 minutes. "
+            f"If you didn't request this, please ignore this email."
+        )
+        html_message = create_email_html(
+            subject=subject,
+            message=message,
+            otp=otp,
+            otp_message="...expires in 10 minutes.<br><br>If you didn't request this, please ignore this email.",
+        )
         send_mail_task.delay(
-            subject="Password Change Verification",
-            message=(
-                f"Your verification code for password change is {otp}. "
-                f"This code expires in 10 minutes. "
-                f"If you didn't request this, please ignore this email."
-            ),
+            subject=subject,
+            message=message,
             recipient_list=[user.email],
+            html_message=html_message,
         )
 
         logger.info(f"Password change OTP email sent to user {user.id}")

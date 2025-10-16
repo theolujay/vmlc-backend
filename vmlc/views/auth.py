@@ -53,6 +53,7 @@ from ..utils.exceptions import (
     ServerError,
     ValidationError,
 )
+from ..utils.email import create_email_html
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +104,14 @@ class VerifyEmailOTPView(APIView):
             try:
                 user = serializer.save()
 
+                subject = "Email Verified Successfully"
+                message = "Your email has been successfully verified."
+                html_message = create_email_html(subject=subject, message=message)
                 send_mail_task.delay(
-                    subject="Email Verified Successfully",
-                    message="Your email has been successfully verified.",
+                    subject=subject,
+                    message=message,
                     recipient_list=[user.email],
+                    html_message=html_message,
                 )
                 logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
@@ -330,10 +335,14 @@ class PasswordChangeView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
+                subject = "Your Password Has Been Changed"
+                message = "This is to inform you that your password has been successfully changed."
+                html_message = create_email_html(subject=subject, message=message)
                 send_mail_task.delay(
-                    subject="Your Password Has Been Changed",
-                    message="This is to inform you that your password has been successfully changed.",
+                    subject=subject,
+                    message=message,
                     recipient_list=[user.email],
+                    html_message=html_message,
                 )
                 logger.info(f"Password changed successfully for user {user.id}")
                 return Response(

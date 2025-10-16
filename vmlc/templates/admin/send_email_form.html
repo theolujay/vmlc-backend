@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    <p>{% blocktrans with count=queryset.count %}You are about to send an email to {{ count }} user(s).{% endblocktrans %}</p>
+    
+    <fieldset class="module aligned">
+        <div class="form-row">
+            {{ form.subject.label_tag }} {{ form.subject }}
+        </div>
+        <div class="form-row">
+            {{ form.message.label_tag }} {{ form.message }}
+        </div>
+    </fieldset>
+
+    {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    
+    <input type="hidden" name="action" value="{{ action }}">
+    <div class="submit-row">
+        <input type="submit" name="apply" value="Send emails">
+    </div>
+</form>
+{% endblock %}
