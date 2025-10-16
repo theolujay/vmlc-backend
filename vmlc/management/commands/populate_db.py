@@ -5,6 +5,7 @@ from django.utils import timezone
 from typing import Any
 from faker import Faker
 from dotenv import load_dotenv
+from django.db.models import Sum, Avg, Count
 
 load_dotenv(".env")
 
@@ -25,6 +26,7 @@ from vmlc.models import (
     CandidateScoreSnapshot
 )
 from django.core.management.base import BaseCommand
+from vmlc.serializers.candidate import MinimalCandidateSerializer
 
 
 class Command(BaseCommand):
@@ -39,6 +41,7 @@ class Command(BaseCommand):
             return f"{prefix}{random.randint(10000000, 99999999)}"
 
         # Clear existing data
+        # self.stdout.write("Clearing existing data...")
         # CandidateAnswer.objects.all().delete()
         # CandidateScore.objects.all().delete()
         # Exam.objects.all().delete()
@@ -52,10 +55,12 @@ class Command(BaseCommand):
         # User.objects.filter(is_superuser=False).delete()
 
         # Create FeatureFlags
-        # FeatureFlag.objects.create(key="candidate_registration", value=True)
-        # FeatureFlag.objects.create(key="staff_registration", value=True)
+        self.stdout.write("Creating feature flags...")
+        candidate_registration, _ = FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
+        staff_registratio, _ = FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
 
         # Create staff users
+        self.stdout.write("Creating staff users...")
         staff_list = []
         for i in range(20):
             user = User.objects.create_user(
@@ -80,6 +85,7 @@ class Command(BaseCommand):
             staff_list.append(staff)
 
         # Create candidate users
+        self.stdout.write("Creating candidate users...")
         candidate_list = []
         for i in range(100):
             user = User.objects.create_user(
@@ -104,6 +110,7 @@ class Command(BaseCommand):
             candidate_list.append(candidate)
 
         # Create questions
+        self.stdout.write("Creating questions...")
         question_list = []
         for i in range(50):
             question = Question.objects.create(
@@ -119,6 +126,7 @@ class Command(BaseCommand):
             question_list.append(question)
 
         # Create exams
+        self.stdout.write("Creating exams...")
         exam_list = []
         for i in range(10):
             exam = Exam.objects.create(
@@ -135,6 +143,7 @@ class Command(BaseCommand):
             exam_list.append(exam)
 
         # Create Candidate scores and answers
+        self.stdout.write("Creating candidate scores and answers...")
         for candidate in candidate_list:
             # Have each candidate take a random number of exams
             exams_to_take = random.sample(exam_list, k=random.randint(1, 5))
@@ -143,7 +152,6 @@ class Command(BaseCommand):
                     candidate=candidate,
                     exam=exam,
                     score=round(random.uniform(30.0, 100.0), 2),
-                    submitted_by=random.choice(staff_list),
                 )
                 # Create answers for each question in the exam
                 for question in exam.questions.all():
@@ -153,9 +161,52 @@ class Command(BaseCommand):
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
 
-        # Create dummy snapshots
-        LeaderboardSnapshot.objects.create(data={"leaderboard": "dummy_data"})
-        CandidateScoreSnapshot.objects.create(data={"scores": "dummy_data"})
+        # Generate Leaderboard Snapshot
+        self.stdout.write("Generating leaderboard snapshot...")
+        league_candidates = Candidate.objects.filter(role="league", user__is_active=True).annotate(
+            total_score=Sum('scores__score')
+        ).order_by('-total_score')
+
+        leaderboard_data = [
+            {
+                "rank": index + 1,
+                "candidate": MinimalCandidateSerializer(candidate).data,
+                "total_score": float(candidate.total_score or 0.0),
+            }
+            for index, candidate in enumerate(league_candidates)
+        ]
+
+        if staff_list:
+            LeaderboardSnapshot.objects.create(
+                data=leaderboard_data,
+                published_by=random.choice(staff_list),
+            )
+
+        # Generate Candidate Score Snapshot
+        self.stdout.write("Generating candidate score snapshot...")
+        all_candidates = Candidate.objects.annotate(
+            total_score=Sum('scores__score'),
+            average_score=Avg('scores__score'),
+            exams_taken=Count('scores')
+        )
+
+        scores_data = []
+        for candidate in all_candidates:
+            scores_data.append(
+                {
+                    "candidate": MinimalCandidateSerializer(candidate).data,
+                    "total_score": float(candidate.total_score or 0.0),
+                    "average_score": float(candidate.average_score or 0.0),
+                    "exams_taken": candidate.exams_taken or 0,
+                }
+            )
+
+        if staff_list:
+            CandidateScoreSnapshot.objects.create(
+                data=scores_data,
+                published_by=random.choice(staff_list),
+                published_at=timezone.now(),
+            )
 
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with more data!")
