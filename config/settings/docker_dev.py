@@ -16,7 +16,15 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.environ.get("SECRET_KEY")
+def read_secret(secret_name, default=""):
+    """Read secret from file if SECRET_NAME_FILE env var exists"""
+    file_path = os.getenv(f'{secret_name}_FILE')
+    if file_path and os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            return f.read().strip()
+    return os.getenv(secret_name, default)
+
+SECRET_KEY = read_secret("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("The SECRET_KEY environment variable is not set.")
 
@@ -25,11 +33,11 @@ from .base import *
 DEBUG = True
 
 INTERNAL_IPS = [
-    ip.strip() for ip in os.getenv("INTERNAL_IPS", "").split(",") if ip.strip()
+    ip.strip() for ip in read_secret("INTERNAL_IPS", "").split(",") if ip.strip()
 ]
 
 ALLOWED_HOSTS = [
-    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
+    host.strip() for host in read_secret("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
 if 'test' not in sys.argv:
@@ -43,13 +51,13 @@ if 'test' not in sys.argv:
         # "silk.middleware.SilkyMiddleware",
     ]
 
-ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
+ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
 
-DATABASE_URL = os.getenv(
+DATABASE_URL = read_secret(
     "DATABASE_URL",
-    f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:"
-    f"{os.getenv('POSTGRES_PASSWORD', 'password')}@"
-    f"db:5432/{os.getenv('POSTGRES_DB', 'vmlc_dev')}",
+    f"postgresql://{read_secret('POSTGRES_USER', 'postgres')}:"
+    f"{read_secret('POSTGRES_PASSWORD', 'password')}@"
+    f"db:5432/{read_secret('POSTGRES_DB', 'vmlc_dev')}",
 )
 
 db_config = dj_database_url.config(
@@ -115,29 +123,29 @@ ADMINS = [
 ]
 
 EMAIL_SUBJECT_PREFIX = "[VMLC Portal]"
-SERVER_EMAIL = os.getenv("SERVER_EMAIL", "dev@vmlc.local")
+SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
-BROADCAST_WEBHOOK_URL = os.getenv("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
+BROADCAST_WEBHOOK_URL = read_secret("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_HOST = read_secret("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(read_secret("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = read_secret("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = read_secret("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = True  # ← Enable TLS for Gmail port 587
 EMAIL_USE_SSL = False  # ← Keep SSL disabled when using TLS
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "test@verboheit.dev")
+DEFAULT_FROM_EMAIL = read_secret("DEFAULT_FROM_EMAIL", "test@verboheit.dev")
 
 # Fallback to console if no EMAIL_HOST is provided
-# if not os.getenv("EMAIL_HOST"):
+# if not read_secret("EMAIL_HOST"):
 #     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-TOS_URL = os.getenv("TOS_URL", f"{BASE_URL}/terms/")
-CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "dev@vmlc.local")
-CONTACT_URL = os.getenv("CONTACT_URL", f"{BASE_URL}/contact/")
-LICENSE_URL = os.getenv("LICENSE_URL", f"{BASE_URL}/license/")
-LOGO_URL = os.getenv("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
+BASE_URL = read_secret("BASE_URL", "http://localhost:8000")
+TOS_URL = read_secret("TOS_URL", f"{BASE_URL}/terms/")
+CONTACT_EMAIL = read_secret("CONTACT_EMAIL", "dev@vmlc.local")
+CONTACT_URL = read_secret("CONTACT_URL", f"{BASE_URL}/contact/")
+LICENSE_URL = read_secret("LICENSE_URL", f"{BASE_URL}/license/")
+LOGO_URL = read_secret("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 
 
 # ============================================================================
@@ -145,12 +153,12 @@ LOGO_URL = os.getenv("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 # ============================================================================
 
 # Docker service names for Redis broker
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_BROKER_URL = read_secret("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = read_secret("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
 # Docker development overrides
 CELERY_WORKER_LOG_COLOR = True  # Enable colored logs
-CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER", "False").lower() == "true"
+CELERY_TASK_ALWAYS_EAGER = read_secret("CELERY_ALWAYS_EAGER", "False").lower() == "true"
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # Development debugging
@@ -164,7 +172,7 @@ CELERY_SEND_TASK_EVENTS = True  # Send task events for monitoring
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1"),
+        "LOCATION": read_secret("CACHE_REDIS_URL", "redis://redis:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
@@ -181,7 +189,7 @@ CACHES = {
     },
 }
 
-USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
+USE_S3 = read_secret("USE_S3", "false").lower() == "true"
 
 if USE_S3:
 
@@ -194,7 +202,7 @@ if USE_S3:
             "AWS_S3_REGION_NAME",
         ]
 
-        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        missing_vars = [var for var in required_vars if not read_secret(var)]
         if missing_vars:
             raise ImproperlyConfigured(
                 f"Missing required AWS environment variables: {', '.join(missing_vars)}"
@@ -202,10 +210,10 @@ if USE_S3:
 
     validate_aws_config()
 
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+    AWS_ACCESS_KEY_ID = read_secret("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = read_secret("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = read_secret("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = read_secret("AWS_S3_REGION_NAME")
 
     AWS_S3_CUSTOM_DOMAIN = (
         f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
@@ -276,7 +284,7 @@ LOGGING = {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            # "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
+            # "formatter": "colored" if read_secret("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
             "formatter": "colored",
         },
     #     "file": {
@@ -332,11 +340,11 @@ LOGGING = {
     },
 }
 
-if os.getenv("LOG_QUERIES", "false").lower() == "true":
+if read_secret("LOG_QUERIES", "false").lower() == "true":
     LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 
 # Enable request logging for debugging
-if os.getenv("LOG_REQUESTS", "false").lower() == "true":
+if read_secret("LOG_REQUESTS", "false").lower() == "true":
     LOGGING["loggers"]["django.request"]["level"] = "INFO"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB for development

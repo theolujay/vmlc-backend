@@ -1,0 +1,440 @@
+x-staging-security: &staging-security
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
+
+x-vmlc-common: &vmlc-common
+  image: ghcr.io/verboheit/vmlc-backend:staging
+  volumes:
+    - staging_media:/home/verboheit/web/media
+    - staging_static:/home/verboheit/web/staticfiles
+  secrets:
+    - aws-access-key-id
+    - aws-secret-access-key
+    - database-url
+    - gmail-host-password
+    - mailtrap-host-password
+    - django-secret-key
+    - su-password
+  environment:
+    - AWS_ACCESS_KEY_ID_FILE=/run/secrets/aws-access-key-id
+    - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/aws-secret-access-key
+    - DATABASE_URL_FILE=/run/secrets/database-url
+    - EMAIL_HOST_PASSWORD_FILE=/run/secrets/gmail-host-password
+    # - EMAIL_HOST_PASSWORD_FILE=/run/secrets/mailtrap-host-password
+    - SECRET_KEY_FILE=/run/secrets/django-secret-key
+    - SUPERUSER_PASSWORD_FILE=/run/secrets/su-password
+  depends_on:
+    - db
+    - redis
+    - otel-collector
+  networks:
+    - staging
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+  <<: *staging-security
+
+x-staging-otel-env: &staging-otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
+
+services:
+  traefik:
+    image: traefik:v3.5.3
+    command:
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_staging"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+      - "--metrics.prometheus=false"
+      - "--metrics.otlp=true"
+      - "--metrics.otlp.http=true"
+      - "--metrics.otlp.grpc=false"
+      - "--metrics.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+      - "--metrics.otlp.serviceName=traefik"
+      - "--metrics.otlp.addEntryPointsLabels=true"
+      - "--metrics.otlp.addRoutersLabels=true"
+      - "--metrics.otlp.addServicesLabels=true"
+      - "--tracing=true"
+      - "--tracing.serviceName=traefik"
+      - "--tracing.sampleRate=0.05"
+      - "--tracing.otlp.grpc=false"
+      - "--tracing.otlp.http=true"
+      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - staging_letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - staging
+    
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 50M
+          cpus: '0.05'
+
+  db:
+    image: postgres:17.2-bookworm
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.max=5000
+      -c pg_stat_statements.track=top
+      -c log_min_duration_statement=5000
+      -c max_connections=30
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c wal_buffers=4MB
+    secrets:
+      - db-password
+    environment:
+      - POSTGRES_DB=vmlc_staging
+      - POSTGRES_USER=verboheit_staging
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    volumes:
+      - staging_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.15'
+    networks:
+      - staging
+
+  redis:
+    image: redis:7.2.4-alpine
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --loglevel warning
+      --tcp-backlog 64
+      --timeout 300
+      --save 900 1
+      --save 300 10
+    volumes:
+      - staging_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+          cpus: '0.1'
+        reservations:
+          memory: 48M
+          cpus: '0.05'
+    networks:
+      - staging
+
+  web:
+    <<: *vmlc-common
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - ./scripts/runserver.sh
+    environment:
+      <<: *staging-otel-env
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`staging-api.verboheit.org`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=le"
+      - "traefik.http.routers.web.tls=true"
+      - "traefik.http.services.web.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      update_config:
+            order: start-first
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  celery_worker:
+    <<: *vmlc-common
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - warning
+      - --concurrency=2
+      - --max-tasks-per-child=100
+      - --time-limit=300
+      - -Q
+      - default,emails,comms,scoring,files,reports,cache
+    environment:
+      <<: *staging-otel-env
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      interval: 120s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    deploy:
+      update_config:
+            order: start-first
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.15'
+        reservations:
+          memory: 256M
+          cpus: '0.075'
+
+  celery_beat:
+    <<: *vmlc-common
+    entrypoint: ./scripts/entrypoint.sh
+    command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    deploy:
+      update_config:
+            order: start-first
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.05'
+        reservations:
+          memory: 50M
+          cpus: '0.03'
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel/config.yml"]
+    configs:
+      - source: otel_config
+        target: /etc/otel/config.yml
+    ports:
+      - "4318:4318"
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+      - '--web.enable-remote-write-receiver'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - staging_prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.1'
+
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    configs:
+      - source: loki_config
+        target: /etc/loki/local-config.yaml
+    volumes:
+      - staging_loki:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
+    configs:
+      - source: tempo_config
+        target: /etc/tempo/tempo-local.yaml
+    volumes:
+      - staging_tempo:/tmp/tempo
+    ports:
+      - "3200:3200"
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.1'
+
+  grafana:
+    image: grafana/grafana:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    secrets:
+      - su-password
+    environment:
+      - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/su-password
+      - GF_INSTALL_PLUGINS=
+      - GF_PLUGINS_DISABLE_INSTALLATION=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_UPDATE_CHECK_FOR_UPDATES=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+      - source: grafana_dashboards
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+    volumes:
+      - staging_grafana:/var/lib/grafana
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+networks:
+  staging:
+    external: true
+    
+volumes:
+  staging_db:
+  staging_redis:
+  staging_media:
+  staging_static:
+  staging_loki:
+  staging_tempo:
+  staging_grafana:
+  staging_prometheus:
+  staging_letsencrypt:
+
+secrets:
+  aws-access-key-id:
+    external: true
+  aws-secret-access-key:
+    external: true
+  database-url:
+    external: true
+  gmail-host-password:
+    external: true
+  mailtrap-host-password:
+    external: true
+  db-password:
+    external: true
+  django-secret-key:
+    external: true
+  su-password:
+    external: true
+
+configs:
+  otel_config:
+    file: ./otel.yml
+  prometheus_config:
+    file: ./prometheus.yml
+  loki_config:
+    file: ./loki.yml
+  tempo_config:
+    file: ./tempo.yml
+  grafana_datasources:
+    file: ./grafana/datasources.yml
+  grafana_dashboards:
+    file: ./grafana/dashboards.yml

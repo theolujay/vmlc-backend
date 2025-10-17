@@ -15,27 +15,35 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="pycparser")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "staging.env")
 
-SECRET_KEY = os.environ.get("SECRET_KEY")
+def read_secret(secret_name, default=""):
+    """Read secret from file if SECRET_NAME_FILE env var exists"""
+    file_path = os.getenv(f'{secret_name}_FILE')
+    if file_path and os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            return f.read().strip()
+    return os.getenv(secret_name, default)
+
+SECRET_KEY = read_secret("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("The SECRET_KEY environment variable is not set.")
 
 from .base import *
 
-DEBUG = os.getenv("DEBUG").lower() == "true"
+DEBUG = read_secret("DEBUG").lower() == "true"
 
 # === SECURITY SETTINGS ===
 INTERNAL_IPS = [
-    ip.strip() for ip in os.getenv("INTERNAL_IPS", "").split(",") if ip.strip()
+    ip.strip() for ip in read_secret("INTERNAL_IPS", "").split(",") if ip.strip()
 ]
 
 ALLOWED_HOSTS = [
-    host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()
+    host.strip() for host in read_secret("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-ADMIN_URL = os.getenv("DJANGO_ADMIN_URL", "admin/")
+ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
 
 # === DATABASE CONFIG ===
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = read_secret("DATABASE_URL")
 if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL environment variable is required")
 
@@ -84,15 +92,15 @@ REQUIRED_AWS_VARS = [
 ]
 
 for var in REQUIRED_AWS_VARS:
-    if not os.getenv(var):
+    if not read_secret(var):
         raise ImproperlyConfigured(
             f"The {var} environment variable must be set for S3 storage."
         )
 
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+AWS_ACCESS_KEY_ID = read_secret("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = read_secret("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = read_secret("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = read_secret("AWS_S3_REGION_NAME")
 
 AWS_S3_CUSTOM_DOMAIN = (
     f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
@@ -202,7 +210,7 @@ LOGGING = {
 }
 
 # === CORS CONFIGURATION ===
-cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+cors_origins = read_secret("CORS_ALLOWED_ORIGINS", "")
 if cors_origins:
     CORS_ALLOWED_ORIGINS = [
         origin.strip() for origin in cors_origins.split(",") if origin.strip()
@@ -210,8 +218,8 @@ if cors_origins:
 else:
     CORS_ALLOWED_ORIGINS = []
 
-CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
-CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+CORS_ALLOW_CREDENTIALS = read_secret("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+CORS_ALLOW_ALL_ORIGINS = read_secret("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
 CORS_ALLOW_METHODS = (
     *default_methods,
 )
@@ -222,13 +230,13 @@ CORS_ALLOW_HEADERS = (
 )
 
 # === EMAIL CONFIGURATION ===
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+EMAIL_BACKEND = read_secret("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = read_secret("EMAIL_HOST")
+EMAIL_PORT = int(read_secret("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = read_secret("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_HOST_USER = read_secret("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = read_secret("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = read_secret("DEFAULT_FROM_EMAIL")
 
 if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     required_email_vars = [
@@ -244,20 +252,20 @@ if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
         )
 
 # === APPLICATION URLS ===
-BASE_URL = os.getenv("BASE_URL")
-TOS_URL = os.getenv("TOS_URL")
-CONTACT_EMAIL = os.getenv("CONTACT_EMAIL")
-CONTACT_URL = os.getenv("CONTACT_URL")
-LICENSE_URL = os.getenv("LICENSE_URL")
+BASE_URL = read_secret("BASE_URL")
+TOS_URL = read_secret("TOS_URL")
+CONTACT_EMAIL = read_secret("CONTACT_EMAIL")
+CONTACT_URL = read_secret("CONTACT_URL")
+LICENSE_URL = read_secret("LICENSE_URL")
 # === REDIS CONFIGURATION ===
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://redis:6379/1")
+REDIS_URL = read_secret("REDIS_URL", "redis://redis:6379/0")
+CACHE_REDIS_URL = read_secret("CACHE_REDIS_URL", "redis://redis:6379/1")
 # ============================================================================
 # CELERY CONFIGURATION - Staging Environment
 # ============================================================================
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_BROKER_URL = read_secret("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = read_secret("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
 # Staging-specific overrides
 CELERY_WORKER_LOG_COLOR = False  # No colors in staging logs
@@ -297,7 +305,7 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": [
-            os.getenv("CACHE_REDIS_URL"),
+            read_secret("CACHE_REDIS_URL"),
         ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
