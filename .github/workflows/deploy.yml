@@ -1,4 +1,4 @@
-name: CI/CD - VMLC Backend App w/Docker
+name: CI/CD pipeine
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'main'
 
 jobs:
- build-test-push:
+  run-tests-and-deploy:
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -79,3 +79,17 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:staging
             ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
           cache-from: type=local,src=/tmp/.buildx-cache
+
+      - name: create env file
+        run: |
+          echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" >> ./envfile
+          
+      - name: Docker Stack Deploy
+        uses: cssnr/stack-deploy-action@v1
+        with:
+          name: vmlc-backend
+          file: docker-stack.yml
+          host: 179.61.219.42
+          user: deploy
+          ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          env_file: ./envfile
