@@ -6,11 +6,23 @@ x-staging-security: &staging-security
     - SETGID
     - SETUID
 
+x-vmlc-env: &vmlc-env
+  AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
+  AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
+  DATABASE_URL_FILE: /run/secrets/database-url
+  EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
+  # EMAIL_HOST_PASSWORD_FILE: /run/secrets/mailtrap-host-password
+  SECRET_KEY_FILE: /run/secrets/django-secret-key
+  SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
+
 x-vmlc-common: &vmlc-common
-  image: ghcr.io/verboheit/vmlc-backend:staging
+  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-staging}
   volumes:
     - staging_media:/home/verboheit/web/media
     - staging_static:/home/verboheit/web/staticfiles
+  configs:
+      - source: env_file
+        target: /home/verboheit/web/staging.env 
   secrets:
     - aws-access-key-id
     - aws-secret-access-key
@@ -20,13 +32,7 @@ x-vmlc-common: &vmlc-common
     - django-secret-key
     - su-password
   environment:
-    - AWS_ACCESS_KEY_ID_FILE=/run/secrets/aws-access-key-id
-    - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/aws-secret-access-key
-    - DATABASE_URL_FILE=/run/secrets/database-url
-    - EMAIL_HOST_PASSWORD_FILE=/run/secrets/gmail-host-password
-    # - EMAIL_HOST_PASSWORD_FILE=/run/secrets/mailtrap-host-password
-    - SECRET_KEY_FILE=/run/secrets/django-secret-key
-    - SUPERUSER_PASSWORD_FILE=/run/secrets/su-password
+    <<: *vmlc-env
   depends_on:
     - db
     - redis
@@ -183,7 +189,7 @@ services:
       - otlp
       - ./scripts/runserver.sh
     environment:
-      <<: *staging-otel-env
+      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=web
     labels:
       - "traefik.enable=true"
@@ -239,7 +245,7 @@ services:
       - -Q
       - default,emails,comms,scoring,files,reports,cache
     environment:
-      <<: *staging-otel-env
+      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
@@ -426,6 +432,8 @@ secrets:
     external: true
 
 configs:
+  env_file:
+    file: ./staging.env
   otel_config:
     file: ./otel.yml
   prometheus_config:
