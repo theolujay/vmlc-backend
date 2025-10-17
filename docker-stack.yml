@@ -10,6 +10,7 @@ x-vmlc-env: &vmlc-env
   AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
   AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
   DATABASE_URL_FILE: /run/secrets/database-url
+  DJANGO_ADMIN_URL: /run/secrets/django-admin-url
   EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
   # EMAIL_HOST_PASSWORD_FILE: /run/secrets/mailtrap-host-password
   SECRET_KEY_FILE: /run/secrets/django-secret-key
@@ -22,11 +23,12 @@ x-vmlc-common: &vmlc-common
     - staging_static:/home/verboheit/web/staticfiles
   configs:
       - source: env_file
-        target: /home/verboheit/web/staging.env 
+        target: /home/deploy/web/staging.env 
   secrets:
     - aws-access-key-id
     - aws-secret-access-key
     - database-url
+    - django-admin-url
     - gmail-host-password
     - mailtrap-host-password
     - django-secret-key
@@ -419,6 +421,8 @@ secrets:
   aws-secret-access-key:
     external: true
   database-url:
+    external: true
+  django-admin-url:
     external: true
   gmail-host-password:
     external: true
