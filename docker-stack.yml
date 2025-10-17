@@ -10,7 +10,7 @@ x-vmlc-env: &vmlc-env
   AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
   AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
   DATABASE_URL_FILE: /run/secrets/database-url
-  DJANGO_ADMIN_URL: /run/secrets/django-admin-url
+  DJANGO_ADMIN_URL_FILE: /run/secrets/django-admin-url
   EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
   # EMAIL_HOST_PASSWORD_FILE: /run/secrets/mailtrap-host-password
   SECRET_KEY_FILE: /run/secrets/django-secret-key
