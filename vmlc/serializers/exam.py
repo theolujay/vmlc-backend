@@ -45,7 +45,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
     """
 
     questions = serializers.PrimaryKeyRelatedField(
-        queryset=Question.objects.all(), many=True
+        queryset=Question.objects.all(), many=True, required=False
     )
     created_by = MinimalStaffSerializer(read_only=True)
     average_score = serializers.SerializerMethodField(
