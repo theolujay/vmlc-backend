@@ -15,15 +15,38 @@ x-vmlc-env: &vmlc-env
   # EMAIL_HOST_PASSWORD_FILE: /run/secrets/mailtrap-host-password
   SECRET_KEY_FILE: /run/secrets/django-secret-key
   SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
+  ALLOWED_HOSTS: api.verboheit.org,staging-api.verboheit.org,localhost
+  AWS_S3_REGION_NAME: eu-north-1
+  AWS_STORAGE_BUCKET_NAME: vmlc-s3
+  CACHE_REDIS_URL: redis://redis:6379/1
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  CORS_ALLOWED_ORIGINS: https://staging-portal.verboheit.org
+  CORS_ALLOW_ALL_ORIGINS: "true"
+  CORS_ALLOW_CREDENTIALS: "true"
+  DEBUG: "false"
+  DEFAULT_FROM_EMAIL: mlc@verboheit.org
+  DJANGO_SETTINGS_MODULE: config.settings.staging
+  EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+  # EMAIL_HOST: live.smtp.mailtrap.io
+  EMAIL_HOST: smtp.gmail.com
+  # EMAIL_HOST_USER: api
+  EMAIL_HOST_USER: verboheitmlc@gmail.com
+  EMAIL_PORT: 587
+  EMAIL_USE_TLS: "true"
+  INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
+  OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+  OTEL_LOGS_EXPORTER: otlp
+  REDIS_URL: redis://redis:6379/0
+  POSTGRES_DB: vmlc_staging
+  POSTGRES_USER: verboheit_staging
+  SUPERUSER_EMAIL: olujay.dev@gmail.com
 
 x-vmlc-common: &vmlc-common
   image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-staging}
   volumes:
     - staging_media:/home/verboheit/web/media
     - staging_static:/home/verboheit/web/staticfiles
-  configs:
-      - source: env_file
-        target: /home/deploy/web/staging.env 
   secrets:
     - aws-access-key-id
     - aws-secret-access-key
@@ -436,8 +459,6 @@ secrets:
     external: true
 
 configs:
-  env_file:
-    file: ./staging.env
   otel_config:
     file: ./otel.yml
   prometheus_config:
