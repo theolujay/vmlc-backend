@@ -83,6 +83,11 @@ jobs:
       - name: create env file
         run: |
           echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" >> ./envfile
+      
+      - name: Write staging.env
+        run: |
+          echo "${{ secrets.STAGING_ENV_FILE }}" > staging.env
+
           
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
