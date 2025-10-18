@@ -142,6 +142,7 @@ jobs:
               -e SUPERUSER_PASSWORD_FILE=/run/secrets/su-password \
               -e DJANGO_SETTINGS_MODULE=config.settings.staging \
               --network staging \
+              --entrypoint "" \
               ghcr.io/verboheit/vmlc-backend:${{ steps.meta.outputs.SHORT_SHA }} \
               ./scripts/runmigrations.sh
         
