@@ -124,20 +124,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            echo "=========================================="
-            echo "Starting pre-deploy migrations..."
-            echo "Image: ghcr.io/verboheit/vmlc-backend:${{ steps.meta.outputs.SHORT_SHA }}"
-            echo "=========================================="
-            
-            # Login to GitHub Container Registry
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pull the image explicitly to verify it exists
-            echo "Pulling image..."
-            docker pull ghcr.io/verboheit/vmlc-backend:${{ steps.meta.outputs.SHORT_SHA }}
-            
             # Run migrations using Docker secrets (matching your stack config)
-            echo "Running migrations..."
             docker run --rm \
               --secret aws-access-key-id \
               --secret aws-secret-access-key \
@@ -158,18 +145,7 @@ jobs:
               --entrypoint "" \
               ghcr.io/verboheit/vmlc-backend:${{ steps.meta.outputs.SHORT_SHA }} \
               ./scripts/runmigrations.sh
-            MIGRATION_EXIT_CODE=$?
-            echo "=========================================="
-            echo "Migration exit code: $MIGRATION_EXIT_CODE"
-            echo "=========================================="
-            
-            if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
-              echo "❌ Migrations failed!"
-              exit 1
-            fi
-            
-            echo "✅ Migrations completed successfully!"
-
+        
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
         with:
