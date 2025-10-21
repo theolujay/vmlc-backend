@@ -17,10 +17,13 @@ load_dotenv(BASE_DIR / "staging.env")
 
 def read_secret(secret_name, default=""):
     """Read secret from file if SECRET_NAME_FILE env var exists"""
-    file_path = os.getenv(f'{secret_name}_FILE')
-    if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+    file_path_env = os.getenv(f'{secret_name}_FILE')
+    print(f"DEBUG: {secret_name}_FILE env var: {file_path_env}") # Added debug print
+    if file_path_env and os.path.exists(file_path_env):
+        print(f"DEBUG: {secret_name}_FILE exists: {os.path.exists(file_path_env)}") # Added debug print
+        with open(file_path_env, 'r') as f:
             return f.read().strip()
+    print(f"DEBUG: {secret_name} env var: {os.getenv(secret_name, default)}") # Added debug print
     return os.getenv(secret_name, default)
 
 SECRET_KEY = read_secret("SECRET_KEY")
