@@ -64,14 +64,8 @@ x-vmlc-common: &vmlc-common
     - mailtrap-host-password
     - django-secret-key
     - su-password
-  environment:
-    <<: [*vmlc-env, *staging-otel-env]
   labels:
     - "traefik.enable=true"
-  depends_on:
-    - db
-    - redis
-    - otel-collector
   networks:
     - staging
   dns:
@@ -208,6 +202,11 @@ services:
     <<: *vmlc-common
     entrypoint: ""
     command: ["./scripts/runmigrations.sh"]
+    depends_on:
+      - db
+      - redis
+    environment:
+      <<: [*vmlc-env, *staging-otel-env]
     deploy:
       mode: replicated-job
       replicas: 1
@@ -230,6 +229,7 @@ services:
       - otlp
       - ./scripts/runserver.sh
     environment:
+      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=web
     labels:
       - "traefik.enable=true"
@@ -245,7 +245,10 @@ services:
       retries: 3
       start_period: 60s
     depends_on:
+      - db
+      - redis
       - migrate
+      - otel-collector
     deploy:
       update_config:
             order: start-first
@@ -287,6 +290,7 @@ services:
       - -Q
       - default,emails,comms,scoring,files,reports,cache
     environment:
+      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
@@ -297,7 +301,10 @@ services:
       retries: 3
       start_period: 30s
     depends_on:
+      - db
+      - redis
       - migrate
+      - otel-collector
     deploy:
       update_config:
             order: start-first
@@ -312,9 +319,22 @@ services:
   celery_beat:
     <<: *vmlc-common
     entrypoint: ./scripts/entrypoint.sh
-    command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - -l
+      - warning
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      <<: [*vmlc-env, *staging-otel-env]
     depends_on:
+      - db
+      - redis
       - migrate
+      - otel-collector
     deploy:
       update_config:
             order: start-first
