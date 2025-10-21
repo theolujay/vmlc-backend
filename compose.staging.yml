@@ -29,30 +29,6 @@ x-staging-otel-env: &staging-otel-env
   OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
 
 services:
-  # watchtower:
-  #   image: containrrr/watchtower
-  #   command:
-  #     - "--label-enable"
-  #     - "--interval"
-  #     - "30"
-  #     - "--rolling-restart"
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #     - ~/.docker/config.json:/config.json:ro
-  #   environment:
-  #     - DOCKER_CONFIG=/
-  #   networks:
-  #     - staging
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 128M
-  #         cpus: '0.05'
-  #       reservations:
-  #         memory: 50M
-  #         cpus: '0.02'
-
   traefik:
     image: traefik:v3.5.3
     command:

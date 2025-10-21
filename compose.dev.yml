@@ -14,9 +14,19 @@ x-app-base: &app-base
   volumes:
     - dev_media:/home/verboheit/web/media
     - dev_static:/home/verboheit/web/staticfiles
+    - ./:/home/verboheit/web
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+      restart: true
+    # otel-collector:
+    #   condition: service_started
   env_file: .env
   networks:
     - dev
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
   <<: *dev-security
 
 x-dev-otel-env: &dev-otel-env
@@ -28,63 +38,47 @@ x-dev-otel-env: &dev-otel-env
   OTEL_TRACES_SAMPLER_ARG: "0.5"
 
 services:
-  # watchtower:
-  #   image: containrrr/watchtower
+  # traefik:
+  #   image: traefik:v3.5.3
   #   command:
-  #     - "--label-enable"
-  #     - "--interval"
-  #     - "30"
-  #     - "--rolling-restart"
+  #     - "--api.insecure=false"
+  #     - "--api.dashboard=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_dev"
+  #     - "--entrypoints.web.address=:80"
+  #     - "--metrics.prometheus=false"
+  #     - "--metrics.otlp=true"
+  #     - "--metrics.otlp.http=true"
+  #     - "--metrics.otlp.grpc=false"
+  #     - "--metrics.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+  #     - "--metrics.otlp.serviceName=traefik"
+  #     - "--metrics.otlp.addEntryPointsLabels=true"
+  #     - "--metrics.otlp.addRoutersLabels=true"
+  #     - "--metrics.otlp.addServicesLabels=true"
+  #     - "--tracing=true"
+  #     - "--tracing.serviceName=traefik"
+  #     - "--tracing.sampleRate=0.05"
+  #     - "--tracing.otlp.grpc=false"
+  #     - "--tracing.otlp.http=true"
+  #     - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
+  #     - "--log.level=INFO"
+  #     - "--log.format=json"
+  #     - "--accesslog=true"
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.traefik.rule=Host(`dev-traefik.localhost`)"
+  #     - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+  #   ports:
+  #     - "80:80"
+  #     - "8080:8080"
   #   volumes:
   #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #     - ~/.docker/config.json:/config.json:ro
-  #   environment:
-  #     - DOCKER_CONFIG=/
   #   networks:
   #     - dev
   #   restart: unless-stopped
-
-  traefik:
-    image: traefik:v3.5.3
-    command:
-      - "--api.insecure=false"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_dev"
-      - "--entrypoints.web.address=:80"
-      - "--metrics.prometheus=false"
-      - "--metrics.otlp=true"
-      - "--metrics.otlp.http=true"
-      - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
-      - "--metrics.otlp.serviceName=traefik"
-      - "--metrics.otlp.addEntryPointsLabels=true"
-      - "--metrics.otlp.addRoutersLabels=true"
-      - "--metrics.otlp.addServicesLabels=true"
-      - "--tracing=true"
-      - "--tracing.serviceName=traefik"
-      - "--tracing.sampleRate=0.05"
-      - "--tracing.otlp.grpc=false"
-      - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
-      - "--log.level=INFO"
-      - "--log.format=json"
-      - "--accesslog=true"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`dev-traefik.localhost`)"
-      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - dev
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
+  #   security_opt:
+  #     - no-new-privileges:true
 
   db:
     image: postgres:17.2-bookworm
@@ -114,8 +108,6 @@ services:
       retries: 3
     networks:
       - dev
-
-
   migrate:
     <<: *app-base
     image: &vmlcImage vmlc-backend:dev
@@ -123,14 +115,12 @@ services:
       context: .
       target: development
     entrypoint: ""
-    command: ["./scripts/runmigrations.sh"]
+    command: ["python manage.py migrate --no-input"]
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
     restart: "no"
     deploy:
       mode: replicated-job
@@ -143,31 +133,26 @@ services:
   web:
     <<: *app-base
     image: *vmlcImage
-    entrypoint: ./scripts/entrypoint.sh
-    command:
-      - opentelemetry-instrument
-      - --traces_exporter
-      - otlp
-      - --metrics_exporter
-      - otlp
-      - --logs_exporter
-      - otlp
-      - ./scripts/runserver.sh
+    entrypoint: ""
+    command: python manage.py runserver
+      # - opentelemetry-instrument
+      # - --traces_exporter
+      # - otlp
+      # - --metrics_exporter
+      # - otlp
+      # - --logs_exporter
+      # - otlp
+      # - ./scripts/runserver.sh
+    ports:
+      - "8000:8000"
     environment:
       <<: *dev-otel-env
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.instance.id=web
     restart: unless-stopped
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-        restart: true
-      otel-collector:
-        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`dev-api.localhost`)"
       - "traefik.http.services.web.loadbalancer.server.port=8000"
-      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
       interval: 60s
@@ -175,8 +160,8 @@ services:
       retries: 3
       start_period: 90s
     deploy:
-      mode: replicated
-      replicas: 2
+      # mode: replicated
+      # replicas: 2
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -186,38 +171,31 @@ services:
   celery_worker:
     <<: *app-base
     image: *vmlcImage
-    entrypoint: ./scripts/entrypoint.sh
-    command:
-      - opentelemetry-instrument
-      - --traces_exporter
-      - otlp
-      - --metrics_exporter
-      - otlp
-      - --logs_exporter
-      - otlp
-      - celery
-      - -A
-      - config
-      - worker
-      - -l
-      - warning
-      - --concurrency=2
-      - --max-tasks-per-child=100
-      - --time-limit=300
-      - -Q
-      - default,emails,comms,scoring,files,reports,cache
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
+    entrypoint: ""
+    command: celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
+      # - opentelemetry-instrument
+      # - --traces_exporter
+      # - otlp
+      # - --metrics_exporter
+      # - otlp
+      # - --logs_exporter
+      # - otlp
+      # - celery
+      # - -A
+      # - config
+      # - worker
+      # - -l
+      # - warning
+      # - --concurrency=2
+      # - --max-tasks-per-child=100
+      # - --time-limit=300
+      # - -Q
+      # - default,emails,comms,scoring,files,reports,cache
+      
     environment:
       <<: *dev-otel-env
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.instance.id=celery_worker
     restart: unless-stopped
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-        restart: true
-      otel-collector:
-        condition: service_started
     healthcheck:
       test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
       interval: 20s
@@ -228,113 +206,107 @@ services:
   celery_beat:
     <<: *app-base
     image: *vmlcImage
-    entrypoint: ./scripts/entrypoint.sh
+    entrypoint: ""
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     restart: unless-stopped
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-        restart: true
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
 
 # ======== O11Y ========
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel/config.yml"]
-    volumes:
-      - ./otel.yml:/etc/otel/config.yml:ro
-    ports:
-      - "4318:4318"
-    networks:
-      - dev
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:13133"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    # depends_on:
-    #   - loki
-    #   - prometheus
-    #   - tempo
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:latest
+  #   command: ["--config=/etc/otel/config.yml"]
+  #   volumes:
+  #     - ./otel.yml:/etc/otel/config.yml:ro
+  #   ports:
+  #     - "4318:4318"
+  #   networks:
+  #     - dev
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:13133"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   # depends_on:
+  #   #   - loki
+  #   #   - prometheus
+  #   #   - tempo
 
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--enable-feature=exemplar-storage'
-      - '--enable-feature=native-histograms'
-      - '--web.enable-remote-write-receiver'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - dev_prometheus:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - dev
-    restart: unless-stopped
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--storage.tsdb.retention.time=15d'
+  #     - '--enable-feature=exemplar-storage'
+  #     - '--enable-feature=native-histograms'
+  #     - '--web.enable-remote-write-receiver'
+  #     - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+  #     - '--web.console.templates=/usr/share/prometheus/consoles'
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - dev_prometheus:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - dev
+  #   restart: unless-stopped
 
-  loki:
-    image: grafana/loki:latest
-    volumes:
-      - ./loki.yml:/etc/loki/local-config.yaml
-      - dev_loki:/loki
-    command: -config.file=/etc/loki/local-config.yaml
-    ports:
-      - "3100:3100"
-    networks:
-      - dev
-    restart: unless-stopped
+  # loki:
+  #   image: grafana/loki:latest
+  #   volumes:
+  #     - ./loki.yml:/etc/loki/local-config.yaml
+  #     - dev_loki:/loki
+  #   command: -config.file=/etc/loki/local-config.yaml
+  #   ports:
+  #     - "3100:3100"
+  #   networks:
+  #     - dev
+  #   restart: unless-stopped
     
-  tempo:
-    image: grafana/tempo:latest
-    volumes:
-      - ./tempo.yml:/etc/tempo/tempo-local.yaml:ro
-      - dev_tempo:/tmp/tempo
-    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
-    ports:
-      - "3200:3200"
-    networks:
-      - dev
-    restart: unless-stopped
+  # tempo:
+  #   image: grafana/tempo:latest
+  #   volumes:
+  #     - ./tempo.yml:/etc/tempo/tempo-local.yaml:ro
+  #     - dev_tempo:/tmp/tempo
+  #   command: ["-config.file=/etc/tempo/tempo-local.yaml"]
+  #   ports:
+  #     - "3200:3200"
+  #   networks:
+  #     - dev
+  #   restart: unless-stopped
 
-  grafana:
-    image: grafana/grafana:latest
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`dev-ops.localhost`)"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    environment:
-      - GF_SERVER_ROOT_URL=https://dev-ops.localhost:3000
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-      - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_INSTALL_PLUGINS=
-      - GF_PLUGINS_DISABLE_INSTALLATION=true
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_UPDATE_CHECK_FOR_UPDATES=false
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-    volumes:
-      - dev_grafana:/var/lib/grafana
-      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
-      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
-    networks:
-      - dev
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.1'
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.grafana.rule=Host(`dev-ops.localhost`)"
+  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+  #   environment:
+  #     - GF_SERVER_ROOT_URL=https://dev-ops.localhost:3000
+  #     - GF_SERVER_SERVE_FROM_SUB_PATH=false
+  #     - GF_SERVER_HTTP_PORT=3000
+  #     - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+  #     - GF_INSTALL_PLUGINS=
+  #     - GF_PLUGINS_DISABLE_INSTALLATION=true
+  #     - GF_ANALYTICS_REPORTING_ENABLED=false
+  #     - GF_UPDATE_CHECK_FOR_UPDATES=false
+  #     - GF_USERS_ALLOW_SIGN_UP=false
+  #     - GF_AUTH_ANONYMOUS_ENABLED=false
+  #   volumes:
+  #     - dev_grafana:/var/lib/grafana
+  #     - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+  #     - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+  #     - ./grafana/dashboards:/var/lib/grafana/dashboards
+  #   networks:
+  #     - dev
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 256M
+  #         cpus: '0.1'
 
 volumes:
   dev_letsencrypt:

@@ -1,30 +1,15 @@
 #!/bin/bash
 
-set -euo pipefail # Exit on error, undefined variables, or pipe failures
-
-# Color codes for better logging readability (if terminal supports it)
-if [[ -t 1 ]]; then # checks if stdout is connected to a terminal. '1' is stdout file descriptor
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    NC='\033[0m' # No Color
-else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    NC=''
-fi
+set -euo pipefail
 
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1 # The Z means “Zulu time”, which is just UTC.
+    echo -e "[INFO] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
 }
-
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1 # '1' is stdout file descriptor
+    echo -e "[WARN] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
 }
-
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&2 # '2' is stderr file descriptor
+    echo -e "[ERROR] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&2
 }
 
 cleanup() {
@@ -50,6 +35,31 @@ security_check() {
     fi
 
     log_info "Security check passed - running as user: $current_user ($(id))"
+}
+
+wait_for_migrations() {
+    log_info "Checking for database migrations..."
+    if python manage.py showmigrations --plan | grep -q '\[ \]'; then
+        log_info "Migrations pending. Waiting until complete..."
+        local max_attempts=10
+        local attempt=1
+        local backoff=2
+
+        until ! python manage.py showmigrations --plan | grep -q '\[ \]'; do
+            if [[ $attempt -ge $max_attempts ]]; then
+                log_error "Migrations not complete after $max_attempts attempts. Exiting."
+                exit 1
+            fi
+            log_warn "Migrations not complete, waiting ${backoff}s before retrying..."
+            sleep $backoff
+            backoff=$(( backoff < 10 ? backoff * 2 : 10 ))
+            ((attempt++))
+        done
+        log_info "Migrations complete"
+    else
+        log_info "No migrations pending"
+    fi
+
 }
 
 preflight_check() {
@@ -91,7 +101,7 @@ main() {
 
     security_check
     preflight_check
-
+    wait_for_migrations
     if [[ $# -eq 0 ]]; then
         log_error "No command provided to entrypoint"
         log_info "Usage: entrypoint.sh <command> [args...]"

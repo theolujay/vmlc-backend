@@ -5,6 +5,14 @@ x-staging-security: &staging-security
     - CHOWN
     - SETGID
     - SETUID
+  
+x-staging-otel-env: &staging-otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
 
 x-vmlc-env: &vmlc-env
   AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
@@ -57,11 +65,13 @@ x-vmlc-common: &vmlc-common
     - django-secret-key
     - su-password
   environment:
-    <<: *vmlc-env
+    <<: [*vmlc-env, *staging-otel-env]
+  labels:
+    - "traefik.enable=true"
   depends_on:
     - db
     - redis
-    - otel-collector
+    # - otel-collector
   networks:
     - staging
   dns:
@@ -69,13 +79,6 @@ x-vmlc-common: &vmlc-common
     - 8.8.4.4
   <<: *staging-security
 
-x-staging-otel-env: &staging-otel-env
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-  OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
-  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
-  OTEL_TRACES_SAMPLER: parentbased_traceidratio
-  OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
 
 services:
   traefik:
@@ -201,6 +204,19 @@ services:
     networks:
       - staging
 
+  migrate:
+    <<: *vmlc-common
+    entrypoint: ""
+    command: ["./scripts/runmigrations.sh"]
+    deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s   
+
   web:
     <<: *vmlc-common
     entrypoint: ./scripts/entrypoint.sh
@@ -214,7 +230,6 @@ services:
       - otlp
       - ./scripts/runserver.sh
     environment:
-      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=web
     labels:
       - "traefik.enable=true"
@@ -229,6 +244,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    depends_on:
+      - migrate
     deploy:
       update_config:
             order: start-first
@@ -270,7 +287,6 @@ services:
       - -Q
       - default,emails,comms,scoring,files,reports,cache
     environment:
-      <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
@@ -280,12 +296,14 @@ services:
       timeout: 20s
       retries: 3
       start_period: 30s
+    depends_on:
+      - migrate
     deploy:
       update_config:
             order: start-first
       resources:
         limits:
-          memory: 512M
+          memory: 384M
           cpus: '0.15'
         reservations:
           memory: 256M
@@ -295,8 +313,8 @@ services:
     <<: *vmlc-common
     entrypoint: ./scripts/entrypoint.sh
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
+    depends_on:
+      - migrate
     deploy:
       update_config:
             order: start-first
@@ -308,120 +326,120 @@ services:
           memory: 50M
           cpus: '0.03'
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel/config.yml"]
-    configs:
-      - source: otel_config
-        target: /etc/otel/config.yml
-    ports:
-      - "4318:4318"
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.1'
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:latest
+  #   command: ["--config=/etc/otel/config.yml"]
+  #   configs:
+  #     - source: otel_config
+  #       target: /etc/otel/config.yml
+  #   ports:
+  #     - "4318:4318"
+  #   networks:
+  #     - staging
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #         cpus: '0.1'
 
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--enable-feature=exemplar-storage'
-      - '--enable-feature=native-histograms'
-      - '--web.enable-remote-write-receiver'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    configs:
-      - source: prometheus_config
-        target: /etc/prometheus/prometheus.yml
-    volumes:
-      - staging_prometheus:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
-          memory: 192M
-          cpus: '0.1'
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--storage.tsdb.retention.time=15d'
+  #     - '--enable-feature=exemplar-storage'
+  #     - '--enable-feature=native-histograms'
+  #     - '--web.enable-remote-write-receiver'
+  #     - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+  #     - '--web.console.templates=/usr/share/prometheus/consoles'
+  #   configs:
+  #     - source: prometheus_config
+  #       target: /etc/prometheus/prometheus.yml
+  #   volumes:
+  #     - staging_prometheus:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - staging
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 192M
+  #         cpus: '0.1'
 
-  loki:
-    image: grafana/loki:latest
-    command: -config.file=/etc/loki/local-config.yaml
-    configs:
-      - source: loki_config
-        target: /etc/loki/local-config.yaml
-    volumes:
-      - staging_loki:/loki
-    ports:
-      - "3100:3100"
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.1'
+  # loki:
+  #   image: grafana/loki:latest
+  #   command: -config.file=/etc/loki/local-config.yaml
+  #   configs:
+  #     - source: loki_config
+  #       target: /etc/loki/local-config.yaml
+  #   volumes:
+  #     - staging_loki:/loki
+  #   ports:
+  #     - "3100:3100"
+  #   networks:
+  #     - staging
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #         cpus: '0.1'
 
-  tempo:
-    image: grafana/tempo:latest
-    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
-    configs:
-      - source: tempo_config
-        target: /etc/tempo/tempo-local.yaml
-    volumes:
-      - staging_tempo:/tmp/tempo
-    ports:
-      - "3200:3200"
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: '0.1'
+  # tempo:
+  #   image: grafana/tempo:latest
+  #   command: ["-config.file=/etc/tempo/tempo-local.yaml"]
+  #   configs:
+  #     - source: tempo_config
+  #       target: /etc/tempo/tempo-local.yaml
+  #   volumes:
+  #     - staging_tempo:/tmp/tempo
+  #   ports:
+  #     - "3200:3200"
+  #   networks:
+  #     - staging
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 384M
+  #         cpus: '0.1'
 
-  grafana:
-    image: grafana/grafana:latest
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=le"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    secrets:
-      - su-password
-    environment:
-      - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-      - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
-      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/su-password
-      - GF_INSTALL_PLUGINS=
-      - GF_PLUGINS_DISABLE_INSTALLATION=true
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_UPDATE_CHECK_FOR_UPDATES=false
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-    configs:
-      - source: grafana_datasources
-        target: /etc/grafana/provisioning/datasources/datasources.yml
-      - source: grafana_dashboards
-        target: /etc/grafana/provisioning/dashboards/dashboards.yml
-    volumes:
-      - staging_grafana:/var/lib/grafana
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.1'
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
+  #     - "traefik.http.routers.grafana.entrypoints=websecure"
+  #     - "traefik.http.routers.grafana.tls.certresolver=le"
+  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+  #   secrets:
+  #     - su-password
+  #   environment:
+  #     - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
+  #     - GF_SERVER_SERVE_FROM_SUB_PATH=false
+  #     - GF_SERVER_HTTP_PORT=3000
+  #     - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
+  #     - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/su-password
+  #     - GF_INSTALL_PLUGINS=
+  #     - GF_PLUGINS_DISABLE_INSTALLATION=true
+  #     - GF_ANALYTICS_REPORTING_ENABLED=false
+  #     - GF_UPDATE_CHECK_FOR_UPDATES=false
+  #     - GF_USERS_ALLOW_SIGN_UP=false
+  #     - GF_AUTH_ANONYMOUS_ENABLED=false
+  #   configs:
+  #     - source: grafana_datasources
+  #       target: /etc/grafana/provisioning/datasources/datasources.yml
+  #     - source: grafana_dashboards
+  #       target: /etc/grafana/provisioning/dashboards/dashboards.yml
+  #   volumes:
+  #     - staging_grafana:/var/lib/grafana
+  #   networks:
+  #     - staging
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #         cpus: '0.1'
 
 networks:
   staging:

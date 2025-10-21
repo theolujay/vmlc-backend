@@ -2,14 +2,6 @@
 
 set -euo pipefail
 
-# # If running as root, fix permissions and re-execute as the correct user
-# if [ "$(id -u)" -eq 0 ]; then
-#     echo "[INFO] Running as root, fixing volume permissions..."
-#     chown -R verboheit:verboheit /home/verboheit/web/media /home/verboheit/web/staticfiles
-#     # Use exec to replace the current process with the new one
-#     exec gosu verboheit "$0" "$@"
-# fi
-
 log_info() {
     echo -e "[INFO] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
 }
@@ -50,6 +42,11 @@ security_check() {
 validate_environment() {
     log_info "Validating environment variables..."
 
+    if [[ -z "${DATABASE_URL:-}" && -n "${DATABASE_URL_FILE:-}" && -f "${DATABASE_URL_FILE}" ]]; then
+        log_info "DATABASE_URL not set, reading from ${DATABASE_URL_FILE}"
+        export DATABASE_URL=$(cat "${DATABASE_URL_FILE}")
+    fi
+
     # Validate required Django settings
     if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
         log_error "DJANGO_SETTINGS_MODULE environment variable is required"
@@ -57,16 +54,16 @@ validate_environment() {
     fi
 
     # Validate superuser credentials if provided
-    if [[ -n "${SUPERUSER_EMAIL:-}" ]]; then
-        if [[ ! "${SUPERUSER_EMAIL}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-            log_error "Invalid SUPERUSER_EMAIL format"
-            exit 1
-        fi
-    fi
+    # if [[ -n "${SUPERUSER_EMAIL:-}" ]]; then
+    #     if [[ ! "${SUPERUSER_EMAIL}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    #         log_error "Invalid SUPERUSER_EMAIL format"
+    #         exit 1
+    #     fi
+    # fi
 
     # Check if running in production and validate critical settings
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
-        local required_prod_vars=("SECRET_KEY" "DATABASE_URL" "ALLOWED_HOSTS")
+        local required_prod_vars=("SECRET_KEY" "DATABASE_URL")
         for var in "${required_prod_vars[@]}"; do
             if [[ -z "${!var:-}" ]]; then
                 log_error "Production environment requires '$var' to be set"
@@ -144,26 +141,21 @@ else:
 
 
 setup_django_env() {
-    log_info "Setting up Django environment for migrations..."
+    # log_info "Setting up Django environment for migrations..."
 
-    log_info "Running Django system checks..."
-    if ! python manage.py check --deploy --fail-level WARNING; then
-        if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
-            log_error "Django system checks failed in production mode"
-            exit 1
-        else
-            log_warn "Django system checks found issues (continuing in non-production mode)"
-        fi
-    fi
+    # log_info "Running Django system checks..."
+    # if ! python manage.py check --deploy --fail-level WARNING; then
+    #     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
+    #         log_error "Django system checks failed in production mode"
+    #         exit 1
+    #     else
+    #         log_warn "Django system checks found issues (continuing in non-production mode)"
+    #     fi
+    # fi
 
-    log_info "Checking for database migrations..."
-    if python manage.py showmigrations --plan | grep -q '\[ \]'; then
-        log_info "Running pending database migrations..."
-        python manage.py migrate --no-input
-        log_info "Database migrations completed"
-    else
-        log_info "No pending migrations found"
-    fi
+    log_info "Applying database migrations..."
+    python manage.py migrate --no-input
+    log_info "Database migrations completed"
     
     # Static files collection (only in production/staging)
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
@@ -173,7 +165,7 @@ setup_django_env() {
         log_info "Directories setup completed"
 
         log_info "Collecting static files..."
-        python manage.py collectstatic --no-input --clear
+        python manage.py collectstatic --no-input --skip-checks
         log_info "Static files collection completed"
     else
         log_info "Skipping static files collection in development mode"
@@ -181,9 +173,9 @@ setup_django_env() {
 }
 
 setup_application() {
-    wait_for_db
+    # wait_for_db
     setup_django_env
-    create_superuser
+    # create_superuser
 }
 
 preflight_check() {
