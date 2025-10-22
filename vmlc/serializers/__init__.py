@@ -46,6 +46,7 @@ from .staff import (
     MinimalStaffSerializer,
     StaffListSerializer,
     StaffDetailSerializer,
+    StaffInviteSerializer,
 )
 from .user import (
     UserSerializer,
@@ -94,6 +95,7 @@ __all__ = [
     "MinimalStaffSerializer",
     "StaffListSerializer",
     "StaffDetailSerializer",
+    "StaffInviteSerializer",
     # user
     "UserSerializer",
     "MinimalUserSerializer",

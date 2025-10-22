@@ -4,6 +4,7 @@ Authentication-related API views for login, logout, and registration.
 
 import logging
 
+from django.contrib.auth.signals import user_logged_in
 from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import serializers, status
@@ -451,6 +452,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         # The default result (access/refresh tokens)
         data = super().validate(attrs)
+
+        user_logged_in.send(
+            sender=self.user.__class__, request=self.context["request"], user=self.user
+        )
 
         # Add profile information (candidate or staff)
         profile_data = None

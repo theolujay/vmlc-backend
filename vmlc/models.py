@@ -252,6 +252,14 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
     )
     occupation = models.CharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="invited_staff"
+    )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
         max_length=20, choices=Roles.choices, default=Roles.VOLUNTEER, db_index=True
