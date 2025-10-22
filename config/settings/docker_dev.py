@@ -394,3 +394,6 @@ CSRF_COOKIE_SECURE = False
 SECURE_HSTS_SECONDS = 0  # Means it's effectively disabled, but no warning
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
+
+FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "https://dev-portal.verboheit.org")
+SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")

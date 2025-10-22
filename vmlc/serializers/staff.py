@@ -5,7 +5,7 @@ from ..models import (
 )
 
 from .user import UserSerializer
-
+from .registration import BaseRegistrationSerializer
 
 class MinimalStaffSerializer(serializers.ModelSerializer):
     """
@@ -85,3 +85,56 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         if obj.id_card and hasattr(obj.id_card, 'url'):
             return obj.id_card.url
         return None
+    
+class StaffInviteSerializer(BaseRegistrationSerializer):
+    """
+    Serializer for registering new staff.
+    """
+    created_by = MinimalStaffSerializer(read_only=True)
+    occupation = serializers.CharField(max_length=50)
+    role = serializers.ChoiceField(choices=Staff.Roles.choices)
+
+    class Meta:
+        model = Staff
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "password",
+            "password2",
+            "role",
+            "occupation",
+            "created_by",
+        ]
+        
+    def validate_role(self, value):
+        """
+        Validate the role assignment.
+
+        - Ensures the role is a valid choice.
+        - Prevents assigning 'superadmin'.
+        - Prevents managers from assigning 'manager' roles.
+        """
+        valid_roles: list[str] = [role[0] for role in Staff.Roles.choices if role[0] != "superadmin"]
+        if value not in valid_roles:
+            raise serializers.ValidationError(
+                f"'{value}' is not a valid role. "
+                f"Valid choices are: {', '.join(valid_roles)}."
+            )
+
+        if value == "superadmin":
+            raise serializers.ValidationError(
+                "The 'superadmin' role cannot be assigned via the API."
+                f"Valid choices are: {', '.join(valid_roles)}."
+            )
+
+        user = self.context["request"].user
+
+        if hasattr(user, "staff_profile") and user.staff_profile.role == "manager":
+            if value == "manager":
+                raise serializers.ValidationError(
+                    "Managers cannot assign the 'manager' role."
+                )
+
+        return value

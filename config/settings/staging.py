@@ -351,3 +351,6 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 # Maximum file sizes for different upload types
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "https://staging-portal.verboheit.org")
+SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")

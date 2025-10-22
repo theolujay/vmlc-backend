@@ -417,3 +417,29 @@ def update_candidate_ranking_cache_task():
             logger.info("Successfully updated candidate ranking cache.")
     except Exception as e:
         logger.error(f"Failed to update candidate ranking cache: {e}")
+
+
+@shared_task(name="revoke_staff_invite_task")
+def revoke_staff_invite_task(user_id):
+    """
+    Celery task to revoke staff credentials if they haven't logged in within a week.
+    """
+    from .models import User
+
+    try:
+        user = User.objects.get(pk=user_id)
+        if user.last_login is None:
+            user.is_active = False
+            user.save()
+            send_mail_task.delay(
+                subject="Your account has been revoked",
+                message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
+                        f"Please contact {settings.SUPPORT_EMAIL} if you have any inquires.\n\n"
+                        "Regards,\n\nManagement, Verboheit MLC",
+                recipient_list=[user.email],
+            )                
+            logger.info(f"Revoked credentials for user {user.email} due to inactivity.")
+        else:
+            logger.info(f"User {user.email} has logged in. No action taken.")
+    except User.DoesNotExist:
+        logger.warning(f"User with id {user_id} not found for invite revocation.")

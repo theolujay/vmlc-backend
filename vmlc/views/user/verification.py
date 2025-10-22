@@ -1,9 +1,7 @@
 import logging
 
-
 import boto3
 from botocore.exceptions import ClientError
-from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
@@ -16,20 +14,20 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
 
-from ..models import User, UserVerification
-from ..permissions import (
+from vmlc.models import User, UserVerification
+from vmlc.permissions import (
     AuthenticatedUser,
     IsObjectOwnerOrManagerRole,
     VerifiedManagerPermissions,
 )
-from ..serializers import (
+from vmlc.serializers import (
     UserVerificationActionSerializer,
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
     UserVerificationListSerializer,
 )
-from ..tasks import validate_user_verification_files_task
-from ..utils.swagger_schemas import (
+from vmlc.tasks import validate_user_verification_files_task, send_mail_task
+from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     user_verification_status_response_schema,
@@ -40,7 +38,12 @@ from ..utils.swagger_schemas import (
     error_response_403,
     error_response_404,
 )
-from ..utils.exceptions import PermissionDenied, NotFound, ValidationError, APIException
+from vmlc.utils.exceptions import (
+    PermissionDenied,
+    NotFound,
+    ValidationError,
+    APIException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -156,21 +159,21 @@ class UserVerificationStatusView(APIView):
         operation_description="Upload verification documents for the authenticated user.",
         manual_parameters=[
             openapi.Parameter(
-                'face_id',
+                "face_id",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="Face ID",
                 required=True,
             ),
             openapi.Parameter(
-                'id_card',
+                "id_card",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="ID card",
                 required=True,
             ),
             openapi.Parameter(
-                'verification_document',
+                "verification_document",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="Verification document",
@@ -197,19 +200,19 @@ class UserVerificationStatusView(APIView):
         operation_description="Update verification documents for the authenticated user.",
         manual_parameters=[
             openapi.Parameter(
-                'face_id',
+                "face_id",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="Face ID",
             ),
             openapi.Parameter(
-                'id_card',
+                "id_card",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="ID card",
             ),
             openapi.Parameter(
-                'verification_document',
+                "verification_document",
                 openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
                 description="Verification document",
@@ -583,9 +586,28 @@ class UserVerificationActionView(APIView):
             else:
                 logger.error("Must specify either is_verified or is_rejected.")
                 raise ValidationError("Must specify either is_verified or is_rejected.")
-
             with transaction.atomic():
                 verification = serializer.save()
+                
+            user = verification.user
+            base_message = f"Your verification details have been {action}.\n\n"
+            footer = "Best Regards,\nManagement."
+            action_content = ""
+            if action == "approved" and verification.is_verified:
+                action_content = (
+                    'Kindly proceed to take the "Tour" of Verboheit MLC Portal.\n\n'
+                )
+            elif action == "rejected" and verification.is_rejected:
+                action_content = (
+                    "If you have any questions, please contact support.\n\n"
+                )
+            email_message = base_message + action_content + footer
+
+            send_mail_task.delay(
+                subject="Your User Verification Status",
+                message=email_message,
+                recipient_list=[user.email],
+            )
 
             logger.info(
                 "User verification %s for user %s by %s.",

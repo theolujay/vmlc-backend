@@ -67,6 +67,7 @@ from .user import (
     UserVerificationDocumentView,
     UserVerificationListView,
     UserVerificationActionView,
+    StaffInviteView,
 )
 from .health import health_check
 
@@ -131,4 +132,5 @@ __all__ = [
     "UserVerificationDocumentView",
     "UserVerificationListView",
     "UserVerificationActionView",
+    "StaffInviteView",
 ]

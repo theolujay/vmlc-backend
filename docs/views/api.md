@@ -493,6 +493,8 @@ Password-change:
 
 - `GET /staff/` — list staff. Role: `moderator`+. Query filters: `page`, `search`, `role`, `occupation`. `200 OK`.
     
+- `POST /staff/invite/` — invite a new staff member. Role: `manager` or `superadmin`. `201 Created`.
+    
 - `GET /staff/{staff_id}/` — staff details. Role: `manager` or `superadmin`. `200 OK`.
     
 - `PUT /staff/{staff_id}/roles/assign/` — assign staff role (manager/superadmin allowed to assign except superadmin creation). Role: `manager` or `superadmin`. `200 OK`.
@@ -1175,6 +1177,33 @@ X-Api-Key: <your_api_key>
 }
 ```
 
+#### Invite Staff Member
+**Endpoint:** `POST /staff/invite/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+```
+**Required Role:** `manager` or `superadmin`
+**Request Body:**
+```json
+{
+  "email": "new.staff@example.com",
+  "first_name": "New",
+  "last_name": "Staff",
+  "phone": "+2349012345678",
+  "password": "a_strong_temporary_password",
+  "password2": "a_strong_temporary_password",
+  "role": "moderator",
+  "occupation": "Content Reviewer"
+}
+```
+**Response:** `201 Created`
+```json
+{
+  "message": "Staff profile created, invite sent."
+}
+```
 ---
 
 ### Exam Management
@@ -2601,6 +2630,9 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+### Tue, 22nd of Oct, 2025
+
+- **Staff**: Added `POST /staff/invite/` endpoint.
 
 ### Wed, 15th of Oct, 2025
 - **API**: Updated the response for `GET /questions/` to include a `meta` object with question counts by difficulty and pagination links. The question list is now under the `list` key.

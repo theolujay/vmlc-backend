@@ -103,7 +103,7 @@ RUN chown -R verboheit:verboheit /home/verboheit/web
 USER verboheit
 COPY --chown=verboheit:verboheit pyproject.toml uv.lock ./
 ENV UV_PROJECT_ENVIRONMENT=/home/verboheit/build/.venv
-RUN uv sync --frozen --no-cache --group dev
+RUN uv sync --frozen --no-cache --group dev --group test
 ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
     PYTHONDEBUG=1 \
     DEBUG=1 \

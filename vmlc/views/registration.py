@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 
+from ..tasks import send_otp_on_registration_task
 from ..utils import ToggleFeatureFlagView
 from ..models import FeatureFlag
 from ..permissions import HasXAPIKey, VerifiedManagerPermissions
@@ -63,14 +64,13 @@ class BaseRegistrationView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        send_otp_on_registration_task.delay(serializer.instance.pk)
         logger.info(
-            f"Successfully registered new user with email: {serializer.data.get('email')}"
+            f"Successfully registered new user with email: {serializer.instance.user.email}"
         )
         return Response(
             {"message": "Registration successful."},
             status=status.HTTP_201_CREATED,
-            headers=headers,
         )
 
 

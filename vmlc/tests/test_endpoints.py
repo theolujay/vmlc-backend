@@ -1,5 +1,6 @@
 
 import boto3
+import responses
 from moto import mock_aws
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -221,41 +222,41 @@ class QuestionEndpointsTest(APITestCase):
 #         response = self.client.post(url, data, format='multipart')
 #         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
 
-# class UserVerificationAdminEndpointsTest(APITestCase):
+# # class UserVerificationAdminEndpointsTest(APITestCase):
 
-#     def setUp(self):
-#         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
-#         self.client.credentials(HTTP_X_API_KEY=self.key)
-#         self.manager_user = User.objects.create_user(
-#             email='manager@example.com',
-#             password='password123',
-#             first_name='Manager',
-#             last_name='User'
-#         )
-#         self.manager_profile = Staff.objects.create(user=self.manager_user, role=Staff.Roles.MANAGER)
-#         self.verification = UserVerification.objects.create(user=self.manager_user, is_verified=True)
-#         self.client.force_authenticate(user=self.manager_user)
+# #     def setUp(self):
+# #         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
+# #         self.client.credentials(HTTP_X_API_KEY=self.key)
+# #         self.manager_user = User.objects.create_user(
+# #             email='manager@example.com',
+# #             password='password123',
+# #             first_name='Manager',
+# #             last_name='User'
+# #         )
+# #         self.manager_profile = Staff.objects.create(user=self.manager_user, role=Staff.Roles.MANAGER)
+# #         self.verification = UserVerification.objects.create(user=self.manager_user, is_verified=True)
+# #         self.client.force_authenticate(user=self.manager_user)
 
-#         self.test_user = User.objects.create_user(
-#             email='testuser@example.com',
-#             password='password123',
-#             first_name='Test',
-#             last_name='User'
-#         )
-#         self.test_user_verification = UserVerification.objects.create(user=self.test_user, is_pending=True)
+# #         self.test_user = User.objects.create_user(
+# #             email='testuser@example.com',
+# #             password='password123',
+# #             first_name='Test',
+# #             last_name='User'
+# #         )
+# #         self.test_user_verification = UserVerification.objects.create(user=self.test_user, is_pending=True)
 
-#     def test_get_user_verification_list(self):
-#         url = reverse('vmlc:user-verification-list')
-#         response = self.client.get(url)
-#         self.assertEqual(response.status_code, status.HTTP_200_OK)
+# #     def test_get_user_verification_list(self):
+# #         url = reverse('vmlc:user-verification-list')
+# #         response = self.client.get(url)
+# #         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-#     def test_user_verification_action(self):
-#         url = reverse('vmlc:user-verification-action', kwargs={'user_id': self.test_user.id})
-#         data = {
-#             'is_verified': True
-#         }
-#         response = self.client.post(url, data, format='json')
-#         self.assertEqual(response.status_code, status.HTTP_200_OK)
+# #     def test_user_verification_action(self):
+# #         url = reverse('vmlc:user-verification-action', kwargs={'user_id': self.test_user.id})
+# #         data = {
+# #             'is_verified': True
+# #         }
+# #         response = self.client.post(url, data, format='json')
+# #         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 class DashboardEndpointsTest(APITestCase):
 
@@ -290,3 +291,56 @@ class DashboardEndpointsTest(APITestCase):
         url = reverse('vmlc:staff-dashboard')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+class InviteStaffTest(APITestCase):
+    def setUp(self):
+        self.api_key, self.key = APIKey.objects.create_key(name="test-key")
+        self.client.credentials(HTTP_X_API_KEY=self.key)
+        self.staff_user = User.objects.create_user(
+            email='staff1@example.com',
+            password='password123',
+            first_name='Staff',
+            last_name='User'
+        )
+        self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MANAGER)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+
+    def test_invite_staff_success(self):
+        self.client.force_authenticate(user=self.staff_user)
+        url = reverse('vmlc:staff-invite')
+
+        data = {
+            "email": "staff2@gmail.com",
+            "first_name": "New",
+            "last_name": "Staff",
+            "phone": "+2349021498980",
+            "password": "testtesttest",
+            "password2": "testtesttest",
+            "occupation": "Virtual Assistant",
+            "role": "moderator"
+        }
+        response = self.client.post(url, data, format='json')
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.data}")
+        assert response.status_code == 201
+        assert response.data["message"] == "Staff profile created, invite sent."
+    
+    def test_invite_staff_invalid_role(self):
+        self.client.force_authenticate(user=self.staff_user)
+        url = reverse('vmlc:staff-invite')
+
+        data = {
+            "email": "staff2@gmail.com",
+            "first_name": "New",
+            "last_name": "Staff",
+            "phone": "+2349021498980",
+            "password": "testtesttest",
+            "password2": "testtesttest",
+            "occupation": "Virtual Assistant",
+            "role": "manager"
+        }
+        response = self.client.post(url, data, format='json')
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.data}")
+        assert response.status_code == 400
+        # assert response.data["message"] == "Staff profile created, invite sent."

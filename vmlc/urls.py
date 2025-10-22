@@ -58,6 +58,7 @@ from .views import (
     health_check,
     CandidateMeView,
     StaffMeView,
+    StaffInviteView,
 )
 
 app_name = "vmlc"
@@ -155,6 +156,11 @@ urlpatterns = [
         "staff/<uuid:staff_id>/roles/assign/",
         AssignStaffRoleView.as_view(),
         name="staff-role-assign",
+    ),
+    path(
+        "staff/invite/",
+        StaffInviteView.as_view(),
+        name="staff-invite",
     ),
     # =============================================================================
     # EXAM MANAGEMENT

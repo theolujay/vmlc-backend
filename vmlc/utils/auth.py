@@ -8,7 +8,6 @@ from rest_framework import serializers
 from typing import Tuple, Any
 
 from ..models import EmailOTP, User
-from ..tasks import send_mail_task
 from .email import create_email_html
 
 logger = logging.getLogger(__name__)
@@ -76,6 +75,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
         is_resend: Whether this is a resend request
     """
     try:
+        from ..tasks import send_mail_task
         # Check rate limiting for resends
         if is_resend:
             can_resend: bool
@@ -148,6 +148,7 @@ def send_password_change_otp(user: User) -> None:
         user: User object with email attribute
     """
     try:
+        from ..tasks import send_mail_task
         # Check rate limiting
         can_resend: bool
         seconds_remaining: int

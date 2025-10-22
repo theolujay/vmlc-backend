@@ -7,20 +7,16 @@ x-dev-security: &dev-security
     - CHOWN
     - SETGID
     - SETUID
-  security_opt:
-    - no-new-privileges:true
 
 x-app-base: &app-base
+  build:
+    context: .
+    target: development
+  image: vmlc-backend:dev
   volumes:
     - dev_media:/home/verboheit/web/media
     - dev_static:/home/verboheit/web/staticfiles
     - ./:/home/verboheit/web
-  depends_on:
-    migrate:
-      condition: service_completed_successfully
-      restart: true
-    # otel-collector:
-    #   condition: service_started
   env_file: .env
   networks:
     - dev
@@ -110,18 +106,11 @@ services:
       - dev
   migrate:
     <<: *app-base
-    image: &vmlcImage vmlc-backend:dev
-    build:
-      context: .
-      target: development
     entrypoint: ""
-    command: ["python manage.py migrate --no-input"]
+    command: ["./scripts/runmigrations.sh"]
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: "no"
+      - db
+      - redis
     deploy:
       mode: replicated-job
       replicas: 1
@@ -132,9 +121,9 @@ services:
         window: 120s
   web:
     <<: *app-base
-    image: *vmlcImage
-    entrypoint: ""
-    command: python manage.py runserver
+    entrypoint: "./scripts/entrypoint.sh"
+    command: python manage.py runserver 0.0.0.0:8000
+    
       # - opentelemetry-instrument
       # - --traces_exporter
       # - otlp
@@ -145,6 +134,10 @@ services:
       # - ./scripts/runserver.sh
     ports:
       - "8000:8000"
+    depends_on:
+      - db
+      - redis
+      - migrate
     environment:
       <<: *dev-otel-env
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.instance.id=web
@@ -160,8 +153,13 @@ services:
       retries: 3
       start_period: 90s
     deploy:
-      # mode: replicated
-      # replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -170,9 +168,20 @@ services:
 
   celery_worker:
     <<: *app-base
-    image: *vmlcImage
-    entrypoint: ""
-    command: celery -A config worker -l warning --concurrency=2 --max-tasks-per-child=100 --time-limit=300 -Q default,emails,comms,scoring,files,reports,cache
+    entrypoint: "./scripts/entrypoint.sh"
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - warning
+      - --concurrency=2
+      - --max-tasks-per-child=100
+      - --time-limit=300
+      - -Q
+      - default,emails,comms,scoring,files,reports,cache
+
       # - opentelemetry-instrument
       # - --traces_exporter
       # - otlp
@@ -191,24 +200,55 @@ services:
       # - --time-limit=300
       # - -Q
       # - default,emails,comms,scoring,files,reports,cache
-      
+    depends_on:
+      - db
+      - redis
+      - migrate
     environment:
       <<: *dev-otel-env
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.instance.id=celery_worker
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
       interval: 20s
       timeout: 10s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.15'
+        reservations:
+          memory: 256M
+          cpus: '0.075'
+
 
   celery_beat:
     <<: *app-base
-    image: *vmlcImage
-    entrypoint: ""
-    command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
-    restart: unless-stopped
+    entrypoint: "./scripts/entrypoint.sh"
+    command: 
+      - celery
+      - -A
+      - config
+      - beat
+      - -l
+      - warning
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      - db
+      - redis
+      - migrate
+    environment:
+      <<: *dev-otel-env
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.05'
+        reservations:
+          memory: 50M
+          cpus: '0.03'
 
 # ======== O11Y ========
   # otel-collector:
