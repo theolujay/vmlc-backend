@@ -129,3 +129,7 @@ LOGGING = {
         # "asyncio": {"level": "WARNING"},        # Async noise reduction
     },
 }
+
+
+FRONTEND_BASE_URL = "https://test-portal.verboheit.org"
+SUPPORT_EMAIL = "verboheitmlc@gmail.com"
