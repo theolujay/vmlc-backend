@@ -297,6 +297,8 @@ services:
       retries: 3
       start_period: 30s
     depends_on:
+      - db
+      - redis
       - migrate
     deploy:
       update_config:
@@ -312,8 +314,18 @@ services:
   celery_beat:
     <<: *vmlc-common
     entrypoint: ./scripts/entrypoint.sh
-    command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    command: 
+      - celery
+      - -A
+      - config
+      - beat
+      - -l
+      - warning
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
     depends_on:
+      - db
+      - redis
       - migrate
     deploy:
       update_config:
