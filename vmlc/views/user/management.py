@@ -1,7 +1,7 @@
 import logging
-from datetime import datetime
-from textwrap import dedent
+from datetime import timedelta, datetime
 
+from django.utils import timezone 
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.conf import settings
@@ -62,7 +62,7 @@ class StaffInviteView(CreateAPIView):
         self.perform_create(serializer)
         # Calculate the time delta based on environment
         revoke_delta = timedelta(days=7) if not settings.DEBUG else timedelta(minutes=5)
-        time_to_revoke = datetime.now() + revoke_delta
+        time_to_revoke = timezone.now() + revoke_delta
 
         # Schedule the revocation task to run after 'time_to_revoke'
         revoke_staff_invite_task.apply_async(
@@ -81,13 +81,16 @@ class StaffInviteView(CreateAPIView):
         send_mail_task.delay(
             subject="Staff Invite to Verboheit MLC",
             message = (
-                f"Hello, {user.get_full_name()}.\n\n"
-                f"You're invited as staff member to Verboheit Mathematics League Competition {datetime.now().year}. "
-                f"Should you accept, kindly follow the link below to login with this email and the temporary password provided below. "
-                f"Otherwise, please ignore. Either way, the provided credentials will be revoked in {time_to_revoke_str} if login is not attempted.\n\n"
+                f"Hello {user.get_full_name()},\n\n"
+                f"You've been invited to join the Verboheit Mathematics League Competition "
+                f"{timezone.now().year} as a staff member. To accept, log in using the link "
+                f"below with this email and the temporary password provided. Remember to change"
+                f"it after login. If you choose not to accept, simply ignore this message. "
+                f"Note that the credentials will expire in {time_to_revoke_str} if you don't log in.\n\n"
                 f"Password: {temp_password}\n"
                 f"Login: {login_url}\n\n"
-                f"Regards,\nManagement, Verboheit MLC."
+                f"Regards,\n"
+                f"Verboheit MLC Management"
             ),
             recipient_list=[user.email],
         )

@@ -433,7 +433,7 @@ def revoke_staff_invite_task(user_id):
             user.save()
             send_mail_task.delay(
                 subject="Your account has been revoked",
-                message="Due to having not logged in within seven days since your invite, your account has been revoked. "
+                message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
                         f"Please contact {settings.SUPPORT_EMAIL} if you have any inquires.\n\n"
                         "Regards,\n\nManagement, Verboheit MLC",
                 recipient_list=[user.email],
