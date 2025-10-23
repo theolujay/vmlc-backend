@@ -212,9 +212,16 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 10s
-        max_attempts: 3
-        window: 120s   
+        delay: 15s
+        max_attempts: 5
+        window: 300s
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.15'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
   web:
     <<: *vmlc-common
@@ -240,10 +247,10 @@ services:
       - "traefik.http.services.web.loadbalancer.server.port=8000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
-      interval: 45s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
     depends_on:
       - db
       - redis
@@ -256,7 +263,7 @@ services:
       replicas: 2
       resources:
         limits:
-          memory: 512M
+          memory: 768M
           cpus: '0.25'
         reservations:
           memory: 256M
@@ -310,7 +317,7 @@ services:
             order: start-first
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '0.15'
         reservations:
           memory: 256M
@@ -340,7 +347,7 @@ services:
             order: start-first
       resources:
         limits:
-          memory: 256M
+          memory: 384M
           cpus: '0.05'
         reservations:
           memory: 50M
@@ -389,7 +396,7 @@ services:
           cpus: '0.1'
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.5
     command: -config.file=/etc/loki/local-config.yaml
     configs:
       - source: loki_config
@@ -407,7 +414,7 @@ services:
           cpus: '0.1'
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:main-a3e0bf4
     command: ["-config.file=/etc/tempo/tempo-local.yaml"]
     configs:
       - source: tempo_config
@@ -421,11 +428,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '0.1'
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.2
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
