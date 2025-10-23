@@ -208,6 +208,8 @@ services:
     environment:
       <<: [*vmlc-env, *staging-otel-env]
     deploy:
+      update_config:
+        order: start-first
       mode: replicated-job
       replicas: 1
       restart_policy:
@@ -258,7 +260,7 @@ services:
       - otel-collector
     deploy:
       update_config:
-            order: start-first
+        order: start-first
       mode: replicated
       replicas: 2
       resources:
@@ -314,7 +316,7 @@ services:
       - otel-collector
     deploy:
       update_config:
-            order: start-first
+        order: start-first
       resources:
         limits:
           memory: 512M
@@ -344,7 +346,7 @@ services:
       - otel-collector
     deploy:
       update_config:
-            order: start-first
+        order: start-first
       resources:
         limits:
           memory: 384M
