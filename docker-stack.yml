@@ -208,8 +208,6 @@ services:
     environment:
       <<: [*vmlc-env, *staging-otel-env]
     deploy:
-      update_config:
-        order: start-first
       mode: replicated-job
       replicas: 1
       restart_policy:
