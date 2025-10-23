@@ -117,8 +117,8 @@ RUN mkdir -p media staticfiles && \
 
 EXPOSE 8000
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["daphne", "-b 0.0.0.0", "-p 8000", "config.asgi:application"]
+# ENTRYPOINT ["./scripts/# ENTRYPOINT.sh"]
+# CMD ["daphne", "-b 0.0.0.0", "-p 8000", "config.asgi:application"]
 # ==========================================================================
 # Test
 # ==========================================================================
@@ -162,8 +162,8 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/runserver.sh"]
+# ENTRYPOINT ["./scripts/# ENTRYPOINT.sh"]
+# CMD ["./scripts/runserver.sh"]
 # ==========================================================================
 # Production
 # ==========================================================================
@@ -183,5 +183,5 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     SERVER_SOFTWARE= \
     PYTHONPATH=/home/verboheit/web
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]
-CMD ["./scripts/runserver.sh"]
+# ENTRYPOINT ["./scripts/# ENTRYPOINT.sh"]
+# CMD ["./scripts/runserver.sh"]
