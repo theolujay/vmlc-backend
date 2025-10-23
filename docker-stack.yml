@@ -370,7 +370,7 @@ services:
           cpus: '0.1'
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.7.2
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
