@@ -7,9 +7,11 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
+from rest_framework import status
 
-from ..models import Question
-from ..permissions import VerifiedModeratorPermissions
+from ..models import Exam, Question
+from ..permissions import VerifiedAdminPermissions, VerifiedModeratorPermissions
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.swagger_schemas import (
     api_key,
@@ -123,16 +125,65 @@ class QuestionListView(ListCreateAPIView):
 
     def perform_create(self, serializer):
         """
+        Create question and optionally add it to specified exams.
         Set the `created_by` field to the current staff user.
         """
-        # IsVerifiedStaff permission ensures staff_profile exists
-        serializer.save(created_by=self.request.user.staff_profile)
+        question = serializer.save(created_by=self.request.user.staff_profile)
         logger.info(
             "Question created by user %s with data: %s",
             self.request.user.id,
             serializer.data,
         )
-
+        
+        add_to_exams=self.request.data.get("add_to_exams", None)
+        if add_to_exams:
+            if not isinstance(add_to_exams, list):
+                logger.warning(
+                    "add_to_exams should be a list, got %s",
+                    type(add_to_exams).__name__
+                )
+                return
+            added_count = 0
+            failed_exams = []
+            for exam_id in add_to_exams:
+                try:
+                    exam = Exam.objects.get(id=exam_id)
+                    exam.questions.add(question)
+                    added_count += 1
+                    logger.info(
+                        "Question %s added to exam %s",
+                        question.id,
+                        exam.id,
+                        exam.title
+                    )
+                except Exam.DoesNotExist:
+                    failed_exams.append(exam_id)
+                    logger.warning(
+                        "Cannot add question %s to exam %s - exam does not exist",
+                        question.id,
+                        exam_id
+                    )
+                except Exception as e:
+                    failed_exams.append(exam_id)
+                    logger.error(
+                        "Error adding question %s to exam %s: %s",
+                        question.id,
+                        exam_id,
+                        str(e)
+                    )
+            if added_count > 0:
+                logger.info(
+                    "Question %s successfully added to %s exams(s)",
+                    question.id,
+                    added_count
+                )
+            if failed_exams:
+                logger.warning(
+                    "Failed to add question %s to %s exams: %s",
+                    question.id,
+                    failed_exams
+                )
+                
 
 @method_decorator(
     name="get",
@@ -222,6 +273,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         """
         Set the `updated_by` field to the current staff user.
+        Optionally add/remove question from exams (admin only).
         """
         serializer.save(updated_by=self.request.user.staff_profile)
         logger.info(
@@ -238,3 +290,141 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         question_id = instance.id
         instance.archive()
         logger.info("Question %s removed by user %s", question_id, self.request.user.id)
+
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Manage Question-Exam Associations",
+        operation_description="Add or remove a question from exams. Admin only.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'add_to_exams': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    description='List of exam IDs to add question to'
+                ),
+                'remove_from_exams': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    description='List of exam IDs to remove question from'
+                ),
+            }
+        ),
+        responses={
+            200: openapi.Response("Exam associations updated successfully."),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Questions"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+class QuestionExamAssociationView(APIView):
+    """
+    Manage a question's exam associations.
+    
+    POST: Add or remove question from specified exams.
+    
+    Permissions:
+        - Only accessible to verified staff with role: admin or superadmin.
+    """
+    
+    permission_classes = VerifiedAdminPermissions
+    
+    def post(self, request, question_id):
+        """
+        Add or remove question from exams.
+        """
+        try:
+            question = Question.objects.get(id=question_id, is_archived=False)
+        except Question.DoesNotExist:
+            return Response(
+                {"error": "Question not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        add_to_exams = request.data.get("add_to_exams", [])
+        remove_from_exams = request.data.get("remove_from_exams", [])
+        
+        results = {
+            "question_id": question.id,
+            "added": [],
+            "removed": [],
+            "failed_additions": [],
+            "failed_removals": []
+        }
+        
+        # Add to exams
+        if add_to_exams:
+            if isinstance(add_to_exams, list):
+                for exam_id in add_to_exams:
+                    try:
+                        exam = Exam.objects.get(id=exam_id)
+                        if question not in exam.questions.all():
+                            exam.questions.add(question)
+                            results["added"].append({
+                                "exam_id": exam.id,
+                                "exam_title": exam.title
+                            })
+                            logger.info(
+                                "Question %s added to exam %s by user %s",
+                                question.id,
+                                exam.id,
+                                request.user.id
+                            )
+                        else:
+                            logger.info(
+                                "Question %s already in exam %s",
+                                question.id,
+                                exam.id
+                            )
+                    except Exam.DoesNotExist:
+                        results["failed_additions"].append({
+                            "exam_id": exam_id,
+                            "reason": "Exam not found"
+                        })
+            else:
+                return Response(
+                    {"error": "add_to_exams must be a list"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Remove from exams
+        if remove_from_exams:
+            if isinstance(remove_from_exams, list):
+                for exam_id in remove_from_exams:
+                    try:
+                        exam = Exam.objects.get(id=exam_id)
+                        if question in exam.questions.all():
+                            exam.questions.remove(question)
+                            results["removed"].append({
+                                "exam_id": exam.id,
+                                "exam_title": exam.title
+                            })
+                            logger.info(
+                                "Question %s removed from exam %s by user %s",
+                                question.id,
+                                exam.id,
+                                request.user.id
+                            )
+                        else:
+                            logger.info(
+                                "Question %s not in exam %s",
+                                question.id,
+                                exam.id
+                            )
+                    except Exam.DoesNotExist:
+                        results["failed_removals"].append({
+                            "exam_id": exam_id,
+                            "reason": "Exam not found"
+                        })
+            else:
+                return Response(
+                    {"error": "remove_from_exams must be a list"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        return Response(results, status=status.HTTP_200_OK)

@@ -1538,7 +1538,38 @@ The API provides CRUD operations for managing exam questions.
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
+*Note: Questions are soft-deleted by setting `is_archived` to `True` and `archived_at` to the current timestamp.*
+
 ---
+
+#### Add Question to Exams
+
+**Endpoint:** `POST /questions/{question_id}/exams/`  
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "add_to_exams": [1, 3, 5],
+    "remove_from_exams": [2, 4]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "question_id": 42,
+    "added": [
+        {"exam_id": 1, "exam_title": "Math Basics"},
+        {"exam_id": 3, "exam_title": "Advanced Math"}
+    ],
+    "removed": [
+        {"exam_id": 2, "exam_title": "Science Quiz"}
+    ],
+    "failed_additions": [
+        {"exam_id": 5, "reason": "Exam not found"}
+    ],
+    "failed_removals": []
+}
+```
 
 ### Dashboard
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
@@ -2445,6 +2476,7 @@ For technical support, API key requests, or questions:
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
   - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
+  - **Question Management**: Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
 
 ### Tue, 22nd of Oct, 2025
 - **Staff**: Added `POST /staff/invite/` endpoint.

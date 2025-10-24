@@ -43,6 +43,7 @@ from .views import (
     SubmitScoreView,
     QuestionListView,
     QuestionDetailView,
+    QuestionExamAssociationView,
     PublishScoresView,
     ToggleLeaderboardVisibilityView,
     PublishLeaderboardView,
@@ -203,6 +204,7 @@ urlpatterns = [
         QuestionDetailView.as_view(),
         name="question-detail",
     ),
+    path('questions/<int:question_id>/exams/', QuestionExamAssociationView.as_view(), name='question-exam-associations'),
     # =============================================================================
     # SCORING & RESULTS
     # =============================================================================
