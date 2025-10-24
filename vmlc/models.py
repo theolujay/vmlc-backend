@@ -381,6 +381,16 @@ class Question(models.Model):
         self.archived_at = timezone.now()
         self.save()
     
+    def get_related_exams(self):
+        """Get a list of exams a question has been added to."""
+        exams = self.exams.values(
+            'id', 'title', 'description', 'stage', 'exam_date'
+        )
+        
+        return {
+            "count": self.exams.count(),
+            "list": list(exams)
+        }
 
     def __str__(self):
         """Return a string representation of the question."""
@@ -409,7 +419,7 @@ class Exam(models.Model):
     countdown_minutes = models.PositiveIntegerField(default=60)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    questions = models.ManyToManyField(Question, blank=True)
+    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     created_by = models.ForeignKey(
         Staff,
         blank=True,
