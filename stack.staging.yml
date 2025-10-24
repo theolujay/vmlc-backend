@@ -456,8 +456,8 @@ services:
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
-      - source: grafana_dashboards
-        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      # - source: grafana_dashboards
+      #   target: /etc/grafana/provisioning/dashboards/dashboards.yml
     volumes:
       - staging_grafana:/var/lib/grafana
     networks:
