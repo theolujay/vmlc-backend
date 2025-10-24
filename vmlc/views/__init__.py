@@ -43,6 +43,7 @@ from .question import (
     QuestionListView,
     QuestionDetailView,
     QuestionExamAssociationView,
+    BulkQuestionExamAssociationView,
 )
 from .registration import (
     CandidateRegistrationView,
@@ -110,6 +111,7 @@ __all__ = [
     "QuestionListView",
     "QuestionDetailView",
     "QuestionExamAssociationView",
+    "BulkQuestionExamAssociationView",
     # registration
     "CandidateRegistrationView",
     "StaffRegistrationView",

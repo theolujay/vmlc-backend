@@ -428,3 +428,280 @@ class QuestionExamAssociationView(APIView):
                 )
         
         return Response(results, status=status.HTTP_200_OK)
+
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Bulk Add Questions to Exams",
+        operation_description="Add multiple questions to one or more exams. Admin only.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['question_ids', 'exam_ids'],
+            properties={
+                'question_ids': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    description='List of question IDs to add',
+                    example=[1, 2, 3, 4, 5]
+                ),
+                'exam_ids': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    description='List of exam IDs to add questions to',
+                    example=[10, 11]
+                ),
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                "Questions added to exams successfully.",
+                openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'summary': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'total_operations': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'successful': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'skipped': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'failed': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            }
+                        ),
+                        'details': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'added': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'question_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'exam_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'exam_title': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                ),
+                                'skipped': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'question_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'exam_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'exam_title': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'reason': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                ),
+                                'failed_questions': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'question_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'reason': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                ),
+                                'failed_exams': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'exam_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'reason': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                ),
+                            }
+                        )
+                    }
+                )
+            ),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Questions"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+class BulkQuestionExamAssociationView(APIView):
+    """
+    Bulk add questions to exams.
+    
+    POST: Add multiple questions to multiple exams in one operation.
+    
+    Permissions:
+        - Only accessible to verified staff with role: admin or superadmin.
+    """
+    
+    permission_classes = VerifiedAdminPermissions
+    
+    def post(self, request):
+        """
+        Add multiple questions to multiple exams.
+        
+        Request body:
+        {
+            "question_ids": [1, 2, 3, 4],
+            "exam_ids": [10, 11]
+        }
+        """
+        question_ids = request.data.get("question_ids", [])
+        exam_ids = request.data.get("exam_ids", [])
+        
+        # Validation
+        if not question_ids:
+            return Response(
+                {"error": "question_ids is required and cannot be empty"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not exam_ids:
+            return Response(
+                {"error": "exam_ids is required and cannot be empty"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not isinstance(question_ids, list):
+            return Response(
+                {"error": "question_ids must be a list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not isinstance(exam_ids, list):
+            return Response(
+                {"error": "exam_ids must be a list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Initialize results tracking
+        results = {
+            "summary": {
+                "total_operations": len(question_ids) * len(exam_ids),
+                "successful": 0,
+                "skipped": 0,
+                "failed": 0,
+            },
+            "details": {
+                "added": [],
+                "skipped": [],
+                "failed_questions": [],
+                "failed_exams": [],
+            }
+        }
+        
+        # Bulk fetch questions and exams (efficient!)
+        questions = Question.objects.filter(
+            id__in=question_ids, 
+            is_archived=False
+        )
+        exams = Exam.objects.filter(id__in=exam_ids)
+        
+        # Track which IDs were found
+        found_question_ids = set(questions.values_list('id', flat=True))
+        found_exam_ids = set(exams.values_list('id', flat=True))
+        
+        # Track missing IDs
+        missing_question_ids = set(question_ids) - found_question_ids
+        missing_exam_ids = set(exam_ids) - found_exam_ids
+        
+        # Log missing questions
+        if missing_question_ids:
+            for q_id in missing_question_ids:
+                results["details"]["failed_questions"].append({
+                    "question_id": q_id,
+                    "reason": "Question not found or archived"
+                })
+                results["summary"]["failed"] += len(exam_ids)  # Failed for all exams
+            
+            logger.warning(
+                "Questions not found by user %s: %s",
+                request.user.id,
+                list(missing_question_ids)
+            )
+        
+        # Log missing exams
+        if missing_exam_ids:
+            for e_id in missing_exam_ids:
+                results["details"]["failed_exams"].append({
+                    "exam_id": e_id,
+                    "reason": "Exam not found"
+                })
+                results["summary"]["failed"] += len(found_question_ids)  # Failed for all questions
+            
+            logger.warning(
+                "Exams not found by user %s: %s",
+                request.user.id,
+                list(missing_exam_ids)
+            )
+        
+        # Process each exam-question combination
+        for exam in exams:
+            # Get existing question IDs for this exam (efficient check)
+            existing_question_ids = set(
+                exam.questions.filter(id__in=found_question_ids).values_list('id', flat=True)
+            )
+            
+            for question in questions:
+                try:
+                    # Check if already exists
+                    if question.id in existing_question_ids:
+                        results["details"]["skipped"].append({
+                            "question_id": question.id,
+                            "exam_id": exam.id,
+                            "exam_title": exam.title,
+                            "reason": "Already exists"
+                        })
+                        results["summary"]["skipped"] += 1
+                        logger.debug(
+                            "Question %s already in exam %s, skipping",
+                            question.id,
+                            exam.id
+                        )
+                        continue
+                    
+                    # Add the question to the exam
+                    exam.questions.add(question)
+                    results["details"]["added"].append({
+                        "question_id": question.id,
+                        "exam_id": exam.id,
+                        "exam_title": exam.title
+                    })
+                    results["summary"]["successful"] += 1
+                    
+                    logger.info(
+                        "Question %s added to exam %s (%s) by user %s",
+                        question.id,
+                        exam.id,
+                        exam.title,
+                        request.user.id
+                    )
+                    
+                except Exception as e:
+                    results["details"]["added"].append({
+                        "question_id": question.id,
+                        "exam_id": exam.id,
+                        "reason": str(e)
+                    })
+                    results["summary"]["failed"] += 1
+                    
+                    logger.error(
+                        "Error adding question %s to exam %s: %s",
+                        question.id,
+                        exam.id,
+                        str(e)
+                    )
+        
+        # Summary log
+        logger.info(
+            "Bulk operation by user %s: %s successful, %s skipped, %s failed out of %s total",
+            request.user.id,
+            results["summary"]["successful"],
+            results["summary"]["skipped"],
+            results["summary"]["failed"],
+            results["summary"]["total_operations"]
+        )
+        
+        return Response(results, status=status.HTTP_200_OK)

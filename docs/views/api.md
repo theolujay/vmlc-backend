@@ -1723,6 +1723,44 @@ The API provides CRUD operations for managing exam questions.
 }
 ```
 
+#### Bulk Add Questions to Exams
+
+**Endpoint:** `POST /questions/bulk-add-to-exams/`
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "question_ids": [1, 2, 3, 4, 5],
+    "exam_ids": [10, 11]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "summary": {
+        "total_operations": 10,
+        "successful": 8,
+        "skipped": 1,
+        "failed": 1
+    },
+    "details": {
+        "added": [
+            {"question_id": 1, "exam_id": 10, "exam_title": "Algebra I"},
+            {"question_id": 1, "exam_id": 11, "exam_title": "Algebra II"}
+        ],
+        "skipped": [
+            {"question_id": 2, "exam_id": 10, "exam_title": "Algebra I", "reason": "Already exists"}
+        ],
+        "failed_questions": [
+            {"question_id": 3, "reason": "Question not found or archived"}
+        ],
+        "failed_exams": [
+            {"exam_id": 12, "reason": "Exam not found"}
+        ]
+    }
+}
+```
+
 ### Dashboard
 
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
@@ -2684,7 +2722,10 @@ For technical support, API key requests, or questions:
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
   - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
-  - **Question Management**: Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
+  - **Question Management**: 
+    Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
+
+    Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
 
 ### Tue, 22nd of Oct, 2025
 

@@ -44,6 +44,7 @@ from .views import (
     QuestionListView,
     QuestionDetailView,
     QuestionExamAssociationView,
+    BulkQuestionExamAssociationView,
     PublishScoresView,
     ToggleLeaderboardVisibilityView,
     PublishLeaderboardView,
@@ -205,6 +206,11 @@ urlpatterns = [
         name="question-detail",
     ),
     path('questions/<int:question_id>/exams/', QuestionExamAssociationView.as_view(), name='question-exam-associations'),
+    path(
+        'questions/bulk-add-to-exams/',
+        BulkQuestionExamAssociationView.as_view(),
+        name='bulk-question-exam-associations'
+    ),
     # =============================================================================
     # SCORING & RESULTS
     # =============================================================================
