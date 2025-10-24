@@ -331,9 +331,9 @@ class QuestionAdmin(admin.ModelAdmin):
     Displays question text, difficulty, and creator.
     """
 
-    list_display = ("id", "text", "difficulty", "creator_name", "created_at")
-    readonly_fields = ("created_at", "updated_at")
-    list_filter = ("difficulty", "created_by")
+    list_display = ("id", "text", "difficulty", "creator_name", "is_archived", "archived_at", "created_at")
+    readonly_fields = ("created_at", "updated_at", "archived_at")
+    list_filter = ("difficulty", "created_by", "is_archived")
     search_fields = ("text", "created_by__user__email")
     list_select_related = ("created_by__user",)
     date_hierarchy = "created_at"
@@ -359,11 +359,12 @@ class CandidateScoreAdmin(admin.ModelAdmin):
         "score",
         "recorded_at",
         "auto_score",
+        "score_submitted_by_name",
     )
     readonly_fields = ("recorded_at", "updated_at")
-    list_filter = ("exam", "auto_score")
-    search_fields = ("candidate__user__email", "exam__title")
-    list_select_related = ("candidate__user", "exam")
+    list_filter = ("exam", "auto_score", "score_submitted_by")
+    search_fields = ("candidate__user__email", "exam__title", "score_submitted_by__user__email")
+    list_select_related = ("candidate__user", "exam", "score_submitted_by__user")
     date_hierarchy = "recorded_at"
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
@@ -373,6 +374,12 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     @admin.display(description="Exam", ordering="exam__title")
     def exam_title(self, obj):
         return obj.exam.title
+
+    @admin.display(description="Score Submitted By", ordering="score_submitted_by__user__first_name")
+    def score_submitted_by_name(self, obj):
+        if obj.score_submitted_by:
+            return obj.score_submitted_by.user.get_full_name()
+        return "Auto Score" if obj.auto_score else "N/A"
 
 
 @admin.register(CandidateAnswer)

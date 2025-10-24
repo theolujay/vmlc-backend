@@ -115,7 +115,7 @@ class QuestionListView(ListCreateAPIView):
             f"QuestionListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         queryset = (
-            Question.objects.filter(is_active=True)
+            Question.objects.filter(is_archived=False)
             .select_related("created_by__user")
             .order_by("-created_at")
         )
@@ -213,7 +213,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = VerifiedModeratorPermissions
     serializer_class = QuestionDetailSerializer
     queryset = (
-        Question.objects.filter(is_active=True)
+        Question.objects.filter(is_archived=False)
         .select_related("created_by__user", "updated_by__user")
         .all()
     )
@@ -233,9 +233,8 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         """
-        Soft-delete the question by setting `is_active` to False and log the action.
+        Archive the question by setting `is_archived` to True and log the action.
         """
         question_id = instance.id
-        instance.is_active = False
-        instance.save()
-        logger.info("Question %s deleted by user %s", question_id, self.request.user.id)
+        instance.archive()
+        logger.info("Question %s removed by user %s", question_id, self.request.user.id)

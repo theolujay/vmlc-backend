@@ -975,7 +975,7 @@ Authorization: Bearer <access-token>
                 "lowest_score": 41.3,
                 "highest_obtainable_score": 100.0
             },
-            "exams": [
+            "exams_taken": [
                 {
                     "exam_id": 4,
                     "exam_title": "Organized interactive parallelism",
@@ -983,8 +983,20 @@ Authorization: Bearer <access-token>
                     "exam_date": "2025-09-30T10:39:51.622476Z",
                     "score": 99.88,
                     "recorded_at": "2025-10-15T10:40:03.271586+00:00",
-                    "submitted_by": "Anne Bradshaw",
-                    "auto_score": false
+                    "score_submitted_by": "Anne Bradshaw",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 1,
+                            "question_text": "What is 2 + 2?",
+                            "option_a": "3",
+                            "option_b": "4",
+                            "option_c": "5",
+                            "option_d": "6",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.271586Z"
+                        }
+                    ]
                 },
                 {
                     "exam_id": 2,
@@ -993,8 +1005,20 @@ Authorization: Bearer <access-token>
                     "exam_date": "2025-09-17T10:39:51.597446Z",
                     "score": 41.3,
                     "recorded_at": "2025-10-15T10:40:03.247026+00:00",
-                    "submitted_by": "Kenneth Pace",
-                    "auto_score": false
+                    "score_submitted_by": "Kenneth Pace",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 2,
+                            "question_text": "What is 3 + 3?",
+                            "option_a": "5",
+                            "option_b": "6",
+                            "option_c": "7",
+                            "option_d": "8",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.247026Z"
+                        }
+                    ]
                 }
             ]
         },
@@ -1431,7 +1455,7 @@ X-Api-Key: <your_api_key>
     "candidate_school": "Mathematics High School",
     "score": 88.0,
     "auto_score": true,
-    "submitted_by": null,
+    "score_submitted_by": "Auto Score",
     "recorded_at": "2024-01-20T15:30:00Z"
   }
 ]
@@ -1668,8 +1692,6 @@ The API provides CRUD operations for managing exam questions.
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
-*Note: Questions are soft-deleted by setting `is_active` to `False`.*
-
 ---
 
 ### Dashboard
@@ -2181,7 +2203,7 @@ X-Api-Key: <your_api_key>
           "exam_title": "Algebra Screening",
           "score": 88.0,
           "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
+          "score_submitted_by": "Auto Score",
           "auto_score": true
         }
       ]
@@ -2280,7 +2302,7 @@ X-Api-Key: <your_api_key>
           "exam_title": "Algebra Screening",
           "score": 88.0,
           "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
+          "score_submitted_by": "Auto Score",
           "auto_score": true
         }
       ]
@@ -2629,6 +2651,10 @@ For technical support, API key requests, or questions:
 <summary>Changelog</summary>
 
 ## Changelog
+
+### Fri, 24th of Oct, 2025
+  - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
+  - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
 
 ### Tue, 22nd of Oct, 2025
 

@@ -144,6 +144,6 @@ class ExamResultSerializer(serializers.ModelSerializer):
             "candidate_school",
             "score",
             "auto_score",
-            "submitted_by",
+            "score_submitted_by",
             "recorded_at",
         ]

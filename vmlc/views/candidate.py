@@ -176,7 +176,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         )
         return (
             Candidate.objects.select_related("user")
-            .prefetch_related("scores__exam", "scores__submitted_by__user")
+            .prefetch_related("scores__exam", "scores__score_submitted_by__user")
             .all()
         )
 

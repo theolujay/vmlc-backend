@@ -127,8 +127,8 @@ SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
 BROADCAST_WEBHOOK_URL = read_secret("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
 
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = read_secret("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(read_secret("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = read_secret("EMAIL_HOST_USER", "")

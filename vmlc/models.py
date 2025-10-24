@@ -372,7 +372,15 @@ class Question(models.Model):
         choices=Difficulty.choices,
         default=Difficulty.MEDIUM,
     )
-    is_active = models.BooleanField(default=True, db_index=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    
+    def archive(self):
+        """Archive the question instead of deleting it."""
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save()
+    
 
     def __str__(self):
         """Return a string representation of the question."""
@@ -486,7 +494,7 @@ class CandidateManager(models.Manager):
         """
         return (
             self.with_scores()
-            .prefetch_related("scores__exam", "scores__submitted_by__user")
+            .prefetch_related("scores__exam", "scores__score_submitted_by__user")
             .select_related("user")
         )
 
@@ -731,25 +739,44 @@ class Candidate(models.Model):
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related("exam", "submitted_by__user").all()
-
-        exams_taken_list = [
-            {
-                "exam_id": s.exam.id,
-                "exam_title": s.exam.title,
-                "exam_stage": s.exam.stage,
-                "exam_date": s.exam.exam_date,
-                "score": float(s.score),
-                "recorded_at": s.recorded_at.isoformat(),
-                "submitted_by": (
-                    s.submitted_by.user.get_full_name()
-                    if s.submitted_by and s.submitted_by.user
+            scores = self.scores.select_related(
+                "exam", "score_submitted_by__user"
+            ).prefetch_related(
+                "answers__question"
+            ).all()
+    
+        exams_taken_list = []
+        for score in scores:
+            answers = score.answers.all()
+            
+            submission_list = []
+            for answer in answers:
+                submission_list.append({
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "selected_option": answer.selected_option,
+                    "answered_at": answer.answered_at.isoformat(),
+                })
+                
+            exams_taken_list.append({
+                "exam_id": score.exam.id,
+                "exam_title": score.exam.title,
+                "exam_stage": score.exam.stage,
+                "exam_date": score.exam.exam_date,
+                "score": float(score.score),
+                "recorded_at": score.recorded_at.isoformat(),
+                "score_submitted_by": (
+                    score.score_submitted_by.user.get_full_name()
+                    if score.score_submitted_by and score.score_submitted_by.user
                     else None
                 ),
-                "auto_score": s.auto_score,
-            }
-            for s in scores
-        ]
+                "auto_score": score.auto_score,
+                "submission": submission_list,
+            })
 
         records = {
             "performance": {
@@ -772,7 +799,7 @@ class Candidate(models.Model):
                     "lowest_score": float(score_stats["lowest_score"] or 0),
                     "highest_obtainable_score": 100.0,
                 },
-                "exams": exams_taken_list,
+                "exams_taken": exams_taken_list,
             },
             "available_exams": available_exams_list,
         }
@@ -802,7 +829,7 @@ class CandidateScore(models.Model):
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     recorded_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-    submitted_by = models.ForeignKey(
+    score_submitted_by = models.ForeignKey(
         Staff, on_delete=models.SET_NULL, null=True, blank=True
     )
     auto_score = models.BooleanField(default=False, db_index=True)
@@ -813,40 +840,19 @@ class CandidateScore(models.Model):
         unique_together = ("candidate", "exam")
         ordering = ["-recorded_at"]
 
-    def calculate_and_save_auto_score(self, submitted_answers):
-        """
-        Scores an exam based on a list of submitted answers, updates the
-        instance, and saves it.
-
-        Args:
-            submitted_answers (list[CandidateAnswer]): A list of unsaved
-                CandidateAnswer objects. This avoids a race condition by not
-                re-querying the database within the transaction.
-        """
-        total_questions = self.exam.questions.count()
-        if not total_questions:
-            self.score = 0
-        else:
-            correct_count = sum(
-                1
-                for answer in submitted_answers
-                if answer.selected_option == answer.question.correct_answer
-            )
-            score = (correct_count / total_questions) * 100
-            self.score = round(score, 2)
-
-        self.auto_score = True
-        self.recorded_at = timezone.now()
-        self.save()
-
 
 class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_score = models.ForeignKey(
-        CandidateScore, related_name="answers", on_delete=models.CASCADE
+        CandidateScore,
+        related_name="answers",
+        on_delete=models.PROTECT
     )
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.PROTECT
+    )
     selected_option = models.CharField(
         max_length=1,
         choices=Question.Options.choices,
@@ -866,9 +872,14 @@ class CandidateAnswer(models.Model):
         ]
 
     def __str__(self):
-        """Return a string representation of the candidate's answer."""
-        return f"Answer by {self.candidate_score.candidate.user.username} for Q{self.question.id}"
-
+        if self.candidate_score and self.question:
+            username = self.candidate_score.candidate.user.username
+            return f"Answer by {username} for Q{self.question.id}"
+        elif self.candidate_score:
+            return f"Answer by {self.candidate_score.candidate.user.username} (deleted question)"
+        elif self.question:
+            return f"Answer for Q{self.question.id} (deleted score)"
+        return f"Orphaned Answer #{self.id}"
 
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
@@ -909,4 +920,3 @@ class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-me
         """Meta options for the CandidateScoreSnapshot model."""
 
         ordering = ["-created_at"]
-

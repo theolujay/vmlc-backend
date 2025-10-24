@@ -90,7 +90,7 @@ class SubmitScoreView(APIView):
             exam=exam,
             defaults={
                 "score": score,
-                "submitted_by": staff,
+                "score_submitted_by": staff,
                 "auto_score": False,
                 "recorded_at": timezone.now(),
             },
