@@ -39,6 +39,11 @@ security_check() {
 
 wait_for_migrations() {
     log_info "Checking for database migrations..."
+    
+    # Add timeout to prevent hanging
+    local timeout=300  # 5 minutes
+    local start_time=$(date +%s)
+    
     if python manage.py showmigrations --plan | grep -q '\[ \]'; then
         log_info "Migrations pending. Waiting until complete..."
         local max_attempts=10
@@ -46,11 +51,19 @@ wait_for_migrations() {
         local backoff=2
 
         until ! python manage.py showmigrations --plan | grep -q '\[ \]'; do
+            local current_time=$(date +%s)
+            local elapsed=$((current_time - start_time))
+            
+            if [[ $elapsed -ge $timeout ]]; then
+                log_error "Timeout waiting for migrations after ${timeout}s"
+                exit 1
+            fi
+            
             if [[ $attempt -ge $max_attempts ]]; then
                 log_error "Migrations not complete after $max_attempts attempts. Exiting."
                 exit 1
             fi
-            log_warn "Migrations not complete, waiting ${backoff}s before retrying..."
+            log_warn "Migrations not complete, waiting ${backoff}s before retrying... (attempt $attempt/$max_attempts)"
             sleep $backoff
             backoff=$(( backoff < 10 ? backoff * 2 : 10 ))
             ((attempt++))
@@ -59,7 +72,6 @@ wait_for_migrations() {
     else
         log_info "No migrations pending"
     fi
-
 }
 
 preflight_check() {

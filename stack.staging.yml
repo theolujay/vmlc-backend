@@ -292,7 +292,7 @@ services:
       - -l
       - warning
       - --concurrency=2
-      - --max-tasks-per-child=100
+      # - --max-tasks-per-child=100
       - --time-limit=300
       - -Q
       - default,emails,comms,scoring,files,reports,cache
