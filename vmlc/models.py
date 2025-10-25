@@ -250,7 +250,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
-    occupation = models.CharField(max_length=50, blank=True)
+    occupation = models.CharField(max_length=50, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "Staff",
