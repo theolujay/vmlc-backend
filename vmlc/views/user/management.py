@@ -84,7 +84,7 @@ class StaffInviteView(CreateAPIView):
                 f"Hello {user.get_full_name()},\n\n"
                 f"You've been invited to join the Verboheit Mathematics League Competition "
                 f"{timezone.now().year} as a staff member. To accept, log in using the link "
-                f"below with this email and the temporary password provided. Remember to change"
+                f"below with this email and the temporary password provided. Remember to change "
                 f"it after login. If you choose not to accept, simply ignore this message. "
                 f"Note that the credentials will expire in {time_to_revoke_str} if you don't log in.\n\n"
                 f"Password: {temp_password}\n"
