@@ -314,7 +314,7 @@ class ExamQuestionsView(ListAPIView):
         except Exam.DoesNotExist:
             logger.error(f"Exam with id {exam_id} not found.")
             raise NotFound("Exam not found.")
-        return exam.questions.filter(is_active=True)
+        return exam.questions.filter(is_archived=False)
 
 
 @method_decorator(
