@@ -2012,7 +2012,7 @@ X-Api-Key: <your_api_key>
   "results": [
     {
         "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-        "user_name": "John Doe",
+        "full_name": "John Doe",
         "email": "john@example.com",
         "is_pending": true,
         "is_verified": false,

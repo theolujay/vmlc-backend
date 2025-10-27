@@ -54,7 +54,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
     """
 
     user_id = serializers.CharField(source="user.id", read_only=True)
-    user_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    full_name = serializers.CharField(source="user.get_full_name", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
     has_face_id = serializers.SerializerMethodField()
     has_id_card = serializers.SerializerMethodField()
@@ -64,7 +64,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
         model = UserVerification
         fields = [
             "user_id",
-            "user_name",
+            "full_name",
             "email",
             "is_pending",
             "is_verified",
