@@ -1254,19 +1254,24 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 25,
-  "total_pages": 2,
-  "next": "https://api.verboheit.org/v1/exams/?page=2",
-  "previous": null,
-  "results": [
-    {
-      "id": 1,
-      "title": "Algebra Screening Exam",
-      "stage": "screening",
-      "question_count": 20,
-      "created_at": "2024-01-10T09:00:00Z"
-    }
-  ]
+    "meta": {
+        "total_questions": 123,
+        "hard_questions_count": 20,
+        "medium_questions_count": 50,
+        "easy_questions_count": 53
+    },
+    "total_pages": 2,
+    "next": "https://api.verboheit.org/v1/exams/?page=2",
+    "previous": null,
+    "list": [
+        {
+            "id": 1,
+            "title": "Algebra Screening Exam",
+            "stage": "screening",
+            "question_count": 20,
+            "created_at": "2024-01-10T09:00:00Z"
+        }
+    ]
 }
 ```
 
@@ -1582,10 +1587,11 @@ The API provides CRUD operations for managing exam questions.
 **Response:** `200 OK`
 ```json
 {
+  "total_pages": 5,
   "next": "https://api.verboheit.org/v1/questions/?page=2",
   "previous": null,
   "meta": {
-    "total_count": 100,
+    "total_questions": 100,
     "hard_questions_count": 20,
     "medium_questions_count": 50,
     "easy_questions_count": 30
@@ -1594,7 +1600,13 @@ The API provides CRUD operations for managing exam questions.
     {
       "id": 1,
       "text": "What is 5 × 5?",
+      "option_a": "20",
+      "option_b": "25",
+      "option_c": "30",
+      "option_d": "35",
+      "correct_answer": "B",
       "difficulty": "easy",
+      "related_exams_count": 3,
       "created_at": "2024-01-10T09:00:00Z"
     }
   ]
@@ -2718,6 +2730,10 @@ For technical support, API key requests, or questions:
 <summary>Changelog</summary>
 
 ## Changelog
+
+### Mon, 27th of Oct, 2025
+- **API**: Updated the response for `GET /exams/` to include a `meta` object with question pool data.
+- **API**: Updated the response for `GET /questions/` to include `option_a`, `option_b`, `option_c`, `option_d`, `correct_answer`, and `related_exams_count`.
 
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
