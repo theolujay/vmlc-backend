@@ -17,6 +17,11 @@ class QuestionListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "text",
+            "option_a",
+            "option_b",
+            "option_c",
+            "option_d",
+            "correct_answer",
             "difficulty",
             "related_exams_count",
             "created_at"
