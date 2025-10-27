@@ -17,7 +17,7 @@ from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
     ExamResultSerializer,
-    QuestionDetailSerializer,
+    QuestionListSerializer,
     CandidateExamSerializer,
     CandidateExamScoreSerializer,
 )
@@ -297,7 +297,7 @@ class ExamQuestionsView(ListAPIView):
     """
 
     permission_classes = VerifiedAdminPermissions
-    serializer_class = QuestionDetailSerializer
+    serializer_class = QuestionListSerializer
 
     def get_queryset(self):
         """
