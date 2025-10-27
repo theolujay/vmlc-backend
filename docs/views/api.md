@@ -2732,8 +2732,10 @@ For technical support, API key requests, or questions:
 ## Changelog
 
 ### Mon, 27th of Oct, 2025
-- **API**: Updated the response for `GET /exams/` to include a `meta` object with question pool data.
-- **API**: Updated the response for `GET /questions/` to include `option_a`, `option_b`, `option_c`, `option_d`, `correct_answer`, and `related_exams_count`.
+- **Questions**: Updated the response for `GET /exams/` to include a `meta` object with question pool data.
+- **Questions**: Updated the response for `GET /questions/` to include `option_a`, `option_b`, `option_c`, `option_d`, `correct_answer`, and `related_exams_count`.
+- **User Verifiecation**: Renamed `user_name` field to `full_name` in `GET /user/verification/list/`.
+
 
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
