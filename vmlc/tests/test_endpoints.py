@@ -7,6 +7,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from unittest.mock import patch
 
 from vmlc.models import Staff, UserVerification
 from vmlc.models import Candidate, Exam, Question, Staff, UserVerification
@@ -305,6 +306,7 @@ class InviteStaffTest(APITestCase):
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MANAGER)
         self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
 
+    @patch('vmlc.serializers.registration.revoke_staff_registration_task.apply_async')
     def test_invite_staff_success(self):
         self.client.force_authenticate(user=self.staff_user)
         url = reverse('vmlc:staff-invite')
