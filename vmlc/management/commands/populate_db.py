@@ -121,7 +121,7 @@ class Command(BaseCommand):
                 option_d=fake.sentence(nb_words=3),
                 correct_answer=random.choice(["A", "B", "C", "D"]),
                 created_by=random.choice(staff_list),
-                difficulty=random.choice(["easy", "medium", "hard"]),
+                difficulty=random.choice(["easy", "moderate", "hard"]),
             )
             question_list.append(question)
 
