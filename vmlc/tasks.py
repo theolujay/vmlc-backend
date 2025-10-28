@@ -444,3 +444,57 @@ def revoke_staff_invite_task(user_id):
             logger.info(f"User {user.email} has logged in. No action taken.")
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
+
+@shared_task(bind=True, name="revoke_staff_registration_task")
+def revoke_staff_registration_task(self, user_id):
+    """
+    Delete staff registration if not email_verified
+    """
+
+    from time import sleep
+    from datetime import timedelta
+    from .models import User, EmailOTP
+    
+    try:
+        user = User.objects.get(pk=user_id)
+
+        if not hasattr(user, "staff_profile"):
+            logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
+            return
+            
+        if user.is_email_verified:
+            logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
+            return
+
+        latest_otp = (
+            EmailOTP.objects.filter(user=user).order_by("-created_at").first()
+        )
+        if not latest_otp:
+            logger.debug(f"No previous OTP found for user {user.id}, auto-revoke waiting...")
+            # Retry the task after a short delay
+            raise self.retry(countdown=60)
+
+        time_since_last: timedelta = timezone.now() - latest_otp.created_at
+        grace_period: timedelta = timedelta(minutes=5)
+        
+        if latest_otp.is_expired() and time_since_last >= grace_period:
+            logger.debug(
+                f"Registration grace period elasped. Revoking user registration for {user.id}."
+            )
+        
+            user.delete()
+            logger.info(f"Revoked staff registration for user {user.email}")
+        
+        elif latest_otp.is_expired() and time_since_last < grace_period:
+            logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
+            # Retry the task after the grace period has passed
+            raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
+        
+        else:
+            logger.info(f"OTP for user {user.id} is still valid. No action taken.")
+
+    except User.DoesNotExist:
+        logger.warning(f"User with id {user_id} not found for registration revocation.")
+    except Exception as e:
+        logger.error(f"An error occurred during staff registration revocation for user {user_id}: {e}")
+        raise self.retry(exc=e, countdown=60)

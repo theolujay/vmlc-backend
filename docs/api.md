@@ -1116,24 +1116,24 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-    "meta": {
-        "total_questions": 123,
-        "hard_questions_count": 20,
-        "medium_questions_count": 50,
-        "easy_questions_count": 53
-    },
-    "total_pages": 2,
-    "next": "https://api.verboheit.org/v1/exams/?page=2",
-    "previous": null,
-    "list": [
-        {
-            "id": 1,
-            "title": "Algebra Screening Exam",
-            "stage": "screening",
-            "question_count": 20,
-            "created_at": "2024-01-10T09:00:00Z"
-        }
-    ]
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "medium_questions_count": 20,
+    "easy_questions_count": 15
+  },
+  "total_pages": 2,
+  "next": "https://api.verboheit.org/v1/exams/?page=2",
+  "previous": null,
+  "list": [
+    {
+      "id": 1,
+      "title": "Algebra Screening Exam",
+      "stage": "screening",
+      "question_count": 20,
+      "created_at": "2024-01-10T09:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -1440,11 +1440,11 @@ The API provides CRUD operations for managing exam questions.
   "total_pages": 5,
   "next": "https://api.verboheit.org/v1/questions/?page=2",
   "previous": null,
-  "meta": {
-    "total_questions": 100,
-    "hard_questions_count": 20,
-    "medium_questions_count": 50,
-    "easy_questions_count": 30
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "medium_questions_count": 20,
+    "easy_questions_count": 15
   },
   "list": [
     {
@@ -2523,9 +2523,12 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
-### Mon, 27th of Oct, 2025
-- **API**: Updated the response for `GET /exams/` to include a `meta` object with question pool data.
-- **API**: Updated the response for `GET /questions/` to include `option_a`, `option_b`, `option_c`, `option_d`, `correct_answer`, and `related_exams_count`.
+- **2025-10-28**
+  - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
+  - Implemented automatic revocation of staff registrations.
+  - If a newly registered staff member does not verify their email within 15 minutes, their account will be automatically deleted.
+  - This allows the email to be used for registration again.
+  - This feature does not apply to candidate registrations.
 
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
