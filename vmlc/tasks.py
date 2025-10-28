@@ -3,6 +3,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.db import OperationalError
 from django.utils import timezone
 from PIL import Image
 import magic
@@ -445,13 +446,11 @@ def revoke_staff_invite_task(user_id):
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
 
-@shared_task(bind=True, name="revoke_staff_registration_task")
+@shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
 def revoke_staff_registration_task(self, user_id):
     """
     Delete staff registration if not email_verified
     """
-
-    from time import sleep
     from datetime import timedelta
     from .models import User, EmailOTP
     
@@ -470,8 +469,17 @@ def revoke_staff_registration_task(self, user_id):
             EmailOTP.objects.filter(user=user).order_by("-created_at").first()
         )
         if not latest_otp:
-            logger.debug(f"No previous OTP found for user {user.id}, auto-revoke waiting...")
-            # Retry the task after a short delay
+            if self.request.retries >= 5:
+                logger.warning(
+                    f"No OTP found for user {user.id} after {self.request.retries} retries. "
+                    "Deleting user as precaution."
+                )
+                user.delete()
+                return
+            
+            logger.debug(
+                f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
+            )
             raise self.retry(countdown=60)
 
         time_since_last: timedelta = timezone.now() - latest_otp.created_at
@@ -479,7 +487,7 @@ def revoke_staff_registration_task(self, user_id):
         
         if latest_otp.is_expired() and time_since_last >= grace_period:
             logger.debug(
-                f"Registration grace period elasped. Revoking user registration for {user.id}."
+                f"Registration grace period elapsed. Revoking user registration for {user.id}."
             )
         
             user.delete()
@@ -495,6 +503,23 @@ def revoke_staff_registration_task(self, user_id):
 
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for registration revocation.")
+        # Don't retry - user is gone
+        return
+
+    except OperationalError as e:
+        # Database temporarily unavailable - retry makes sense
+        logger.error(f"Database error during revocation for user {user_id}: {e}")
+        raise self.retry(exc=e, countdown=60)
+
     except Exception as e:
-        logger.error(f"An error occurred during staff registration revocation for user {user_id}: {e}")
+        # Unexpected error - log and decide if we should retry
+        logger.error(
+            f"Unexpected error during revocation for user {user_id}: {e}",
+            exc_info=True
+        )
+        
+        if self.request.retries >= 3:
+            logger.error(f"Max retries reached for user {user_id}. Giving up.")
+            return
+        
         raise self.retry(exc=e, countdown=60)
