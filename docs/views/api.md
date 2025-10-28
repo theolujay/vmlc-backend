@@ -2719,6 +2719,12 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-10-28**
+  - Implemented automatic revocation of staff registrations.
+  - If a newly registered staff member does not verify their email within 15 minutes, their account will be automatically deleted.
+  - This allows the email to be used for registration again.
+  - This feature does not apply to candidate registrations.
+
 ### Fri, 24th of Oct, 2025
   - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
   - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.

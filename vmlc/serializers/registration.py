@@ -1,13 +1,19 @@
+
+import logging
 from django.contrib.auth import password_validation
-from django.db import transaction
+from django.db import transaction, IntegrityError, DatabaseError
 from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
+from vmlc.tasks import revoke_staff_registration_task
 from ..models import (
     Candidate,
     Staff,
     User,
 )
+
+
+logger = logging.getLogger(__name__)
 
 class BaseRegistrationSerializer(serializers.ModelSerializer):
     """
@@ -74,10 +80,23 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             with transaction.atomic():
                 user = self.create_user(user_data, password)
                 profile = self.Meta.model.objects.create(user=user, **validated_data)
+                if hasattr(user, "staff_profile"):
+                    revoke_staff_registration_task.apply_async(
+                        args=[user.id],
+                        countdown=60 * 15
+                    )
                 return profile
-        except Exception as e:
-            raise serializers.ValidationError(f"Registration failed: {str(e)}")
-        
+            
+        except IntegrityError:
+            raise serializers.ValidationError({
+                "error": "A user with this information already exists."
+            })
+            
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                "error": "Registration temporarily unavailable. Please try again later."
+            })
 
 class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
