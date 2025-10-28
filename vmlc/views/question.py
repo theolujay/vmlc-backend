@@ -81,7 +81,7 @@ class QuestionListView(ListCreateAPIView):
             hard_questions_count=Count(
                 "id", filter=Q(difficulty=Question.Difficulty.HARD)
             ),
-            medium_questions_count=Count(
+            moderate_questions_count=Count(
                 "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
             ),
             easy_questions_count=Count(
