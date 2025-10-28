@@ -1119,7 +1119,7 @@ X-Api-Key: <your_api_key>
   "question_pool_data": {
     "total_questions": 50,
     "hard_questions_count": 15,
-    "medium_questions_count": 20,
+    "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
   "total_pages": 2,
@@ -1208,7 +1208,7 @@ X-Api-Key: <your_api_key>
     "meta": {
         "total_count": 3,
         "hard_questions_count": 1,
-        "medium_questions_count": 1,
+        "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
     "list": [
@@ -1430,7 +1430,7 @@ The API provides CRUD operations for managing exam questions.
 
 **Query Parameters:**
 - `page` (integer): Page number
-- `difficulty` (string): Filter by difficulty (`easy`, `medium`, `hard`)
+- `difficulty` (string): Filter by difficulty (`easy`, `moderate`, `hard`)
 - `search` (string): Search question text
 - `created_by` (uuid): Filter by the UUID of the staff member who created the question
 
@@ -1443,7 +1443,7 @@ The API provides CRUD operations for managing exam questions.
   "question_pool_data": {
     "total_questions": 50,
     "hard_questions_count": 15,
-    "medium_questions_count": 20,
+    "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
   "list": [
@@ -1541,7 +1541,7 @@ The API provides CRUD operations for managing exam questions.
 **Request Body (PATCH example):**
 ```json
 {
-  "difficulty": "medium"
+  "difficulty": "moderate"
 }
 ```
 **Response:** `200 OK` (Returns updated question details)
@@ -1719,7 +1719,7 @@ X-Api-Key: <your_api_key>
     "total": 500,
     "by_difficulty": {
       "easy": { "count": 200 },
-      "medium": { "count": 200 },
+      "moderate": { "count": 200 },
       "hard": { "count": 100 }
     }
   },
@@ -2377,7 +2377,7 @@ X-Api-Key: <your_api_key>
 | `/staff/` | `occupation` | string | Filter by occupation |
 | `/exams/` | `stage` | string | Filter by exam stage (`screening`, `league`) |
 | `/exams/` | `active` | boolean | Filter by active status (`true` or `false`) |
-| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `medium`, `hard`) |
+| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `moderate`, `hard`) |
 | `/questions/` | `created_by` | uuid | Filter by the UUID of the staff member who created the question |
 | `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
 | `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |

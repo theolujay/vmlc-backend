@@ -342,7 +342,7 @@ class Question(models.Model):
         """Difficulty levels for a question."""
 
         EASY = "easy", "Easy"
-        MEDIUM = "medium", "Medium"
+        MODERATE = "moderate", "Moderate"
         HARD = "hard", "Hard"
 
     text = models.TextField()
@@ -370,7 +370,7 @@ class Question(models.Model):
     difficulty = models.CharField(
         max_length=10,
         choices=Difficulty.choices,
-        default=Difficulty.MEDIUM,
+        default=Difficulty.MODERATE,
     )
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
