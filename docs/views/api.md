@@ -1254,11 +1254,16 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 25,
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "medium_questions_count": 20,
+    "easy_questions_count": 15
+  },
   "total_pages": 2,
   "next": "https://api.verboheit.org/v1/exams/?page=2",
   "previous": null,
-  "results": [
+  "list": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
@@ -2720,6 +2725,7 @@ For technical support, API key requests, or questions:
 ## Changelog
 
 - **2025-10-28**
+  - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
   - Implemented automatic revocation of staff registrations.
   - If a newly registered staff member does not verify their email within 15 minutes, their account will be automatically deleted.
   - This allows the email to be used for registration again.

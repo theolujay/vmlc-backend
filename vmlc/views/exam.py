@@ -94,16 +94,16 @@ class ExamListView(ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
-        meta = queryset.aggregate(
-            total_questions=Count("questions"),
+        question_pool_data = Question.objects.aggregate(
+            total_questions=Count("id"),
             hard_questions_count=Count(
-                "questions", filter=Q(questions__difficulty=Question.Difficulty.HARD)
+                "id", filter=Q(difficulty=Question.Difficulty.HARD)
             ),
             medium_questions_count=Count(
-                "questions", filter=Q(questions__difficulty=Question.Difficulty.MEDIUM)
+                "id", filter=Q(difficulty=Question.Difficulty.MEDIUM)
             ),
             easy_questions_count=Count(
-                "questions", filter=Q(questions__difficulty=Question.Difficulty.EASY)
+                "id", filter=Q(difficulty=Question.Difficulty.EASY)
             ),
         )
 
@@ -111,13 +111,13 @@ class ExamListView(ListCreateAPIView):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            response.data["meta"] = meta
+            response.data["question_pool_data"] = question_pool_data
             response.data["list"] = response.data.pop("results")
             del response.data["count"]
             return response
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response({"meta": meta, "list": serializer.data})
+        return Response({"question_pool_data": question_pool_data, "list": serializer.data})
     
     def get_serializer_class(self):
         """

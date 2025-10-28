@@ -76,7 +76,7 @@ class QuestionListView(ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
-        meta = queryset.aggregate(
+        question_pool_data = Question.objects.aggregate(
             total_questions=Count("id"),
             hard_questions_count=Count(
                 "id", filter=Q(difficulty=Question.Difficulty.HARD)
@@ -93,7 +93,7 @@ class QuestionListView(ListCreateAPIView):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-            response.data["meta"] = meta
+            response.data["question_pool_data"] = question_pool_data
             response.data["list"] = response.data.pop("results")
             del response.data["count"]
             return response
