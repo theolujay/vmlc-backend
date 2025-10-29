@@ -37,7 +37,7 @@ from .exam import (
 from .leaderboard import (
     PublishLeaderboardView,
     LoadLeaderboardView,
-    ToggleLeaderboardVisibilityView,
+    # ToggleLeaderboardVisibilityView,
 )
 from .question import (
     QuestionListView,
@@ -106,7 +106,7 @@ __all__ = [
     # leaderboard
     "PublishLeaderboardView",
     "LoadLeaderboardView",
-    "ToggleLeaderboardVisibilityView",
+    # "ToggleLeaderboardVisibilityView",
     # question
     "QuestionListView",
     "QuestionDetailView",

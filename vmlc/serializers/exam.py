@@ -18,6 +18,7 @@ class ExamListSerializer(serializers.ModelSerializer):
     """
 
     question_count = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Exam
@@ -25,10 +26,11 @@ class ExamListSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "stage",
-            "status",
+            "created_at",
             "question_count",
             "scheduled_date",
-            "created_at",
+            "status",
+            "concluded_at",
         ]
 
     def get_question_count(self, obj):
@@ -37,6 +39,8 @@ class ExamListSerializer(serializers.ModelSerializer):
         """
         return getattr(obj, "question_count", obj.questions.count())
 
+    def get_status(self, obj):
+        return obj.status
 
 class ExamDetailSerializer(serializers.ModelSerializer):
     """
@@ -60,16 +64,18 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "title",
             "stage",
             "description",
-            "status",
-            "scheduled_date",
-            "countdown_minutes",
-            "open_duration_hours",
-            "is_active",
-            "questions",
+            "created_at",
             "created_by",
             "updated_by",
+            "open_duration_hours",
+            "countdown_minutes",
+            "scheduled_date",
+            "is_active",
+            "status",
+            "concluded_at",
+            "questions",
             "average_score",
-            "created_at",
+            
         ]
         read_only_fields = ["id", "created_at", "created_by", "status"]
 
@@ -81,6 +87,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"]
         )
         return float(avg or 0.0)
+
+    def get_status(self, obj):
+        return obj.status
 
     def to_representation(self, instance):
         """

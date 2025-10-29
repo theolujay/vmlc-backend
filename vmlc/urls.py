@@ -46,7 +46,6 @@ from .views import (
     QuestionExamAssociationView,
     BulkQuestionExamAssociationView,
     PublishScoresView,
-    ToggleLeaderboardVisibilityView,
     PublishLeaderboardView,
     LoadLeaderboardView,
     CandidateDashboardView,
@@ -222,11 +221,6 @@ urlpatterns = [
     # =============================================================================
     # LEADERBOARD
     # =============================================================================
-    # path(
-    #     "toggle-leaderboard/",
-    #     ToggleLeaderboardVisibilityView.as_view(),
-    #     name="toggle-leaderboard",
-    # ),
     path(
         "publish-leaderboard/",
         PublishLeaderboardView.as_view(),

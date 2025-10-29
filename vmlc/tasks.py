@@ -8,7 +8,6 @@ from django.utils import timezone
 from PIL import Image
 import magic
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -104,52 +103,71 @@ def calculate_and_save_auto_score_task(candidate_score_id):
 
 
 @shared_task(name="generate_leaderboard_snapshot_task")
-def generate_leaderboard_snapshot_task(staff_id=None):
+def generate_leaderboard_snapshot_task(exam_id, staff_id=None):
     """
-    Celery task to generate and publish the leaderboard snapshot.
+    Celery task to generate and publish the leaderboard snapshot for a specific exam.
     """
-    from .models import Candidate, LeaderboardSnapshot, Staff, User
-    from .serializers import MinimalCandidateSerializer
+    from .models import Exam, CandidateScore, LeaderboardSnapshot, Staff
+    from .serializers import CandidateLeaderboardPerfSerializer
 
     try:
-        if staff_id:
-            staff = Staff.objects.get(pk=staff_id)
-        else:
-            # If no staff_id is provided, use the first superadmin
-            superadmin_user = User.objects.filter(is_superuser=True).first()
-            manager_user = User.objects.filter(is_manager=True).first()
-            if not manager_user or superadmin_user:
-                logger.error("No superadmin or manager user found to publish the leaderboard.")
-                return
-            staff = manager_user.staff_profile if manager_user else superadmin_user.staff_profile
+        exam = Exam.objects.get(pk=exam_id)
+        staff = Staff.objects.get(pk=staff_id) if staff_id else None
 
-        league_candidates = (
-            Candidate.objects.with_scores()
-            .filter(role=Candidate.Roles.LEAGUE, is_active=True)
-            .order_by("-total_score")
-        )
+        # Get all scores for the given exam, ordered by score descending
+        scores = CandidateScore.objects.filter(exam=exam).order_by("-score").select_related('candidate__user')
 
-        leaderboard_data = [
-            {
-                "rank": index + 1,
-                "candidate": MinimalCandidateSerializer(candidate).data,
-                "total_score": float(candidate.total_score or 0.0),
+        leaderboard_data = []
+        for index, score in enumerate(scores):
+            candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
+            answers = score.answers.all()
+            
+            submission_list = []
+            for answer in answers:
+                submission_list.append({
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "selected_option": answer.selected_option,
+                    "answered_at": answer.answered_at.isoformat(),
+                })
+            candidate_data["submission"] = submission_list
+            leaderboard_data.append(
+                {
+                    "rank": index + 1,
+                    "candidate": candidate_data,
+                    "score": float(score.score),
+                }
+            )
+        # leaderboard_data["exam_details"] = ExamListSerializer(exam).data
+        # Create a new snapshot or update the existing one for the given exam
+        snapshot, created = LeaderboardSnapshot.objects.update_or_create(
+            exam=exam,
+            defaults={
+                "data": leaderboard_data,
+                "published_by": staff,
+                "is_published": True,
             }
-            for index, candidate in enumerate(league_candidates)
-        ]
-
-        snapshot = LeaderboardSnapshot.objects.create(
-            data=leaderboard_data,
-            published_by=staff,
         )
 
-        logger.info(
-            f"Leaderboard published by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
-        )
+        if created:
+            logger.info(
+                f"Leaderboard created and published for exam {exam.title} by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
+            )
+        else:
+            logger.info(
+                f"Leaderboard updated and published for exam {exam.title} by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
+            )
+
+    except Exam.DoesNotExist:
+        logger.error(f"Exam with id {exam_id} does not exist.")
     except Staff.DoesNotExist:
         logger.error(f"Staff with id {staff_id} does not exist.")
     except Exception as e:
-        logger.error(f"Failed to generate leaderboard snapshot: {e}")
+        logger.error(f"Failed to generate leaderboard snapshot for exam {exam_id}: {e}")
 
 
 @shared_task(name="generate_scores_snapshot_task")

@@ -408,6 +408,15 @@ class Exam(models.Model):
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
         
+    class Status(models.TextChoices):
+        """Statuses for an exam."""
+
+        DRAFT = "draft", "Draft"
+        SCHEDULED = "scheduled", "Scheduled"
+        ONGOING = "ongoing", "Ongoing"
+        CONCLUDED = "concluded", "Concluded"
+        CANCELLED = "cancelled", "Cancelled"
+
     stage = models.CharField(
         max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
@@ -474,15 +483,25 @@ class Exam(models.Model):
         now = timezone.now()
         end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
         if self.scheduled_date is None:
-            return "draft"
+            return self.Status.DRAFT
         elif self.scheduled_date > now:
-            return "scheduled"
+            return self.Status.SCHEDULED
         elif self.is_currently_open:
-            return "ongoing"
+            return self.Status.ONGOING
         elif now > end_time:
-            return "completed"
+            return self.Status.CONCLUDED
         elif not self.is_active:
-            return "cancelled"
+            return self.Status.CANCELLED
+        return None
+        
+    @property
+    def concluded_at(self):
+        now = timezone.now()
+        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        if self.scheduled_date and self.open_duration_hours and self.scheduled_date:
+            if end_time < now:
+                return end_time
+        return None        
 
     def get_question_count(self):
         """
@@ -917,6 +936,10 @@ class CandidateAnswer(models.Model):
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
 
+    exam = models.ForeignKey(
+        Exam, on_delete=models.CASCADE, related_name="leaderboard_snapshots"
+    )
+    is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
 
@@ -932,6 +955,7 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         """Meta options for the LeaderboardSnapshot model."""
 
         ordering = ["-created_at"]
+        unique_together = ("exam", "created_at")
 
 
 class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods

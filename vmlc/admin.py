@@ -437,14 +437,16 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
+        "exam",
+        "is_published",
         "data_summary",
         "published_by_name",
         "created_at",
     )
     readonly_fields = ("created_at",)
-    list_filter = ("created_at", "published_by")
-    search_fields = ("published_by__user__email",)
-    list_select_related = ("published_by__user",)
+    list_filter = ("is_published", "exam", "created_at", "published_by")
+    search_fields = ("published_by__user__email", "exam__title")
+    list_select_related = ("published_by__user", "exam")
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")

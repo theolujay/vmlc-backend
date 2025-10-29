@@ -24,6 +24,11 @@ from .exam import (
     CandidateExamSerializer,
     ExamResultSerializer,
 )
+from .leaderboard import(
+    PublishLeaderboardSerializer,
+    CandidateLeaderboardPerfSerializer,
+    LeaderboardSnapshotListSerializer,
+)
 from .question import (
     QuestionListSerializer,
     QuestionDetailSerializer,
@@ -77,6 +82,9 @@ __all__ = [
     "ExamDetailSerializer",
     "CandidateExamSerializer",
     "ExamResultSerializer",
+    #leaderboard
+    "CandidateLeaderboardPerfSerializer",
+    "PublishLeaderboardSerializer",
     # question
     "QuestionListSerializer",
     "QuestionDetailSerializer",

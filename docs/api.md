@@ -482,16 +482,16 @@ Password-change:
 
 #### Leaderboard & publishing
 
-- `POST /publish-leaderboard/` — start generation & publish snapshot (admin+). `202 Accepted`.
+- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (manager+). Request: `{ exam_id: <int> }`. `202 Accepted`.
     
-- `GET /load-leaderboard/` — fetch latest published snapshot. Role: `league` candidates and above + staff with moderator role or higher. Query: `limit`, `offset`. `200 OK`.
-    
-- `POST /toggle-leaderboard/` — (mentioned in spec / role table) toggle visibility (manager+). `200 OK` (may be feature-flagged / commented).
+- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `screening` candidates (screening exams), `league` candidates (screening & league exams), all staff (all exams). Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
     
 
 ---
+</details>
 
-#### Broadcasts & notifications
+<details>
+<summary>Broadcasts & notifications</summary>
 
 - `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
     
@@ -2522,6 +2522,15 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-10-29**
+  - **Leaderboard**
+    - *Breaking Change:* Modified the leaderboard generation and retrieval process.
+        - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+        - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
+            - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
+            - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
+    - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
 
 - **2025-10-28**
   - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
