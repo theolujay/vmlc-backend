@@ -1193,6 +1193,11 @@ X-Api-Key: <your_api_key>
 X-Api-Key: <your_api_key>
 ```
 **Required Role:** 'admin' or higher  
+
+**Query Parameters:**
+- `page` (integer): Page number for questions pagination.
+- `page_size` (integer): Number of questions per page.
+
 **Response:** `200 OK`
 ```json
 {
@@ -1205,13 +1210,16 @@ X-Api-Key: <your_api_key>
   "open_duration_hours": 24,
   "is_active": true,
   "questions": {
-    "meta": {
-        "total_count": 3,
+    "question_pool_data": {
+        "total_questions": 3,
         "hard_questions_count": 1,
         "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "list": [
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -1238,7 +1246,7 @@ X-Api-Key: <your_api_key>
   "average_score": 78.5,
   "created_at": "2024-01-10T09:00:00Z"
 }
-```
+``````
 
 #### Update Exam
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
@@ -2531,6 +2539,8 @@ For technical support, API key requests, or questions:
             - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
             - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
     - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
+  - **Exams**
+    - `GET /exams/{exam_id}/` is now paginated.
 
 - **2025-10-28**
   - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.

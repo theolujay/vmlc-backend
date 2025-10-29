@@ -230,6 +230,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get_queryset(self):
         """
@@ -245,6 +246,54 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
             .prefetch_related("questions")
         )
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        questions_qs = instance.questions.filter(is_archived=False)
+
+        # Calculate question_pool_data for the current exam's questions
+        question_pool_data = questions_qs.aggregate(
+            total_questions=Count("id"),
+            hard_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+            ),
+            moderate_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
+            ),
+            easy_questions_count=Count(
+                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+            ),
+        )
+
+        page = self.paginate_queryset(questions_qs)
+        question_serializer = QuestionListSerializer(
+            page if page is not None else questions_qs,
+            many=True,
+            context={"request": request},
+        )
+
+        if page is not None:
+            paginated_questions_response_data = self.get_paginated_response(
+                question_serializer.data
+            ).data
+            # Add question_pool_data to the paginated response
+            paginated_questions_response_data["question_pool_data"] = question_pool_data
+            data["questions"] = paginated_questions_response_data
+        else:
+            # If not paginated, just add question_pool_data to the questions list
+            questions_data = question_serializer.data
+            data["questions"] = {
+                "question_pool_data": question_pool_data,
+                "results": questions_data,
+                "count": len(questions_data),
+                "next": None,
+                "previous": None,
+            }
+            
+        return Response(data)
+
     def perform_update(self, serializer):
         """
         Saves the staff member who updated the exam
@@ -253,8 +302,6 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
-
-    # `perform_destroy` is handled by the parent class, no need to override.
 
 
 @method_decorator(

@@ -1404,14 +1404,13 @@ X-Api-Key: <your_api_key>
 
 #### Get Exam Details
 
-**Endpoint:** `GET /exams/{exam_id}/`  
-**Headers:**
-
-```text
-X-Api-Key: <your_api_key>
-```
-
 **Required Role:** 'admin' or higher  
+
+**Query Parameters:**
+- `page` (integer): Page number for questions pagination.
+- `page_size` (integer): Number of questions per page.
+
+
 **Response:** `200 OK`
 
 ```json
@@ -1425,13 +1424,16 @@ X-Api-Key: <your_api_key>
   "open_duration_hours": 24,
   "is_active": true,
   "questions": {
-    "meta": {
-        "total_count": 3,
+    "question_pool_data": {
+        "total_questions": 3,
         "hard_questions_count": 1,
         "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "list": [
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -2932,6 +2934,8 @@ For technical support, API key requests, or questions:
         - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
         - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
     - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
+  - **Exams**
+    - `GET /exams/{exam_id}/` is now paginated.
 
 - **2025-10-29**
   - "exam_date" has been renamed to "scheduled_date" across all endpoints.

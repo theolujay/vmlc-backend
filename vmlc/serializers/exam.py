@@ -99,7 +99,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         questions_queryset = instance.questions.all()
 
-        meta = questions_queryset.aggregate(
+        pool = questions_queryset.aggregate(
             total_count=Count("id"),
             hard_questions_count=Count(
                 "id", filter=Q(difficulty=Question.Difficulty.HARD)
@@ -113,7 +113,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         )
 
         representation["questions"] = {
-            "meta": meta,
+            "pool": pool,
             "list": QuestionDetailSerializer(
                 questions_queryset, many=True, context=self.context
             ).data,
