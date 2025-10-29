@@ -179,8 +179,8 @@ This table provides a detailed breakdown of each user role, its key abilities on
 
 | Role | Key Abilities (What they can do) | Accessible API Endpoints |
 |------|-----------------------------------|--------------------------|
-| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/` |
-| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
+| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /load-leaderboard/` (for screening exams) |
+| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
 | **`final`** | • All `league` abilities.<br>• Access to (offline) final-stage exams. | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`) |
 | **`winner`** | • Ceremonial role with all candidate permissions. Registered winner of the final stage. | • All `final` endpoints. |
 
@@ -191,8 +191,9 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | Role | Key Abilities (What they can do) | Newly Accessible API Endpoints (in addition to lower roles) |
 |------|-----------------------------------|-------------------------------------------------------------|
 | **`volunteer`** | • View their own profile.<br>• Submit their own documents for verification. | • `GET /staff/me/`<br>• `GET /user/verification/status/`<br>• `POST/PATCH /user/verification/upload/` |
-| **`moderator`** | • View lists of all candidates.<br>• Create, Read, Update, and Delete questions. | • `GET /candidates/`<br>• `GET /staff/`<br>• `GET/POST /questions/`<br>• `GET/PUT/PATCH/DELETE /questions/{id}/` |
-| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish and control leaderboard visibility. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/`<br>• `POST /toggle-leaderboard/` |
+| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
+| **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
+| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
 | **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
 | **`superadmin`** | • Can assign any staff role (except `superadmin`).<br>• Has full platform control inheriting all permissions. | *(Inherits all `manager` endpoints with zero restrictions)* |
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
@@ -482,9 +483,9 @@ Password-change:
 
 #### Leaderboard & publishing
 
-- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (manager+). Request: `{ exam_id: <int> }`. `202 Accepted`.
+- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (admin+). Request: `{ exam_id: <int> }`. `202 Accepted`.
     
-- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `screening` candidates (screening exams), `league` candidates (screening & league exams), all staff (all exams). Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
+- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
     
 
 ---
@@ -1777,46 +1778,23 @@ X-Api-Key: <your_api_key>
 
 ### Leaderboard
 The leaderboard displays candidate rankings and can be dynamically controlled by staff.
-<!-- 
-#### Toggle Leaderboard Visibility
-Allows 'manager' or higher to enable or disable the public visibility of the leaderboard.
-
-**Endpoint:** `POST /toggle-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `manager` or higher  
-**Request Body:**
-```json
-{
-  "open": true
-}
-```
-*Note: Use `true` to make the leaderboard visible, `false` to hide it.*
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Leaderboard is now visible."
-}
-```
-*or*
-```json
-{
-  "message": "Leaderboard is now hidden."
-}
-``` -->
 
 #### Publish Leaderboard
-Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
+Triggers an asynchronous task to generate and publish the leaderboard snapshot for a specific exam.
 
 **Endpoint:** `POST /publish-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
-**Required Role:** `admin` or higher  
+**Required Role:** `admin` or higher
+**Request Body:**
+```json
+{
+  "exam_id": 1
+}
+```
 **Response:** `202 Accepted`
 ```json
 {
@@ -1825,41 +1803,76 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Load Leaderboard
-Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
+Retrieves published leaderboard snapshots. It can either list all available leaderboards or fetch the detailed rankings for a specific exam.
 
 **Endpoint:** `GET /load-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
 **Required Role:** `league` candidates and above, all staff  
 
 **Query Parameters:**
+- `exam_id` (integer, optional): The ID of the exam to retrieve the leaderboard for. If not provided, a list of all leaderboard snapshots is returned.
 - `limit` (integer): Number of results (default: 50, max: 100)
 - `offset` (integer): Starting position
 
-**Response:** `200 OK`
+**Response (List of Leaderboard Snapshots):** `200 OK`
 ```json
 {
-  "published_at": "2024-01-20T18:00:00Z",
-  "total_candidates": 150,
-  "results": [
-    {
-      "rank": 1,
-      "candidate": {
-        "user": {
-          "email": "alice@example.com",
-          "first_name": "Alice",
-          "last_name": "Johnson"
+    "exam_details": {
+        "total_exams": 2,
+        "screening_exams": 1,
+        "league_exams": 1
+    },
+    "next": null,
+    "previous": null,
+    "list": [
+        {
+            "exam_id": 4,
+            "exam_title": "Organized interactive parallelism",
+            "exam_stage": "league",
+            "created_at": "2025-10-29T08:43:04.268220+00:00"
         },
-        "school": "Riverdale High"
-      },
-      "total_score": 98.0
-    }
-  ]
+        {
+            "exam_id": 2,
+            "exam_title": "Customizable background utilization",
+            "exam_stage": "screening",
+            "created_at": "2025-10-29T08:42:47.352149+00:00"
+        }
+    ]
 }
 ```
-*Note: A `403 Forbidden` will be returned if the leaderboard is currently hidden.*
+
+**Response (Leaderboard for a specific exam):** `200 OK`
+```json
+{
+    "exam_details": {
+        "id": 4,
+        "title": "Organized interactive parallelism",
+        "stage": "league",
+        "status": "concluded",
+        "question_count": 0,
+        "scheduled_date": "2025-09-30T10:39:51.622476+01:00",
+        "created_at": "2025-10-15T10:39:51.622520+01:00"
+    },
+    "next": "http://localhost:8000/v1/load-leaderboard/?exam_id=4&limit=1&offset=1",
+    "previous": null,
+    "list": [
+        {
+            "rank": 1,
+            "candidate": {
+                "id": 100,
+                "full_name": "Robert Parker",
+                "school": "Porter Ltd High"
+            },
+            "score": 99.88
+        }
+    ]
+}
+```
+
 
 ---
 
