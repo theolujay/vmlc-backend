@@ -293,7 +293,7 @@ class ExamAdmin(admin.ModelAdmin):
         "id",
         "title",
         "stage",
-        "exam_date",
+        "scheduled_date",
         "get_question_count",
         "is_active",
         "is_currently_open",

@@ -980,7 +980,7 @@ Authorization: Bearer <access-token>
                     "exam_id": 4,
                     "exam_title": "Organized interactive parallelism",
                     "exam_stage": "league",
-                    "exam_date": "2025-09-30T10:39:51.622476Z",
+                    "scheduled_date": "2025-09-30T10:39:51.622476Z",
                     "score": 99.88,
                     "recorded_at": "2025-10-15T10:40:03.271586+00:00",
                     "score_submitted_by": "Anne Bradshaw",
@@ -1002,7 +1002,7 @@ Authorization: Bearer <access-token>
                     "exam_id": 2,
                     "exam_title": "Customizable background utilization",
                     "exam_stage": "screening",
-                    "exam_date": "2025-09-17T10:39:51.597446Z",
+                    "scheduled_date": "2025-09-17T10:39:51.597446Z",
                     "score": 41.3,
                     "recorded_at": "2025-10-15T10:40:03.247026+00:00",
                     "score_submitted_by": "Kenneth Pace",
@@ -1289,7 +1289,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1303,7 +1303,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1340,7 +1340,7 @@ X-Api-Key: <your_api_key>
   "title": "Algebra Screening Exam",
   "stage": "screening",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1484,7 +1484,7 @@ X-Api-Key: <your_api_key>
   "stage": "screening",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "open_duration_hours": 12,
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "questions": [
     {
@@ -1824,7 +1824,7 @@ X-Api-Key: <your_api_key>
       "title": "Geometry Screening",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
       "stage": "screening"
@@ -1889,7 +1889,7 @@ X-Api-Key: <your_api_key>
     {
       "id": 3,
       "title": "Geometry Screening",
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "is_active": true,
       "stage": "screening",
       "question_count": 25,
@@ -2731,6 +2731,9 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-10-29**
+  - "exam_date" has been renamed to "scheduled_date" across all endpoints.
+
 - **2025-10-28**
   - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
   - Implemented automatic revocation of staff registrations.
@@ -2756,7 +2759,7 @@ For technical support, API key requests, or questions:
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
 - **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
 - **API**: Updated the response for `GET /candidates/{candidate_id}/` to include a more detailed `records` object containing performance stats and exam history.
-- **Exam**: `GET /exams/` now includes `exam_date` in response.
+- **Exam**: `GET /exams/` now includes `scheduled_date` in response.
 - **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4

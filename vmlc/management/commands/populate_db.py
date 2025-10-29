@@ -135,7 +135,7 @@ class Command(BaseCommand):
                 description=fake.text(),
                 created_by=random.choice(staff_list),
                 is_active=True,
-                exam_date=timezone.now()
+                scheduled_date=timezone.now()
                 - timezone.timedelta(days=random.randint(1, 30)),
             )
             # Add a random number of questions to each exam

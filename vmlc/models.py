@@ -384,7 +384,7 @@ class Question(models.Model):
     def get_related_exams(self):
         """Get a list of exams a question has been added to."""
         exams = self.exams.values(
-            'id', 'title', 'description', 'stage', 'exam_date'
+            'id', 'title', 'description', 'stage', 'scheduled_date'
         )
         
         return {
@@ -407,14 +407,14 @@ class Exam(models.Model):
 
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
-
+        
     stage = models.CharField(
         max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True, db_index=True)
-    exam_date = models.DateTimeField(blank=True, null=True, db_index=True)
+    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
     open_duration_hours = models.PositiveIntegerField(default=12)
     countdown_minutes = models.PositiveIntegerField(default=60)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -450,16 +450,39 @@ class Exam(models.Model):
     def is_currently_open(self):
         """
         Exam is open only if it's active, and either:
-        - exam_date is None (always open)
+        - scheduled_date is None (always open)
         - or current time is within open window
         """
         if not self.is_active:
             return False
-        if self.exam_date is None:
+        if self.scheduled_date is None:
             return True
         now = timezone.now()
-        end_time = self.exam_date + timedelta(hours=self.open_duration_hours)
-        return self.exam_date <= now <= end_time
+        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        return self.scheduled_date <= now <= end_time
+    
+    @property
+    def status(self):
+        """
+        Status of an exam.
+        - 'draft' if scheduled_date is None
+        - 'scheduled' if scheduled_date is not None
+        - 'ongoing' if is_currently_open is True
+        - 'completed' if time now > scheduled_date + open_duration_hours
+        - 'cancelled' otherwise or is_active is False
+        """
+        now = timezone.now()
+        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        if self.scheduled_date is None:
+            return "draft"
+        elif self.scheduled_date > now:
+            return "scheduled"
+        elif self.is_currently_open:
+            return "ongoing"
+        elif now > end_time:
+            return "completed"
+        elif not self.is_active:
+            return "cancelled"
 
     def get_question_count(self):
         """
@@ -697,7 +720,7 @@ class Candidate(models.Model):
             all_relevant_exams = (
                 Exam.objects.filter(stage=self.role, is_active=True)
                 .annotate(question_count=Count("questions"))
-                .order_by("exam_date")[:5]
+                .order_by("scheduled_date")[:5]
             )
 
             for exam in all_relevant_exams:
@@ -708,7 +731,7 @@ class Candidate(models.Model):
                             "title": exam.title,
                             "description": exam.description,
                             "open_duration_hours": exam.open_duration_hours,
-                            "exam_date": exam.exam_date,
+                            "scheduled_date": exam.scheduled_date,
                             "countdown_minutes": exam.countdown_minutes,
                             "question_count": exam.question_count,
                             "stage": exam.stage,
@@ -776,7 +799,7 @@ class Candidate(models.Model):
                 "exam_id": score.exam.id,
                 "exam_title": score.exam.title,
                 "exam_stage": score.exam.stage,
-                "exam_date": score.exam.exam_date,
+                "scheduled_date": score.exam.scheduled_date,
                 "score": float(score.score),
                 "recorded_at": score.recorded_at.isoformat(),
                 "score_submitted_by": (

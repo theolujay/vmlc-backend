@@ -80,7 +80,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
             .annotate(question_count=Count("questions"))  # Annotate question count here
-            .order_by("exam_date")[:5]
+            .order_by("scheduled_date")[:5]
         )  # Limit to 5 as per original logic
 
         now = timezone.now()
@@ -93,7 +93,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                         "title": exam.title,
                         "description": exam.description,
                         "open_duration_hours": exam.open_duration_hours,
-                        "exam_date": exam.exam_date,
+                        "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,  # Use annotated value
                         "stage": exam.stage,
@@ -263,9 +263,9 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     )
 
     upcoming_exams_list = list(
-        Exam.objects.filter(exam_date__gte=now, is_active=True)
-        .order_by("exam_date")
-        .values("id", "title", "exam_date", "is_active", "stage", "countdown_minutes")
+        Exam.objects.filter(scheduled_date__gte=now, is_active=True)
+        .order_by("scheduled_date")
+        .values("id", "title", "scheduled_date", "is_active", "stage", "countdown_minutes")
         .annotate(question_count=Count("questions"))[:5]  # Annotate question count here
     )
 
@@ -323,7 +323,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
             {
                 "id": exam["id"],
                 "title": exam["title"],
-                "exam_date": exam["exam_date"],
+                "scheduled_date": exam["scheduled_date"],
                 "is_active": exam["is_active"],
                 "stage": Exam.objects.get(
                     pk=exam["id"]

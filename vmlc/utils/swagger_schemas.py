@@ -35,13 +35,15 @@ pagination_offset = openapi.Parameter(
     type=openapi.TYPE_INTEGER,
     default=0,
 )
-
 error_response_400 = openapi.Response(
     description="Bad Request - Invalid data provided.",
     schema=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'field_name': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING))
+            'field_name': openapi.Schema(
+                type=openapi.TYPE_ARRAY, 
+                items=openapi.Schema(type=openapi.TYPE_STRING)
+            )
         },
         example={'email': ['Enter a valid email address.']}
     )
@@ -51,7 +53,9 @@ error_response_401 = openapi.Response(
     description="Unauthorized - Authentication credentials were not provided or are invalid.",
     schema=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={'detail': openapi.Schema(type=openapi.TYPE_STRING)},
+        properties={
+            'detail': openapi.Schema(type=openapi.TYPE_STRING)
+        },
         example={'detail': 'Authentication credentials were not provided.'}
     )
 )
@@ -317,7 +321,7 @@ exam_detail_request_body = openapi.Schema(
         'title': openapi.Schema(type=openapi.TYPE_STRING),
         'stage': openapi.Schema(type=openapi.TYPE_STRING),
         'description': openapi.Schema(type=openapi.TYPE_STRING),
-        'exam_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'scheduled_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
         'countdown_minutes': openapi.Schema(type=openapi.TYPE_INTEGER),
         'open_duration_hours': openapi.Schema(type=openapi.TYPE_INTEGER),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -332,7 +336,7 @@ exam_detail_response_schema = openapi.Schema(
         'title': openapi.Schema(type=openapi.TYPE_STRING),
         'stage': openapi.Schema(type=openapi.TYPE_STRING),
         'description': openapi.Schema(type=openapi.TYPE_STRING),
-        'exam_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'scheduled_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
         'countdown_minutes': openapi.Schema(type=openapi.TYPE_INTEGER),
         'open_duration_hours': openapi.Schema(type=openapi.TYPE_INTEGER),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -410,7 +414,7 @@ candidate_exam_response_schema = openapi.Schema(
         'stage': openapi.Schema(type=openapi.TYPE_STRING),
         'description': openapi.Schema(type=openapi.TYPE_STRING),
         'open_duration_hours': openapi.Schema(type=openapi.TYPE_INTEGER),
-        'exam_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+        'scheduled_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
         'countdown_minutes': openapi.Schema(type=openapi.TYPE_INTEGER),
         'questions': openapi.Schema(
             type=openapi.TYPE_ARRAY,
