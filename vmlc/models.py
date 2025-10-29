@@ -515,9 +515,10 @@ class Exam(models.Model):
             
     @property
     def concluded_at(self):
-        now = timezone.now()
-        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
-        if self.scheduled_date and self.open_duration_hours and self.scheduled_date:
+    
+        if self.scheduled_date is not None and self.open_duration_hours is not None:
+            now = timezone.now()
+            end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
             if end_time < now:
                 return end_time
         return None        
