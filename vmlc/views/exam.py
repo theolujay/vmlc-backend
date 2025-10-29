@@ -255,15 +255,21 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
 
         # Calculate question_pool_data for the current exam's questions
         question_pool_data = questions_qs.aggregate(
-            total_questions=Count("id"),
+            total_questions=Count(
+                "id",
+                filter=Q(is_archived=False)
+            ),
             hard_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
             ),
             moderate_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
             ),
             easy_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
             ),
         )
 

@@ -77,15 +77,21 @@ class QuestionListView(ListCreateAPIView):
         queryset = self.filter_queryset(self.get_queryset())
 
         question_pool_data = Question.objects.aggregate(
-            total_questions=Count("id"),
+            total_questions=Count(
+                "id",
+                filter=Q(is_archived=False)
+            ),
             hard_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
             ),
             moderate_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
             ),
             easy_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+                "id",
+                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
             ),
         )
 
