@@ -296,6 +296,7 @@ class ExamAdmin(admin.ModelAdmin):
         "exam_date",
         "get_question_count",
         "is_active",
+        "is_currently_open",
         "view_results_link",
         "created_at",
     )

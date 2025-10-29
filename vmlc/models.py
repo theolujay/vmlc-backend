@@ -413,7 +413,7 @@ class Exam(models.Model):
     )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     exam_date = models.DateTimeField(blank=True, null=True, db_index=True)
     open_duration_hours = models.PositiveIntegerField(default=12)
     countdown_minutes = models.PositiveIntegerField(default=60)
