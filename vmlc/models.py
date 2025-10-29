@@ -466,34 +466,53 @@ class Exam(models.Model):
             return False
         if self.scheduled_date is None:
             return True
-        now = timezone.now()
-        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
-        return self.scheduled_date <= now <= end_time
-    
+        if self.scheduled_date:
+            now = timezone.now()
+            end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+            return self.scheduled_date <= now <= end_time
+        else:
+            return False
+
     @property
     def status(self):
         """
-        Status of an exam.
-        - 'draft' if scheduled_date is None
-        - 'scheduled' if scheduled_date is not None
-        - 'ongoing' if is_currently_open is True
-        - 'completed' if time now > scheduled_date + open_duration_hours
-        - 'cancelled' otherwise or is_active is False
+        Returns the current status of the exam.
+        
+        Status flow:
+        - DRAFT: No scheduled date set
+        - CANCELLED: Exam was deactivated (is_active=False)
+        - SCHEDULED: Has a future scheduled date
+        - ONGOING: Currently open for taking
+        - CONCLUDED: Past the end time
         """
-        now = timezone.now()
-        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        # Check cancellation first - it overrides everything except draft
+        if not self.is_active:
+            # Unless it's never been scheduled, it's cancelled
+            if self.scheduled_date is None:
+                return self.Status.DRAFT
+            return self.Status.CANCELLED
+        
+        # If no scheduled date, it's still being drafted
         if self.scheduled_date is None:
             return self.Status.DRAFT
-        elif self.scheduled_date > now:
-            return self.Status.SCHEDULED
-        elif self.is_currently_open:
-            return self.Status.ONGOING
-        elif now > end_time:
-            return self.Status.CONCLUDED
-        elif not self.is_active:
-            return self.Status.CANCELLED
-        return None
         
+        # If no duration set, can't determine time-based status
+        if self.open_duration_hours is None:
+            return self.Status.DRAFT
+        
+        now = timezone.now()
+        
+        # Calculate the conclusion time
+        conclusion_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        
+        # Check time-based statuses
+        if now < self.scheduled_date:
+            return self.Status.SCHEDULED
+        elif now < conclusion_time:
+            return self.Status.ONGOING
+        else:
+            return self.Status.CONCLUDED
+            
     @property
     def concluded_at(self):
         now = timezone.now()
