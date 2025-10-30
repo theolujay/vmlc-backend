@@ -1465,8 +1465,19 @@ The API provides CRUD operations for managing exam questions.
       "option_d": "35",
       "correct_answer": "B",
       "difficulty": "easy",
-      "related_exams_count": 3,
-      "created_at": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z",
+      "created_by": {
+          "user": {
+              "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+              "email": "moderator@example.com",
+              "first_name": "Mod",
+              "last_name": "User"
+          },
+          "occupation": "Moderator",
+          "role": "moderator"
+      },
+      "updated_at": "2024-01-10T09:00:00Z",
+      "updated_by": null
     }
   ]
 }
