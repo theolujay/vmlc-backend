@@ -6,7 +6,7 @@ from .answer import SubmitAnswersView
 from .auth import (
     RefreshTokenView,
     VerifyEmailOTPView,
-    ResendEmailOTPView,
+    SendEmailOTPView,
     RequestPasswordChangeView,
     PasswordChangeOTPConfirmView,
     PasswordChangeView,
@@ -79,7 +79,7 @@ __all__ = [
     # auth
     "RefreshTokenView",
     "VerifyEmailOTPView",
-    "ResendEmailOTPView",
+    "SendEmailOTPView",
     "RequestPasswordChangeView",
     "PasswordChangeOTPConfirmView",
     "PasswordChangeView",

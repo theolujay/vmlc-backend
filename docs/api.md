@@ -370,7 +370,7 @@ Feature: Dashboards and permissions
 
 - `POST /verify-email-otp/` — verify registration OTP. Request: `{ email, otp }`. `200 OK`.
     
-- `POST /resend-email-otp/` — resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
+- `POST /send-email-otp/` — send/resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
     
 
 Password-change:
@@ -597,8 +597,8 @@ X-Api-Key: <your_api_key>
 }
 ```
 
-#### Resend Email OTP
-**Endpoint:** `POST /resend-email-otp/`
+#### Send/Resend Email OTP
+**Endpoint:** `POST /send-email-otp/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
@@ -606,14 +606,16 @@ X-Api-Key: <your_api_key>
 **Request Body:**
 ```json
 {
-  "email": "john@example.com"
+  "email": "john@example.com",
+  "resend": false
 }
 ```
+*Note: Set `"resend": true` to resend a a (new) OTP.* If not resend, the field can be ommitted.
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "OTP has been resent to your email address",
+  "message": "OTP has been sent to your email address",
   "email": "joh***@example.com",
   "expires_in_minutes": 10
 }

@@ -26,7 +26,7 @@ from .views import (
     CandidateRegistrationView,
     StaffRegistrationView,
     VerifyEmailOTPView,
-    ResendEmailOTPView,
+    SendEmailOTPView,
     CandidateListView,
     CandidateDetailView,
     AssignCandidateRoleView,
@@ -122,7 +122,7 @@ urlpatterns = [
     # ),
     # === Email Verification ===
     path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
-    path("resend-email-otp/", ResendEmailOTPView.as_view(), name="resend-email-otp"),
+    path("send-email-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================

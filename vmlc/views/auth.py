@@ -23,7 +23,7 @@ from ..serializers import (
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     RequestPasswordChangeSerializer,
-    ResendEmailOTPSerializer,
+    SendEmailOTPSerializer,
     MinimalCandidateSerializer,
     MinimalStaffSerializer,
     VerifyEmailOTPSerializer,
@@ -129,7 +129,7 @@ class VerifyEmailOTPView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ResendEmailOTPView(APIView):
+class SendEmailOTPView(APIView):
     """
     Resend OTP to user's email with rate limiting.
     """
@@ -137,11 +137,11 @@ class ResendEmailOTPView(APIView):
     permission_classes = [HasXAPIKey]
 
     @swagger_auto_schema(
-        operation_summary="Resend Email OTP",
-        operation_description="Resends an OTP to a user's email address for verification.",
+        operation_summary="Sends/resends Email OTP",
+        operation_description="Sends/resends an OTP to a user's email address for verification.",
         request_body=resend_email_otp_request_body,
         responses={
-            200: openapi.Response("OTP has been resent to your email address"),
+            200: openapi.Response("OTP has been sent to your email address"),
             400: error_response_400,
             429: openapi.Response("Rate limit exceeded"),
         },
@@ -152,8 +152,8 @@ class ResendEmailOTPView(APIView):
         return self._resend_email_otp(request.data)
 
     def _resend_email_otp(self, data):
-        serializer = ResendEmailOTPSerializer(data=data)
-
+        serializer = SendEmailOTPSerializer(data=data)
+        
         if serializer.is_valid():
             try:
                 user = serializer.save()
@@ -162,10 +162,10 @@ class ResendEmailOTPView(APIView):
                 email = user.email
                 email_parts = email.split("@")
                 masked_email = f"{email_parts[0][:3]}***@{email_parts[1]}"
-                logger.info(f"Resending OTP to user {user.id}")
+                logger.info(f"Sending OTP to user {user.id}")
                 return Response(
                     {
-                        "message": "OTP has been resent to your email address",
+                        "message": "OTP has been sent to your email address",
                         "email": masked_email,
                         "expires_in_minutes": 10,
                     },
@@ -178,8 +178,8 @@ class ResendEmailOTPView(APIView):
                 exc.status_code = status.HTTP_429_TOO_MANY_REQUESTS
                 raise exc
             except RuntimeError as e:
-                logger.error(f"Unexpected error in resend OTP: {str(e)}")
-                raise ServerError("Failed to resend OTP. Please try again later.")
+                logger.error(f"Unexpected error in send OTP: {str(e)}")
+                raise ServerError("Failed to send OTP. Please try again later.")
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
