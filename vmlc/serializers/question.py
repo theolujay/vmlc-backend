@@ -27,7 +27,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "created_at",
             "created_by",
         ]
-        read_only_fields = ["id", "created_at", "created_by"]
+        read_only_fields = ["id", "created_at", "created_by", "created_at"]
 
     def get_related_exams_count(self, obj):
         return obj.get_related_exams()["count"]
@@ -52,10 +52,13 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "correct_answer",
             "difficulty",
             "related_exams",
+            "related_exams_count",
             "created_at",
             "created_by",
+            "updated_at",
+            "updated_by",
         ]
-        read_only_fields = ["id", "related_exams", "created_at", "created_by"]
+        read_only_fields = ["id", "related_exams", "related_exams_count", "created_at", "created_by"]
 
     def get_related_exams(self, obj):
         return obj.get_related_exams()
