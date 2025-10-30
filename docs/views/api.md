@@ -3,8 +3,6 @@
 <details>
 <summary>Table of Contents</summary>
 
-## Table of Contents
-
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Base URL](#base-url)
@@ -12,7 +10,7 @@
   - [User Roles, Permissions, and API Access](#user-roles-permissions-and-api-access)
   - [Feature Walkthroughs and User Stories](#feature-walkthroughs-and-user-stories)
   - [Endpoint Mapping](#endpoint-mapping)
-- [Endpoints details](#endpoints-details)
+- [API Endpoints](#api-endpoints)
   - [Health & Root](#health--root)
   - [Authentication](#authentication-endpoints)
   - [Registration](#registration)
@@ -35,9 +33,9 @@
   - [Rate Limiting](#rate-limiting)
   - [Versioning](#versioning)
 - [Support & More](#support--more)
-  - Interactive Documentation
-  - Support
-  - Changelog
+  - [Interactive Documentation](#interactive-documentation)
+  - [Support](#support)
+  - [Changelog](#changelog)
 
 ---
 </details>
@@ -46,8 +44,7 @@
 <summary>Overview</summary>
 
 ## Overview
-
-The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the awo types of users--staff and candidate
+The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the two types of users--staff and candidate
 
 ---
 </details>
@@ -59,16 +56,14 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ### Base URL
 
-`https://api.verboheit.org/v1/` for production
-
-`https://staging-api.verboheit.org/v1/`for staging
+`https://api.verboheit.org/v1/` ~ production
+`https://staging-api.verboheit.org/v1/`~ staging
 
 All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
 ---
 
 ### Authentication
-
 The API uses `X-Api-Key` for general authentication. The API key should be provided in the `X-Api-Key` header:
 
 `X-Api-Key: <your_api_key>`
@@ -76,18 +71,15 @@ The API uses `X-Api-Key` for general authentication. The API key should be provi
 For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
 
 #### Login Flow
-
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 Content-Type: application/json
 ```
 
 **Request Body:**
-
 ```json
 {
   "email": "your_email@example.com",
@@ -96,7 +88,6 @@ Content-Type: application/json
 ```
 
 **Response:** `200 OK`
-
 ```json
 {    
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -115,17 +106,13 @@ Content-Type: application/json
   }
 }
 ```
-
 *Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
 
 #### Token Management
-
 ##### Refresh Token
-
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
-
 ```json
 {
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
@@ -133,7 +120,6 @@ Content-Type: application/json
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -142,17 +128,14 @@ Content-Type: application/json
 ```
 
 ##### Logout
-
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
-
 ```json
 {
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
-
 **Response:** `204 No Content`
 
 ---
@@ -164,14 +147,12 @@ Content-Type: application/json
 ## Health & Root
 
 ### Health Check
-
 The health check endpoint provides a simple way to verify the API's operational status.
 
 **Endpoint:** `GET /health/`
 **Required Role:** None (Public)
 
 **Response:** `200 OK`
-
 ```json
 {
   "status": "healthy",
@@ -180,20 +161,16 @@ The health check endpoint provides a simple way to verify the API's operational 
 ```
 
 ### Root Endpoint
-
 The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
 
 **Endpoint:** `GET /root/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** None (Public, but requires API Key)
 
 **Response:** `200 OK`
-
 ```json
 {
   "root": "https://api.verboheit.org/v1/root/",
@@ -241,7 +218,6 @@ This table provides a detailed breakdown of each user role, its key abilities on
 **NOTE**: Users must already have their emails verified and be user-verified to perform actions beyond `get-started`.
 
 #### Role Progression
-
 - **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
 - **Staff**: Roles are assigned by a `manager` or `superadmin`.
 
@@ -288,10 +264,6 @@ Feature: Registration, Email verification, and initial redirect
     Then they are redirected to the "Get Started" page
     And the Tour card remains locked until the user is promoted to at least "moderator"
 ```
-<!-- </details>
-
-<details>
-<summary>Feature: User Verification, Role Promotions & Tour Unlocking</summary> -->
 
 ### Feature: User Verification, Role Promotions & Tour Unlocking
 
@@ -311,16 +283,12 @@ Feature: Verification and role promotion flow
     And after being marked "verified" the candidate can access their candidate dashboard
 
   Scenario: Staff promotion that unlocks the Tour card
-    Given a logged-in staff member with role "volunteer"
+    Given a logged-in staff member currently role "volunteer"
     And their email is verified and they have submitted verification documents
     When a manager or superadmin assigns role "moderator" to the staff member
     Then the Tour card becomes unlocked on their Get Started page
     And moderator-level navigation (candidate lists, question management) becomes available
 ```
-<!-- </details>
-
-<details>
-<summary>Feature: Dashboards & Role-based Access (Acceptance criteria)</summary> -->
 
 ### Feature: Dashboards & Role-based Access (Acceptance criteria)
 
@@ -366,7 +334,6 @@ Feature: Dashboards and permissions
     When they view any staff profile
     Then they can assign any staff role (except creating another superadmin)
 ```
-
 </details>
 
 <details>
@@ -375,279 +342,226 @@ Feature: Dashboards and permissions
 ### Endpoint mapping
 
 > Notes applicable to most endpoints
->
+> 
 > - Header: `X-Api-Key: <your_api_key>` (required for all endpoints).
->
+>     
 > - Authenticated user endpoints also require `Authorization: Bearer <access-token>`.
->
+>     
 > - Role requirements shown when specified.
->
+>     
 > - Use JSON unless `multipart/form-data` is stated.
->
+>     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Health & discovery</summary> -->
 
 #### Health & discovery
 
 - `GET /health/` — public health check. `200 OK`.
-
+    
 - `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
-
-<!-- </details>
-
-<details>
-<summary>Interactive docs</summary> -->
+    
 
 #### Interactive docs
 
 - Swagger UI: `/docs/swagger/`
-
+    
 - ReDoc: `/docs/redoc/`
-
+    
 - Spec endpoint: `/docs/spec` (API doc).
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Authentication</summary> -->
 
 #### Authentication
 
 - `POST /auth/login/` — login. Request: `{ email, password }`. Returns `access`, `refresh`, `profile`. `200 OK`.
-
+    
 - `POST /auth/token/refresh/` — refresh token. `200 OK`.
-
+    
 - `POST /auth/logout/` — logout (body: refresh token). `204 No Content`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Registration</summary> -->
 
 #### Registration
 
 - `POST /register/candidate/` — candidate signup. `201 Created`. Default role: `screening`.
-
+    
 - `POST /register/staff/` — staff signup. `201 Created`. Default role: `volunteer`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Email & password flows</summary> -->
 
 #### Email & password flows
 
 - `POST /verify-email-otp/` — verify registration OTP. Request: `{ email, otp }`. `200 OK`.
-
+    
 - `POST /resend-email-otp/` — resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
+    
 
 Password-change:
 
 - `POST /auth/password-change/request/` — request OTP to change password. `200 OK`.
-
+    
 - `POST /auth/password-change/confirm-otp/` — confirm OTP for password change. `200 OK`.
-
+    
 - `POST /auth/password-change/` — change password (otp + new_password). `200 OK`.
-
+    
 - `POST /auth/password-change/resend-otp/` — resend OTP for password change. `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>"Me" profile endpoints</summary> -->
 
 #### "Me" profile endpoints
 
 - `GET /candidates/me/` — authenticated candidate's profile. `200 OK`.
-
+    
 - `GET /staff/me/` — authenticated staff profile. `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Candidate management (staff-facing)</summary> -->
 
 #### Candidate management (staff-facing)
 
 - `GET /candidates/` — list candidates. Required role: `moderator`+. Supports `page`, `search`, `role`, `school`, `verified`. `200 OK`.
-
+    
 - `GET /candidates/{candidate_id}/` — operation_description="Retrieve dashboard data for a specific candidate." Role: `admin`+. `200 OK`.
-
+    
 - `PUT /candidates/{candidate_id}/roles/assign/` — assign candidate role (e.g., `league`, `final`, `winner`). Role: `admin`+. `200 OK`.
-
+    
 - `GET /candidates/{candidate_id}/scores/` — get candidate scores. Role: `admin`+. `200 OK`.
-
+    
 - `GET /candidates/{candidate_id}/exam-history/` — full exam history. Role: `admin`+. `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Staff management (staff-facing)</summary> -->
 
 #### Staff management (staff-facing)
 
 - `GET /staff/` — list staff. Role: `moderator`+. Query filters: `page`, `search`, `role`, `occupation`. `200 OK`.
-
+    
 - `POST /staff/invite/` — invite a new staff member. Role: `manager` or `superadmin`. `201 Created`.
-
+    
 - `GET /staff/{staff_id}/` — staff details. Role: `manager` or `superadmin`. `200 OK`.
-
+    
 - `PUT /staff/{staff_id}/roles/assign/` — assign staff role (manager/superadmin allowed to assign except superadmin creation). Role: `manager` or `superadmin`. `200 OK`.
-
+    
 - `GET /account-management/{id}/` and `PATCH /account-management/{id}/` — account management endpoints used by staff (mentioned in role table). Role: `manager`+ or owner.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>User verification endpoints</summary> -->
 
 #### User verification endpoints
 
 - `GET /user/verification/status/` — get current user's verification status. `200 OK`.
-
+    
 - `GET /user/verification/status/{user_id}/` — manager+ or owner view other users' status. `200 OK`.
-
+    
 - `POST /user/verification/upload/` — submit verification documents (multipart/form-data). Files: `face_id`, `id_card`, `verification_document`. Any authenticated user. `200 OK / 201`.
-
+    
 - `PATCH /user/verification/upload/` — update/resubmit verification docs. Any authenticated user. `200 OK`.
-
+    
 - `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_approved`, `is_rejected`. `200 OK`.
-
+    
 - `POST /user/verification/action/{id}/` — approve/reject a verification (manager+). `200 OK`.
-
+    
 - `GET /user/verification/documents/{type}/{id}/` — download verification docs (manager+ or owner). `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Exam management</summary> -->
 
 #### Exam management
 
 - `GET /exams/` — list exams. Role: `admin`+. Query filters: `page`, `stage`, `active`, `date_from`, `date_to`. `200 OK`.
-
+    
 - `POST /exams/` — create exam. Role: `admin`+. `201 Created`.
-
+    
 - `GET /exams/{id}/` — retrieve exam. Role: `admin`+. `200 OK`.
-
+    
 - `PUT /exams/{id}/`, `PATCH /exams/{id}/`, `DELETE /exams/{id}/` — update/delete exam. Role: `admin`+. `200/204`.
-
+    
 - `GET /exams/{id}/take-exam/` — candidate takes exam (stage-limited: screening/league/final). Candidate must be eligible. `200 OK`.
-
+    
 - `POST /exams/{id}/submit-exam-answers/` — candidate submits answers. `200 OK`.
-
+    
 - `PUT /exams/{id}/submit-exam-score/` — manual score submission (admin). `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Question management</summary> -->
 
 #### Question management
 
 - `GET /questions/` — list questions. `GET/POST /questions/` — create question (moderator+ for CRUD). `200/201 OK`.
-
+    
 - `GET /questions/{id}/`, `PUT /questions/{id}/`, `PATCH /questions/{id}/`, `DELETE /questions/{id}/` — CRUD single question (moderator+). `200/204`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Dashboards</summary> -->
 
 #### Dashboards
 
 - `GET /dashboard/candidate/` — candidate dashboard (shows exams allowed, history, profile). Candidate role required. `200 OK`.
-
+    
 - `GET /dashboard/staff/` — staff dashboard (moderator+). `200 OK`. Contains staff info, candidate counts, exams, questions, scores. `200 OK`.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Leaderboard & publishing</summary> -->
 
 #### Leaderboard & publishing
 
 - `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (admin+). Request: `{ exam_id: <int> }`. `202 Accepted`.
     
 - `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
+    
+
 ---
-<!-- </details>
+</details>
 
 <details>
-<summary>Broadcasts & notifications</summary> -->
-
-#### Broadcasts & notifications
+<summary>Broadcasts & notifications</summary>
 
 - `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
-
+    
 - `GET /broadcasts/{id}/` — view broadcast. `200 OK`.
-
+    
 - Note: WebSocket notifications require both `X-Api-Key` and `Authorization` according to changelog.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Account management & misc</summary> -->
 
 #### Account management & misc
 
 - `GET /account-management/{id}/`, `PATCH /account-management/{id}/` — staff/account admin endpoints (manager+).
-
+    
 - `POST /publish-scores/` — (commented/optional) publish scores snapshot (admin+). Triggers async task. May be present in code but commented in docs.
+    
 
 ---
-<!-- </details>
-
-<details>
-<summary>Rate limits / error codes</summary> -->
 
 #### Rate limits / error codes
 
 - Rate limits: Authenticated 1000/day, 60/hour, 10/min. Anonymous 60/day, 5/min. Rate-limit headers present.
-
+    
 - Standard error JSON: `{ "detail": "...", "code": "error_code" }`. Common error codes: `permission_denied`, `invalid_otp`, `leaderboard_hidden`, `registration_closed`, etc. Use these in negative tests.
 
 ---
-<!-- </details> -->
 </details>
 
 <details>
-<summary>Endpoints Details</summary>
+<summary>API Endpoints</summary>
 
-## Endpoint Details
-
+## API Endpoints
 ### Registration
-
 Registration endpoints allow new users to sign up as either candidates or staff members. Registration can be dynamically enabled or disabled via feature flags.
 
 #### Register New Users
-
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "john@example.com",
@@ -661,25 +575,20 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `201 Created`
-
 ```json
 {
   "message": "Registration successful."
 }
 ```
-
 *Note: If candidate registration is closed, a `403 Forbidden` response will be returned. Kindly reach the developer.*
 
 **Staff Registration**  
 **Endpoint:** `POST /register/staff/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "jane@example.com",
@@ -691,7 +600,6 @@ X-Api-Key: <your_api_key>
   "occupation": "Mathematics Teacher"
 }
 ```
-
 *Note: If staff registration is closed, a `403 Forbidden` response will be returned.*
 
 ---
@@ -699,16 +607,12 @@ X-Api-Key: <your_api_key>
 ### Email & Password
 
 #### Verify Email with OTP
-
 **Endpoint:** `POST /verify-email-otp/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "john@example.com",
@@ -717,7 +621,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "message": "Email verified successfully."
@@ -725,16 +628,12 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Resend Email OTP
-
 **Endpoint:** `POST /resend-email-otp/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "john@example.com"
@@ -742,7 +641,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "message": "OTP has been resent to your email address",
@@ -752,16 +650,12 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Request Password Change OTP
-
 **Endpoint:** `POST /auth/password-change/request/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "user@example.com"
@@ -769,7 +663,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "message": "Password change verification code sent to your email",
@@ -779,25 +672,19 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Confirm OTP for Password Change
-
 **Endpoint:** `POST /auth/password-change/confirm-otp/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "user@example.com",
   "otp": "123456"
 }
 ```
-
 **Response:** `200 OK`
-
 ```json
 {
   "message": "OTP verified. User confirmed for password change. Proceed to change password."
@@ -805,16 +692,12 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Change Password
-
 **Endpoint:** `POST /auth/password-change/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "user@example.com",
@@ -825,7 +708,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "message": "Password changed successfully. Please log in with your new password."
@@ -833,16 +715,12 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Resend Password Change OTP
-
 **Endpoint:** `POST /auth/password-change/resend-otp/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Request Body:**
-
 ```json
 {
   "email": "user@example.com"
@@ -850,7 +728,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
   "message": "Password change verification code has been resent",
@@ -864,17 +741,13 @@ X-Api-Key: <your_api_key>
 ### User Profiles "Me" Endpoints
 
 #### Get Authenticated Candidate's Profile
-
 **Endpoint:** `GET /candidates/me/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** Any authenticated `candidate`
 **Response:** `200 OK`
-
 ```json
 {
   "user": {
@@ -891,17 +764,13 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Authenticated Staff Member's Profile
-
 **Endpoint:** `GET /staff/me/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** Any authenticated `staff`
 **Response:** `200 OK`
-
 ```json
 {
   "user": {
@@ -922,18 +791,14 @@ X-Api-Key: <your_api_key>
 ### Candidate Management
 
 #### List Candidates
-
 **Endpoint:** `GET /candidates/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `moderator` or higher  
 
 **Query Parameters:**
-
 - `page` (integer): Page number for pagination
 - `search` (string): Search by name, email, or school
 - `role` (string): Filter by candidate role
@@ -941,7 +806,6 @@ X-Api-Key: <your_api_key>
 - `verified` (boolean): Filter by verification status
 
 **Response:** `200 OK`
-
 ```json
 {
   "count": 150,
@@ -952,6 +816,7 @@ X-Api-Key: <your_api_key>
     {
       "user": {
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx"
@@ -965,24 +830,21 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Candidate Details
-
 **Endpoint:** `GET /candidates/{candidate_id}/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 Authorization: Bearer <access-token>
 ```
-
 **Required Role:** `admin` or higher
 
 **Response:** `200 OK`
-
 ```json
 {
     "user": {
         "id": "17914269-19b2-43f6-aa7e-81e59330df2f",
         "email": "candidate100@mail.com",
+        "is_email_verified": true,
         "first_name": "Robert",
         "last_name": "Parker",
         "phone": "08112463722",
@@ -1069,39 +931,30 @@ Authorization: Bearer <access-token>
 ```
 
 #### Assign Candidate Role
-
 **Endpoint:** `PUT /candidates/{candidate_id}/roles/assign/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher  
 **Request Body:**
-
 ```json
 {
   "role": "league"
 }
 ```
-
 **Response:** `200 OK`
-
 ```json
 {
   "role": "league"
 }
 ```
-
 *Note: A candidate must be verified before a role can be assigned.*
 
 #### Get Candidate Scores
-
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
 **Required Role:** `admin` or higher  
 **Response:** `200 OK`
-
 ```json
 [
   {
@@ -1110,6 +963,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx",
@@ -1133,14 +987,12 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Candidate Exam History
-
 Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
 
 **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
 **Required Role:** 'admin' or higher
 
 **Response:** `200 OK`
-
 ```json
 [
   {
@@ -1159,25 +1011,20 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ### Staff Management
 
 #### List Staff
-
 **Endpoint:** `GET /staff/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `moderator` or higher  
 
 **Query Parameters:**
-
 - `page` (integer): Page number
 - `search` (string): Search by name or email
 - `role` (string): Filter by staff role
 - `occupation` (string): Filter by occupation
 
 **Response:** `200 OK`
-
 ```json
 {
   "count": 10,
@@ -1202,23 +1049,20 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Staff Details
-
 **Endpoint:** `GET /staff/{staff_id}/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `manager`, `superadmin`
 
 **Response:** `200 OK`
-
 ```json
 {
   "user": {
     "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "jane@example.com",
+    "is_email_verified": true,
     "first_name": "Jane",
     "last_name": "Smith",
     "phone": "+23490xxxxxxxx",
@@ -1237,25 +1081,19 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Assign Staff Role
-
 **Endpoint:** `PUT /staff/{staff_id}/roles/assign/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `manager`, `superadmin`  
 **Request Body:**
-
 ```json
 {
   "role": "admin"
 }
 ```
-
 **Response:** `200 OK`
-
 ```json
 {
   "role": "admin"
@@ -1263,18 +1101,14 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Invite Staff Member
-
 **Endpoint:** `POST /staff/invite/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 Authorization: Bearer <access-token>
 ```
-
 **Required Role:** `manager` or `superadmin`
 **Request Body:**
-
 ```json
 {
   "email": "new.staff@example.com",
@@ -1287,9 +1121,7 @@ Authorization: Bearer <access-token>
   "occupation": "Content Reviewer"
 }
 ```
-
 **Response:** `201 Created`
-
 ```json
 {
   "message": "Staff profile created, invite sent."
@@ -1299,22 +1131,17 @@ Authorization: Bearer <access-token>
 ---
 
 ### Exam Management
-
 The API provides comprehensive management for exams, including CRUD operations, question association, and result viewing.
 
 #### List Exams
-
 **Endpoint:** `GET /exams/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher  
 
 **Query Parameters:**
-
 - `page` (integer): Page number
 - `stage` (string): Filter by exam stage (`screening`, `league`, `final`)
 - `active` (boolean): Filter by active status
@@ -1322,7 +1149,6 @@ X-Api-Key: <your_api_key>
 - `date_to` (date): Filter exams to date
 
 **Response:** `200 OK`
-
 ```json
 {
   "question_pool_data": {
@@ -1347,17 +1173,13 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Create Exam
-
 **Endpoint:** `POST /exams/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher  
 **Request Body:**
-
 ```json
 {
   "title": "New Algebra Exam",
@@ -1370,9 +1192,7 @@ X-Api-Key: <your_api_key>
   "questions": [1, 2, 3]
 }
 ```
-
 **Response:** `201 Created`
-
 ```json
 {
   "id": 4,
@@ -1402,16 +1222,18 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Exam Details
-
+**Endpoint:** `GET /exams/{exam_id}/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
 **Required Role:** 'admin' or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number for questions pagination.
 - `page_size` (integer): Number of questions per page.
 
-
 **Response:** `200 OK`
-
 ```json
 {
   "id": 1,
@@ -1462,49 +1284,37 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Update Exam
-
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher  
 **Request Body (PATCH example):**
-
 ```json
 {
   "description": "Updated description for the algebra exam."
 }
 ```
-
 **Response:** `200 OK` (Returns updated exam details)
 
 #### Delete Exam
-
 **Endpoint:** `DELETE /exams/{exam_id}/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher  
 **Response:** `204 No Content`
 
 #### View Exam Questions (Admin/Staff)
-
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** 'admin' or higher  
 **Response:** `200 OK`
-
 ```json
 [
   {
@@ -1534,18 +1344,14 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Exam Results (Admin/Staff)
-
 **Endpoint:** `GET /exams/{exam_id}/results/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** 'admin' or higher
 
 **Response:** `200 OK`
-
 ```json
 [
   {
@@ -1560,19 +1366,15 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Candidate Take Exam
-
 Allows an eligible and verified candidate to retrieve the questions for a specific exam.
 
 **Endpoint:** `GET /exams/{exam_id}/take-exam/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** Authenticated `candidate` with `is_user_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
-
 ```json
 {
   "id": 1,
@@ -1594,23 +1396,18 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
-
 *Note: This endpoint will return a `403 Forbidden` if the candidate is not verified, their role does not match the exam stage, or the exam is not currently open for submissions.*
 
 #### Submit Exam Answers (Candidate)
-
 Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
 
 **Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** Authenticated `candidate` currently taking the exam.  
 **Request Body:**
-
 ```json
 {
   "answers": [
@@ -1625,33 +1422,26 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
-
 *Note: `selected_option` can be an empty string `""` if the question is unanswered.*
 
 **Response:** `201 Created`
-
 ```json
 {
   "message": "Answers submitted successfully!"
 }
 ```
-
 *Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
 
 #### Submit Exam Score (Manual by Staff)
-
 Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
 
 **Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `admin` or higher
 **Request Body:**
-
 ```json
 {
     "candidate_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
@@ -1660,7 +1450,6 @@ X-Api-Key: <your_api_key>
 ```
 
 **Response:** `200 OK`
-
 ```json
 {
     "message": "Score updated.",
@@ -1671,29 +1460,24 @@ X-Api-Key: <your_api_key>
     }
 }
 ```
-
 *Note: If the score is being submitted for the first time, the message will be "Score submitted."*
 
 ---
 
 ### Question Management
-
 The API provides CRUD operations for managing exam questions.
 
 #### List Questions
-
 **Endpoint:** `GET /questions/`  
 **Required Role:** `moderator` or higher  
 
 **Query Parameters:**
-
 - `page` (integer): Page number
 - `difficulty` (string): Filter by difficulty (`easy`, `moderate`, `hard`)
 - `search` (string): Search question text
 - `created_by` (uuid): Filter by the UUID of the staff member who created the question
 
 **Response:** `200 OK`
-
 ```json
 {
   "total_pages": 5,
@@ -1734,11 +1518,9 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 #### Create Question
-
 **Endpoint:** `POST /questions/`  
 **Required Role:** `moderator` or higher  
 **Request Body:**
-
 ```json
 {
   "text": "What is the capital of France?",
@@ -1750,9 +1532,7 @@ The API provides CRUD operations for managing exam questions.
   "difficulty": "easy"
 }
 ```
-
 **Response:** `201 Created`
-
 ```json
 {
   "id": 5,
@@ -1780,11 +1560,9 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 #### Get Question Details
-
 **Endpoint:** `GET /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `200 OK`
-
 ```json
 {
   "id": 1,
@@ -1812,24 +1590,22 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 #### Update Question
-
 **Endpoint:** `PUT /questions/{question_id}/` or `PATCH /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Request Body (PATCH example):**
-
 ```json
 {
   "difficulty": "moderate"
 }
 ```
-
 **Response:** `200 OK` (Returns updated question details)
 
 #### Delete Question
-
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
+*Note: Questions are soft-deleted by setting `is_archived` to `True` and `archived_at` to the current timestamp.*
+
 ---
 
 #### Add Question to Exams
@@ -1837,16 +1613,13 @@ The API provides CRUD operations for managing exam questions.
 **Endpoint:** `POST /questions/{question_id}/exams/`  
 **Required Role:** `admin` or higher
 **Request Body**:
-
 ```json
 {
     "add_to_exams": [1, 3, 5],
     "remove_from_exams": [2, 4]
 }
 ```
-
 **Response** `200 OK`:
-
 ```json
 {
     "question_id": 42,
@@ -1869,16 +1642,13 @@ The API provides CRUD operations for managing exam questions.
 **Endpoint:** `POST /questions/bulk-add-to-exams/`
 **Required Role:** `admin` or higher
 **Request Body**:
-
 ```json
 {
     "question_ids": [1, 2, 3, 4, 5],
     "exam_ids": [10, 11]
 }
 ```
-
 **Response** `200 OK`:
-
 ```json
 {
     "summary": {
@@ -1906,21 +1676,16 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 ### Dashboard
-
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
 
 #### Candidate Dashboard
-
 **Endpoint:** `GET /dashboard/candidate/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** Any authenticated `candidate`  
 **Response:** `200 OK`
-
 ```json
 {
   "candidate_info": {
@@ -1930,6 +1695,8 @@ X-Api-Key: <your_api_key>
     "school": "Real Harvard Law",
     "role": "Screening",
     "is_user_verified": false,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-15T10:30:00Z"
   },
   "exam_stats": {
@@ -1966,21 +1733,16 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
-
 *Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
 
 #### Staff Dashboard
-
 **Endpoint:** `GET /dashboard/staff/`  
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
-
 **Required Role:** `moderator` or higher  
 **Response:** `200 OK`
-
 ```json
 {
   "staff_info": {
@@ -1989,6 +1751,8 @@ X-Api-Key: <your_api_key>
     "role": "Moderator",
     "occupation": "Automation Engineer",
     "is_user_verified": true,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-01T08:00:00Z"
   },
   "candidates": {
@@ -2036,7 +1800,6 @@ X-Api-Key: <your_api_key>
   ]
 }
 ```
-
 *Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
 
 <!-- ### Scoring & Submissions -->
@@ -2159,29 +1922,25 @@ Authorization: Bearer <access-token>
 }
 ```
 
+
 ---
 
 ### User Verification
-
 User verification is a multi-step process involving email verification, document submission, and admin approval.
 
 #### 1. Get Verification Status
-
 Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
 
 **Endpoints:**
-
 - `GET /user/verification/status/` (for self)
 - `GET /user/verification/status/{user_id}/` (for managers or higher)
 
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 ```
 
 **Required Role:**
-
 - Any authenticated user for their own status.
 - `manager` or higher to check another user's status.
 
@@ -2189,7 +1948,6 @@ X-Api-Key: <your_api_key>
 The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
 
 - **Status: `email_not_verified`**
-
   ```json
   {
       "status": "email_not_verified",
@@ -2198,7 +1956,6 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 - **Status: `verified`**
-
   ```json
   {
       "status": "verified",
@@ -2207,7 +1964,6 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 - **Status: `pending`**
-
   ```json
   {
       "status": "pending",
@@ -2228,7 +1984,6 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 - **Status: `rejected`**
-
   ```json
   {
       "status": "rejected",
@@ -2237,7 +1992,6 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 - **Status: `not_submitted`**
-
   ```json
   {
       "status": "not_submitted",
@@ -2246,26 +2000,22 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 #### 2. Submit or Update Verification Documents
-
 This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
 
 **Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
 **Required Role:** Any authenticated user
 **Headers:**
-
 ```text
 X-Api-Key: <your_api_key>
 Content-Type: multipart/form-data
 ```
 
 **Form Data:**
-
 - `face_id` (file): Your profile picture (max 2MB, JPG/JPEG/PNG).
 - `id_card` (file): A valid identification document (max 2MB, JPG/JPEG/PNG/PDF).
 - `verification_document` (file): Additional verification document (max 2MB, PDF/DOC/DOCX/JPG/JPEG/PNG).
 
 **Success Response (`202 Accepted`):**
-
 ```json
 {
     "detail": "Documents uploaded successfully. Validation is in progress.",
@@ -2277,7 +2027,6 @@ Content-Type: multipart/form-data
     }
 }
 ```
-
 *Note: Document validation is performed asynchronously. The initial response indicates successful upload and pending validation.*
 
 **Error Responses:**
@@ -2732,7 +2481,6 @@ X-Api-Key: <your_api_key>
 
 ---
 </details>
-
 <details>
 <summary>Advanced Topics</summary>
 
