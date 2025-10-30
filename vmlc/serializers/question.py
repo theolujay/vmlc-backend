@@ -62,6 +62,9 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
 
     def get_related_exams(self, obj):
         return obj.get_related_exams()
+    def get_related_exams_count(self, obj):
+        return obj.get_related_exams()["count"]
+
 
 class CandidateQuestionSerializer(serializers.ModelSerializer):
     class Meta:
