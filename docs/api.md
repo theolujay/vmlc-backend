@@ -1796,101 +1796,191 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Leaderboard
-The leaderboard displays candidate rankings and can be dynamically controlled by staff.
+The leaderboard system provides detailed performance rankings across different competition stages and levels. It consists of two main views:
+<!-- - `LoadLeaderboardView`: For fetching a summary of all available leaderboards or a detailed, paginated view of a specific leaderboard.
+- `LoadLeaderboardDetailView`: For fetching the complete performance record of a single candidate in a specific exam. -->
 
-#### Publish Leaderboard
-Triggers an asynchronous task to generate and publish the leaderboard snapshot for a specific exam.
+#### 1. Publish Leaderboard
+Triggers an asynchronous task to generate and publish a new leaderboard snapshot. This should be done after an exam concludes and all scores are finalized.
 
-**Endpoint:** `POST /publish-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-Authorization: Bearer <access-token>
-```
+**Endpoint:** `POST /api/v1/leaderboard/publish/`
 **Required Role:** `admin` or higher
 **Request Body:**
+This endpoint does not require a request body. It automatically finds all concluded, active exams and generates leaderboards for them.
 ```json
-{
-  "exam_id": 1
-}
+{}
 ```
 **Response:** `202 Accepted`
 ```json
 {
-  "message": "Leaderboard generation has been started and will be available shortly."
+  "message": "Leaderboard generation has been started and will be available shortly.",
+  "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
 }
 ```
 
-#### Load Leaderboard
-Retrieves published leaderboard snapshots. It can either list all available leaderboards or fetch the detailed rankings for a specific exam.
+---
 
-**Endpoint:** `GET /load-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-Authorization: Bearer <access-token>
+#### 2. Load Leaderboard (`LoadLeaderboardView`)
+This is the primary endpoint for all frontend leaderboard functionality. It has two modes:
+
+**A. Summary Mode (No Query Parameters)**
+Returns a list of all available leaderboards that the current user is permitted to see. Ideal for dynamically populating UI tabs.
+
+**Endpoint:** `GET /api/v1/leaderboard/`
+**Required Role:** Any verified user (`candidate` or `staff`)
+
+**Response (200 OK):**
+```json
+{
+  "snapshot_id": 45,
+  "published_at": "2024-10-30T14:30:00Z",
+  "available_leaderboards": [
+    {
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
+      "exam_title": "Screening Exam 2024 - Basic Mathematics",
+      "total_candidates": 150,
+      "average_score": 78.5
+    },
+    {
+      "stage": "league",
+      "level": 1,
+      "stage_display": "league_1",
+      "exam_title": "League Round 1 - General Knowledge",
+      "total_candidates": 50,
+      "average_score": 85.2
+    }
+  ]
+}
 ```
-**Required Role:** `league` candidates and above, all staff  
+*Note: A `screening` candidate would only see leaderboards for the `screening` stage.*
+
+**B. Detail Mode (With Query Parameters)**
+Returns the detailed, paginated rankings for a specific leaderboard, identified by `stage` and `level`.
+
+**Endpoint:** `GET /api/v1/leaderboard/?stage=<stage>&level=<level>`
+**Required Role:** Any verified user (`candidate` or `staff`)
 
 **Query Parameters:**
-- `exam_id` (integer, optional): The ID of the exam to retrieve the leaderboard for. If not provided, a list of all leaderboard snapshots is returned.
-- `limit` (integer): Number of results (default: 50, max: 100)
-- `offset` (integer): Starting position
+- `stage` (string, required): The stage of the leaderboard (e.g., `screening`, `league`).
+- `level` (integer, required): The level within the stage (e.g., `1`, `2`).
+- `page` (integer, optional): The page number for the `remaining_candidates` list.
+- `page_size` (integer, optional): The number of candidates to show per page.
 
-**Response (List of Leaderboard Snapshots):** `200 OK`
+**Response (200 OK):**
+This response always includes the `top_three` performers separately and a paginated list of `remaining_candidates`.
 ```json
 {
-    "exam_details": {
-        "total_exams": 2,
-        "screening_exams": 1,
-        "league_exams": 1
-    },
-    "next": null,
-    "previous": null,
-    "list": [
-        {
-            "exam_id": 4,
-            "exam_title": "Organized interactive parallelism",
-            "exam_stage": "league",
-            "created_at": "2025-10-29T08:43:04.268220+00:00"
-        },
-        {
-            "exam_id": 2,
-            "exam_title": "Customizable background utilization",
-            "exam_stage": "screening",
-            "created_at": "2025-10-29T08:42:47.352149+00:00"
-        }
-    ]
+  "exam_id": 123,
+  "exam_title": "Screening Exam 2024 - Basic Mathematics",
+  "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
+  "total_candidates": 150,
+  "average_score": 78.5,
+  "top_three": [
+    { "rank": 1, "candidate": { "...": "..." }, "score": 100.0, "percentage": 100.0 },
+    { "rank": 2, "candidate": { "...": "..." }, "score": 99.5, "percentage": 99.5 },
+    { "rank": 3, "candidate": { "...": "..." }, "score": 99.0, "percentage": 99.0 }
+  ],
+  "remaining_candidates": [
+    { "rank": 4, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 },
+    { "rank": 5, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 }
+  ],
+  "pagination": {
+    "count": 147,
+    "total_pages": 30,
+    "next": "http://localhost:8000/api/v1/leaderboard/?stage=screening&level=1&page=2&page_size=5",
+    "previous": null
+  }
 }
 ```
 
-**Response (Leaderboard for a specific exam):** `200 OK`
+**Common Error Responses for `LoadLeaderboardView`:**
+- **404 Not Found:** If no published leaderboard exists at all, or if the requested `stage` and `level` do not exist.
+  ```json
+  { "detail": "No published leaderboard found." }
+  // or
+  { "detail": "No leaderboard found for league level 99" }
+  ```
+- **403 Forbidden:** If a user attempts to access a leaderboard they are not permitted to see.
+  ```json
+  { "detail": "You can only view screening leaderboards." }
+  // or
+  { "detail": "Candidate must be verified to view the leaderboard." }
+  ```
+
+---
+
+#### 3. Load Candidate Detail (`LoadLeaderboardDetailView`)
+Retrieves the complete and detailed performance of a single candidate for a specific exam. This is the view used when a user clicks on a candidate's name in the leaderboard.
+
+**Endpoint:** `GET /api/v1/leaderboard/<stage>/<level>/candidate/<candidate_id>/`
+**Required Role:**
+- `staff` and `league` candidates can view any candidate's detail.
+- `screening` candidates can only view their own detail.
+
+**URL Parameters:**
+- `stage` (string): The stage of the leaderboard (e.g., `screening`).
+- `level` (integer): The level of the leaderboard (e.g., `1`).
+- `candidate_id` (uuid): The ID of the candidate whose performance is being requested.
+
+**Response (200 OK):**
+This response includes exam information and a detailed breakdown of the candidate's submissions, including every question, their selected answer, the correct answer, and whether they were correct.
 ```json
 {
-    "exam_details": {
-        "id": 4,
-        "title": "Organized interactive parallelism",
-        "stage": "league",
-        "status": "concluded",
-        "question_count": 0,
-        "scheduled_date": "2025-09-30T10:39:51.622476+01:00",
-        "created_at": "2025-10-15T10:39:51.622520+01:00"
+  "exam_info": {
+    "exam_id": 123,
+    "exam_title": "Screening Exam 2024 - Basic Mathematics",
+    "stage": "screening",
+    "level": 1,
+    "total_questions": 50
+  },
+  "candidate_performance": {
+    "rank": 4,
+    "candidate": {
+      "id": 792,
+      "user_id": 1004,
+      "first_name": "Simon",
+      "last_name": "Kawu",
+      "email": "simonkawu@yandex.com",
+      "school": "University of Ibadan",
+      "role": "screening"
     },
-    "next": "http://localhost:8000/v1/load-leaderboard/?exam_id=4&limit=1&offset=1",
-    "previous": null,
-    "list": [
-        {
-            "rank": 1,
-            "candidate": {
-                "id": 100,
-                "full_name": "Robert Parker",
-                "school": "Porter Ltd High"
-            },
-            "score": 99.88
-        }
+    "score": 98.0,
+    "percentage": 98.0,
+    "submissions": [
+      {
+        "question_id": 1,
+        "question_text": "What is the value of π (pi)?",
+        "correct_option": "d",
+        "selected_option": "d",
+        "is_correct": true,
+        "answered_at": "2024-10-30T09:00:15Z"
+      },
+      {
+        "question_id": 3,
+        "question_text": "What is the formula for the area of a rectangle?",
+        "correct_option": "a",
+        "selected_option": "b",
+        "is_correct": false,
+        "answered_at": "2024-10-30T09:00:45Z"
+      }
     ]
+  }
 }
 ```
+
+**Common Error Responses for `LoadLeaderboardDetailView`:**
+- **404 Not Found:** If the candidate is not found in the specified leaderboard.
+  ```json
+  { "detail": "Candidate not found in this leaderboard" }
+  ```
+- **403 Forbidden:** If a `screening` candidate tries to view another candidate's details.
+  ```json
+  { "detail": "You can only view your own performance." }
+  ```
 
 
 ---

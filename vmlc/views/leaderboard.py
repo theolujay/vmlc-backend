@@ -1,7 +1,6 @@
 import logging
+import uuid
 
-from django.db.models import Count, Q
-from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework import status
@@ -10,9 +9,8 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.settings import api_settings
 
-from vmlc.serializers.exam import ExamListSerializer
 
-from ..models import Candidate, Exam, LeaderboardSnapshot
+from ..models import Candidate, LeaderboardSnapshot
 from ..permissions import (
     CandidatePermissions,
     VerifiedAdminPermissions,
@@ -20,7 +18,6 @@ from ..permissions import (
 )
 from ..serializers.leaderboard import (
     PublishLeaderboardSerializer,
-    LeaderboardSnapshotListSerializer,
 )
 from ..utils.swagger_schemas import (
     api_key,
@@ -61,11 +58,6 @@ class PublishLeaderboardView(APIView):
         """
         Triggers an asynchronous task to generate and publish the leaderboard for an exam.
         """
-        serializer = PublishLeaderboardSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        exam_id = serializer.validated_data["exam_id"]
         staff_id = request.user.staff_profile.pk
 
         from ..tasks import (
@@ -74,13 +66,13 @@ class PublishLeaderboardView(APIView):
         )
 
         logger.info(
-            f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id}) for exam {exam_id}"
+            f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
         generate_scores_snapshot_task.delay(staff_id)
-        generate_leaderboard_snapshot_task.delay(exam_id, staff_id)
+        generate_leaderboard_snapshot_task.delay(staff_id)
 
         logger.info(
-            f"Leaderboard generation for exam {exam_id} triggered by staff {staff_id}"
+            f"Leaderboard generation triggered by staff {staff_id}"
         )
 
         return Response(
@@ -89,45 +81,50 @@ class PublishLeaderboardView(APIView):
             },
             status=status.HTTP_202_ACCEPTED,
         )
-        
+
 class LoadLeaderboardView(APIView):
     """
     Returns published leaderboard snapshots.
     Filters leaderboards based on the user's role.
+    
+    Query Parameters:
+    - stage: The stage to filter (e.g., 'screening', 'league')
+    - level: The level within that stage (e.g., 1, 2, 3)
+    
+    Examples:
+    - GET /api/v1/leaderboard/?stage=screening&level=1  -> Returns Screening 1 leaderboard
+    - GET /api/v1/leaderboard/?stage=league&level=2     -> Returns League 2 leaderboard
+    - GET /api/v1/leaderboard/                          -> Returns all accessible leaderboards
     """
 
     permission_classes = VerifiedModeratorPermissions or CandidatePermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
-    @swagger_auto_schema(
-        operation_summary="Load Leaderboard(s)",
-        operation_description="Returns published leaderboard snapshots, filtered by user role.",
-        manual_parameters=[
-            openapi.Parameter(
-                "exam_id",
-                openapi.IN_QUERY,
-                description="ID of the exam to retrieve the leaderboard for",
-                type=openapi.TYPE_INTEGER,
-            )
-        ],
-        responses={
-            200: leaderboard_snapshot_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["Leaderboard"],
-    )
     def get(self, request: Request):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
         user = request.user
 
-        # Base queryset for published leaderboards
-        snapshots = LeaderboardSnapshot.objects.filter(is_published=True).select_related(
-            "exam"
-        )
+        # Get the most recent published snapshot
+        latest_snapshot = LeaderboardSnapshot.objects.filter(
+            is_published=True
+        ).order_by("-created_at").first()
+        
+        if latest_snapshot is None:
+            return Response(
+                {"detail": "No published leaderboard found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Filter based on candidate role
+        # Extract all leaderboards from the snapshot
+        # The data is now a dict like:
+        # {
+        #   "screening_1": {...},
+        #   "league_1": {...},
+        #   "league_2": {...}
+        # }
+        all_leaderboards = latest_snapshot.data
+        
+        # Check if user has permission to view leaderboards
         if hasattr(user, "candidate_profile"):
             if not user.candidate_profile.is_user_verified:
                 return Response(
@@ -135,80 +132,185 @@ class LoadLeaderboardView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            if user.candidate_profile.role == Candidate.Roles.SCREENING:
-                snapshots = snapshots.filter(exam__stage=Candidate.Roles.SCREENING)
-            elif user.candidate_profile.role == Candidate.Roles.LEAGUE:
-                snapshots = snapshots.filter(
-                    Q(exam__stage=Candidate.Roles.SCREENING)
-                    | Q(exam__stage=Candidate.Roles.LEAGUE)
-                )
-
-        exam_id = request.query_params.get("exam_id")
+        # Filter based on query parameters
+        requested_stage = request.query_params.get('stage')
+        requested_level = request.query_params.get('level')
         
-        # If specific exam_id is requested - return leaderboard ENTRIES
-        if exam_id:
-            try:
-                exam = Exam.objects.get(pk=exam_id)
-            except Exam.DoesNotExist:
+        # If specific stage and level requested, return just that leaderboard
+        if requested_stage and requested_level:
+            leaderboard_key = f"{requested_stage}_{requested_level}"
+            
+            if leaderboard_key not in all_leaderboards:
                 return Response(
-                    {"detail": "Exam not found. Leaderboard unavailable."},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "detail": f"No leaderboard found for {requested_stage} level {requested_level}"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
                 )
             
-            try:
-                snapshot = snapshots.get(exam_id=exam_id)
-            except LeaderboardSnapshot.DoesNotExist:
-                return Response(
-                    {"detail": "Leaderboard snapshot not found for this exam."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            leaderboard_data = all_leaderboards[leaderboard_key]
             
-            # Extract leaderboard entries - already serialized
-            leaderboard_data = snapshot.data
+            # Apply role-based access control
+            if hasattr(user, "candidate_profile"):
+                candidate = user.candidate_profile
+                
+                # Screening candidates can only view screening leaderboards
+                if candidate.role == Candidate.Roles.SCREENING and requested_stage != "screening":
+                    return Response(
+                        {"detail": "You can only view screening leaderboards."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
             
-            exam_details = ExamListSerializer(exam).data
-            
-            # Paginate the leaderboard entries
+            # Paginate the entries within this leaderboard
+            entries = leaderboard_data.get("entries", [])
             paginator = self.pagination_class()
-            page = paginator.paginate_queryset(leaderboard_data, request, view=self)
-
-            if page is not None:
-                # Data is already serialized, just return it
-                response = paginator.get_paginated_response(page)
-                response.data["exam_details"] = exam_details
-                response.data["list"] = response.data.pop("results")
-                if "count" in response.data:
-                    del response.data["count"]
-                return response
-
-            # If pagination not applied (shouldn't happen)
-            return Response({"exam_details": exam_details, "list": leaderboard_data})
-        
-        # If no exam_id - return list of SNAPSHOTS (metadata only)
-        else:
-            snapshot_list = snapshots.order_by("-created_at")
             
-            # Aggregate exam statistics
-            exam_details = Exam.objects.aggregate(
-                total_exams=Count("id"),
-                screening_exams=Count("id", filter=Q(stage=Exam.Stages.SCREENING)),
-                league_exams=Count("id", filter=Q(stage=Exam.Stages.LEAGUE)),
+            # Split top 3 from the rest
+            top_three = entries[:3]
+            remaining = entries[3:]
+            
+            # Paginate only the remaining entries
+            page = paginator.paginate_queryset(remaining, request, view=self)
+            
+            if page is not None:
+                return Response({
+                    "exam_id": leaderboard_data.get("exam_id"),
+                    "exam_title": leaderboard_data.get("exam_title"),
+                    "stage": leaderboard_data.get("stage"),
+                    "level": leaderboard_data.get("level"),
+                    "stage_display": leaderboard_data.get("stage_display"),
+                    "total_candidates": leaderboard_data.get("total_candidates"),
+                    "average_score": leaderboard_data.get("average_score"),
+                    "top_three": top_three,
+                    "remaining_candidates": page,
+                    "pagination": {
+                        "count": paginator.page.paginator.count,
+                        "total_pages": paginator.page.paginator.num_pages,
+                        "next": paginator.get_next_link(),
+                        "previous": paginator.get_previous_link(),
+                    }
+                })
+            
+            # If no pagination needed
+            return Response({
+                "exam_id": leaderboard_data.get("exam_id"),
+                "exam_title": leaderboard_data.get("exam_title"),
+                "stage": leaderboard_data.get("stage"),
+                "level": leaderboard_data.get("level"),
+                "stage_display": leaderboard_data.get("stage_display"),
+                "total_candidates": leaderboard_data.get("total_candidates"),
+                "average_score": leaderboard_data.get("average_score"),
+                "top_three": top_three,
+                "remaining_candidates": remaining,
+            })
+        
+        # If no specific leaderboard requested, return a summary of all available
+        # This is useful for populating the tabs in the UI
+        
+        # Determine which leaderboards the user can access
+        accessible_leaderboards = []
+        
+        if hasattr(user, "candidate_profile"):
+            candidate = user.candidate_profile
+            
+            # Screening candidates see only screening leaderboards
+            if candidate.role == Candidate.Roles.SCREENING:
+                accessible_leaderboards = [
+                    key for key in all_leaderboards.keys()
+                    if key.startswith("screening_")
+                ]
+            else:
+                # League candidates see all leaderboards
+                accessible_leaderboards = list(all_leaderboards.keys())
+        
+        elif hasattr(user, "staff_profile"):
+            # Staff can see all leaderboards
+            accessible_leaderboards = list(all_leaderboards.keys())
+        
+        # Build summary response
+        leaderboards_summary = []
+        for key in sorted(accessible_leaderboards):
+            lb = all_leaderboards[key]
+            leaderboards_summary.append({
+                "stage": lb.get("stage"),
+                "level": lb.get("level"),
+                "stage_display": key,
+                "exam_title": lb.get("exam_title"),
+                "total_candidates": lb.get("total_candidates"),
+                "average_score": lb.get("average_score"),
+            })
+        
+        return Response({
+            "snapshot_id": latest_snapshot.id,
+            "published_at": latest_snapshot.created_at.isoformat(),
+            "available_leaderboards": leaderboards_summary
+        })
+    
+class LoadLeaderboardDetailView(APIView):
+    """
+    Returns detailed performance for a specific candidate in a specific exam.
+    
+    URL: leaderboard/<stage>/<level>/candidate/<candidate_id>/
+    Example: leaderboard/league/2/candidate/123/
+    """
+    
+    permission_classes = VerifiedModeratorPermissions or CandidatePermissions
+    
+    def get(self, request: Request, stage: str, level: int, candidate_id: uuid):
+        # Get latest snapshot
+        latest_snapshot = LeaderboardSnapshot.objects.filter(
+            is_published=True
+        ).order_by("-created_at").first()
+        
+        if not latest_snapshot:
+            return Response(
+                {"detail": "No published leaderboard found."},
+                status=status.HTTP_404_NOT_FOUND
             )
-            
-            # Paginate the queryset of snapshots
-            paginator = self.pagination_class()
-            page = paginator.paginate_queryset(snapshot_list, request, view=self)
-
-            if page is not None:
-                # Serialize the snapshot objects (not their data)
-                serializer = LeaderboardSnapshotListSerializer(page, many=True)
-                response = paginator.get_paginated_response(serializer.data)
-                response.data["exam_details"] = exam_details
-                response.data["list"] = response.data.pop("results")
-                if "count" in response.data:
-                    del response.data["count"]
-                return response
-
-            # If pagination not applied
-            serializer = LeaderboardSnapshotListSerializer(snapshot_list, many=True)
-            return Response({"exam_details": exam_details, "list": serializer.data})
+        
+        # Build the leaderboard key
+        leaderboard_key = f"{stage}_{level}"
+        
+        if leaderboard_key not in latest_snapshot.data:
+            return Response(
+                {"detail": f"No leaderboard found for {stage} level {level}"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        leaderboard = latest_snapshot.data[leaderboard_key]
+        entries = leaderboard.get("entries", [])
+        
+        # Find the candidate in the entries
+        candidate_entry = next(
+            (entry for entry in entries 
+             if entry["candidate"]["id"] == candidate_id),
+            None
+        )
+        
+        if not candidate_entry:
+            return Response(
+                {"detail": "Candidate not found in this leaderboard"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Apply permission check
+        if hasattr(request.user, "candidate_profile"):
+            # Candidates can only view their own details or if they're in league stage
+            if request.user.candidate_profile.role == Candidate.Roles.SCREENING:
+                if request.user.candidate_profile.id != candidate_id:
+                    return Response(
+                        {"detail": "You can only view your own performance."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+        
+        # Return full candidate details including submissions
+        return Response({
+            "exam_info": {
+                "exam_id": leaderboard.get("exam_id"),
+                "exam_title": leaderboard.get("exam_title"),
+                "stage": leaderboard.get("stage"),
+                "level": leaderboard.get("level"),
+                "total_questions": leaderboard.get("total_questions"),
+            },
+            "candidate_performance": candidate_entry
+        })

@@ -48,6 +48,7 @@ from .views import (
     PublishScoresView,
     PublishLeaderboardView,
     LoadLeaderboardView,
+    LoadLeaderboardDetailView,
     CandidateDashboardView,
     StaffDashboardView,
     AccountManagementView,
@@ -221,16 +222,11 @@ urlpatterns = [
     # =============================================================================
     # LEADERBOARD
     # =============================================================================
-    path(
-        "publish-leaderboard/",
-        PublishLeaderboardView.as_view(),
-        name="publish-leaderboard",
-    ),
-    path(
-        "load-leaderboard/",
-        LoadLeaderboardView.as_view(),
-        name="load-leaderboard",
-    ),
+    path("leaderboard/", LoadLeaderboardView.as_view(), name="load-leaderboard"),
+    path("leaderboard/<str:stage>/<int:level>/candidate/<int:candidate_id>/", 
+         LoadLeaderboardDetailView.as_view(), 
+         name="load-leaderboard-detail"),
+    path("leaderboard/publish/", PublishLeaderboardView.as_view(), name="publish-leaderboard"),
     # =============================================================================
     # DASHBOARDS & ACCOUNT MANAGEMENT
     # =============================================================================
