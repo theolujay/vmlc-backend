@@ -26,6 +26,8 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "difficulty",
             "created_at",
             "created_by",
+            "updated_at",
+            "updated_by",
         ]
         read_only_fields = ["id", "created_at", "created_by", "created_at"]
 
