@@ -417,18 +417,12 @@ class Exam(models.Model):
         CONCLUDED = "concluded", "Concluded"
         CANCELLED = "cancelled", "Cancelled"
 
+    title = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True, null=True)
     stage = models.CharField(
         max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
-    title = models.CharField(max_length=100, blank=True)
-    description = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True, db_index=True)
-    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
-    open_duration_hours = models.PositiveIntegerField(default=12)
-    countdown_minutes = models.PositiveIntegerField(default=60)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     created_by = models.ForeignKey(
         Staff,
         blank=True,
@@ -443,7 +437,14 @@ class Exam(models.Model):
         related_name="exams_updated",
         on_delete=models.SET_NULL,
     )
-
+    open_duration_hours = models.PositiveIntegerField(default=12)
+    countdown_minutes = models.PositiveIntegerField(default=60)
+    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    
+    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
+    updated_at = models.DateTimeField(auto_now=True)
+    
     def __str__(self):
         """Return a string representation of the exam."""
         return f"{self.title} ({self.id})"
@@ -472,7 +473,7 @@ class Exam(models.Model):
             return self.scheduled_date <= now <= end_time
         else:
             return False
-
+        
     @property
     def status(self):
         """
@@ -491,20 +492,15 @@ class Exam(models.Model):
             if self.scheduled_date is None:
                 return self.Status.DRAFT
             return self.Status.CANCELLED
-        
         # If no scheduled date, it's still being drafted
         if self.scheduled_date is None:
             return self.Status.DRAFT
-        
         # If no duration set, can't determine time-based status
         if self.open_duration_hours is None:
             return self.Status.DRAFT
-        
         now = timezone.now()
-        
         # Calculate the conclusion time
         conclusion_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
-        
         # Check time-based statuses
         if now < self.scheduled_date:
             return self.Status.SCHEDULED
@@ -955,14 +951,9 @@ class CandidateAnswer(models.Model):
 
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
-
-    exam = models.ForeignKey(
-        Exam, on_delete=models.CASCADE, related_name="leaderboard_snapshots"
-    )
-    is_published = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_published = models.BooleanField(default=False)
     published_by = models.ForeignKey(
         Staff,
         on_delete=models.SET_NULL,
@@ -975,8 +966,6 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         """Meta options for the LeaderboardSnapshot model."""
 
         ordering = ["-created_at"]
-        unique_together = ("exam", "created_at")
-
 
 class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's score."""

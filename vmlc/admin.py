@@ -437,16 +437,15 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "exam",
         "is_published",
         "data_summary",
         "published_by_name",
         "created_at",
     )
     readonly_fields = ("created_at",)
-    list_filter = ("is_published", "exam", "created_at", "published_by")
-    search_fields = ("published_by__user__email", "exam__title")
-    list_select_related = ("published_by__user", "exam")
+    list_filter = ("is_published", "created_at", "published_by")
+    search_fields = ("published_by__user__email",)
+    list_select_related = ("published_by__user",)
     date_hierarchy = "created_at"
 
     @admin.display(description="Published By", ordering="published_by__user__email")
@@ -459,8 +458,13 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     def data_summary(self, obj):
         import json
 
-        summary = str(json.dumps(obj.data))
-        return (summary[:75] + "...") if len(summary) > 75 else summary
+        screening_leaderboard = str(json.dumps(obj.data["screening_leaderboard"]))
+        league_leaderboard = str(json.dumps(obj.data["league_leaderboard"]))
+        summary = {
+            "screening_leaderboard": (screening_leaderboard[:75] + "...") if len(screening_leaderboard) > 75 else screening_leaderboard,
+            "league_leaderboard": (league_leaderboard[:75] + "...") if len(league_leaderboard) > 75 else league_leaderboard,
+        }
+        return summary
 
 
 @admin.register(CandidateScoreSnapshot)

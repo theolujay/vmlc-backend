@@ -1,12 +1,17 @@
 import logging
-from celery import shared_task
+from datetime import timedelta
+
+from django.db.models import F, Avg, ExpressionWrapper, DateTimeField
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.db import OperationalError
 from django.utils import timezone
+from celery import shared_task
 from PIL import Image
 import magic
+
+from vmlc.models import Exam
 
 logger = logging.getLogger(__name__)
 
@@ -101,23 +106,56 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             f"Failed to calculate score for CandidateScore {candidate_score_id}: {e}"
         )
 
-
+@shared_task(name="update_exam_statuses_task")
+def update_exam_statuses_task():
+    """This task is deprecated since Exam.status is now a property."""
+    logger.info("update_exam_statuses_task is deprecated and does nothing.")
+    return "Task is deprecated."
+    
 @shared_task(name="generate_leaderboard_snapshot_task")
-def generate_leaderboard_snapshot_task(exam_id, staff_id=None):
+def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot for a specific exam.
     """
     from .models import Exam, CandidateScore, LeaderboardSnapshot, Staff
     from .serializers import CandidateLeaderboardPerfSerializer
+    
+    now = timezone.now()
+    
+    exams = Exam.objects.annotate(
+        conclusion_time=ExpressionWrapper(
+            F('scheduled_date') + F('open_duration_hours') * timedelta(hours=1),
+            output_field=DateTimeField()
+        )
+    ).filter(
+        is_active=True,
+        conclusion_time__lte=now
+    ).annotate(
+        average_score=Avg("scores__score")
+    )
+    
+    if not exams.exists():
+        logger.info(f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet")
+        return
 
-    try:
-        exam = Exam.objects.get(pk=exam_id)
-        staff = Staff.objects.get(pk=staff_id) if staff_id else None
-
+    staff = Staff.objects.get(pk=staff_id) if staff_id else None
+    
+    leaderboards_by_stage = {
+        Exam.Stages.SCREENING: [],
+        Exam.Stages.LEAGUE: []
+    }
+    
+    for exam in exams:
         # Get all scores for the given exam, ordered by score descending
-        scores = CandidateScore.objects.filter(exam=exam).order_by("-score").select_related('candidate__user')
-
-        leaderboard_data = []
+        scores = (
+            CandidateScore.objects
+            .filter(exam=exam)
+            .select_related('candidate__user')
+            .prefetch_related('answers__question')
+            .order_by("-score")
+        )
+        leaderboard = []
+        
         for index, score in enumerate(scores):
             candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
             answers = score.answers.all()
@@ -135,41 +173,43 @@ def generate_leaderboard_snapshot_task(exam_id, staff_id=None):
                     "answered_at": answer.answered_at.isoformat(),
                 })
             candidate_data["submission"] = submission_list
-            leaderboard_data.append(
+            leaderboard.append(
                 {
                     "rank": index + 1,
                     "candidate": candidate_data,
                     "score": float(score.score),
                 }
             )
-        # leaderboard_data["exam_details"] = ExamListSerializer(exam).data
-        # Create a new snapshot or update the existing one for the given exam
-        snapshot, created = LeaderboardSnapshot.objects.update_or_create(
-            exam=exam,
-            defaults={
-                "data": leaderboard_data,
-                "published_by": staff,
-                "is_published": True,
+        exam_leaderboard_data = {
+                "id": exam.id,
+                "title": exam.title,
+                "description": exam.description,
+                "stage": exam.stage,
+                "scheduled_date": exam.scheduled_date.isoformat(),
+                "concluded_at": exam.concluded_at.isoformat(),
+                "status": exam.status,
+                "average_score": float(exam.average_score) if exam.average_score else 0.0,
+                "leaderboard": leaderboard
             }
+        if exam.stage in leaderboards_by_stage:
+            leaderboards_by_stage[exam.stage].append(exam_leaderboard_data)
+
+    leaderboard_data = {
+        "screening_leaderboard": leaderboards_by_stage[Exam.Stages.SCREENING],
+        "league_leaderboard": leaderboards_by_stage[Exam.Stages.LEAGUE]
+    }
+
+    snapshot = LeaderboardSnapshot.objects.create(
+            data=leaderboard_data,
+            published_by=staff,
+            is_published=True,
         )
 
-        if created:
-            logger.info(
-                f"Leaderboard created and published for exam {exam.title} by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
-            )
-        else:
-            logger.info(
-                f"Leaderboard updated and published for exam {exam.title} by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
-            )
+    logger.info(
+            f"Leaderboard snapshot created by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
+        )
 
-    except Exam.DoesNotExist:
-        logger.error(f"Exam with id {exam_id} does not exist.")
-    except Staff.DoesNotExist:
-        logger.error(f"Staff with id {staff_id} does not exist.")
-    except Exception as e:
-        logger.error(f"Failed to generate leaderboard snapshot for exam {exam_id}: {e}")
-
-
+        
 @shared_task(name="generate_scores_snapshot_task")
 def generate_scores_snapshot_task(staff_id=None):
     """
@@ -188,7 +228,7 @@ def generate_scores_snapshot_task(staff_id=None):
                 logger.error("No superadmin user found to publish the scores snapshot.")
                 return
             staff = superadmin_user.staff_profile
-        candidates = Candidate.objects.with_scores().filter(is_active=True)
+        candidates = Candidate.objects.with_scores().filter(user__is_active=True)
 
         scores_data = []
         for candidate in candidates:

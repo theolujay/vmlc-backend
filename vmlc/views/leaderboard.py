@@ -1,7 +1,5 @@
 import logging
 
-from django.db.models import Count, Q
-from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework import status
@@ -10,9 +8,8 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.settings import api_settings
 
-from vmlc.serializers.exam import ExamListSerializer
 
-from ..models import Candidate, Exam, LeaderboardSnapshot
+from ..models import Candidate, LeaderboardSnapshot
 from ..permissions import (
     CandidatePermissions,
     VerifiedAdminPermissions,
@@ -20,7 +17,6 @@ from ..permissions import (
 )
 from ..serializers.leaderboard import (
     PublishLeaderboardSerializer,
-    LeaderboardSnapshotListSerializer,
 )
 from ..utils.swagger_schemas import (
     api_key,
@@ -61,11 +57,6 @@ class PublishLeaderboardView(APIView):
         """
         Triggers an asynchronous task to generate and publish the leaderboard for an exam.
         """
-        serializer = PublishLeaderboardSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        exam_id = serializer.validated_data["exam_id"]
         staff_id = request.user.staff_profile.pk
 
         from ..tasks import (
@@ -74,13 +65,13 @@ class PublishLeaderboardView(APIView):
         )
 
         logger.info(
-            f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id}) for exam {exam_id}"
+            f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
         generate_scores_snapshot_task.delay(staff_id)
-        generate_leaderboard_snapshot_task.delay(exam_id, staff_id)
+        generate_leaderboard_snapshot_task.delay(staff_id)
 
         logger.info(
-            f"Leaderboard generation for exam {exam_id} triggered by staff {staff_id}"
+            f"Leaderboard generation triggered by staff {staff_id}"
         )
 
         return Response(
@@ -123,11 +114,32 @@ class LoadLeaderboardView(APIView):
         user = request.user
 
         # Base queryset for published leaderboards
-        snapshots = LeaderboardSnapshot.objects.filter(is_published=True).select_related(
-            "exam"
-        )
+        snapshots = LeaderboardSnapshot.objects.filter(is_published=True)
+        latest_snapshot = snapshots.order_by("-created_at").first()
+        
+        if latest_snapshot is None:
+            return Response(
+                {"detail": "No published leaderboard found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Filter based on candidate role
+        raw_data = latest_snapshot.data
+        
+        # Handle both dict and potential old list format from snapshot
+        if isinstance(raw_data, list):
+            screening_lbs = [lb for lb in raw_data if lb.get("stage") == "screening"]
+            league_lbs = [lb for lb in raw_data if lb.get("stage") == "league"]
+        else:
+            screening_lbs = raw_data.get("screening_leaderboard", [])
+            league_lbs = raw_data.get("league_leaderboard", [])
+
+        leaderboard_details = {
+            "screening_total": len(screening_lbs),
+            "league_total": len(league_lbs),
+        }
+
+        # Filter based on user role
+        leaderboards_to_show = []
         if hasattr(user, "candidate_profile"):
             if not user.candidate_profile.is_verified:
                 return Response(
@@ -136,79 +148,28 @@ class LoadLeaderboardView(APIView):
                 )
 
             if user.candidate_profile.role == Candidate.Roles.SCREENING:
-                snapshots = snapshots.filter(exam__stage=Candidate.Roles.SCREENING)
-            elif user.candidate_profile.role == Candidate.Roles.LEAGUE:
-                snapshots = snapshots.filter(
-                    Q(exam__stage=Candidate.Roles.SCREENING)
-                    | Q(exam__stage=Candidate.Roles.LEAGUE)
-                )
-
-        exam_id = request.query_params.get("exam_id")
+                leaderboards_to_show = screening_lbs
+            else: # LEAGUE and other roles
+                leaderboards_to_show = screening_lbs + league_lbs
         
-        # If specific exam_id is requested - return leaderboard ENTRIES
-        if exam_id:
-            try:
-                exam = Exam.objects.get(pk=exam_id)
-            except Exam.DoesNotExist:
-                return Response(
-                    {"detail": "Exam not found. Leaderboard unavailable."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            
-            try:
-                snapshot = snapshots.get(exam_id=exam_id)
-            except LeaderboardSnapshot.DoesNotExist:
-                return Response(
-                    {"detail": "Leaderboard snapshot not found for this exam."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            
-            # Extract leaderboard entries - already serialized
-            leaderboard_data = snapshot.data
-            
-            exam_details = ExamListSerializer(exam).data
-            
-            # Paginate the leaderboard entries
-            paginator = self.pagination_class()
-            page = paginator.paginate_queryset(leaderboard_data, request, view=self)
-
-            if page is not None:
-                # Data is already serialized, just return it
-                response = paginator.get_paginated_response(page)
-                response.data["exam_details"] = exam_details
-                response.data["list"] = response.data.pop("results")
-                if "count" in response.data:
-                    del response.data["count"]
-                return response
-
-            # If pagination not applied (shouldn't happen)
-            return Response({"exam_details": exam_details, "list": leaderboard_data})
+        elif hasattr(user, "staff_profile"):
+            leaderboards_to_show = screening_lbs + league_lbs
         
-        # If no exam_id - return list of SNAPSHOTS (metadata only)
-        else:
-            snapshot_list = snapshots.order_by("-created_at")
-            
-            # Aggregate exam statistics
-            exam_details = Exam.objects.aggregate(
-                total_exams=Count("id"),
-                screening_exams=Count("id", filter=Q(stage=Exam.Stages.SCREENING)),
-                league_exams=Count("id", filter=Q(stage=Exam.Stages.LEAGUE)),
-            )
-            
-            # Paginate the queryset of snapshots
-            paginator = self.pagination_class()
-            page = paginator.paginate_queryset(snapshot_list, request, view=self)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(leaderboards_to_show, request, view=self)
 
-            if page is not None:
-                # Serialize the snapshot objects (not their data)
-                serializer = LeaderboardSnapshotListSerializer(page, many=True)
-                response = paginator.get_paginated_response(serializer.data)
-                response.data["exam_details"] = exam_details
-                response.data["list"] = response.data.pop("results")
-                if "count" in response.data:
-                    del response.data["count"]
-                return response
+        if page is not None:
+            response = paginator.get_paginated_response(page)
+            response.data["leaderboard_details"] = leaderboard_details
+            response.data["list"] = response.data.pop("results")
+            if "count" in response.data:
+                del response.data["count"]
+            return response
 
-            # If pagination not applied
-            serializer = LeaderboardSnapshotListSerializer(snapshot_list, many=True)
-            return Response({"exam_details": exam_details, "list": serializer.data})
+        # If pagination not applied
+        return Response(
+            {
+                "leaderboard_details": leaderboard_details,
+                "list": leaderboards_to_show
+            }
+        )

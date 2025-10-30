@@ -100,15 +100,18 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         questions_queryset = instance.questions.all()
 
         pool = questions_queryset.aggregate(
-            total_count=Count("id"),
+            total_count=Count(
+                "id",
+                filter=Q(is_archived=False),
+            ),
             hard_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.HARD)
+                "id", filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
             ),
             medium_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
+                "id", filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
             ),
             easy_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.EASY)
+                "id", filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
             ),
         )
 
