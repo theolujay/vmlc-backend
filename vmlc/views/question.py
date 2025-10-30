@@ -101,7 +101,6 @@ class QuestionListView(ListCreateAPIView):
             response = self.get_paginated_response(serializer.data)
             response.data["question_pool_data"] = question_pool_data
             response.data["list"] = response.data.pop("results")
-            del response.data["count"]
             return response
 
         serializer = self.get_serializer(queryset, many=True)

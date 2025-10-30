@@ -19,6 +19,7 @@ class ExamListSerializer(serializers.ModelSerializer):
 
     question_count = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    stage_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Exam
@@ -26,6 +27,8 @@ class ExamListSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "stage",
+            "level",
+            "stage_display",
             "created_at",
             "question_count",
             "scheduled_date",
@@ -41,6 +44,9 @@ class ExamListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return obj.status
+    
+    def get_stage_display(self, obj):
+        return obj.stage_display
 
 class ExamDetailSerializer(serializers.ModelSerializer):
     """
@@ -63,6 +69,8 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "stage",
+            "level",
+            "stage_display",
             "description",
             "created_at",
             "created_by",
@@ -90,6 +98,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return obj.status
+
+    def get_stage_display(self, obj):
+        return obj.stage_display
 
     def to_representation(self, instance):
         """

@@ -778,10 +778,6 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 150,
-  "total_pages": 8,
-  "next": "https://api.verboheit.org/v1/candidates/?page=2",
-  "previous": null,
   "results": [
     {
       "user": {
@@ -795,7 +791,17 @@ X-Api-Key: <your_api_key>
       "role": "league",
       "is_user_verified": true
     }
-  ]
+  ],
+  "pagination": {
+    "count": 150,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 8,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/candidates/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -997,10 +1003,6 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 10,
-  "total_pages": 1,
-  "next": null,
-  "previous": null,
   "results": [
     {
       "user": {
@@ -1014,7 +1016,17 @@ X-Api-Key: <your_api_key>
       "occupation": "Mathematics Teacher",
       "role": "moderator"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 10,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 1,
+    "has_next": false,
+    "has_previous": false,
+    "next": null,
+    "previous": null
+  }
 }
 ```
 
@@ -1127,18 +1139,27 @@ X-Api-Key: <your_api_key>
     "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
-  "total_pages": 2,
-  "next": "https://api.verboheit.org/v1/exams/?page=2",
-  "previous": null,
   "list": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "question_count": 20,
       "created_at": "2024-01-10T09:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 25,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 2,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/exams/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -1209,6 +1230,8 @@ X-Api-Key: <your_api_key>
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
@@ -1221,10 +1244,7 @@ X-Api-Key: <your_api_key>
         "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "count": 3,
-    "next": null,
-    "previous": null,
-    "results": [
+    "list": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -1235,7 +1255,17 @@ X-Api-Key: <your_api_key>
         "correct_answer": "B",
         "difficulty": "easy"
       }
-    ]
+    ],
+    "pagination": {
+        "count": 3,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
   },
   "created_by": {
     "user": {
@@ -1450,9 +1480,6 @@ The API provides CRUD operations for managing exam questions.
 **Response:** `200 OK`
 ```json
 {
-  "total_pages": 5,
-  "next": "https://api.verboheit.org/v1/questions/?page=2",
-  "previous": null,
   "question_pool_data": {
     "total_questions": 50,
     "hard_questions_count": 15,
@@ -1483,7 +1510,17 @@ The API provides CRUD operations for managing exam questions.
       "updated_at": "2024-01-10T09:00:00Z",
       "updated_by": null
     }
-  ]
+  ],
+  "pagination": {
+    "count": 50,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/questions/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -1884,13 +1921,17 @@ This response always includes the `top_three` performers separately and a pagina
     { "rank": 2, "candidate": { "...": "..." }, "score": 99.5, "percentage": 99.5 },
     { "rank": 3, "candidate": { "...": "..." }, "score": 99.0, "percentage": 99.0 }
   ],
-  "remaining_candidates": [
+  "results": [
     { "rank": 4, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 },
     { "rank": 5, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 }
   ],
   "pagination": {
     "count": 147,
-    "total_pages": 30,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 8,
+    "has_next": true,
+    "has_previous": false,
     "next": "http://localhost:8000/api/v1/leaderboard/?stage=screening&level=1&page=2&page_size=5",
     "previous": null
   }
@@ -1954,7 +1995,7 @@ This response includes exam information and a detailed breakdown of the candidat
       {
         "question_id": 1,
         "question_text": "What is the value of π (pi)?",
-        "correct_option": "d",
+        "correct_answer": "d",
         "selected_option": "d",
         "is_correct": true,
         "answered_at": "2024-10-30T09:00:15Z"
@@ -1962,7 +2003,7 @@ This response includes exam information and a detailed breakdown of the candidat
       {
         "question_id": 3,
         "question_text": "What is the formula for the area of a rectangle?",
-        "correct_option": "a",
+        "correct_answer": "a",
         "selected_option": "b",
         "is_correct": false,
         "answered_at": "2024-10-30T09:00:45Z"
