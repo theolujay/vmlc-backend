@@ -8,7 +8,7 @@ from .answer import (
 )
 from .auth import (
     VerifyEmailOTPSerializer,
-    ResendEmailOTPSerializer,
+    SendEmailOTPSerializer,
     RequestPasswordChangeSerializer,
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
@@ -69,7 +69,7 @@ __all__ = [
     "CandidateAnswerBulkSerializer",
     # auth
     "VerifyEmailOTPSerializer",
-    "ResendEmailOTPSerializer",
+    "SendEmailOTPSerializer",
     "RequestPasswordChangeSerializer",
     "PasswordChangeOTPConfirmSerializer",
     "PasswordChangeSerializer",
