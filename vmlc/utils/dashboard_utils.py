@@ -75,7 +75,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
 
     # Optimize available_exams
     available_exams_list = []
-    if candidate.is_verified:
+    if candidate.is_user_verified:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
@@ -135,7 +135,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "phone": candidate.user.phone,
             "school": candidate.school,
             "role": candidate.get_role_display(),
-            "is_verified": candidate.is_verified,
+            "is_user_verified": candidate.is_user_verified,
+            "is_email_verified": candidate.user.is_email_verified,
+            "is_active": candidate.user.is_active,
             "date_joined": candidate.created_at,
             # "face_id": (
             #     candidate.face_id.url if candidate.face_id else None
@@ -274,7 +276,9 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "email": staff.user.email,
         "role": staff.get_role_display(),
         "occupation": staff.occupation,
-        "is_verified": staff.is_verified,
+        "is_user_verified": staff.is_user_verified,
+        "is_email_verified": staff.user.is_email_verified,
+        "is_active": staff.user.is_active,
         "date_joined": staff.created_at,
         # "face_id": staff.face_id.url if staff.face_id else None,
     }

@@ -476,7 +476,7 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not candidate.is_verified:
+    if not candidate.is_user_verified:
         logger.warning(
             f"Unverified candidate {candidate.id} attempted to take exam {exam_id}"
         )

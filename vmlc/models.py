@@ -154,7 +154,7 @@ class UserVerification(models.Model):
         "User", on_delete=models.CASCADE, related_name="verification"
     )
     is_pending = models.BooleanField(default=False)
-    is_verified = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
     face_id = models.ImageField(
         upload_to="face_ids/",
@@ -306,11 +306,11 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             return None
 
     @property
-    def is_verified(self):
+    def is_user_verified(self):
         """Check if user has verification and is verified"""
         if self._verification_override is not None:
             return self._verification_override
-        return hasattr(self.user, "verification") and self.user.verification.is_verified
+        return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -660,11 +660,11 @@ class Candidate(models.Model):
             return None
 
     @property
-    def is_verified(self):
+    def is_user_verified(self):
         """Check if user has verification and is verified"""
         if self._verification_override is not None:
             return self._verification_override
-        return hasattr(self.user, "verification") and self.user.verification.is_verified
+        return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -755,7 +755,7 @@ class Candidate(models.Model):
 
         # available_exams
         available_exams_list = []
-        if self.is_verified:
+        if self.is_user_verified:
             all_relevant_exams = (
                 Exam.objects.filter(stage=self.role, is_active=True)
                 .annotate(question_count=Count("questions"))

@@ -24,7 +24,7 @@ class BroadcastTest(APITestCase):
             last_name='User',
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MANAGER)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
         self.client.force_authenticate(user=self.staff_user)
 
     def test_create_broadcast(self):

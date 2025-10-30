@@ -103,7 +103,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
-    list_filter = ["is_pending", "is_verified", "created_at"]
+    list_filter = ["is_pending", "is_approved", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     readonly_fields = ["created_at", "updated_at"]
     list_select_related = ("user",)
@@ -112,7 +112,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {"fields": ("user", "is_pending", "is_verified")}),
+        (None, {"fields": ("user", "is_pending", "is_approved")}),
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
@@ -123,7 +123,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     @admin.display(description="Status")
     def verification_status(self, obj):
         """Display verification status with color coding."""
-        if obj.is_verified:
+        if obj.is_approved:
             return format_html('<span style="color: green;">✓ Verified</span>')
         elif obj.is_pending:
             return format_html('<span style="color: orange;">⏳ Pending</span>')
@@ -145,13 +145,13 @@ class UserVerificationAdmin(admin.ModelAdmin):
     @admin.action(description="Approve selected verifications")
     def approve_selected(self, request, queryset):
         """Approve selected verification requests."""
-        count = queryset.update(is_verified=True, is_pending=False)
+        count = queryset.update(is_approved=True, is_pending=False)
         self.message_user(request, f"{count} verification(s) approved.")
 
     @admin.action(description="Reject selected verifications")
     def reject_selected(self, request, queryset):
         """Reject selected verification requests."""
-        count = queryset.update(is_verified=False, is_pending=False)
+        count = queryset.update(is_approved=False, is_pending=False)
         self.message_user(request, f"{count} verification(s) rejected.")
 
 
@@ -170,7 +170,7 @@ class CandidateAdmin(admin.ModelAdmin):
         "total_score_display",
         "get_primary_key",
         "exams_taken",
-        "is_verified",
+        "is_user_verified",
         "is_active",
         "created_at",
     )
@@ -179,7 +179,7 @@ class CandidateAdmin(admin.ModelAdmin):
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_verified",  # Filter by verification status
+        "user__verification__is_approved",  # Filter by verification status
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "school")
@@ -210,10 +210,10 @@ class CandidateAdmin(admin.ModelAdmin):
         return obj.pk
 
     @admin.display(
-        description="Verified", boolean=True, ordering="user__verification__is_verified"
+        description="Verified", boolean=True, ordering="user__verification__is_approved"
     )
-    def is_verified(self, obj):
-        return obj.is_verified
+    def is_user_verified(self, obj):
+        return obj.is_user_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):
@@ -237,7 +237,7 @@ class StaffAdmin(admin.ModelAdmin):
         "role",
         "occupation",
         "get_primary_key",
-        "is_verified",
+        "is_user_verified",
         "is_active",
         "created_at",
         "created_by",
@@ -247,7 +247,7 @@ class StaffAdmin(admin.ModelAdmin):
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_verified",  # Filter by verification status
+        "user__verification__is_approved",  # Filter by verification status
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "occupation")
@@ -267,10 +267,10 @@ class StaffAdmin(admin.ModelAdmin):
         return obj.pk
 
     @admin.display(
-        description="Verified", boolean=True, ordering="user__verification__is_verified"
+        description="Verified", boolean=True, ordering="user__verification__is_approved"
     )
-    def is_verified(self, obj):
-        return obj.is_verified
+    def is_user_verified(self, obj):
+        return obj.is_user_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):

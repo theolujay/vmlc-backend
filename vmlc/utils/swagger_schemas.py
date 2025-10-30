@@ -224,7 +224,7 @@ user_verification_list_response_schema = openapi.Schema(
 user_verification_action_request_body = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
-        'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        'is_approved': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'is_rejected': openapi.Schema(type=openapi.TYPE_BOOLEAN),
     }
 )
@@ -265,7 +265,7 @@ candidate_list_response_schema = openapi.Schema(
                     'user': openapi.Schema(type=openapi.TYPE_OBJECT),
                     'school': openapi.Schema(type=openapi.TYPE_STRING),
                     'role': openapi.Schema(type=openapi.TYPE_STRING),
-                    'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'is_user_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
                 }
             )
         )
@@ -280,7 +280,7 @@ candidate_detail_response_schema = openapi.Schema(
         'face_id': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'role': openapi.Schema(type=openapi.TYPE_STRING),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        'is_user_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'id_card': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'verification_document': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
@@ -574,7 +574,7 @@ staff_detail_response_schema = openapi.Schema(
         'face_id': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'role': openapi.Schema(type=openapi.TYPE_STRING),
         'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        'is_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        'is_user_verified': openapi.Schema(type=openapi.TYPE_BOOLEAN),
         'id_card': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'verification_document': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),

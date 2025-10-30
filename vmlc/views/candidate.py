@@ -238,7 +238,7 @@ class AssignCandidateRoleView(UpdateAPIView):
         """
         Update candidate role and log the action.
         """
-        if not serializer.instance.is_verified:
+        if not serializer.instance.is_user_verified:
             logger.warning(
                 f"Attempted to assign role to unverified candidate {serializer.instance.pk} by user {self.request.user.id}"
             )

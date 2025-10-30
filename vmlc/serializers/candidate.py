@@ -34,7 +34,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "user",
             "school",
             "role",
-            "is_verified",
+            "is_user_verified",
         ]
 
 
@@ -62,7 +62,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "face_id",
             "role",
             "is_active",
-            "is_verified",
+            "is_user_verified",
             "id_card",
             "verification_document",
             "created_at",

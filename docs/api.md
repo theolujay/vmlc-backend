@@ -276,7 +276,7 @@ Feature: Dashboards and permissions
   So that each role only sees and does what it should
 
   Scenario: Screening candidate dashboard access
-    Given a logged-in candidate with role "screening" and is_verified = true
+    Given a logged-in candidate with role "screening" and is_user_verified = true
     When they open their Dashboard
     Then they see: available screening exams, exam history, profile information
     And they do not see the leaderboard or league exams
@@ -435,7 +435,7 @@ Password-change:
     
 - `PATCH /user/verification/upload/` — update/resubmit verification docs. Any authenticated user. `200 OK`.
     
-- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_verified`, `is_rejected`. `200 OK`.
+- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_approved`, `is_rejected`. `200 OK`.
     
 - `POST /user/verification/action/{id}/` — approve/reject a verification (manager+). `200 OK`.
     
@@ -786,13 +786,14 @@ X-Api-Key: <your_api_key>
     {
       "user": {
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx"
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     }
   ]
 }
@@ -813,6 +814,7 @@ Authorization: Bearer <access-token>
     "user": {
         "id": "17914269-19b2-43f6-aa7e-81e59330df2f",
         "email": "candidate100@mail.com",
+        "is_email_verified": true,
         "first_name": "Robert",
         "last_name": "Parker",
         "phone": "08112463722",
@@ -822,7 +824,7 @@ Authorization: Bearer <access-token>
     "face_id": null,
     "role": "league",
     "is_active": true,
-    "is_verified": false,
+    "is_user_verified": false,
     "id_card": null,
     "verification_document": null,
     "created_at": "2025-10-15T11:39:51.353736+01:00",
@@ -931,6 +933,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx",
@@ -938,7 +941,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     },
     "exam": {
       "id": 1,
@@ -1029,6 +1032,7 @@ X-Api-Key: <your_api_key>
   "user": {
     "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "jane@example.com",
+    "is_email_verified": true,
     "first_name": "Jane",
     "last_name": "Smith",
     "phone": "+23490xxxxxxxx",
@@ -1038,7 +1042,7 @@ X-Api-Key: <your_api_key>
   "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",
   "is_active": true,
-  "is_verified": true,
+  "is_user_verified": true,
   "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
   "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
   "created_at": "2024-01-01T08:00:00Z",
@@ -1339,7 +1343,7 @@ Allows an eligible and verified candidate to retrieve the questions for a specif
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** Authenticated `candidate` with `is_verified=true` and `role` matching `exam.stage`.  
+**Required Role:** Authenticated `candidate` with `is_user_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
 ```json
 {
@@ -1660,7 +1664,9 @@ X-Api-Key: <your_api_key>
     "phone": "+23490xxxxxxxx",
     "school": "Real Harvard Law",
     "role": "Screening",
-    "is_verified": false,
+    "is_user_verified": false,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-15T10:30:00Z"
   },
   "exam_stats": {
@@ -1714,7 +1720,9 @@ X-Api-Key: <your_api_key>
     "email": "emmaob@gmail.com",
     "role": "Moderator",
     "occupation": "Automation Engineer",
-    "is_verified": true,
+    "is_user_verified": true,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-01T08:00:00Z"
   },
   "candidates": {
@@ -1932,7 +1940,7 @@ The API returns a consistent JSON object with a `status` field that indicates th
       "detail": "Verification request is pending review.",
       "verification_data": {
           "is_pending": true,
-          "is_verified": false,
+          "is_approved": false,
           "is_rejected": false,
           "created_at": "2025-09-01T10:00:00Z",
           "updated_at": "2025-09-01T10:00:00Z",
@@ -2047,7 +2055,7 @@ X-Api-Key: <your_api_key>
         "full_name": "John Doe",
         "email": "john@example.com",
         "is_pending": true,
-        "is_verified": false,
+        "is_approved": false,
         "is_rejected": false,
         "has_face_id": true,
         "has_id_card": true,
@@ -2077,7 +2085,7 @@ X-Api-Key: <your_api_key>
 To approve a user:
 ```json
 {
-    "is_verified": true
+    "is_approved": true
 }
 ```
 To reject a user:
@@ -2121,6 +2129,7 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "john@example.com",
+      "is_email_verified": true,
       "first_name": "John",
       "last_name": "Doe",
       "phone": "+23490xxxxxxxx",
@@ -2130,7 +2139,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-15T10:30:00Z",
@@ -2169,6 +2178,7 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "jane@example.com",
+      "is_email_verified": true,
       "first_name": "Jane",
       "last_name": "Smith",
       "phone": "+23490xxxxxxxx",
@@ -2178,7 +2188,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
     "role": "moderator",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-01T08:00:00Z",
@@ -2218,6 +2228,7 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "john@example.com",
+      "is_email_verified": true,
       "first_name": "Jonathan",
       "last_name": "Doe",
       "phone": "+23490xxxxxxxx",
@@ -2227,7 +2238,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-15T10:30:00Z",
@@ -2412,7 +2423,7 @@ X-Api-Key: <your_api_key>
 | `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `moderate`, `hard`) |
 | `/questions/` | `created_by` | uuid | Filter by the UUID of the staff member who created the question |
 | `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
-| `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
+| `/user/verification/list/` | `is_approved` | boolean | Filter by verified status |
 | `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
 
 #### Date Filtering
@@ -2554,6 +2565,13 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-10-30**
+  - **User/profile data**
+    - Profile object (e.g. candiate) `is_verified` field is renamed to `is_user_verified`.
+    - User object (e.g. candidate.user) now contains `is_email_verified` field accros endpoints.
+  - **User verification**
+    - `is_verified` is now renamed to `is_approved`. E.g. Manager approves user verification: `"is_approved": true` | `"is_rejected": true`
 
 - **2025-10-29**
   - **Leaderboard**

@@ -2017,7 +2017,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"is_verified\": true\n}",
+									"raw": "{\n    \"is_approved\": true\n}",
 									"options": {
 										"raw": {
 											"language": "json"

@@ -78,7 +78,7 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_verified=random.choice([True, False]),
+                is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
                 is_rejected=random.choice([True, False])
             )
@@ -103,7 +103,7 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_verified=random.choice([True, False]),
+                is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
                 is_rejected=random.choice([True, False])
             )

@@ -129,7 +129,7 @@ class LoadLeaderboardView(APIView):
 
         # Filter based on candidate role
         if hasattr(user, "candidate_profile"):
-            if not user.candidate_profile.is_verified:
+            if not user.candidate_profile.is_user_verified:
                 return Response(
                     {"detail": "Candidate must be verified to view the leaderboard."},
                     status=status.HTTP_403_FORBIDDEN,
