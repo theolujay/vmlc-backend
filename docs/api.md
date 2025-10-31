@@ -193,8 +193,6 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | **`volunteer`** | • View their own profile.<br>• Submit their own documents for verification. | • `GET /staff/me/`<br>• `GET /user/verification/status/`<br>• `POST/PATCH /user/verification/upload/` |
 | **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
 | **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
-| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
-| **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
 | **`superadmin`** | • Can assign any staff role (except `superadmin`).<br>• Has full platform control inheriting all permissions. | *(Inherits all `manager` endpoints with zero restrictions)* |
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
 
@@ -1246,7 +1244,7 @@ X-Api-Key: <your_api_key>
         "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "list": [
+    "results": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -1488,7 +1486,7 @@ The API provides CRUD operations for managing exam questions.
     "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
-  "list": [
+  "results": [
     {
       "id": 1,
       "text": "What is 5 × 5?",
@@ -1810,10 +1808,10 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
+<!-- 
+### Scoring & Submissions
 
-<!-- ### Scoring & Submissions -->
-
-<!-- #### Publish Scores
+#### Publish Scores
 
 This endpoint works in hand with the scores displayed in candidates' dashboards. Candidates only see last "published scores" and only see the latest (i.e. exams they recently took) after it's **published** via this endpoint.
 
