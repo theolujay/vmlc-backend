@@ -118,7 +118,7 @@ class ExamListView(ListCreateAPIView):
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
             response.data["question_pool_data"] = question_pool_data
-            response.data["list"] = response.data.pop("results")
+            response.data["results"] = response.data.pop("results")
             return response
 
         serializer = self.get_serializer(queryset, many=True)

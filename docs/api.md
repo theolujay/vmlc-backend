@@ -1139,7 +1139,7 @@ X-Api-Key: <your_api_key>
     "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
-  "list": [
+  "results": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
@@ -1840,7 +1840,7 @@ The leaderboard system provides detailed performance rankings across different c
 #### 1. Publish Leaderboard
 Triggers an asynchronous task to generate and publish a new leaderboard snapshot. This should be done after an exam concludes and all scores are finalized.
 
-**Endpoint:** `POST /api/v1/leaderboard/publish/`
+**Endpoint:** `POST /leaderboard/publish/`
 **Required Role:** `admin` or higher
 **Request Body:**
 This endpoint does not require a request body. It automatically finds all concluded, active exams and generates leaderboards for them.
@@ -1850,8 +1850,7 @@ This endpoint does not require a request body. It automatically finds all conclu
 **Response:** `202 Accepted`
 ```json
 {
-  "message": "Leaderboard generation has been started and will be available shortly.",
-  "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+  "message": "Leaderboard generation has been started and will be available shortly."
 }
 ```
 
@@ -1863,7 +1862,7 @@ This is the primary endpoint for all frontend leaderboard functionality. It has 
 **A. Summary Mode (No Query Parameters)**
 Returns a list of all available leaderboards that the current user is permitted to see. Ideal for dynamically populating UI tabs.
 
-**Endpoint:** `GET /api/v1/leaderboard/`
+**Endpoint:** `GET /leaderboard/`
 **Required Role:** Any verified user (`candidate` or `staff`)
 
 **Response (200 OK):**
@@ -1896,7 +1895,7 @@ Returns a list of all available leaderboards that the current user is permitted 
 **B. Detail Mode (With Query Parameters)**
 Returns the detailed, paginated rankings for a specific leaderboard, identified by `stage` and `level`.
 
-**Endpoint:** `GET /api/v1/leaderboard/?stage=<stage>&level=<level>`
+**Endpoint:** `GET /leaderboard/?stage=<stage>&level=<level>`
 **Required Role:** Any verified user (`candidate` or `staff`)
 
 **Query Parameters:**
@@ -1909,19 +1908,21 @@ Returns the detailed, paginated rankings for a specific leaderboard, identified 
 This response always includes the `top_three` performers separately and a paginated list of `remaining_candidates`.
 ```json
 {
-  "exam_id": 123,
-  "exam_title": "Screening Exam 2024 - Basic Mathematics",
-  "stage": "screening",
-  "level": 1,
-  "stage_display": "screening_1",
-  "total_candidates": 150,
-  "average_score": 78.5,
+  "exam_details": {
+    "id": 123,
+    "title": "Screening Exam 2024 - Basic Mathematics",
+    "stage": "screening",
+    "level": 1,
+    "stage_display": "screening_1",
+    "total_candidates": 150,
+    "average_score": 78.5
+  },
   "top_three": [
     { "rank": 1, "candidate": { "...": "..." }, "score": 100.0, "percentage": 100.0 },
     { "rank": 2, "candidate": { "...": "..." }, "score": 99.5, "percentage": 99.5 },
     { "rank": 3, "candidate": { "...": "..." }, "score": 99.0, "percentage": 99.0 }
   ],
-  "results": [
+  "remaining_candidates": [
     { "rank": 4, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 },
     { "rank": 5, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 }
   ],
@@ -1937,8 +1938,10 @@ This response always includes the `top_three` performers separately and a pagina
   }
 }
 ```
+*Note: The `submissions` field is removed from candidate objects in this view for brevity.*
+```
 
-**Common Error Responses for `LoadLeaderboardView`:**
+**Common Error Responses**:
 - **404 Not Found:** If no published leaderboard exists at all, or if the requested `stage` and `level` do not exist.
   ```json
   { "detail": "No published leaderboard found." }
@@ -1957,7 +1960,7 @@ This response always includes the `top_three` performers separately and a pagina
 #### 3. Load Candidate Detail (`LoadLeaderboardDetailView`)
 Retrieves the complete and detailed performance of a single candidate for a specific exam. This is the view used when a user clicks on a candidate's name in the leaderboard.
 
-**Endpoint:** `GET /api/v1/leaderboard/<stage>/<level>/candidate/<candidate_id>/`
+**Endpoint:** `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/`
 **Required Role:**
 - `staff` and `league` candidates can view any candidate's detail.
 - `screening` candidates can only view their own detail.
@@ -2697,9 +2700,35 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-10-31**
+  - **Exam**:
+    - Contains new fields `level` and `stage_display`.
+      - Should be used in "Upload Exam" or "Edit Exams".
+      - `level` defaults to `1` if not provided.
+      - Use case:
+        *Leaderboard*
+        - Paired with stage to give `stage_display`.
+        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+  - **Pagination**:
+    - Now contains more information, such as `has_previous`.
+    - Is better structured and puts into a new `"pagination"` field for each paginated response.
+  - **API consistency**:
+    - Standardized list responses to use the `results` key instead of `list` in the `GET /questions/` and `GET /exams/` endpoints.
+  - **Leaderboard**
+    - `POST /publish-leaderboard/`:
+      - Now `POST /leaderboard/publish/` and requires no response body.
+    - `GET /load-leaderboard/`:
+      - Now `GET /leaderboard/`
+      - Lists available leaderboards.
+      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - Includes `exam_details`, `top_three`, and `remaining_candidates`.
+      - Paginated.
+    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - Cached for 6 hours.
+
 - **2025-10-30**
   - **User/profile data**
-    - Profile object (e.g. candiate) `is_verified` field is renamed to `is_user_verified`.
+    - Profile object (e.g. candidate) `is_verified` field is renamed to `is_user_verified`.
     - User object (e.g. candidate.user) now contains `is_email_verified` field accros endpoints.
   - **User verification**
     - `is_verified` is now renamed to `is_approved`. E.g. Manager approves user verification: `"is_approved": true` | `"is_rejected": true`

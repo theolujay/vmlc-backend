@@ -2,6 +2,7 @@ import logging
 import uuid
 from collections import OrderedDict
 
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -99,20 +100,35 @@ class LoadLeaderboardView(APIView):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
         user = request.user
 
-        # Get the most recent published snapshot
-        latest_snapshot = LeaderboardSnapshot.objects.filter(
-            is_published=True
-        ).order_by("-created_at").first()
-        
+        requested_stage = request.query_params.get("stage")
+        requested_level = request.query_params.get("level")
+        paginator = self.pagination_class()
+        page = request.query_params.get(paginator.page_query_param, 1)
+
+        user_role_key = "staff"
+        if hasattr(user, "candidate_profile"):
+            user_role_key = f"candidate_{user.candidate_profile.role}_{user.candidate_profile.is_user_verified}"
+
+        latest_snapshot = (
+            LeaderboardSnapshot.objects.filter(is_published=True)
+            .order_by("-created_at")
+            .first()
+        )
+
         if latest_snapshot is None:
             return Response(
                 {"detail": "No published leaderboard found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
+        cache_key = f"leaderboard_view_{latest_snapshot.id}_{user_role_key}_{requested_stage or 'all'}_{requested_level or 'all'}_{page}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached leaderboard data for key: {cache_key}")
+            return Response(cached_data)
+
         all_leaderboards = latest_snapshot.data
-        
-        # Check if user has permission to view leaderboards
+
         if hasattr(user, "candidate_profile"):
             if not user.candidate_profile.is_user_verified:
                 return Response(
@@ -120,93 +136,106 @@ class LoadLeaderboardView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        # Filter based on query parameters
-        requested_stage = request.query_params.get('stage')
-        requested_level = request.query_params.get('level')
-        
-        # If specific stage and level requested, return that leaderboard
         if requested_stage and requested_level:
             leaderboard_key = f"{requested_stage}_{requested_level}"
-            
+
             if leaderboard_key not in all_leaderboards:
                 return Response(
-                    {"detail": f"No leaderboard found for {requested_stage} level {requested_level}"},
-                    status=status.HTTP_404_NOT_FOUND
+                    {
+                        "detail": f"No leaderboard found for {requested_stage} level {requested_level}"
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-            
+
             leaderboard_data = all_leaderboards[leaderboard_key]
-            
-            # Apply role-based access control
+
             if hasattr(user, "candidate_profile"):
                 candidate = user.candidate_profile
-                
-                if candidate.role == Candidate.Roles.SCREENING and requested_stage != "screening":
+
+                if (
+                    candidate.role == Candidate.Roles.SCREENING
+                    and requested_stage != "screening"
+                ):
                     return Response(
                         {"detail": "You can only view screening leaderboards."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
-            
-            # Split entries into top 3 and remaining
+
             entries = leaderboard_data.get("entries", [])
+            for entry in entries:
+                entry["candidate"].pop("submissions", None)
             top_three = entries[:3] if len(entries) >= 3 else entries
             remaining = entries[3:] if len(entries) > 3 else []
-            
-            # Use the global pagination class to paginate remaining candidates
-            paginator = self.pagination_class()
-            paginated_remaining = paginator.paginate_queryset(remaining, request, view=self)
-            
-            # Get pagination data (without Response wrapper)
-            pagination_data = paginator.get_paginated_response_data(paginated_remaining)
-            
-            # Build custom response with exam info + top_three + paginated remaining
-            return Response(OrderedDict([
-                ("exam_id", leaderboard_data.get("exam_id")),
-                ("exam_title", leaderboard_data.get("exam_title")),
-                ("stage", leaderboard_data.get("stage")),
-                ("level", leaderboard_data.get("level")),
-                ("stage_display", leaderboard_data.get("stage_display")),
-                ("total_candidates", leaderboard_data.get("total_candidates")),
-                ("average_score", leaderboard_data.get("average_score")),
-                ("top_three", top_three),
-                ("remaining_candidates", pagination_data["results"]),
-                ("pagination", pagination_data["pagination"]),
-            ]))
-        
-        # No specific leaderboard requested - return summary
+
+            exam_details = {
+                "id": leaderboard_data.get("exam_id"),
+                "title": leaderboard_data.get("exam_title"),
+                "stage": leaderboard_data.get("stage"),
+                "level": leaderboard_data.get("level"),
+                "scheduled_date": leaderboard_data.get("scheduled_date"),
+                "concluded_at": leaderboard_data.get("concluded_at"),
+                "total_questions": leaderboard_data.get("total_questions"),
+                "total_candidates": leaderboard_data.get("total_candidates"),
+                "average_score": leaderboard_data.get("average_score"),
+            }
+
+            paginated_remaining = paginator.paginate_queryset(
+                remaining, request, view=self
+            )
+
+            pagination_data = paginator.get_paginated_response_data(
+                paginated_remaining
+            )
+
+            response_data = OrderedDict(
+                [
+                    ("exam_details", exam_details),
+                    ("top_three", top_three),
+                    ("remaining_candidates", pagination_data["results"]),
+                    ("pagination", pagination_data["pagination"]),
+                ]
+            )
+            cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+            return Response(response_data)
+
         accessible_leaderboards = {}
-        
+
         if hasattr(user, "candidate_profile"):
             candidate = user.candidate_profile
-            
+
             if candidate.role == Candidate.Roles.SCREENING:
                 accessible_leaderboards = {
-                    key: value for key, value in all_leaderboards.items() 
+                    key: value
+                    for key, value in all_leaderboards.items()
                     if key.startswith("screening_")
                 }
             else:
                 accessible_leaderboards = all_leaderboards
         elif hasattr(user, "staff_profile"):
             accessible_leaderboards = all_leaderboards
-        
-        # Build summary
+
         leaderboards_summary = []
         for key in sorted(accessible_leaderboards.keys()):
             lb = accessible_leaderboards[key]
             if isinstance(lb, dict):
-                leaderboards_summary.append({
-                    "stage": lb.get("stage"),
-                    "level": lb.get("level"),
-                    "stage_display": key,
-                    "exam_title": lb.get("exam_title"),
-                    "total_candidates": lb.get("total_candidates"),
-                    "average_score": lb.get("average_score"),
-                })
-        
-        return Response({
+                leaderboards_summary.append(
+                    {
+                        "stage": lb.get("stage"),
+                        "level": lb.get("level"),
+                        "stage_display": key,
+                        "exam_title": lb.get("exam_title"),
+                        "total_candidates": lb.get("total_candidates"),
+                        "average_score": lb.get("average_score"),
+                    }
+                )
+
+        response_data = {
             "snapshot_id": latest_snapshot.id,
             "published_at": latest_snapshot.created_at.isoformat(),
-            "available_leaderboards": leaderboards_summary
-        })
+            "available_leaderboards": leaderboards_summary,
+        }
+        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        return Response(response_data)
     
 class LoadLeaderboardDetailView(APIView):
     """
@@ -218,61 +247,78 @@ class LoadLeaderboardDetailView(APIView):
     
     permission_classes = VerifiedModeratorPermissions or CandidatePermissions
     
-    def get(self, request: Request, stage: str, level: int, candidate_id: uuid):
-        # Get latest snapshot
-        latest_snapshot = LeaderboardSnapshot.objects.filter(
-            is_published=True
-        ).order_by("-created_at").first()
-        
+    def get(self, request: Request, stage: str, level: int, candidate_id: int):
+        user = request.user
+        user_role_key = "staff"
+        if hasattr(user, "candidate_profile"):
+            user_role_key = f"candidate_{user.candidate_profile.role}"
+
+        latest_snapshot = (
+            LeaderboardSnapshot.objects.filter(is_published=True)
+            .order_by("-created_at")
+            .first()
+        )
+
         if not latest_snapshot:
             return Response(
                 {"detail": "No published leaderboard found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
-        # Build the leaderboard key
+
+        cache_key = f"leaderboard_detail_{latest_snapshot.id}_{stage}_{level}_{candidate_id}_{user_role_key}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached leaderboard detail for key: {cache_key}")
+            return Response(cached_data)
+
         leaderboard_key = f"{stage}_{level}"
-        
+
         if leaderboard_key not in latest_snapshot.data:
             return Response(
                 {"detail": f"No leaderboard found for {stage} level {level}"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         leaderboard = latest_snapshot.data[leaderboard_key]
         entries = leaderboard.get("entries", [])
-        
-        # Find the candidate in the entries
+
         candidate_entry = next(
-            (entry for entry in entries 
-             if entry["candidate"]["id"] == candidate_id),
-            None
+            (
+                entry
+                for entry in entries
+                if entry["candidate"]["id"] == candidate_id
+            ),
+            None,
         )
-        
+
         if not candidate_entry:
             return Response(
                 {"detail": "Candidate not found in this leaderboard"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
-        # Apply permission check
+
         if hasattr(request.user, "candidate_profile"):
-            # Candidates can only view their own details or if they're in league stage
             if request.user.candidate_profile.role == Candidate.Roles.SCREENING:
                 if request.user.candidate_profile.id != candidate_id:
                     return Response(
                         {"detail": "You can only view your own performance."},
-                        status=status.HTTP_403_FORBIDDEN
+                        status=status.HTTP_403_FORBIDDEN,
                     )
-        
-        # Return full candidate details including submissions
-        return Response({
-            "exam_info": {
-                "exam_id": leaderboard.get("exam_id"),
-                "exam_title": leaderboard.get("exam_title"),
-                "stage": leaderboard.get("stage"),
-                "level": leaderboard.get("level"),
-                "total_questions": leaderboard.get("total_questions"),
-            },
-            "candidate_performance": candidate_entry
-        })
+        exam_details = {
+            "id": leaderboard.get("exam_id"),
+            "title": leaderboard.get("exam_title"),
+            "stage": leaderboard.get("stage"),
+            "level": leaderboard.get("level"),
+            "scheduled_date": leaderboard.get("scheduled_date"),
+            "concluded_at": leaderboard.get("concluded_at"),
+            "total_questions": leaderboard.get("total_questions"),
+            "total_candidates": leaderboard.get("total_candidates"),
+            "average_score": leaderboard.get("average_score"),
+        }
+
+        response_data = {
+            "exam_details": exam_details,
+            "candidate_performance": candidate_entry,
+        }
+        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        return Response(response_data)
