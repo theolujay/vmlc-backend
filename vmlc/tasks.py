@@ -197,9 +197,9 @@ def generate_leaderboard_snapshot_task(staff_id=None):
                     "option_b": answer.question.option_b,
                     "option_c": answer.question.option_c,
                     "option_d": answer.question.option_d,
-                    "correct_option": answer.question.correct_option,  # Include correct answer
+                    "correct_answer": answer.question.correct_answer,
                     "selected_option": answer.selected_option,
-                    "is_correct": answer.selected_option == answer.question.correct_option,
+                    "is_correct": answer.selected_option == answer.question.correct_answer,
                     "answered_at": answer.answered_at.isoformat(),
                 })
             

@@ -1160,18 +1160,27 @@ X-Api-Key: <your_api_key>
     "moderate_questions_count": 20,
     "easy_questions_count": 15
   },
-  "total_pages": 2,
-  "next": "https://api.verboheit.org/v1/exams/?page=2",
-  "previous": null,
-  "list": [
+  "results": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "question_count": 20,
       "created_at": "2024-01-10T09:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 25,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 2,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/exams/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -1242,6 +1251,8 @@ X-Api-Key: <your_api_key>
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
@@ -1254,10 +1265,7 @@ X-Api-Key: <your_api_key>
         "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "count": 3,
-    "next": null,
-    "previous": null,
-    "results": [
+    "list": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -1268,7 +1276,17 @@ X-Api-Key: <your_api_key>
         "correct_answer": "B",
         "difficulty": "easy"
       }
-    ]
+    ],
+    "pagination": {
+        "count": 3,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
   },
   "created_by": {
     "user": {
@@ -1483,9 +1501,6 @@ The API provides CRUD operations for managing exam questions.
 **Response:** `200 OK`
 ```json
 {
-  "total_pages": 5,
-  "next": "https://api.verboheit.org/v1/questions/?page=2",
-  "previous": null,
   "question_pool_data": {
     "total_questions": 50,
     "hard_questions_count": 15,
@@ -1516,7 +1531,17 @@ The API provides CRUD operations for managing exam questions.
       "updated_at": "2024-01-10T09:00:00Z",
       "updated_by": null
     }
-  ]
+  ],
+  "pagination": {
+    "count": 50,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/questions/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -2688,9 +2713,37 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+## Changelog
+
+- **2025-10-31**
+  - **Exam**:
+    - Contains new fields `level` and `stage_display`.
+      - Should be used in "Upload Exam" or "Edit Exams".
+      - `level` defaults to `1` if not provided.
+      - Use case:
+        *Leaderboard*
+        - Paired with stage to give `stage_display`.
+        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+  - **Pagination**:
+    - Now contains more information, such as `has_previous`.
+    - Is better structured and puts into a new `"pagination"` field for each paginated response.
+  - **API consistency**:
+    - Standardized list responses to use the `results` key instead of `list` in the `GET /questions/` and `GET /exams/` endpoints.
+  - **Leaderboard**
+    - `POST /publish-leaderboard/`:
+      - Now `POST /leaderboard/publish/` and requires no response body.
+    - `GET /load-leaderboard/`:
+      - Now `GET /leaderboard/`
+      - Lists available leaderboards.
+      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - Includes `exam_details`, `top_three`, and `remaining_candidates`.
+      - Paginated.
+    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - Cached for 6 hours.
+
 - **2025-10-30**
   - **User/profile data**
-    - Profile object (e.g. candiate) `is_verified` field is renamed to `is_user_verified`.
+    - Profile object (e.g. candidate) `is_verified` field is renamed to `is_user_verified`.
     - User object (e.g. candidate.user) now contains `is_email_verified` field accros endpoints.
   - **User verification**
     - `is_verified` is now renamed to `is_approved`. E.g. Manager approves user verification: `"is_approved": true` | `"is_rejected": true`
@@ -2698,16 +2751,13 @@ For technical support, API key requests, or questions:
 - **2025-10-29**
   - **Leaderboard**
     - *Breaking Change:* Modified the leaderboard generation and retrieval process.
-      - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
-      - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
-        - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
-        - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
+        - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+        - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
+            - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
+            - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
     - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
   - **Exams**
     - `GET /exams/{exam_id}/` is now paginated.
-
-- **2025-10-29**
-  - "exam_date" has been renamed to "scheduled_date" across all endpoints.
 
 - **2025-10-28**
   - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
@@ -2716,22 +2766,19 @@ For technical support, API key requests, or questions:
     - This allows the email to be used for registration again.
     - This feature does not apply to candidate registrations.
   - Questions difficulty `medium` is renamed to `moderate`.
-  
-### Fri, 24th of Oct, 2025
 
-- **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
-- **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
-- **Question Management**:
+### Fri, 24th of Oct, 2025
+  - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
+  - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
+  - **Question Management**: 
     Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
 
     Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
 
 ### Tue, 22nd of Oct, 2025
-
 - **Staff**: Added `POST /staff/invite/` endpoint.
 
 ### Wed, 15th of Oct, 2025
-
 - **API**: Updated the response for `GET /questions/` to include a `meta` object with question counts by difficulty and pagination links. The question list is now under the `list` key.
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
 - **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
@@ -2740,23 +2787,18 @@ For technical support, API key requests, or questions:
 - **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4
-
 - **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.
 - **API Docs**: Corrected permissions for several endpoints to match the codebase.
 - **API Docs**: Corrected the response payload for the `GET /candidates/{candidate_id}/` endpoint.
-
 ### Version 0.3.3
-
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
 - **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
 
 ### Version 0.3.2
-
 - **Registration**: Now takes flat rather than nested structure.
 - **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.
 
 ### Version 0.3.0
-
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
@@ -2764,17 +2806,16 @@ For technical support, API key requests, or questions:
 - **RBAC**: Only `manager` and `superadmin` can view staff details.
 
 ### Version 0.2.0
-
 - **Base URL** is now `https://api.verboheit.org/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 
 ### Version 0.1.0
-
 - Initial API release
 - Complete user management system
 - Exam administration features
 - Leaderboard functionality
 - Role-based access control
 
-*Last Updated: October 2025*
+_Last Updated: October 2025_
+
 </details>
