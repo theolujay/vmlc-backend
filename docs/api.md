@@ -2727,6 +2727,9 @@ For technical support, API key requests, or questions:
       - Paginated.
     - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
     - Cached for 6 hours.
+  - **OTP**:
+    - `POST /resend-email-otp/`:
+      - Now `POST /send-email-otp/` and accepts a `"resend"` field.
 
 - **2025-10-30**
   - **User/profile data**
