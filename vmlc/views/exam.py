@@ -1,9 +1,10 @@
 import logging
 
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.settings import api_settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.generics import (
@@ -12,12 +13,12 @@ from rest_framework.generics import (
     ListCreateAPIView,
 )
 
-from ..models import Exam, CandidateScore, Candidate
+from ..models import Exam, CandidateScore, Candidate, Question
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
     ExamResultSerializer,
-    QuestionDetailSerializer,
+    QuestionListSerializer,
     CandidateExamSerializer,
     CandidateExamScoreSerializer,
 )
@@ -84,11 +85,45 @@ class ExamListView(ListCreateAPIView):
     - GET: Returns a list of all exams.
     - POST: Creates a new exam with detailed input data.
     """
-
+    
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     permission_classes = VerifiedAdminPermissions
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
 
+        question_pool_data = Question.objects.aggregate(
+            total_questions=Count(
+                "id",
+                filter=Q(is_archived=False)
+            ),
+            hard_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
+            ),
+            moderate_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
+            ),
+            easy_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
+            ),
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["question_pool_data"] = question_pool_data
+            response.data["results"] = response.data.pop("results")
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"question_pool_data": question_pool_data, "list": serializer.data})
+    
     def get_serializer_class(self):
         """
         Returns the appropriate serializer class based on the HTTP method.
@@ -200,6 +235,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get_queryset(self):
         """
@@ -215,6 +251,60 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
             .prefetch_related("questions")
         )
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        questions_qs = instance.questions.filter(is_archived=False)
+
+        # Calculate question_pool_data for the current exam's questions
+        question_pool_data = questions_qs.aggregate(
+            total_questions=Count(
+                "id",
+                filter=Q(is_archived=False)
+            ),
+            hard_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
+            ),
+            moderate_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
+            ),
+            easy_questions_count=Count(
+                "id",
+                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
+            ),
+        )
+
+        page = self.paginate_queryset(questions_qs)
+        question_serializer = QuestionListSerializer(
+            page if page is not None else questions_qs,
+            many=True,
+            context={"request": request},
+        )
+
+        if page is not None:
+            paginated_questions_response_data = self.get_paginated_response(
+                question_serializer.data
+            ).data
+            # Add question_pool_data to the paginated response
+            paginated_questions_response_data["question_pool_data"] = question_pool_data
+            data["questions"] = paginated_questions_response_data
+        else:
+            # If not paginated, just add question_pool_data to the questions list
+            questions_data = question_serializer.data
+            data["questions"] = {
+                "question_pool_data": question_pool_data,
+                "results": questions_data,
+                "count": len(questions_data),
+                "next": None,
+                "previous": None,
+            }
+            
+        return Response(data)
+
     def perform_update(self, serializer):
         """
         Saves the staff member who updated the exam
@@ -223,8 +313,6 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
-
-    # `perform_destroy` is handled by the parent class, no need to override.
 
 
 @method_decorator(
@@ -297,7 +385,7 @@ class ExamQuestionsView(ListAPIView):
     """
 
     permission_classes = VerifiedAdminPermissions
-    serializer_class = QuestionDetailSerializer
+    serializer_class = QuestionListSerializer
 
     def get_queryset(self):
         """
@@ -314,7 +402,7 @@ class ExamQuestionsView(ListAPIView):
         except Exam.DoesNotExist:
             logger.error(f"Exam with id {exam_id} not found.")
             raise NotFound("Exam not found.")
-        return exam.questions.filter(is_active=True)
+        return exam.questions.filter(is_archived=False)
 
 
 @method_decorator(
@@ -393,7 +481,7 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not candidate.is_verified:
+    if not candidate.is_user_verified:
         logger.warning(
             f"Unverified candidate {candidate.id} attempted to take exam {exam_id}"
         )

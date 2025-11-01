@@ -179,8 +179,8 @@ This table provides a detailed breakdown of each user role, its key abilities on
 
 | Role | Key Abilities (What they can do) | Accessible API Endpoints |
 |------|-----------------------------------|--------------------------|
-| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/` |
-| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
+| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /load-leaderboard/` (for screening exams) |
+| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
 | **`final`** | • All `league` abilities.<br>• Access to (offline) final-stage exams. | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`) |
 | **`winner`** | • Ceremonial role with all candidate permissions. Registered winner of the final stage. | • All `final` endpoints. |
 
@@ -191,8 +191,7 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | Role | Key Abilities (What they can do) | Newly Accessible API Endpoints (in addition to lower roles) |
 |------|-----------------------------------|-------------------------------------------------------------|
 | **`volunteer`** | • View their own profile.<br>• Submit their own documents for verification. | • `GET /staff/me/`<br>• `GET /user/verification/status/`<br>• `POST/PATCH /user/verification/upload/` |
-| **`moderator`** | • View lists of all candidates.<br>• Create, Read, Update, and Delete questions. | • `GET /candidates/`<br>• `GET /staff/`<br>• `GET/POST /questions/`<br>• `GET/PUT/PATCH/DELETE /questions/{id}/` |
-| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish and control leaderboard visibility. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/`<br>• `POST /toggle-leaderboard/` |
+| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
 | **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
 | **`superadmin`** | • Can assign any staff role (except `superadmin`).<br>• Has full platform control inheriting all permissions. | *(Inherits all `manager` endpoints with zero restrictions)* |
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
@@ -275,7 +274,7 @@ Feature: Dashboards and permissions
   So that each role only sees and does what it should
 
   Scenario: Screening candidate dashboard access
-    Given a logged-in candidate with role "screening" and is_verified = true
+    Given a logged-in candidate with role "screening" and is_user_verified = true
     When they open their Dashboard
     Then they see: available screening exams, exam history, profile information
     And they do not see the leaderboard or league exams
@@ -369,7 +368,7 @@ Feature: Dashboards and permissions
 
 - `POST /verify-email-otp/` — verify registration OTP. Request: `{ email, otp }`. `200 OK`.
     
-- `POST /resend-email-otp/` — resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
+- `POST /send-email-otp/` — send/resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
     
 
 Password-change:
@@ -434,7 +433,7 @@ Password-change:
     
 - `PATCH /user/verification/upload/` — update/resubmit verification docs. Any authenticated user. `200 OK`.
     
-- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_verified`, `is_rejected`. `200 OK`.
+- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_approved`, `is_rejected`. `200 OK`.
     
 - `POST /user/verification/action/{id}/` — approve/reject a verification (manager+). `200 OK`.
     
@@ -482,16 +481,16 @@ Password-change:
 
 #### Leaderboard & publishing
 
-- `POST /publish-leaderboard/` — start generation & publish snapshot (admin+). `202 Accepted`.
+- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (admin+). Request: `{ exam_id: <int> }`. `202 Accepted`.
     
-- `GET /load-leaderboard/` — fetch latest published snapshot. Role: `league` candidates and above + staff with moderator role or higher. Query: `limit`, `offset`. `200 OK`.
-    
-- `POST /toggle-leaderboard/` — (mentioned in spec / role table) toggle visibility (manager+). `200 OK` (may be feature-flagged / commented).
+- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
     
 
 ---
+</details>
 
-#### Broadcasts & notifications
+<details>
+<summary>Broadcasts & notifications</summary>
 
 - `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
     
@@ -596,8 +595,8 @@ X-Api-Key: <your_api_key>
 }
 ```
 
-#### Resend Email OTP
-**Endpoint:** `POST /resend-email-otp/`
+#### Send/Resend Email OTP
+**Endpoint:** `POST /send-email-otp/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
@@ -605,14 +604,16 @@ X-Api-Key: <your_api_key>
 **Request Body:**
 ```json
 {
-  "email": "john@example.com"
+  "email": "john@example.com",
+  "resend": false
 }
 ```
+*Note: Set `"resend": true` to resend a a (new) OTP.* If not resend, the field can be ommitted.
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "OTP has been resent to your email address",
+  "message": "OTP has been sent to your email address",
   "email": "joh***@example.com",
   "expires_in_minutes": 10
 }
@@ -777,23 +778,30 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 150,
-  "total_pages": 8,
-  "next": "https://api.verboheit.org/v1/candidates/?page=2",
-  "previous": null,
   "results": [
     {
       "user": {
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx"
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     }
-  ]
+  ],
+  "pagination": {
+    "count": 150,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 8,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/candidates/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -812,6 +820,7 @@ Authorization: Bearer <access-token>
     "user": {
         "id": "17914269-19b2-43f6-aa7e-81e59330df2f",
         "email": "candidate100@mail.com",
+        "is_email_verified": true,
         "first_name": "Robert",
         "last_name": "Parker",
         "phone": "08112463722",
@@ -821,7 +830,7 @@ Authorization: Bearer <access-token>
     "face_id": null,
     "role": "league",
     "is_active": true,
-    "is_verified": false,
+    "is_user_verified": false,
     "id_card": null,
     "verification_document": null,
     "created_at": "2025-10-15T11:39:51.353736+01:00",
@@ -845,26 +854,50 @@ Authorization: Bearer <access-token>
                 "lowest_score": 41.3,
                 "highest_obtainable_score": 100.0
             },
-            "exams": [
+            "exams_taken": [
                 {
                     "exam_id": 4,
                     "exam_title": "Organized interactive parallelism",
                     "exam_stage": "league",
-                    "exam_date": "2025-09-30T10:39:51.622476Z",
+                    "scheduled_date": "2025-09-30T10:39:51.622476Z",
                     "score": 99.88,
                     "recorded_at": "2025-10-15T10:40:03.271586+00:00",
-                    "submitted_by": "Anne Bradshaw",
-                    "auto_score": false
+                    "score_submitted_by": "Anne Bradshaw",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 1,
+                            "question_text": "What is 2 + 2?",
+                            "option_a": "3",
+                            "option_b": "4",
+                            "option_c": "5",
+                            "option_d": "6",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.271586Z"
+                        }
+                    ]
                 },
                 {
                     "exam_id": 2,
                     "exam_title": "Customizable background utilization",
                     "exam_stage": "screening",
-                    "exam_date": "2025-09-17T10:39:51.597446Z",
+                    "scheduled_date": "2025-09-17T10:39:51.597446Z",
                     "score": 41.3,
                     "recorded_at": "2025-10-15T10:40:03.247026+00:00",
-                    "submitted_by": "Kenneth Pace",
-                    "auto_score": false
+                    "score_submitted_by": "Kenneth Pace",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 2,
+                            "question_text": "What is 3 + 3?",
+                            "option_a": "5",
+                            "option_b": "6",
+                            "option_c": "7",
+                            "option_d": "8",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.247026Z"
+                        }
+                    ]
                 }
             ]
         },
@@ -906,6 +939,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx",
@@ -913,7 +947,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     },
     "exam": {
       "id": 1,
@@ -969,10 +1003,6 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 10,
-  "total_pages": 1,
-  "next": null,
-  "previous": null,
   "results": [
     {
       "user": {
@@ -986,7 +1016,17 @@ X-Api-Key: <your_api_key>
       "occupation": "Mathematics Teacher",
       "role": "moderator"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 10,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 1,
+    "has_next": false,
+    "has_previous": false,
+    "next": null,
+    "previous": null
+  }
 }
 ```
 
@@ -1004,6 +1044,7 @@ X-Api-Key: <your_api_key>
   "user": {
     "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "jane@example.com",
+    "is_email_verified": true,
     "first_name": "Jane",
     "last_name": "Smith",
     "phone": "+23490xxxxxxxx",
@@ -1013,7 +1054,7 @@ X-Api-Key: <your_api_key>
   "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",
   "is_active": true,
-  "is_verified": true,
+  "is_user_verified": true,
   "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
   "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
   "created_at": "2024-01-01T08:00:00Z",
@@ -1092,19 +1133,33 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 25,
-  "total_pages": 2,
-  "next": "https://api.verboheit.org/v1/exams/?page=2",
-  "previous": null,
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "moderate_questions_count": 20,
+    "easy_questions_count": 15
+  },
   "results": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "question_count": 20,
       "created_at": "2024-01-10T09:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 25,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 2,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/exams/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -1121,7 +1176,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1135,7 +1190,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1164,25 +1219,32 @@ X-Api-Key: <your_api_key>
 X-Api-Key: <your_api_key>
 ```
 **Required Role:** 'admin' or higher  
+
+**Query Parameters:**
+- `page` (integer): Page number for questions pagination.
+- `page_size` (integer): Number of questions per page.
+
 **Response:** `200 OK`
 ```json
 {
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "open_duration_hours": 24,
   "is_active": true,
   "questions": {
-    "meta": {
-        "total_count": 3,
+    "question_pool_data": {
+        "total_questions": 3,
         "hard_questions_count": 1,
-        "medium_questions_count": 1,
+        "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
-    "list": [
+    "results": [
       {
         "id": 1,
         "text": "What is 2 + 2?",
@@ -1193,7 +1255,17 @@ X-Api-Key: <your_api_key>
         "correct_answer": "B",
         "difficulty": "easy"
       }
-    ]
+    ],
+    "pagination": {
+        "count": 3,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
   },
   "created_by": {
     "user": {
@@ -1209,7 +1281,7 @@ X-Api-Key: <your_api_key>
   "average_score": 78.5,
   "created_at": "2024-01-10T09:00:00Z"
 }
-```
+``````
 
 #### Update Exam
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
@@ -1287,7 +1359,7 @@ X-Api-Key: <your_api_key>
     "candidate_school": "Mathematics High School",
     "score": 88.0,
     "auto_score": true,
-    "submitted_by": null,
+    "score_submitted_by": "Auto Score",
     "recorded_at": "2024-01-20T15:30:00Z"
   }
 ]
@@ -1301,7 +1373,7 @@ Allows an eligible and verified candidate to retrieve the questions for a specif
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** Authenticated `candidate` with `is_verified=true` and `role` matching `exam.stage`.  
+**Required Role:** Authenticated `candidate` with `is_user_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
 ```json
 {
@@ -1310,7 +1382,7 @@ X-Api-Key: <your_api_key>
   "stage": "screening",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "open_duration_hours": 12,
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "questions": [
     {
@@ -1401,29 +1473,54 @@ The API provides CRUD operations for managing exam questions.
 
 **Query Parameters:**
 - `page` (integer): Page number
-- `difficulty` (string): Filter by difficulty (`easy`, `medium`, `hard`)
+- `difficulty` (string): Filter by difficulty (`easy`, `moderate`, `hard`)
 - `search` (string): Search question text
 - `created_by` (uuid): Filter by the UUID of the staff member who created the question
 
 **Response:** `200 OK`
 ```json
 {
-  "next": "https://api.verboheit.org/v1/questions/?page=2",
-  "previous": null,
-  "meta": {
-    "total_count": 100,
-    "hard_questions_count": 20,
-    "medium_questions_count": 50,
-    "easy_questions_count": 30
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "moderate_questions_count": 20,
+    "easy_questions_count": 15
   },
-  "list": [
+  "results": [
     {
       "id": 1,
       "text": "What is 5 × 5?",
+      "option_a": "20",
+      "option_b": "25",
+      "option_c": "30",
+      "option_d": "35",
+      "correct_answer": "B",
       "difficulty": "easy",
-      "created_at": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z",
+      "created_by": {
+          "user": {
+              "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+              "email": "moderator@example.com",
+              "first_name": "Mod",
+              "last_name": "User"
+          },
+          "occupation": "Moderator",
+          "role": "moderator"
+      },
+      "updated_at": "2024-01-10T09:00:00Z",
+      "updated_by": null
     }
-  ]
+  ],
+  "pagination": {
+    "count": 50,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/questions/?page=2",
+    "previous": null
+  }
 }
 ```
 
@@ -1482,7 +1579,7 @@ The API provides CRUD operations for managing exam questions.
   "option_c": "205",
   "option_d": "250",
   "correct_answer": "B",
-  "difficulty": "easy",
+  "difficulty": "easy"
   "created_at": "2024-01-10T09:00:00Z",
   "created_by": {
     "user": {
@@ -1505,7 +1602,7 @@ The API provides CRUD operations for managing exam questions.
 **Request Body (PATCH example):**
 ```json
 {
-  "difficulty": "medium"
+  "difficulty": "moderate"
 }
 ```
 **Response:** `200 OK` (Returns updated question details)
@@ -1514,9 +1611,103 @@ The API provides CRUD operations for managing exam questions.
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
-*Note: Questions are soft-deleted by setting `is_active` to `False`.*
+*Note: Questions are soft-deleted by setting `is_archived` to `True` and `archived_at` to the current timestamp.*
 
 ---
+
+#### Add Question to Exams
+
+**Endpoint:** `POST /questions/{question_id}/exams/`  
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "add_to_exams": [1, 3, 5],
+    "remove_from_exams": [2, 4]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "question_id": 42,
+    "added": [
+        {"exam_id": 1, "exam_title": "Math Basics"},
+        {"exam_id": 3, "exam_title": "Advanced Math"}
+    ],
+    "removed": [
+        {"exam_id": 2, "exam_title": "Science Quiz"}
+    ],
+    "failed_additions": [
+        {"exam_id": 5, "reason": "Exam not found"}
+    ],
+    "failed_removals": []
+}
+```
+
+#### Bulk Add Questions to Exams
+
+**Endpoint:** `POST /questions/bulk-add-to-exams/`
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "question_ids": [1, 2, 3, 4, 5],
+    "exam_ids": [10, 11]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "summary": {
+        "total_operations": 10,
+        "successful": 8,
+        "skipped": 1,
+        "failed": 1
+    },
+    "details": {
+        "added": [
+            {"question_id": 1, "exam_id": 10, "exam_title": "Algebra I"},
+            {"question_id": 1, "exam_id": 11, "exam_title": "Algebra II"}
+        ],
+        "skipped": [
+            {"question_id": 2, "exam_id": 10, "exam_title": "Algebra I", "reason": "Already exists"}
+        ],
+        "failed_questions": [
+            {"question_id": 3, "reason": "Question not found or archived"}
+        ],
+        "failed_exams": [
+            {"exam_id": 12, "reason": "Exam not found"}
+        ]
+    }
+}
+```
+
+#### Bulk Archive Questions
+
+**Endpoint:** `POST /questions/bulk-archive/`
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "question_ids": [1, 2, 3]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "summary": {
+        "total_questions": 3,
+        "successful_archives": 2,
+        "failed_archives": 1
+    },
+    "details": {
+        "archived": [1, 2],
+        "failed": [
+            {"question_id": 3, "reason": "Question not found or already archived"}
+        ]
+    }
+}
+```
 
 ### Dashboard
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
@@ -1537,7 +1728,9 @@ X-Api-Key: <your_api_key>
     "phone": "+23490xxxxxxxx",
     "school": "Real Harvard Law",
     "role": "Screening",
-    "is_verified": false,
+    "is_user_verified": false,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-15T10:30:00Z"
   },
   "exam_stats": {
@@ -1566,7 +1759,7 @@ X-Api-Key: <your_api_key>
       "title": "Geometry Screening",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
       "stage": "screening"
@@ -1591,7 +1784,9 @@ X-Api-Key: <your_api_key>
     "email": "emmaob@gmail.com",
     "role": "Moderator",
     "occupation": "Automation Engineer",
-    "is_verified": true,
+    "is_user_verified": true,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-01T08:00:00Z"
   },
   "candidates": {
@@ -1616,7 +1811,7 @@ X-Api-Key: <your_api_key>
     "total": 500,
     "by_difficulty": {
       "easy": { "count": 200 },
-      "medium": { "count": 200 },
+      "moderate": { "count": 200 },
       "hard": { "count": 100 }
     }
   },
@@ -1630,7 +1825,7 @@ X-Api-Key: <your_api_key>
     {
       "id": 3,
       "title": "Geometry Screening",
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "is_active": true,
       "stage": "screening",
       "question_count": 25,
@@ -1640,10 +1835,10 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
+<!-- 
+### Scoring & Submissions
 
-<!-- ### Scoring & Submissions -->
-
-<!-- #### Publish Scores
+#### Publish Scores
 
 This endpoint works in hand with the scores displayed in candidates' dashboards. Candidates only see last "published scores" and only see the latest (i.e. exams they recently took) after it's **published** via this endpoint.
 
@@ -1665,47 +1860,20 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Leaderboard
-The leaderboard displays candidate rankings and can be dynamically controlled by staff.
-<!-- 
-#### Toggle Leaderboard Visibility
-Allows 'manager' or higher to enable or disable the public visibility of the leaderboard.
+The leaderboard system provides detailed performance rankings across different competition stages and levels. It consists of two main views:
+<!-- - `LoadLeaderboardView`: For fetching a summary of all available leaderboards or a detailed, paginated view of a specific leaderboard.
+- `LoadLeaderboardDetailView`: For fetching the complete performance record of a single candidate in a specific exam. -->
 
-**Endpoint:** `POST /toggle-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `manager` or higher  
+#### 1. Publish Leaderboard
+Triggers an asynchronous task to generate and publish a new leaderboard snapshot. This should be done after an exam concludes and all scores are finalized.
+
+**Endpoint:** `POST /leaderboard/publish/`
+**Required Role:** `admin` or higher
 **Request Body:**
+This endpoint does not require a request body. It automatically finds all concluded, active exams and generates leaderboards for them.
 ```json
-{
-  "open": true
-}
+{}
 ```
-*Note: Use `true` to make the leaderboard visible, `false` to hide it.*
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Leaderboard is now visible."
-}
-```
-*or*
-```json
-{
-  "message": "Leaderboard is now hidden."
-}
-``` -->
-
-#### Publish Leaderboard
-Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
-
-**Endpoint:** `POST /publish-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `admin` or higher  
 **Response:** `202 Accepted`
 ```json
 {
@@ -1713,42 +1881,178 @@ X-Api-Key: <your_api_key>
 }
 ```
 
-#### Load Leaderboard
-Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
+---
 
-**Endpoint:** `GET /load-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `league` candidates and above, all staff  
+#### 2. Load Leaderboard (`LoadLeaderboardView`)
+This is the primary endpoint for all frontend leaderboard functionality. It has two modes:
 
-**Query Parameters:**
-- `limit` (integer): Number of results (default: 50, max: 100)
-- `offset` (integer): Starting position
+**A. Summary Mode (No Query Parameters)**
+Returns a list of all available leaderboards that the current user is permitted to see. Ideal for dynamically populating UI tabs.
 
-**Response:** `200 OK`
+**Endpoint:** `GET /leaderboard/`
+**Required Role:** Any verified user (`candidate` or `staff`)
+
+**Response (200 OK):**
 ```json
 {
-  "published_at": "2024-01-20T18:00:00Z",
-  "total_candidates": 150,
-  "results": [
+  "snapshot_id": 45,
+  "published_at": "2024-10-30T14:30:00Z",
+  "available_leaderboards": [
     {
-      "rank": 1,
-      "candidate": {
-        "user": {
-          "email": "alice@example.com",
-          "first_name": "Alice",
-          "last_name": "Johnson"
-        },
-        "school": "Riverdale High"
-      },
-      "total_score": 98.0
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
+      "exam_title": "Screening Exam 2024 - Basic Mathematics",
+      "total_candidates": 150,
+      "average_score": 78.5
+    },
+    {
+      "stage": "league",
+      "level": 1,
+      "stage_display": "league_1",
+      "exam_title": "League Round 1 - General Knowledge",
+      "total_candidates": 50,
+      "average_score": 85.2
     }
   ]
 }
 ```
-*Note: A `403 Forbidden` will be returned if the leaderboard is currently hidden.*
+*Note: A `screening` candidate would only see leaderboards for the `screening` stage.*
+
+**B. Detail Mode (With Query Parameters)**
+Returns the detailed, paginated rankings for a specific leaderboard, identified by `stage` and `level`.
+
+**Endpoint:** `GET /leaderboard/?stage=<stage>&level=<level>`
+**Required Role:** Any verified user (`candidate` or `staff`)
+
+**Query Parameters:**
+- `stage` (string, required): The stage of the leaderboard (e.g., `screening`, `league`).
+- `level` (integer, required): The level within the stage (e.g., `1`, `2`).
+- `page` (integer, optional): The page number for the `remaining_candidates` list.
+- `page_size` (integer, optional): The number of candidates to show per page.
+
+**Response (200 OK):**
+This response always includes the `top_three` performers separately and a paginated list of `remaining_candidates`.
+```json
+{
+  "exam_details": {
+    "id": 123,
+    "title": "Screening Exam 2024 - Basic Mathematics",
+    "stage": "screening",
+    "level": 1,
+    "stage_display": "screening_1",
+    "total_candidates": 150,
+    "average_score": 78.5
+  },
+  "top_three": [
+    { "rank": 1, "candidate": { "...": "..." }, "score": 100.0, "percentage": 100.0 },
+    { "rank": 2, "candidate": { "...": "..." }, "score": 99.5, "percentage": 99.5 },
+    { "rank": 3, "candidate": { "...": "..." }, "score": 99.0, "percentage": 99.0 }
+  ],
+  "remaining_candidates": [
+    { "rank": 4, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 },
+    { "rank": 5, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 }
+  ],
+  "pagination": {
+    "count": 147,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 8,
+    "has_next": true,
+    "has_previous": false,
+    "next": "http://localhost:8000/api/v1/leaderboard/?stage=screening&level=1&page=2&page_size=5",
+    "previous": null
+  }
+}
+```
+*Note: The `submissions` field is removed from candidate objects in this view for brevity.*
+```
+
+**Common Error Responses**:
+- **404 Not Found:** If no published leaderboard exists at all, or if the requested `stage` and `level` do not exist.
+  ```json
+  { "detail": "No published leaderboard found." }
+  // or
+  { "detail": "No leaderboard found for league level 99" }
+  ```
+- **403 Forbidden:** If a user attempts to access a leaderboard they are not permitted to see.
+  ```json
+  { "detail": "You can only view screening leaderboards." }
+  // or
+  { "detail": "Candidate must be verified to view the leaderboard." }
+  ```
+
+---
+
+#### 3. Load Candidate Detail (`LoadLeaderboardDetailView`)
+Retrieves the complete and detailed performance of a single candidate for a specific exam. This is the view used when a user clicks on a candidate's name in the leaderboard.
+
+**Endpoint:** `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/`
+**Required Role:**
+- `staff` and `league` candidates can view any candidate's detail.
+- `screening` candidates can only view their own detail.
+
+**URL Parameters:**
+- `stage` (string): The stage of the leaderboard (e.g., `screening`).
+- `level` (integer): The level of the leaderboard (e.g., `1`).
+- `candidate_id` (uuid): The ID of the candidate whose performance is being requested.
+
+**Response (200 OK):**
+This response includes exam information and a detailed breakdown of the candidate's submissions, including every question, their selected answer, the correct answer, and whether they were correct.
+```json
+{
+  "exam_info": {
+    "exam_id": 123,
+    "exam_title": "Screening Exam 2024 - Basic Mathematics",
+    "stage": "screening",
+    "level": 1,
+    "total_questions": 50
+  },
+  "candidate_performance": {
+    "rank": 4,
+    "candidate": {
+      "id": 792,
+      "user_id": 1004,
+      "first_name": "Simon",
+      "last_name": "Kawu",
+      "email": "simonkawu@yandex.com",
+      "school": "University of Ibadan",
+      "role": "screening"
+    },
+    "score": 98.0,
+    "percentage": 98.0,
+    "submissions": [
+      {
+        "question_id": 1,
+        "question_text": "What is the value of π (pi)?",
+        "correct_answer": "d",
+        "selected_option": "d",
+        "is_correct": true,
+        "answered_at": "2024-10-30T09:00:15Z"
+      },
+      {
+        "question_id": 3,
+        "question_text": "What is the formula for the area of a rectangle?",
+        "correct_answer": "a",
+        "selected_option": "b",
+        "is_correct": false,
+        "answered_at": "2024-10-30T09:00:45Z"
+      }
+    ]
+  }
+}
+```
+
+**Common Error Responses for `LoadLeaderboardDetailView`:**
+- **404 Not Found:** If the candidate is not found in the specified leaderboard.
+  ```json
+  { "detail": "Candidate not found in this leaderboard" }
+  ```
+- **403 Forbidden:** If a `screening` candidate tries to view another candidate's details.
+  ```json
+  { "detail": "You can only view your own performance." }
+  ```
+
 
 ---
 
@@ -1797,7 +2101,7 @@ The API returns a consistent JSON object with a `status` field that indicates th
       "detail": "Verification request is pending review.",
       "verification_data": {
           "is_pending": true,
-          "is_verified": false,
+          "is_approved": false,
           "is_rejected": false,
           "created_at": "2025-09-01T10:00:00Z",
           "updated_at": "2025-09-01T10:00:00Z",
@@ -1909,10 +2213,10 @@ X-Api-Key: <your_api_key>
   "results": [
     {
         "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-        "user_name": "John Doe",
+        "full_name": "John Doe",
         "email": "john@example.com",
         "is_pending": true,
-        "is_verified": false,
+        "is_approved": false,
         "is_rejected": false,
         "has_face_id": true,
         "has_id_card": true,
@@ -1942,7 +2246,7 @@ X-Api-Key: <your_api_key>
 To approve a user:
 ```json
 {
-    "is_verified": true
+    "is_approved": true
 }
 ```
 To reject a user:
@@ -1969,15 +2273,18 @@ To reject a user:
 ---
 
 ### Account Management
-The account management endpoints allow users to view and update their own profile information. Superadmins have the ability to manage other users' accounts.
+This endpoint allows users to retrieve and update their own account information. Staff members with `manager` or `superadmin` roles can also manage other users' accounts.
 
-#### Get Account Details (Self)
-**Endpoint:** `GET /account-management/`
+#### Get User Account
+**Endpoint:** `GET /account-management/{user_id}/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
-**Required Role:** Any authenticated user
+**Required Role:** Authenticated User (for their own account), `manager` or `superadmin` (for other accounts).
+
+If `user_id` is not provided, it defaults to the current authenticated user.
 
 **Response:** `200 OK`
 ```json
@@ -1986,38 +2293,55 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "john@example.com",
+      "is_email_verified": true,
       "first_name": "John",
       "last_name": "Doe",
+      "profile_picture": "https://vmlc.s3.amazonaws.com/profile_pictures/john_doe.jpg",
       "phone": "+23490xxxxxxxx",
       "date_joined": "2024-01-15T10:30:00Z"
     },
-    "school": "Mathematics High School",
-    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
-    "role": "league",
+    "occupation": "Mathematics Teacher",
+    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
+    "role": "moderator",
     "is_active": true,
-    "is_verified": true,
-    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
-    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-20T11:00:00Z",
-    "scores": {
-      "total_score": 380.0,
-      "average_score": 95.0,
-      "scores": [
-        {
-          "exam_id": 1,
-          "exam_title": "Algebra Screening",
-          "score": 88.0,
-          "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
-          "auto_score": true
-        }
-      ]
-    }
+    "is_user_verified": true,
+    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_smith_id.pdf?AWSAccessKeyId=...",
+    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_smith_doc.pdf?AWSAccessKeyId=...",
+    "created_at": "2024-01-01T08:00:00Z",
+    "updated_at": "2024-01-05T09:00:00Z"
   }
 }
 ```
-*Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
+
+#### Update User Account
+**Endpoint:** `PATCH /account-management/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+Content-Type: multipart/form-data
+```
+**Required Role:** Authenticated User (for their own account), `manager` or `superadmin` (for other accounts).
+
+If `user_id` is not provided, it defaults to the current authenticated user.
+
+**Request Body (form-data):**
+- `first_name` (string, optional)
+- `last_name` (string, optional)
+- `profile_picture` (file, optional)
+- `phone_number` (string, optional)
+- `school` (string, optional, for candidates)
+- `occupation` (string, optional, for staff)
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Account updated successfully.",
+  "profile": {
+     ... updated profile data ...
+  }
+}
+```
 
 #### Get Account Details (Admin)
 **Endpoint:** `GET /account-management/{user_id}/`
@@ -2034,6 +2358,7 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "jane@example.com",
+      "is_email_verified": true,
       "first_name": "Jane",
       "last_name": "Smith",
       "phone": "+23490xxxxxxxx",
@@ -2043,7 +2368,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
     "role": "moderator",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-01T08:00:00Z",
@@ -2083,6 +2408,7 @@ X-Api-Key: <your_api_key>
     "user": {
       "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
       "email": "john@example.com",
+      "is_email_verified": true,
       "first_name": "Jonathan",
       "last_name": "Doe",
       "phone": "+23490xxxxxxxx",
@@ -2092,7 +2418,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-15T10:30:00Z",
@@ -2106,7 +2432,7 @@ X-Api-Key: <your_api_key>
           "exam_title": "Algebra Screening",
           "score": 88.0,
           "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
+          "score_submitted_by": "Auto Score",
           "auto_score": true
         }
       ]
@@ -2274,10 +2600,10 @@ X-Api-Key: <your_api_key>
 | `/staff/` | `occupation` | string | Filter by occupation |
 | `/exams/` | `stage` | string | Filter by exam stage (`screening`, `league`) |
 | `/exams/` | `active` | boolean | Filter by active status (`true` or `false`) |
-| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `medium`, `hard`) |
+| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `moderate`, `hard`) |
 | `/questions/` | `created_by` | uuid | Filter by the UUID of the staff member who created the question |
 | `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
-| `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
+| `/user/verification/list/` | `is_approved` | boolean | Filter by verified status |
 | `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
 
 #### Date Filtering
@@ -2420,6 +2746,79 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-11-01**:
+  - **Question Management**:
+    - Added `POST /questions/bulk-archive/` endpoint for bulk archiving of questions.
+  - **Account Management**:
+    - Updated `/account-management/{user_id}/` endpoint to handle `PATCH` operations (multipart).
+    - Now contains `profile_picture` field, which also reflects across endpoint responses with `"user"` field.
+  - **Exam**:
+    - Now contains `status` field, carrying any of the following values:
+      - `draft`, `scheduled`, `ongoing`, `concluded`, `cancelled`
+
+- **2025-10-31**
+  - **Exam**:
+    - Contains new fields `level` and `stage_display`.
+      - Should be used in "Upload Exam" or "Edit Exams".
+      - `level` defaults to `1` if not provided.
+      - Use case:
+        *Leaderboard*
+        - Paired with stage to give `stage_display`.
+        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+  - **Pagination**:
+    - Now contains more information, such as `has_previous`.
+    - Is better structured and puts into a new `"pagination"` field for each paginated response.
+  - **API consistency**:
+    - Standardized list responses to use the `results` key instead of `list` in the `GET /questions/` and `GET /exams/` endpoints.
+  - **Leaderboard**
+    - `POST /publish-leaderboard/`:
+      - Now `POST /leaderboard/publish/` and requires no response body.
+    - `GET /load-leaderboard/`:
+      - Now `GET /leaderboard/`
+      - Lists available leaderboards.
+      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - Includes `exam_details`, `top_three`, and `remaining_candidates`.
+      - Paginated.
+    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - Cached for 6 hours.
+  - **OTP**:
+    - `POST /resend-email-otp/`:
+      - Now `POST /send-email-otp/` and accepts a `"resend"` field.
+
+- **2025-10-30**
+  - **User/profile data**
+    - Profile object (e.g. candidate) `is_verified` field is renamed to `is_user_verified`.
+    - User object (e.g. candidate.user) now contains `is_email_verified` field accros endpoints.
+  - **User verification**
+    - `is_verified` is now renamed to `is_approved`. E.g. Manager approves user verification: `"is_approved": true` | `"is_rejected": true`
+
+- **2025-10-29**
+  - **Leaderboard**
+    - *Breaking Change:* Modified the leaderboard generation and retrieval process.
+        - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+        - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
+            - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
+            - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
+    - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
+  - **Exams**
+    - `GET /exams/{exam_id}/` is now paginated.
+
+- **2025-10-28**
+  - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
+  - Implemented automatic revocation of staff registrations.
+    - If a newly registered staff member does not verify their email within 15 minutes, their account will be automatically deleted.
+    - This allows the email to be used for registration again.
+    - This feature does not apply to candidate registrations.
+  - Questions difficulty `medium` is renamed to `moderate`.
+
+### Fri, 24th of Oct, 2025
+  - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
+  - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
+  - **Question Management**: 
+    Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
+
+    Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
+
 ### Tue, 22nd of Oct, 2025
 - **Staff**: Added `POST /staff/invite/` endpoint.
 
@@ -2428,7 +2827,7 @@ For technical support, API key requests, or questions:
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
 - **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
 - **API**: Updated the response for `GET /candidates/{candidate_id}/` to include a more detailed `records` object containing performance stats and exam history.
-- **Exam**: `GET /exams/` now includes `exam_date` in response.
+- **Exam**: `GET /exams/` now includes `scheduled_date` in response.
 - **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4
@@ -2461,4 +2860,4 @@ For technical support, API key requests, or questions:
 - Leaderboard functionality
 - Role-based access control
 
-_Last Updated: October 2025_
+_Last Updated: November 2025_

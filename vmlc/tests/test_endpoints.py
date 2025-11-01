@@ -7,6 +7,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from unittest.mock import patch
 
 from vmlc.models import Staff, UserVerification
 from vmlc.models import Candidate, Exam, Question, Staff, UserVerification
@@ -74,7 +75,7 @@ class ListEndpointsTest(APITestCase):
             last_name='User'
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MODERATOR)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
         self.client.force_authenticate(user=self.staff_user)
 
     def test_get_candidate_list(self):
@@ -99,7 +100,7 @@ class ExamEndpointsTest(APITestCase):
             last_name='User'
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.ADMIN)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
         self.client.force_authenticate(user=self.staff_user)
         self.question = Question.objects.create(text="Test Question", correct_answer='A')
 
@@ -150,7 +151,7 @@ class QuestionEndpointsTest(APITestCase):
             last_name='User'
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.ADMIN)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
         self.client.force_authenticate(user=self.staff_user)
 
     def test_create_question(self):
@@ -234,7 +235,7 @@ class QuestionEndpointsTest(APITestCase):
 # #             last_name='User'
 # #         )
 # #         self.manager_profile = Staff.objects.create(user=self.manager_user, role=Staff.Roles.MANAGER)
-# #         self.verification = UserVerification.objects.create(user=self.manager_user, is_verified=True)
+# #         self.verification = UserVerification.objects.create(user=self.manager_user, is_approved=True)
 # #         self.client.force_authenticate(user=self.manager_user)
 
 # #         self.test_user = User.objects.create_user(
@@ -253,7 +254,7 @@ class QuestionEndpointsTest(APITestCase):
 # #     def test_user_verification_action(self):
 # #         url = reverse('vmlc:user-verification-action', kwargs={'user_id': self.test_user.id})
 # #         data = {
-# #             'is_verified': True
+# #             'is_approved': True
 # #         }
 # #         response = self.client.post(url, data, format='json')
 # #         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -278,7 +279,7 @@ class DashboardEndpointsTest(APITestCase):
             last_name='User'
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MODERATOR)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
 
     def test_get_candidate_dashboard(self):
         self.client.force_authenticate(user=self.candidate_user)
@@ -303,9 +304,10 @@ class InviteStaffTest(APITestCase):
             last_name='User'
         )
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MANAGER)
-        self.verification = UserVerification.objects.create(user=self.staff_user, is_verified=True)
+        self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
 
-    def test_invite_staff_success(self):
+    @patch('vmlc.serializers.registration.revoke_staff_registration_task.apply_async')
+    def test_invite_staff_success(self, mock_task):
         self.client.force_authenticate(user=self.staff_user)
         url = reverse('vmlc:staff-invite')
 

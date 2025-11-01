@@ -6,7 +6,7 @@ from .answer import SubmitAnswersView
 from .auth import (
     RefreshTokenView,
     VerifyEmailOTPView,
-    ResendEmailOTPView,
+    SendEmailOTPView,
     RequestPasswordChangeView,
     PasswordChangeOTPConfirmView,
     PasswordChangeView,
@@ -24,7 +24,6 @@ from .candidate import (
 from .dashboard import (
     CandidateDashboardView,
     StaffDashboardView,
-    AccountManagementView,
 )
 from .exam import (
     ExamListView,
@@ -37,11 +36,14 @@ from .exam import (
 from .leaderboard import (
     PublishLeaderboardView,
     LoadLeaderboardView,
-    ToggleLeaderboardVisibilityView,
+    LoadLeaderboardDetailView,
 )
 from .question import (
     QuestionListView,
     QuestionDetailView,
+    QuestionExamAssociationView,
+    BulkQuestionExamAssociationView,
+    BulkQuestionArchiveView,
 )
 from .registration import (
     CandidateRegistrationView,
@@ -62,6 +64,7 @@ from .staff import (
     StaffMeView,
 )
 from .user import (
+    AccountManagementView,
     UserVerificationStatusView,
     UserVerificationUploadView,
     UserVerificationDocumentView,
@@ -77,7 +80,7 @@ __all__ = [
     # auth
     "RefreshTokenView",
     "VerifyEmailOTPView",
-    "ResendEmailOTPView",
+    "SendEmailOTPView",
     "RequestPasswordChangeView",
     "PasswordChangeOTPConfirmView",
     "PasswordChangeView",
@@ -104,10 +107,13 @@ __all__ = [
     # leaderboard
     "PublishLeaderboardView",
     "LoadLeaderboardView",
-    "ToggleLeaderboardVisibilityView",
+    "LoadLeaderboardDetailView",
     # question
     "QuestionListView",
     "QuestionDetailView",
+    "QuestionExamAssociationView",
+    "BulkQuestionExamAssociationView",
+    "BulkQuestionArchiveView",
     # registration
     "CandidateRegistrationView",
     "StaffRegistrationView",

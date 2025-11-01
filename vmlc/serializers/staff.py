@@ -53,7 +53,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "face_id",
             "role",
             "is_active",
-            "is_verified",
+            "is_user_verified",
             "id_card",
             "verification_document",
             "created_at",
@@ -91,8 +91,8 @@ class StaffInviteSerializer(BaseRegistrationSerializer):
     Serializer for registering new staff.
     """
     created_by = MinimalStaffSerializer(read_only=True)
-    occupation = serializers.CharField(max_length=50)
-    role = serializers.ChoiceField(choices=Staff.Roles.choices)
+    occupation = serializers.CharField(max_length=50, required=False)
+    role = serializers.ChoiceField(choices=Staff.Roles.choices, required=False)
 
     class Meta:
         model = Staff

@@ -26,7 +26,7 @@ from .views import (
     CandidateRegistrationView,
     StaffRegistrationView,
     VerifyEmailOTPView,
-    ResendEmailOTPView,
+    SendEmailOTPView,
     CandidateListView,
     CandidateDetailView,
     AssignCandidateRoleView,
@@ -43,10 +43,13 @@ from .views import (
     SubmitScoreView,
     QuestionListView,
     QuestionDetailView,
+    QuestionExamAssociationView,
+    BulkQuestionExamAssociationView,
+    BulkQuestionArchiveView,
     PublishScoresView,
-    ToggleLeaderboardVisibilityView,
     PublishLeaderboardView,
     LoadLeaderboardView,
+    LoadLeaderboardDetailView,
     CandidateDashboardView,
     StaffDashboardView,
     AccountManagementView,
@@ -120,7 +123,7 @@ urlpatterns = [
     # ),
     # === Email Verification ===
     path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
-    path("resend-email-otp/", ResendEmailOTPView.as_view(), name="resend-email-otp"),
+    path("send-email-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================
@@ -203,6 +206,17 @@ urlpatterns = [
         QuestionDetailView.as_view(),
         name="question-detail",
     ),
+    path('questions/<int:question_id>/exams/', QuestionExamAssociationView.as_view(), name='question-exam-associations'),
+    path(
+        'questions/bulk-add-to-exams/',
+        BulkQuestionExamAssociationView.as_view(),
+        name='bulk-question-exam-associations'
+    ),
+    path(
+        'questions/bulk-archive/',
+        BulkQuestionArchiveView.as_view(),
+        name='bulk-question-archive'
+    ),
     # =============================================================================
     # SCORING & RESULTS
     # =============================================================================
@@ -214,21 +228,11 @@ urlpatterns = [
     # =============================================================================
     # LEADERBOARD
     # =============================================================================
-    # path(
-    #     "toggle-leaderboard/",
-    #     ToggleLeaderboardVisibilityView.as_view(),
-    #     name="toggle-leaderboard",
-    # ),
-    path(
-        "publish-leaderboard/",
-        PublishLeaderboardView.as_view(),
-        name="publish-leaderboard",
-    ),
-    path(
-        "load-leaderboard/",
-        LoadLeaderboardView.as_view(),
-        name="load-leaderboard",
-    ),
+    path("leaderboard/", LoadLeaderboardView.as_view(), name="load-leaderboard"),
+    path("leaderboard/<str:stage>/<int:level>/candidate/<int:candidate_id>/", 
+         LoadLeaderboardDetailView.as_view(), 
+         name="load-leaderboard-detail"),
+    path("leaderboard/publish/", PublishLeaderboardView.as_view(), name="publish-leaderboard"),
     # =============================================================================
     # DASHBOARDS & ACCOUNT MANAGEMENT
     # =============================================================================

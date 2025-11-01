@@ -78,7 +78,7 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_verified=random.choice([True, False]),
+                is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
                 is_rejected=random.choice([True, False])
             )
@@ -103,7 +103,7 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_verified=random.choice([True, False]),
+                is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
                 is_rejected=random.choice([True, False])
             )
@@ -121,7 +121,7 @@ class Command(BaseCommand):
                 option_d=fake.sentence(nb_words=3),
                 correct_answer=random.choice(["A", "B", "C", "D"]),
                 created_by=random.choice(staff_list),
-                difficulty=random.choice(["easy", "medium", "hard"]),
+                difficulty=random.choice(["easy", "moderate", "hard"]),
             )
             question_list.append(question)
 
@@ -135,7 +135,7 @@ class Command(BaseCommand):
                 description=fake.text(),
                 created_by=random.choice(staff_list),
                 is_active=True,
-                exam_date=timezone.now()
+                scheduled_date=timezone.now()
                 - timezone.timedelta(days=random.randint(1, 30)),
             )
             # Add a random number of questions to each exam

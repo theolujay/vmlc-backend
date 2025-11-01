@@ -1,0 +1,277 @@
+name: Production CI/CD pipeline
+
+# Triggers on PR merge from 'release' to 'main'
+# This uses GitHub's "pull_request" event with "closed" type
+# Docs: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  # Only run if PR was merged (not just closed)
+  # Check the 'merged' flag to distinguish between closed and merged PRs
+  deploy-to-production:
+    # Conditional execution - only merged PRs from 'release' branch
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release'
+    runs-on: ubuntu-24.04
+    
+    # Environment protection rules - IMPORTANT for production safety
+    # Docs: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write  # For commenting on PR
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main  # Ensure we're building from main after merge
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-prod-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-prod-
+            ${{ runner.os }}-buildx-
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        
+      # Run tests again as safety check (belt and suspenders approach)
+      # Even though staging passed, main might have conflicts
+      - name: Build Docker image for tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: test
+          tags: ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }}
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+            
+      - name: Run tests
+        run: |
+          docker network create test-network
+          docker run -d --rm \
+            -e POSTGRES_USER=testuser \
+            -e POSTGRES_PASSWORD=testpassword \
+            -e POSTGRES_DB=testdb \
+            --network test-network \
+            --name db \
+            postgres:17.2-bookworm
+          sleep 10
+          docker run --rm \
+            --network test-network \
+            --entrypoint "" \
+            ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }} \
+            sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
+          docker stop db
+          docker network rm test-network
+        timeout-minutes: 10
+
+      # Move cache to prevent it from growing indefinitely
+      # Docs: https://github.com/docker/build-push-action/blob/master/docs/advanced/cache.md#local-cache
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        
+      # Build and push with multiple tags for better version tracking
+      # 'prod' = latest production, SHA = specific version, VERSION = dated version
+      - name: Build and push Docker image to GitHub Container Registry
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:prod
+            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
+            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.VERSION }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          # Add build metadata as labels for traceability
+          # Docs: https://docs.docker.com/build/building/labels/
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
+      # Create deployment artifact for rollback capability
+      - name: Create deployment metadata
+        run: |
+          cat > deployment-info.json << EOF
+          {
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",s
+            
+            "commit_sha": "${{ github.sha }}",
+            "short_sha": "${{ steps.meta.outputs.SHORT_SHA }}",
+            "version": "${{ steps.meta.outputs.VERSION }}",
+            "deployed_by": "${{ github.actor }}",
+            "pr_number": "${{ github.event.pull_request.number }}",
+            "pr_title": "${{ github.event.pull_request.title }}"
+          }
+          EOF
+          cat deployment-info.json
+
+      - name: Create env file
+        run: |
+          echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" > ./envfile
+        
+      # Backup current deployment before deploying new version
+      # This creates a snapshot of the running stack for quick rollback
+      - name: Backup current deployment
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          script: |
+            # Create backup directory if it doesn't exist
+            mkdir -p ~/deployments/backups
+            
+            # Save current deployment info
+            docker service ls --format "{{.Name}} {{.Image}}" | grep vmlc-backend > ~/deployments/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
+            
+            # Keep only last 10 backups
+            cd ~/deployments/backups && ls -t | tail -n +11 | xargs -r rm
+        continue-on-error: true
+
+      # Main deployment step
+      - name: Deploy to Production
+        uses: cssnr/stack-deploy-action@v1
+        with:
+          name: vmlc-backend
+          file: stack.prod.yml
+          host: ${{ secrets.VPS_HOST }}
+          user: deploy
+          ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          env_file: ./envfile
+
+      # Health check after deployment
+      # Wait for services to be healthy before declaring success
+      - name: Wait for deployment health check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Waiting for services to be healthy..."
+            
+            # Wait up to 5 minutes for services to stabilize
+            for i in {1..30}; do
+              # Check if all services are running
+              REPLICAS=$(docker service ls --filter name=vmlc-backend --format "{{.Replicas}}" | grep -v "0/")
+              
+              if echo "$REPLICAS" | grep -qv "/"; then
+                echo "All services are up!"
+                
+                # Additional health check on API endpoint
+                if curl -f -s -o /dev/null -w "%{http_code}" https://api.verboheit.org/v1/health/ | grep -q "200"; then
+                  echo "Health check passed!"
+                  exit 0
+                fi
+              fi
+              
+              echo "Attempt $i/30: Services not ready yet..."
+              sleep 10
+            done
+            
+            echo "Deployment health check failed!"
+            exit 1
+        timeout-minutes: 6
+
+      # Comment on PR with deployment status
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}' === 'success' ? '✅ Deployed' : '❌ Failed';
+            const message = `### ${status} to Production
+            
+            - **Version**: \`${{ steps.meta.outputs.VERSION }}\`
+            - **Commit**: \`${{ steps.meta.outputs.SHORT_SHA }}\`
+            - **Image**: \`ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}\`
+            - **URL**: https://api.verboheit.org
+            
+            ${status === '✅ Deployed' ? '🎉 Production deployment successful!' : '⚠️ Deployment failed. Check the logs above.'}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
+
+      # Send notification (optional - requires webhook setup)
+      # You can use Slack, Discord, Email, etc.
+      # Docs: https://github.com/marketplace?category=notifications
+      - name: Send deployment notification
+        if: always()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          script: |
+            # Log deployment to system
+            echo "$(date): Production deployment ${{ job.status }} - Version ${{ steps.meta.outputs.VERSION }}" >> ~/deployments/deployment.log
+        continue-on-error: true
+
+  # Optional: Create a GitHub Release for each production deployment
+  # This provides a nice changelog and version history
+  create-release:
+    needs: deploy-to-production
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # Create a GitHub release for tracking
+      # Docs: https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.meta.outputs.VERSION }}
+          release_name: Production Release ${{ steps.meta.outputs.VERSION }}
+          body: |
+            Production deployment from PR #${{ github.event.pull_request.number }}
+            
+            **Changes**: ${{ github.event.pull_request.title }}
+            **Deployed by**: @${{ github.actor }}
+            **Commit**: ${{ github.sha }}
+          draft: false
+          prerelease: false

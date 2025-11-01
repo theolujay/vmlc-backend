@@ -103,7 +103,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
-    list_filter = ["is_pending", "is_verified", "created_at"]
+    list_filter = ["is_pending", "is_approved", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     readonly_fields = ["created_at", "updated_at"]
     list_select_related = ("user",)
@@ -112,7 +112,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {"fields": ("user", "is_pending", "is_verified")}),
+        (None, {"fields": ("user", "is_pending", "is_approved")}),
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
@@ -123,7 +123,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     @admin.display(description="Status")
     def verification_status(self, obj):
         """Display verification status with color coding."""
-        if obj.is_verified:
+        if obj.is_approved:
             return format_html('<span style="color: green;">✓ Verified</span>')
         elif obj.is_pending:
             return format_html('<span style="color: orange;">⏳ Pending</span>')
@@ -145,13 +145,13 @@ class UserVerificationAdmin(admin.ModelAdmin):
     @admin.action(description="Approve selected verifications")
     def approve_selected(self, request, queryset):
         """Approve selected verification requests."""
-        count = queryset.update(is_verified=True, is_pending=False)
+        count = queryset.update(is_approved=True, is_pending=False)
         self.message_user(request, f"{count} verification(s) approved.")
 
     @admin.action(description="Reject selected verifications")
     def reject_selected(self, request, queryset):
         """Reject selected verification requests."""
-        count = queryset.update(is_verified=False, is_pending=False)
+        count = queryset.update(is_approved=False, is_pending=False)
         self.message_user(request, f"{count} verification(s) rejected.")
 
 
@@ -170,7 +170,7 @@ class CandidateAdmin(admin.ModelAdmin):
         "total_score_display",
         "get_primary_key",
         "exams_taken",
-        "is_verified",
+        "is_user_verified",
         "is_active",
         "created_at",
     )
@@ -179,7 +179,7 @@ class CandidateAdmin(admin.ModelAdmin):
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_verified",  # Filter by verification status
+        "user__verification__is_approved",  # Filter by verification status
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "school")
@@ -210,10 +210,10 @@ class CandidateAdmin(admin.ModelAdmin):
         return obj.pk
 
     @admin.display(
-        description="Verified", boolean=True, ordering="user__verification__is_verified"
+        description="Verified", boolean=True, ordering="user__verification__is_approved"
     )
-    def is_verified(self, obj):
-        return obj.is_verified
+    def is_user_verified(self, obj):
+        return obj.is_user_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):
@@ -237,7 +237,7 @@ class StaffAdmin(admin.ModelAdmin):
         "role",
         "occupation",
         "get_primary_key",
-        "is_verified",
+        "is_user_verified",
         "is_active",
         "created_at",
         "created_by",
@@ -247,7 +247,7 @@ class StaffAdmin(admin.ModelAdmin):
     list_filter = (
         "role",
         "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_verified",  # Filter by verification status
+        "user__verification__is_approved",  # Filter by verification status
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "occupation")
@@ -267,10 +267,10 @@ class StaffAdmin(admin.ModelAdmin):
         return obj.pk
 
     @admin.display(
-        description="Verified", boolean=True, ordering="user__verification__is_verified"
+        description="Verified", boolean=True, ordering="user__verification__is_approved"
     )
-    def is_verified(self, obj):
-        return obj.is_verified
+    def is_user_verified(self, obj):
+        return obj.is_user_verified
 
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):
@@ -293,9 +293,10 @@ class ExamAdmin(admin.ModelAdmin):
         "id",
         "title",
         "stage",
-        "exam_date",
+        "scheduled_date",
         "get_question_count",
         "is_active",
+        "is_currently_open",
         "view_results_link",
         "created_at",
     )
@@ -331,9 +332,9 @@ class QuestionAdmin(admin.ModelAdmin):
     Displays question text, difficulty, and creator.
     """
 
-    list_display = ("id", "text", "difficulty", "creator_name", "created_at")
-    readonly_fields = ("created_at", "updated_at")
-    list_filter = ("difficulty", "created_by")
+    list_display = ("id", "text", "difficulty", "creator_name", "is_archived", "archived_at", "created_at")
+    readonly_fields = ("created_at", "updated_at", "archived_at")
+    list_filter = ("difficulty", "created_by", "is_archived")
     search_fields = ("text", "created_by__user__email")
     list_select_related = ("created_by__user",)
     date_hierarchy = "created_at"
@@ -359,11 +360,12 @@ class CandidateScoreAdmin(admin.ModelAdmin):
         "score",
         "recorded_at",
         "auto_score",
+        "score_submitted_by_name",
     )
     readonly_fields = ("recorded_at", "updated_at")
-    list_filter = ("exam", "auto_score")
-    search_fields = ("candidate__user__email", "exam__title")
-    list_select_related = ("candidate__user", "exam")
+    list_filter = ("exam", "auto_score", "score_submitted_by")
+    search_fields = ("candidate__user__email", "exam__title", "score_submitted_by__user__email")
+    list_select_related = ("candidate__user", "exam", "score_submitted_by__user")
     date_hierarchy = "recorded_at"
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
@@ -373,6 +375,12 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     @admin.display(description="Exam", ordering="exam__title")
     def exam_title(self, obj):
         return obj.exam.title
+
+    @admin.display(description="Score Submitted By", ordering="score_submitted_by__user__first_name")
+    def score_submitted_by_name(self, obj):
+        if obj.score_submitted_by:
+            return obj.score_submitted_by.user.get_full_name()
+        return "Auto Score" if obj.auto_score else "N/A"
 
 
 @admin.register(CandidateAnswer)
@@ -429,12 +437,13 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
+        "is_published",
         "data_summary",
         "published_by_name",
         "created_at",
     )
     readonly_fields = ("created_at",)
-    list_filter = ("created_at", "published_by")
+    list_filter = ("is_published", "created_at", "published_by")
     search_fields = ("published_by__user__email",)
     list_select_related = ("published_by__user",)
     date_hierarchy = "created_at"
@@ -449,8 +458,13 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     def data_summary(self, obj):
         import json
 
-        summary = str(json.dumps(obj.data))
-        return (summary[:75] + "...") if len(summary) > 75 else summary
+        screening_leaderboard = str(json.dumps(obj.data["screening_leaderboard"]))
+        league_leaderboard = str(json.dumps(obj.data["league_leaderboard"]))
+        summary = {
+            "screening_leaderboard": (screening_leaderboard[:75] + "...") if len(screening_leaderboard) > 75 else screening_leaderboard,
+            "league_leaderboard": (league_leaderboard[:75] + "...") if len(league_leaderboard) > 75 else league_leaderboard,
+        }
+        return summary
 
 
 @admin.register(CandidateScoreSnapshot)

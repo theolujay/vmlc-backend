@@ -5,13 +5,16 @@ from .verification import (
     UserVerificationListView,
     UserVerificationActionView,
 )
-from .management import StaffInviteView
+from .management import StaffInviteView, AccountManagementView
 
 __all__ = [
+    # verification
     "UserVerificationStatusView",
     "UserVerificationUploadView",
     "UserVerificationDocumentView",
     "UserVerificationListView",
     "UserVerificationActionView",
+    # management
+    "AccountManagementView",
     "StaffInviteView",
 ]

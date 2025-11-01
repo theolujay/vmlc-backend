@@ -186,7 +186,7 @@ class IsVerifiedStaff(BasePermission):
 
     def has_permission(self, request, view):
         staff_profile = _get_staff_profile(request)
-        return staff_profile is not None and staff_profile.is_verified
+        return staff_profile is not None and staff_profile.is_user_verified
 
 
 class IsObjectOwnerOrManagerRole(BasePermission):
@@ -209,7 +209,7 @@ class IsObjectOwnerOrManagerRole(BasePermission):
         staff_profile = _get_staff_profile(request)
         is_manager = (
             staff_profile is not None
-            and staff_profile.is_verified
+            and staff_profile.is_user_verified
             and staff_profile.role in (Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN)
         )
 

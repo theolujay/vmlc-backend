@@ -49,12 +49,23 @@ DATABASE_URL = read_secret("DATABASE_URL")
 if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL environment variable is required")
 
-DATABASES = {
-    "default": dj_database_url.config(
+db_config = dj_database_url.config(
         default=DATABASE_URL,
-        conn_max_age=600,
+        engine="dj_db_conn_pool.backends.postgresql",
         conn_health_checks=True,
     )
+
+db_config['POOL_OPTIONS'] = {
+    'POOL_SIZE': 5,
+    'MAX_OVERFLOW': 10,
+    'RECYCLE': 3600,
+    'PRE_PING': True,
+}
+
+db_config.pop('CONN_MAX_AGE', None)
+
+DATABASES = {
+    "default": db_config
 }
 
 REQUIRED_AWS_VARS = [
@@ -94,17 +105,10 @@ AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB max memory usage
 
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME,
-            "object_parameters": AWS_S3_OBJECT_PARAMETERS,
-            "file_overwrite": AWS_S3_FILE_OVERWRITE,
-            "querystring_auth": AWS_QUERYSTRING_AUTH,
-            "querystring_expire": AWS_QUERYSTRING_EXPIRE,
-            "signature_version": AWS_S3_SIGNATURE_VERSION,
-            "location": "media",
-        },
+        "BACKEND": "vmlc.storage_backends.PrivateMediaStorage",
+    },
+    "public": {
+        "BACKEND": "vmlc.storage_backends.PublicMediaStorage",
     },
     "staticfiles": {
         "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
@@ -165,7 +169,7 @@ LOGGING = {
             "propagate": False,
         },
         "celery": {
-            "level": "ERROR",
+            "level": "INFO",
             "handlers": ["console"],
             "propagate": False,
         },
@@ -174,11 +178,6 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "django.request": {
-        "level": "ERROR",
-        "handlers": ["console"],
-        "propagate": False,
-    },
         "gunicorn.access": {
             "level": "INFO",
             "handlers": ["access_console"],
@@ -251,10 +250,10 @@ CELERY_WORKER_LOG_COLOR = False  # No colors in production logs
 CELERY_TASK_ALWAYS_EAGER = False  # Never use eager mode in production
 CELERY_TASK_EAGER_PROPAGATES = False
 
-# Optimized for 8GB/2vCPU VPS with production + staging
-CELERY_WORKER_CONCURRENCY = 2  # Match available vCPUs (was 8)
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Keep as-is
-CELERY_WORKER_MAX_MEMORY_PER_CHILD = 300000  # ~300MB (was 200MB, you have 768MB limit)
+# Optimized for 12GB/6vCPU VPS for production only
+CELERY_WORKER_CONCURRENCY = 4
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 1000000 # ~1000 MB
 
 # Production monitoring and reliability
 CELERY_TASK_TRACK_STARTED = True
@@ -264,7 +263,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 # Keep time limits
 CELERY_TASK_SOFT_TIME_LIMIT = 120
-CELERY_TASK_TIME_LIMIT = 300  # Increased to 5min (you set --time-limit=300 in compose)
+CELERY_TASK_TIME_LIMIT = 600  # Increased to 10min (you set --time-limit=300 in compose)
 
 # Optimized broker settings
 CELERY_BROKER_TRANSPORT_OPTIONS = {
@@ -324,14 +323,13 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SAMESITE = "Lax"
 # === FILE UPLOAD SETTINGS ===
 # Increase file upload limits if needed
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Maximum file sizes for different upload types
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-
 
 FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "https://portal.verboheit.org")
 SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")

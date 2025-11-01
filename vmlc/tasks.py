@@ -1,12 +1,17 @@
 import logging
-from celery import shared_task
+from datetime import timedelta
+
+from django.db.models import F, Avg, ExpressionWrapper, DateTimeField
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.db import OperationalError
 from django.utils import timezone
+from celery import shared_task
 from PIL import Image
 import magic
 
+from vmlc.models import Exam
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +92,7 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             candidate_score.score = round(score, 2)
 
         candidate_score.auto_score = True
+        candidate_score.score_submitted_by = "Auto Score"
         candidate_score.recorded_at = timezone.now()
         candidate_score.save()
 
@@ -100,56 +106,143 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             f"Failed to calculate score for CandidateScore {candidate_score_id}: {e}"
         )
 
+@shared_task(name="update_exam_statuses_task")
+def update_exam_statuses_task():
+    """This task is deprecated since Exam.status is now a property."""
+    logger.info("update_exam_statuses_task is deprecated and does nothing.")
+    return "Task is deprecated."
 
 @shared_task(name="generate_leaderboard_snapshot_task")
 def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
+    
+    This task creates a comprehensive leaderboard structure that organizes
+    exams by their stage (screening/league) and level (1, 2, 3, etc.).
+    
+    The resulting data structure looks like:
+    {
+        "screening_1": {...},
+        "screening_2": {...},
+        "league_1": {...},
+        "league_2": {...},
+        ...
+    }
+    
+    Each key is a combination of stage and level, making it easy to fetch
+    specific leaderboards from the frontend.
     """
-    from .models import Candidate, LeaderboardSnapshot, Staff, User
-    from .serializers import MinimalCandidateSerializer
-
-    try:
-        if staff_id:
-            staff = Staff.objects.get(pk=staff_id)
-        else:
-            # If no staff_id is provided, use the first superadmin
-            superadmin_user = User.objects.filter(is_superuser=True).first()
-            manager_user = User.objects.filter(is_manager=True).first()
-            if not manager_user or superadmin_user:
-                logger.error("No superadmin or manager user found to publish the leaderboard.")
-                return
-            staff = manager_user.staff_profile if manager_user else superadmin_user.staff_profile
-
-        league_candidates = (
-            Candidate.objects.with_scores()
-            .filter(role=Candidate.Roles.LEAGUE, is_active=True)
-            .order_by("-total_score")
+    from .models import Exam, CandidateScore, LeaderboardSnapshot, Staff
+    from .serializers import CandidateLeaderboardPerfSerializer
+    
+    now = timezone.now()
+    
+    # Find all concluded exams
+    # We annotate each exam with its conclusion_time to filter efficiently
+    exams = Exam.objects.annotate(
+        conclusion_time=ExpressionWrapper(
+            F('scheduled_date') + F('open_duration_hours') * timedelta(hours=1),
+            output_field=DateTimeField()
         )
-
-        leaderboard_data = [
-            {
-                "rank": index + 1,
-                "candidate": MinimalCandidateSerializer(candidate).data,
-                "total_score": float(candidate.total_score or 0.0),
-            }
-            for index, candidate in enumerate(league_candidates)
-        ]
-
-        snapshot = LeaderboardSnapshot.objects.create(
-            data=leaderboard_data,
-            published_by=staff,
-        )
-
+    ).filter(
+        is_active=True,
+        conclusion_time__lte=now  # Only concluded exams
+    ).annotate(
+        average_score=Avg("scores__score")
+    ).order_by('stage', 'level')  # Order by stage, then level for consistent processing
+    
+    if not exams.exists():
         logger.info(
-            f"Leaderboard published by staff {staff.pk}. Snapshot ID: {snapshot.pk}"
+            f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
         )
-    except Staff.DoesNotExist:
-        logger.error(f"Staff with id {staff_id} does not exist.")
-    except Exception as e:
-        logger.error(f"Failed to generate leaderboard snapshot: {e}")
+        return
 
+    # Get the staff member who triggered this
+    staff = Staff.objects.get(pk=staff_id) if staff_id else None
+    
+    # Dictionary to hold all leaderboards
+    # Key format: "screening_1", "league_2", etc.
+    all_leaderboards = {}
+    
+    for exam in exams:
+        # Create a unique key for this exam: stage_level (e.g., "screening_1", "league_2")
+        leaderboard_key = f"{exam.stage}_{exam.level}"
+        
+        # Get all scores for this exam, ordered by score (highest first)
+        scores = (
+            CandidateScore.objects
+            .filter(exam=exam)
+            .select_related('candidate__user')
+            .prefetch_related('answers__question')
+            .order_by("-score")
+        )
+        
+        # Build the leaderboard for this specific exam
+        leaderboard_entries = []
+        
+        for index, score in enumerate(scores):
+            # Get candidate data
+            candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
+            
+            # Get all answers for this candidate's exam submission
+            answers = score.answers.all()
+            
+            # Build submission details (all questions and selected answers)
+            submission_list = []
+            for answer in answers:
+                submission_list.append({
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "correct_answer": answer.question.correct_answer,
+                    "selected_option": answer.selected_option,
+                    "is_correct": answer.selected_option == answer.question.correct_answer,
+                    "answered_at": answer.answered_at.isoformat(),
+                })
+            
+            candidate_data["submissions"] = submission_list
+            
+            # Add this candidate to the leaderboard
+            leaderboard_entries.append({
+                "rank": index + 1,
+                "candidate": candidate_data,
+                "score": float(score.score),
+                "percentage": round((float(score.score) / exam.questions.count() * 100), 2) if exam.questions.count() > 0 else 0
+            })
+        
+        # Store this exam's complete leaderboard data
+        all_leaderboards[leaderboard_key] = {
+            "exam_id": exam.id,
+            "exam_title": exam.title,
+            "exam_description": exam.description,
+            "stage": exam.stage,
+            "level": exam.level,
+            "stage_display": leaderboard_key,  # e.g., "league_2"
+            "scheduled_date": exam.scheduled_date.isoformat(),
+            "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
+            "status": exam.status,
+            "total_questions": exam.questions.count(),
+            "average_score": float(exam.average_score) if exam.average_score else 0.0,
+            "total_candidates": len(leaderboard_entries),
+            "entries": leaderboard_entries
+        }
 
+    # Create the snapshot with all leaderboards
+    snapshot = LeaderboardSnapshot.objects.create(
+        data=all_leaderboards,
+        published_by=staff,
+        is_published=True,
+    )
+
+    logger.info(
+        f"Leaderboard snapshot created by staff {staff.pk if staff else 'system'}. "
+        f"Snapshot ID: {snapshot.pk}. "
+        f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
+    )
+        
 @shared_task(name="generate_scores_snapshot_task")
 def generate_scores_snapshot_task(staff_id=None):
     """
@@ -168,7 +261,7 @@ def generate_scores_snapshot_task(staff_id=None):
                 logger.error("No superadmin user found to publish the scores snapshot.")
                 return
             staff = superadmin_user.staff_profile
-        candidates = Candidate.objects.with_scores().filter(is_active=True)
+        candidates = Candidate.objects.with_scores().filter(user__is_active=True)
 
         scores_data = []
         for candidate in candidates:
@@ -443,3 +536,81 @@ def revoke_staff_invite_task(user_id):
             logger.info(f"User {user.email} has logged in. No action taken.")
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
+
+@shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
+def revoke_staff_registration_task(self, user_id):
+    """
+    Delete staff registration if not email_verified
+    """
+    from datetime import timedelta
+    from .models import User, EmailOTP
+    
+    try:
+        user = User.objects.get(pk=user_id)
+
+        if not hasattr(user, "staff_profile"):
+            logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
+            return
+            
+        if user.is_email_verified:
+            logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
+            return
+
+        latest_otp = (
+            EmailOTP.objects.filter(user=user).order_by("-created_at").first()
+        )
+        if not latest_otp:
+            if self.request.retries >= 5:
+                logger.warning(
+                    f"No OTP found for user {user.id} after {self.request.retries} retries. "
+                    "Deleting user as precaution."
+                )
+                user.delete()
+                return
+            
+            logger.debug(
+                f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
+            )
+            raise self.retry(countdown=60)
+
+        time_since_last: timedelta = timezone.now() - latest_otp.created_at
+        grace_period: timedelta = timedelta(minutes=5)
+        
+        if latest_otp.is_expired() and time_since_last >= grace_period:
+            logger.debug(
+                f"Registration grace period elapsed. Revoking user registration for {user.id}."
+            )
+        
+            user.delete()
+            logger.info(f"Revoked staff registration for user {user.email}")
+        
+        elif latest_otp.is_expired() and time_since_last < grace_period:
+            logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
+            # Retry the task after the grace period has passed
+            raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
+        
+        else:
+            logger.info(f"OTP for user {user.id} is still valid. No action taken.")
+
+    except User.DoesNotExist:
+        logger.warning(f"User with id {user_id} not found for registration revocation.")
+        # Don't retry - user is gone
+        return
+
+    except OperationalError as e:
+        # Database temporarily unavailable - retry makes sense
+        logger.error(f"Database error during revocation for user {user_id}: {e}")
+        raise self.retry(exc=e, countdown=60)
+
+    except Exception as e:
+        # Unexpected error - log and decide if we should retry
+        logger.error(
+            f"Unexpected error during revocation for user {user_id}: {e}",
+            exc_info=True
+        )
+        
+        if self.request.retries >= 3:
+            logger.error(f"Max retries reached for user {user_id}. Giving up.")
+            return
+        
+        raise self.retry(exc=e, countdown=60)

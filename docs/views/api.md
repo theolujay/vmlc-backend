@@ -3,7 +3,6 @@
 <details>
 <summary>Table of Contents</summary>
 
-## Table of Contents
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Base URL](#base-url)
@@ -11,7 +10,7 @@
   - [User Roles, Permissions, and API Access](#user-roles-permissions-and-api-access)
   - [Feature Walkthroughs and User Stories](#feature-walkthroughs-and-user-stories)
   - [Endpoint Mapping](#endpoint-mapping)
-- [Endpoints details](#endpoints-details)
+- [API Endpoints](#api-endpoints)
   - [Health & Root](#health--root)
   - [Authentication](#authentication-endpoints)
   - [Registration](#registration)
@@ -34,9 +33,9 @@
   - [Rate Limiting](#rate-limiting)
   - [Versioning](#versioning)
 - [Support & More](#support--more)
-  - Interactive Documentation
-  - Support
-  - Changelog
+  - [Interactive Documentation](#interactive-documentation)
+  - [Support](#support)
+  - [Changelog](#changelog)
 
 ---
 </details>
@@ -45,8 +44,7 @@
 <summary>Overview</summary>
 
 ## Overview
-
-The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the awo types of users--staff and candidate
+The VMLC API provides an integrated backend service for the Verboheit Mathematics League Competition, handling registration, exam administration, scoring, and leaderboard functionality with user management and role-based access control based on the two types of users--staff and candidate
 
 ---
 </details>
@@ -58,25 +56,21 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 
 ### Base URL
 
-`https://api.verboheit.org/v1/` for production
-
-`https://staging-api.verboheit.org/v1/`for staging
+`https://api.verboheit.org/v1/` ~ production
+`https://staging-api.verboheit.org/v1/`~ staging
 
 All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
 
 ---
 
 ### Authentication
-
 The API uses `X-Api-Key` for general authentication. The API key should be provided in the `X-Api-Key` header:
 
 `X-Api-Key: <your_api_key>`
 
 For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
 
-
 #### Login Flow
-
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
@@ -115,9 +109,7 @@ Content-Type: application/json
 *Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
 
 #### Token Management
-
 ##### Refresh Token
-
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
@@ -136,7 +128,6 @@ Content-Type: application/json
 ```
 
 ##### Logout
-
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
@@ -170,7 +161,6 @@ The health check endpoint provides a simple way to verify the API's operational 
 ```
 
 ### Root Endpoint
-
 The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
 
 **Endpoint:** `GET /root/`
@@ -203,13 +193,12 @@ X-Api-Key: <your_api_key>
 
 This table provides a detailed breakdown of each user role, its key abilities on the platform, and the primary API endpoints it has access to.
 
-
 ### Candidate User Type
 
 | Role | Key Abilities (What they can do) | Accessible API Endpoints |
 |------|-----------------------------------|--------------------------|
-| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/` |
-| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
+| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /load-leaderboard/` (for screening exams) |
+| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
 | **`final`** | • All `league` abilities.<br>• Access to (offline) final-stage exams. | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`) |
 | **`winner`** | • Ceremonial role with all candidate permissions. Registered winner of the final stage. | • All `final` endpoints. |
 
@@ -220,8 +209,8 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | Role | Key Abilities (What they can do) | Newly Accessible API Endpoints (in addition to lower roles) |
 |------|-----------------------------------|-------------------------------------------------------------|
 | **`volunteer`** | • View their own profile.<br>• Submit their own documents for verification. | • `GET /staff/me/`<br>• `GET /user/verification/status/`<br>• `POST/PATCH /user/verification/upload/` |
-| **`moderator`** | • View lists of all candidates.<br>• Create, Read, Update, and Delete questions. | • `GET /candidates/`<br>• `GET /staff/`<br>• `GET/POST /questions/`<br>• `GET/PUT/PATCH/DELETE /questions/{id}/` |
-| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish and control leaderboard visibility. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/`<br>• `POST /toggle-leaderboard/` |
+| **`moderator`** | • View lists of all candidates.<br>• Create, Read, Update, and Delete questions.<br>• View the competition leaderboard. | • `GET /candidates/`<br>• `GET /staff/`<br>• `GET/POST /questions/`<br>• `GET/PUT/PATCH/DELETE /questions/{id}/`<br>• `GET /load-leaderboard/` |
+| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
 | **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
 | **`superadmin`** | • Can assign any staff role (except `superadmin`).<br>• Has full platform control inheriting all permissions. | *(Inherits all `manager` endpoints with zero restrictions)* |
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
@@ -229,7 +218,6 @@ This table provides a detailed breakdown of each user role, its key abilities on
 **NOTE**: Users must already have their emails verified and be user-verified to perform actions beyond `get-started`.
 
 #### Role Progression
-
 - **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
 - **Staff**: Roles are assigned by a `manager` or `superadmin`.
 
@@ -242,7 +230,6 @@ This table provides a detailed breakdown of each user role, its key abilities on
 ## Feature Walkthroughs and User Stories
 
 This is a high-level overview of the core features and users' perspectives.
-
 
 ### Feature: Onboarding, Email Verification & First Login
 
@@ -277,10 +264,6 @@ Feature: Registration, Email verification, and initial redirect
     Then they are redirected to the "Get Started" page
     And the Tour card remains locked until the user is promoted to at least "moderator"
 ```
-<!-- </details>
-
-<details>
-<summary>Feature: User Verification, Role Promotions & Tour Unlocking</summary> -->
 
 ### Feature: User Verification, Role Promotions & Tour Unlocking
 
@@ -300,16 +283,12 @@ Feature: Verification and role promotion flow
     And after being marked "verified" the candidate can access their candidate dashboard
 
   Scenario: Staff promotion that unlocks the Tour card
-    Given a logged-in staff member with role "volunteer"
+    Given a logged-in staff member currently role "volunteer"
     And their email is verified and they have submitted verification documents
     When a manager or superadmin assigns role "moderator" to the staff member
     Then the Tour card becomes unlocked on their Get Started page
     And moderator-level navigation (candidate lists, question management) becomes available
 ```
-<!-- </details>
-
-<details>
-<summary>Feature: Dashboards & Role-based Access (Acceptance criteria)</summary> -->
 
 ### Feature: Dashboards & Role-based Access (Acceptance criteria)
 
@@ -318,7 +297,7 @@ Feature: Dashboards and permissions
   So that each role only sees and does what it should
 
   Scenario: Screening candidate dashboard access
-    Given a logged-in candidate with role "screening" and is_verified = true
+    Given a logged-in candidate with role "screening" and is_user_verified = true
     When they open their Dashboard
     Then they see: available screening exams, exam history, profile information
     And they do not see the leaderboard or league exams
@@ -374,10 +353,6 @@ Feature: Dashboards and permissions
 >     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Health & discovery</summary> -->
 
 #### Health & discovery
 
@@ -385,10 +360,6 @@ Feature: Dashboards and permissions
     
 - `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
     
-<!-- </details>
-
-<details>
-<summary>Interactive docs</summary> -->
 
 #### Interactive docs
 
@@ -400,10 +371,6 @@ Feature: Dashboards and permissions
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Authentication</summary> -->
 
 #### Authentication
 
@@ -415,10 +382,6 @@ Feature: Dashboards and permissions
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Registration</summary> -->
 
 #### Registration
 
@@ -428,16 +391,12 @@ Feature: Dashboards and permissions
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Email & password flows</summary> -->
 
 #### Email & password flows
 
 - `POST /verify-email-otp/` — verify registration OTP. Request: `{ email, otp }`. `200 OK`.
     
-- `POST /resend-email-otp/` — resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
+- `POST /send-email-otp/` — send/resend OTP. `200 OK` (returns masked email + `expires_in_minutes`).
     
 
 Password-change:
@@ -452,10 +411,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>"Me" profile endpoints</summary> -->
 
 #### "Me" profile endpoints
 
@@ -465,10 +420,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Candidate management (staff-facing)</summary> -->
 
 #### Candidate management (staff-facing)
 
@@ -484,10 +435,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Staff management (staff-facing)</summary> -->
 
 #### Staff management (staff-facing)
 
@@ -503,10 +450,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>User verification endpoints</summary> -->
 
 #### User verification endpoints
 
@@ -518,7 +461,7 @@ Password-change:
     
 - `PATCH /user/verification/upload/` — update/resubmit verification docs. Any authenticated user. `200 OK`.
     
-- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_verified`, `is_rejected`. `200 OK`.
+- `GET /user/verification/list/` — list verification requests (manager+). Query filters: `is_pending`, `is_approved`, `is_rejected`. `200 OK`.
     
 - `POST /user/verification/action/{id}/` — approve/reject a verification (manager+). `200 OK`.
     
@@ -526,10 +469,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Exam management</summary> -->
 
 #### Exam management
 
@@ -549,10 +488,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Question management</summary> -->
 
 #### Question management
 
@@ -562,10 +497,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Dashboards</summary> -->
 
 #### Dashboards
 
@@ -575,27 +506,19 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Leaderboard & publishing</summary> -->
 
 #### Leaderboard & publishing
 
-- `POST /publish-leaderboard/` — start generation & publish snapshot (admin+). `202 Accepted`.
+- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (admin+). Request: `{ exam_id: <int> }`. `202 Accepted`.
     
-- `GET /load-leaderboard/` — fetch latest published snapshot. Role: `league` candidates and above + staff with moderator role or higher. Query: `limit`, `offset`. `200 OK`.
-    
-- `POST /toggle-leaderboard/` — (mentioned in spec / role table) toggle visibility (manager+). `200 OK` (may be feature-flagged / commented).
+- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
     
 
 ---
-<!-- </details>
+</details>
 
 <details>
-<summary>Broadcasts & notifications</summary> -->
-
-#### Broadcasts & notifications
+<summary>Broadcasts & notifications</summary>
 
 - `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
     
@@ -605,10 +528,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Account management & misc</summary> -->
 
 #### Account management & misc
 
@@ -618,10 +537,6 @@ Password-change:
     
 
 ---
-<!-- </details>
-
-<details>
-<summary>Rate limits / error codes</summary> -->
 
 #### Rate limits / error codes
 
@@ -630,20 +545,16 @@ Password-change:
 - Standard error JSON: `{ "detail": "...", "code": "error_code" }`. Common error codes: `permission_denied`, `invalid_otp`, `leaderboard_hidden`, `registration_closed`, etc. Use these in negative tests.
 
 ---
-<!-- </details> -->
 </details>
 
 <details>
-<summary>Endpoints Details</summary>
+<summary>API Endpoints</summary>
 
-## Endpoint Details
-
+## API Endpoints
 ### Registration
 Registration endpoints allow new users to sign up as either candidates or staff members. Registration can be dynamically enabled or disabled via feature flags.
 
-
 #### Register New Users
-
 **Candidate Registration**  
 **Endpoint:** `POST /register/candidate/`  
 **Headers:**
@@ -696,7 +607,6 @@ X-Api-Key: <your_api_key>
 ### Email & Password
 
 #### Verify Email with OTP
-
 **Endpoint:** `POST /verify-email-otp/`  
 **Headers:**
 ```text
@@ -717,9 +627,8 @@ X-Api-Key: <your_api_key>
 }
 ```
 
-#### Resend Email OTP
-
-**Endpoint:** `POST /resend-email-otp/`
+#### Send/Resend Email OTP
+**Endpoint:** `POST /send-email-otp/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
@@ -727,21 +636,23 @@ X-Api-Key: <your_api_key>
 **Request Body:**
 ```json
 {
-  "email": "john@example.com"
+  "email": "john@example.com",
+  "resend": false
 }
 ```
+*Note: Set `"resend": true` to resend a a (new) OTP.* If not resend, the field can be ommitted.
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "OTP has been resent to your email address",
+  "message": "OTP has been sent to your email address",
   "email": "joh***@example.com",
   "expires_in_minutes": 10
 }
 ```
+```
 
 #### Request Password Change OTP
-
 **Endpoint:** `POST /auth/password-change/request/`
 **Headers:**
 ```text
@@ -764,7 +675,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Confirm OTP for Password Change
-
 **Endpoint:** `POST /auth/password-change/confirm-otp/`
 **Headers:**
 ```text
@@ -785,7 +695,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Change Password
-
 **Endpoint:** `POST /auth/password-change/`
 **Headers:**
 ```text
@@ -809,7 +718,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Resend Password Change OTP
-
 **Endpoint:** `POST /auth/password-change/resend-otp/`
 **Headers:**
 ```text
@@ -836,7 +744,6 @@ X-Api-Key: <your_api_key>
 ### User Profiles "Me" Endpoints
 
 #### Get Authenticated Candidate's Profile
-
 **Endpoint:** `GET /candidates/me/`
 **Headers:**
 ```text
@@ -860,7 +767,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Authenticated Staff Member's Profile
-
 **Endpoint:** `GET /staff/me/`
 **Headers:**
 ```text
@@ -888,7 +794,6 @@ X-Api-Key: <your_api_key>
 ### Candidate Management
 
 #### List Candidates
-
 **Endpoint:** `GET /candidates/`  
 **Headers:**
 ```text
@@ -914,20 +819,20 @@ X-Api-Key: <your_api_key>
     {
       "user": {
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx"
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     }
   ]
 }
 ```
 
 #### Get Candidate Details
-
 **Endpoint:** `GET /candidates/{candidate_id}/`
 **Headers:**
 ```text
@@ -942,6 +847,7 @@ Authorization: Bearer <access-token>
     "user": {
         "id": "17914269-19b2-43f6-aa7e-81e59330df2f",
         "email": "candidate100@mail.com",
+        "is_email_verified": true,
         "first_name": "Robert",
         "last_name": "Parker",
         "phone": "08112463722",
@@ -951,7 +857,7 @@ Authorization: Bearer <access-token>
     "face_id": null,
     "role": "league",
     "is_active": true,
-    "is_verified": false,
+    "is_user_verified": false,
     "id_card": null,
     "verification_document": null,
     "created_at": "2025-10-15T11:39:51.353736+01:00",
@@ -975,26 +881,50 @@ Authorization: Bearer <access-token>
                 "lowest_score": 41.3,
                 "highest_obtainable_score": 100.0
             },
-            "exams": [
+            "exams_taken": [
                 {
                     "exam_id": 4,
                     "exam_title": "Organized interactive parallelism",
                     "exam_stage": "league",
-                    "exam_date": "2025-09-30T10:39:51.622476Z",
+                    "scheduled_date": "2025-09-30T10:39:51.622476Z",
                     "score": 99.88,
                     "recorded_at": "2025-10-15T10:40:03.271586+00:00",
-                    "submitted_by": "Anne Bradshaw",
-                    "auto_score": false
+                    "score_submitted_by": "Anne Bradshaw",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 1,
+                            "question_text": "What is 2 + 2?",
+                            "option_a": "3",
+                            "option_b": "4",
+                            "option_c": "5",
+                            "option_d": "6",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.271586Z"
+                        }
+                    ]
                 },
                 {
                     "exam_id": 2,
                     "exam_title": "Customizable background utilization",
                     "exam_stage": "screening",
-                    "exam_date": "2025-09-17T10:39:51.597446Z",
+                    "scheduled_date": "2025-09-17T10:39:51.597446Z",
                     "score": 41.3,
                     "recorded_at": "2025-10-15T10:40:03.247026+00:00",
-                    "submitted_by": "Kenneth Pace",
-                    "auto_score": false
+                    "score_submitted_by": "Kenneth Pace",
+                    "auto_score": false,
+                    "submission": [
+                        {
+                            "question_id": 2,
+                            "question_text": "What is 3 + 3?",
+                            "option_a": "5",
+                            "option_b": "6",
+                            "option_c": "7",
+                            "option_d": "8",
+                            "selected_option": "B",
+                            "answered_at": "2025-10-15T10:40:03.247026Z"
+                        }
+                    ]
                 }
             ]
         },
@@ -1004,7 +934,6 @@ Authorization: Bearer <access-token>
 ```
 
 #### Assign Candidate Role
-
 **Endpoint:** `PUT /candidates/{candidate_id}/roles/assign/`  
 **Headers:**
 ```text
@@ -1026,7 +955,6 @@ X-Api-Key: <your_api_key>
 *Note: A candidate must be verified before a role can be assigned.*
 
 #### Get Candidate Scores
-
 **Endpoint:** `GET /candidates/{candidate_id}/scores/`  
 **Required Role:** `admin` or higher  
 **Response:** `200 OK`
@@ -1038,6 +966,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "john@example.com",
+        "is_email_verified": true,
         "first_name": "John",
         "last_name": "Doe",
         "phone": "+23490xxxxxxxx",
@@ -1045,7 +974,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
-      "is_verified": true
+      "is_user_verified": true
     },
     "exam": {
       "id": 1,
@@ -1061,7 +990,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Candidate Exam History
-
 Retrieves a list of all exams a specific candidate has taken, including their scores and the date of submission. This provides a chronological record of a candidate's performance.
 
 **Endpoint:** `GET /candidates/{candidate_id}/exam-history/`
@@ -1086,7 +1014,6 @@ Retrieves a list of all exams a specific candidate has taken, including their sc
 ### Staff Management
 
 #### List Staff
-
 **Endpoint:** `GET /staff/`  
 **Headers:**
 ```text
@@ -1125,7 +1052,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Staff Details
-
 **Endpoint:** `GET /staff/{staff_id}/`
 **Headers:**
 ```text
@@ -1139,6 +1065,7 @@ X-Api-Key: <your_api_key>
   "user": {
     "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
     "email": "jane@example.com",
+    "is_email_verified": true,
     "first_name": "Jane",
     "last_name": "Smith",
     "phone": "+23490xxxxxxxx",
@@ -1148,7 +1075,7 @@ X-Api-Key: <your_api_key>
   "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",
   "is_active": true,
-  "is_verified": true,
+  "is_user_verified": true,
   "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
   "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
   "created_at": "2024-01-01T08:00:00Z",
@@ -1157,7 +1084,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Assign Staff Role
-
 **Endpoint:** `PUT /staff/{staff_id}/roles/assign/`  
 **Headers:**
 ```text
@@ -1204,15 +1130,13 @@ Authorization: Bearer <access-token>
   "message": "Staff profile created, invite sent."
 }
 ```
+
 ---
 
 ### Exam Management
-
 The API provides comprehensive management for exams, including CRUD operations, question association, and result viewing.
 
-
 #### List Exams
-
 **Endpoint:** `GET /exams/`  
 **Headers:**
 ```text
@@ -1230,24 +1154,37 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK`
 ```json
 {
-  "count": 25,
-  "total_pages": 2,
-  "next": "https://api.verboheit.org/v1/exams/?page=2",
-  "previous": null,
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "moderate_questions_count": 20,
+    "easy_questions_count": 15
+  },
   "results": [
     {
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "question_count": 20,
       "created_at": "2024-01-10T09:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "count": 25,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 2,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/exams/?page=2",
+    "previous": null
+  }
 }
 ```
 
 #### Create Exam
-
 **Endpoint:** `POST /exams/`  
 **Headers:**
 ```text
@@ -1260,7 +1197,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1274,7 +1211,7 @@ X-Api-Key: <your_api_key>
   "title": "New Algebra Exam",
   "stage": "screening",
   "description": "A new exam for algebra screening.",
-  "exam_date": "2025-10-01T10:00:00Z",
+  "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
@@ -1297,29 +1234,35 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Exam Details
-
 **Endpoint:** `GET /exams/{exam_id}/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
 **Required Role:** 'admin' or higher  
+
+**Query Parameters:**
+- `page` (integer): Page number for questions pagination.
+- `page_size` (integer): Number of questions per page.
+
 **Response:** `200 OK`
 ```json
 {
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "open_duration_hours": 24,
   "is_active": true,
   "questions": {
-    "meta": {
-        "total_count": 3,
+    "question_pool_data": {
+        "total_questions": 3,
         "hard_questions_count": 1,
-        "medium_questions_count": 1,
+        "moderate_questions_count": 1,
         "easy_questions_count": 1
     },
     "list": [
@@ -1333,7 +1276,17 @@ X-Api-Key: <your_api_key>
         "correct_answer": "B",
         "difficulty": "easy"
       }
-    ]
+    ],
+    "pagination": {
+        "count": 3,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
   },
   "created_by": {
     "user": {
@@ -1352,7 +1305,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Update Exam
-
 **Endpoint:** `PUT /exams/{exam_id}/` or `PATCH /exams/{exam_id}/`  
 **Headers:**
 ```text
@@ -1368,7 +1320,6 @@ X-Api-Key: <your_api_key>
 **Response:** `200 OK` (Returns updated exam details)
 
 #### Delete Exam
-
 **Endpoint:** `DELETE /exams/{exam_id}/`  
 **Headers:**
 ```text
@@ -1378,7 +1329,6 @@ X-Api-Key: <your_api_key>
 **Response:** `204 No Content`
 
 #### View Exam Questions (Admin/Staff)
-
 **Endpoint:** `GET /exams/{exam_id}/questions/`  
 **Headers:**
 ```text
@@ -1415,7 +1365,6 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Get Exam Results (Admin/Staff)
-
 **Endpoint:** `GET /exams/{exam_id}/results/`
 **Headers:**
 ```text
@@ -1431,14 +1380,13 @@ X-Api-Key: <your_api_key>
     "candidate_school": "Mathematics High School",
     "score": 88.0,
     "auto_score": true,
-    "submitted_by": null,
+    "score_submitted_by": "Auto Score",
     "recorded_at": "2024-01-20T15:30:00Z"
   }
 ]
 ```
 
 #### Candidate Take Exam
-
 Allows an eligible and verified candidate to retrieve the questions for a specific exam.
 
 **Endpoint:** `GET /exams/{exam_id}/take-exam/`  
@@ -1446,7 +1394,7 @@ Allows an eligible and verified candidate to retrieve the questions for a specif
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** Authenticated `candidate` with `is_verified=true` and `role` matching `exam.stage`.  
+**Required Role:** Authenticated `candidate` with `is_user_verified=true` and `role` matching `exam.stage`.  
 **Response:** `200 OK`
 ```json
 {
@@ -1455,7 +1403,7 @@ X-Api-Key: <your_api_key>
   "stage": "screening",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "open_duration_hours": 12,
-  "exam_date": "2024-01-20T15:00:00Z",
+  "scheduled_date": "2024-01-20T15:00:00Z",
   "countdown_minutes": 90,
   "questions": [
     {
@@ -1472,7 +1420,6 @@ X-Api-Key: <your_api_key>
 *Note: This endpoint will return a `403 Forbidden` if the candidate is not verified, their role does not match the exam stage, or the exam is not currently open for submissions.*
 
 #### Submit Exam Answers (Candidate)
-
 Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
 
 **Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
@@ -1507,7 +1454,6 @@ X-Api-Key: <your_api_key>
 *Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
 
 #### Submit Exam Score (Manual by Staff)
-
 Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
 
 **Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
@@ -1540,45 +1486,66 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Question Management
-
 The API provides CRUD operations for managing exam questions.
 
-
 #### List Questions
-
 **Endpoint:** `GET /questions/`  
 **Required Role:** `moderator` or higher  
 
 **Query Parameters:**
 - `page` (integer): Page number
-- `difficulty` (string): Filter by difficulty (`easy`, `medium`, `hard`)
+- `difficulty` (string): Filter by difficulty (`easy`, `moderate`, `hard`)
 - `search` (string): Search question text
 - `created_by` (uuid): Filter by the UUID of the staff member who created the question
 
 **Response:** `200 OK`
 ```json
 {
-  "next": "https://api.verboheit.org/v1/questions/?page=2",
-  "previous": null,
-  "meta": {
-    "total_count": 100,
-    "hard_questions_count": 20,
-    "medium_questions_count": 50,
-    "easy_questions_count": 30
+  "question_pool_data": {
+    "total_questions": 50,
+    "hard_questions_count": 15,
+    "moderate_questions_count": 20,
+    "easy_questions_count": 15
   },
   "list": [
     {
       "id": 1,
       "text": "What is 5 × 5?",
+      "option_a": "20",
+      "option_b": "25",
+      "option_c": "30",
+      "option_d": "35",
+      "correct_answer": "B",
       "difficulty": "easy",
-      "created_at": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z",
+      "created_by": {
+          "user": {
+              "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+              "email": "moderator@example.com",
+              "first_name": "Mod",
+              "last_name": "User"
+          },
+          "occupation": "Moderator",
+          "role": "moderator"
+      },
+      "updated_at": "2024-01-10T09:00:00Z",
+      "updated_by": null
     }
-  ]
+  ],
+  "pagination": {
+    "count": 50,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3,
+    "has_next": true,
+    "has_previous": false,
+    "next": "https://api.verboheit.org/v1/questions/?page=2",
+    "previous": null
+  }
 }
 ```
 
 #### Create Question
-
 **Endpoint:** `POST /questions/`  
 **Required Role:** `moderator` or higher  
 **Request Body:**
@@ -1621,7 +1588,6 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 #### Get Question Details
-
 **Endpoint:** `GET /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `200 OK`
@@ -1652,33 +1618,95 @@ The API provides CRUD operations for managing exam questions.
 ```
 
 #### Update Question
-
 **Endpoint:** `PUT /questions/{question_id}/` or `PATCH /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Request Body (PATCH example):**
 ```json
 {
-  "difficulty": "medium"
+  "difficulty": "moderate"
 }
 ```
 **Response:** `200 OK` (Returns updated question details)
 
 #### Delete Question
-
 **Endpoint:** `DELETE /questions/{question_id}/`  
 **Required Role:** `moderator` or higher  
 **Response:** `204 No Content`
-*Note: Questions are soft-deleted by setting `is_active` to `False`.*
+*Note: Questions are soft-deleted by setting `is_archived` to `True` and `archived_at` to the current timestamp.*
 
 ---
 
-### Dashboard
+#### Add Question to Exams
 
+**Endpoint:** `POST /questions/{question_id}/exams/`  
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "add_to_exams": [1, 3, 5],
+    "remove_from_exams": [2, 4]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "question_id": 42,
+    "added": [
+        {"exam_id": 1, "exam_title": "Math Basics"},
+        {"exam_id": 3, "exam_title": "Advanced Math"}
+    ],
+    "removed": [
+        {"exam_id": 2, "exam_title": "Science Quiz"}
+    ],
+    "failed_additions": [
+        {"exam_id": 5, "reason": "Exam not found"}
+    ],
+    "failed_removals": []
+}
+```
+
+#### Bulk Add Questions to Exams
+
+**Endpoint:** `POST /questions/bulk-add-to-exams/`
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "question_ids": [1, 2, 3, 4, 5],
+    "exam_ids": [10, 11]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "summary": {
+        "total_operations": 10,
+        "successful": 8,
+        "skipped": 1,
+        "failed": 1
+    },
+    "details": {
+        "added": [
+            {"question_id": 1, "exam_id": 10, "exam_title": "Algebra I"},
+            {"question_id": 1, "exam_id": 11, "exam_title": "Algebra II"}
+        ],
+        "skipped": [
+            {"question_id": 2, "exam_id": 10, "exam_title": "Algebra I", "reason": "Already exists"}
+        ],
+        "failed_questions": [
+            {"question_id": 3, "reason": "Question not found or archived"}
+        ],
+        "failed_exams": [
+            {"exam_id": 12, "reason": "Exam not found"}
+        ]
+    }
+}
+```
+
+### Dashboard
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
 
-
 #### Candidate Dashboard
-
 **Endpoint:** `GET /dashboard/candidate/`  
 **Headers:**
 ```text
@@ -1694,7 +1722,9 @@ X-Api-Key: <your_api_key>
     "phone": "+23490xxxxxxxx",
     "school": "Real Harvard Law",
     "role": "Screening",
-    "is_verified": false,
+    "is_user_verified": false,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-15T10:30:00Z"
   },
   "exam_stats": {
@@ -1723,7 +1753,7 @@ X-Api-Key: <your_api_key>
       "title": "Geometry Screening",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
       "stage": "screening"
@@ -1734,7 +1764,6 @@ X-Api-Key: <your_api_key>
 *Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
 
 #### Staff Dashboard
-
 **Endpoint:** `GET /dashboard/staff/`  
 **Headers:**
 ```text
@@ -1749,7 +1778,9 @@ X-Api-Key: <your_api_key>
     "email": "emmaob@gmail.com",
     "role": "Moderator",
     "occupation": "Automation Engineer",
-    "is_verified": true,
+    "is_user_verified": true,
+    "is_email_verified": true,
+    "is_active": true,
     "date_joined": "2024-01-01T08:00:00Z"
   },
   "candidates": {
@@ -1774,7 +1805,7 @@ X-Api-Key: <your_api_key>
     "total": 500,
     "by_difficulty": {
       "easy": { "count": 200 },
-      "medium": { "count": 200 },
+      "moderate": { "count": 200 },
       "hard": { "count": 100 }
     }
   },
@@ -1788,7 +1819,7 @@ X-Api-Key: <your_api_key>
     {
       "id": 3,
       "title": "Geometry Screening",
-      "exam_date": "2024-01-25T14:00:00Z",
+      "scheduled_date": "2024-01-25T14:00:00Z",
       "is_active": true,
       "stage": "screening",
       "question_count": 25,
@@ -1823,50 +1854,24 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Leaderboard
-
 The leaderboard displays candidate rankings and can be dynamically controlled by staff.
-<!-- 
-#### Toggle Leaderboard Visibility
-Allows 'manager' or higher to enable or disable the public visibility of the leaderboard.
-
-**Endpoint:** `POST /toggle-leaderboard/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `manager` or higher  
-**Request Body:**
-```json
-{
-  "open": true
-}
-```
-*Note: Use `true` to make the leaderboard visible, `false` to hide it.*
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Leaderboard is now visible."
-}
-```
-*or*
-```json
-{
-  "message": "Leaderboard is now hidden."
-}
-``` -->
-
 
 #### Publish Leaderboard
-
-Triggers an asynchronous task to generate and publish the latest leaderboard snapshot.
+Triggers an asynchronous task to generate and publish the leaderboard snapshot for a specific exam.
 
 **Endpoint:** `POST /publish-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
-**Required Role:** `admin` or higher  
+**Required Role:** `admin` or higher
+**Request Body:**
+```json
+{
+  "exam_id": 1
+}
+```
 **Response:** `202 Accepted`
 ```json
 {
@@ -1875,52 +1880,83 @@ X-Api-Key: <your_api_key>
 ```
 
 #### Load Leaderboard
-
-Retrieves the most recently published leaderboard snapshot. The leaderboard's visibility is controlled by a feature flag.
+Retrieves published leaderboard snapshots. It can either list all available leaderboards or fetch the detailed rankings for a specific exam.
 
 **Endpoint:** `GET /load-leaderboard/`  
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
 **Required Role:** `league` candidates and above, all staff  
 
 **Query Parameters:**
+- `exam_id` (integer, optional): The ID of the exam to retrieve the leaderboard for. If not provided, a list of all leaderboard snapshots is returned.
 - `limit` (integer): Number of results (default: 50, max: 100)
 - `offset` (integer): Starting position
 
-**Response:** `200 OK`
+**Response (List of Leaderboard Snapshots):** `200 OK`
 ```json
 {
-  "published_at": "2024-01-20T18:00:00Z",
-  "total_candidates": 150,
-  "results": [
-    {
-      "rank": 1,
-      "candidate": {
-        "user": {
-          "email": "alice@example.com",
-          "first_name": "Alice",
-          "last_name": "Johnson"
+    "exam_details": {
+        "total_exams": 2,
+        "screening_exams": 1,
+        "league_exams": 1
+    },
+    "next": null,
+    "previous": null,
+    "list": [
+        {
+            "exam_id": 4,
+            "exam_title": "Organized interactive parallelism",
+            "exam_stage": "league",
+            "created_at": "2025-10-29T08:43:04.268220+00:00"
         },
-        "school": "Riverdale High"
-      },
-      "total_score": 98.0
-    }
-  ]
+        {
+            "exam_id": 2,
+            "exam_title": "Customizable background utilization",
+            "exam_stage": "screening",
+            "created_at": "2025-10-29T08:42:47.352149+00:00"
+        }
+    ]
 }
 ```
-*Note: A `403 Forbidden` will be returned if the leaderboard is currently hidden.*
+
+**Response (Leaderboard for a specific exam):** `200 OK`
+```json
+{
+    "exam_details": {
+        "id": 4,
+        "title": "Organized interactive parallelism",
+        "stage": "league",
+        "status": "concluded",
+        "question_count": 0,
+        "scheduled_date": "2025-09-30T10:39:51.622476+01:00",
+        "created_at": "2025-10-15T10:39:51.622520+01:00"
+    },
+    "next": "http://localhost:8000/v1/load-leaderboard/?exam_id=4&limit=1&offset=1",
+    "previous": null,
+    "list": [
+        {
+            "rank": 1,
+            "candidate": {
+                "id": 100,
+                "full_name": "Robert Parker",
+                "school": "Porter Ltd High"
+            },
+            "score": 99.88
+        }
+    ]
+}
+```
+
 
 ---
 
 ### User Verification
-
 User verification is a multi-step process involving email verification, document submission, and admin approval.
 
-
 #### 1. Get Verification Status
-
 Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
 
 **Endpoints:**
@@ -1962,7 +1998,7 @@ The API returns a consistent JSON object with a `status` field that indicates th
       "detail": "Verification request is pending review.",
       "verification_data": {
           "is_pending": true,
-          "is_verified": false,
+          "is_approved": false,
           "is_rejected": false,
           "created_at": "2025-09-01T10:00:00Z",
           "updated_at": "2025-09-01T10:00:00Z",
@@ -1992,7 +2028,6 @@ The API returns a consistent JSON object with a `status` field that indicates th
   ```
 
 #### 2. Submit or Update Verification Documents
-
 This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
 
 **Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
@@ -2023,6 +2058,7 @@ Content-Type: multipart/form-data
 *Note: Document validation is performed asynchronously. The initial response indicates successful upload and pending validation.*
 
 **Error Responses:**
+
 - `403 Forbidden`: If the user's email is not verified.
 - `400 Bad Request`: If the user is already verified or has a pending request (for `POST`), or if file validation fails (e.g., invalid file type, size).
 
@@ -2031,26 +2067,32 @@ Content-Type: multipart/form-data
 Access uploaded documents. The API serves the file content directly from secure storage (AWS S3). Private documents (`id_card`, `verification_document`) are served via signed URLs, ensuring temporary and secure access.
 
 **Endpoints:**
+
 - `GET /user/verification/documents/{file_type}/` (for self)
 - `GET /user/verification/documents/{file_type}/{user_id}/` (for managers or higher)
 
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
 
 **Required Role:**
+
 - Any authenticated user for their own documents.
 - `manager` or higher to access another user's documents.
 
 **URL Parameters:**
+
 - `file_type` (string): `id_card`, `verification_document`, or `face_id`.
 - `user_id` (uuid, optional): The ID of the user whose document to access (required for managers or higher accessing other users' documents).
 
 **Successful Response:**
+
 - The raw file content (e.g., an image or PDF) with the correct `Content-Type` header.
 
 **Error Responses:**
+
 - `404 Not Found`: If the file does not exist or has not been uploaded.
 - `403 Forbidden`: If you do not have permission to access the document.
 - `502 Bad Gateway`: If there is an issue retrieving the file from storage (e.g., S3 error).
@@ -2061,6 +2103,7 @@ Retrieve a paginated list of all user verification submissions for administrativ
 
 **Endpoint:** `GET /user/verification/list/`
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
@@ -2068,6 +2111,7 @@ X-Api-Key: <your_api_key>
 **Required Role:** `manager` or higher
 
 **Response:** `200 OK`
+
 ```json
 {
   "count": 10,
@@ -2077,10 +2121,10 @@ X-Api-Key: <your_api_key>
   "results": [
     {
         "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-        "user_name": "John Doe",
+        "full_name": "John Doe",
         "email": "john@example.com",
         "is_pending": true,
-        "is_verified": false,
+        "is_approved": false,
         "is_rejected": false,
         "has_face_id": true,
         "has_id_card": true,
@@ -2097,6 +2141,7 @@ Allows a `manager` or higher to approve or reject a user's verification submissi
 
 **Endpoint:** `POST /user/verification/action/{user_id}/`
 **Headers:**
+
 ```text
 Content-Type: application/json
 X-Api-Key: <your_api_key>
@@ -2105,16 +2150,20 @@ X-Api-Key: <your_api_key>
 **Required Role:** `manager` or higher
 
 **URL Parameters:**
+
 - `user_id` (uuid): The ID of the user whose verification is being actioned.
 
 **Request Body:**
 To approve a user:
+
 ```json
 {
-    "is_verified": true
+    "is_approved": true
 }
 ```
+
 To reject a user:
+
 ```json
 {
     "is_rejected": true
@@ -2122,17 +2171,21 @@ To reject a user:
 ```
 
 **Success Response (`200 OK`):**
+
 ```json
 {
     "detail": "User verified successfully."
 }
 ```
+
 *or*
+
 ```json
 {
     "detail": "User verification rejected."
 }
 ```
+
 *Note: An email notification is sent to the user upon approval or rejection.*
 
 ---
@@ -2141,17 +2194,19 @@ To reject a user:
 
 The account management endpoints allow users to view and update their own profile information. Superadmins have the ability to manage other users' accounts.
 
-
 #### Get Account Details (Self)
 
 **Endpoint:** `GET /account-management/`
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
+
 **Required Role:** Any authenticated user
 
 **Response:** `200 OK`
+
 ```json
 {
   "profile": {
@@ -2167,7 +2222,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-15T10:30:00Z",
@@ -2181,7 +2236,7 @@ X-Api-Key: <your_api_key>
           "exam_title": "Algebra Screening",
           "score": 88.0,
           "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
+          "score_submitted_by": "Auto Score",
           "auto_score": true
         }
       ]
@@ -2189,18 +2244,22 @@ X-Api-Key: <your_api_key>
   }
 }
 ```
+
 *Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
 
 #### Get Account Details (Admin)
 
 **Endpoint:** `GET /account-management/{user_id}/`
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
+
 **Required Role:** `manager` or higher
 
 **Response:** `200 OK`
+
 ```json
 {
   "profile": {
@@ -2216,7 +2275,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
     "role": "moderator",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/jane_smith_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/jane_smith_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-01T08:00:00Z",
@@ -2224,6 +2283,7 @@ X-Api-Key: <your_api_key>
   }
 }
 ```
+
 *Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
 
 #### Update Account Details
@@ -2232,11 +2292,14 @@ Allows authenticated users to update their own account and profile information. 
 
 **Endpoint:** `PATCH /account-management/` (for self) or `PATCH /account-management/{user_id}/` (for superadmins)
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
+
 **Required Role:** Any authenticated user (for self), `manager` or higher (for others)
 **Request Body (example):**
+
 ```json
 {
   "user": {
@@ -2247,9 +2310,11 @@ X-Api-Key: <your_api_key>
   }
 }
 ```
+
 *Note: You can update `user` fields, `profile` fields, or both. The `profile` fields will depend on whether the user is a candidate or staff.*
 
 **Response:** `200 OK`
+
 ```json
 {
   "message": "Account updated successfully.",
@@ -2266,7 +2331,7 @@ X-Api-Key: <your_api_key>
     "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
     "role": "league",
     "is_active": true,
-    "is_verified": true,
+    "is_user_verified": true,
     "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
     "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
     "created_at": "2024-01-15T10:30:00Z",
@@ -2280,7 +2345,7 @@ X-Api-Key: <your_api_key>
           "exam_title": "Algebra Screening",
           "score": 88.0,
           "recorded_at": "2024-01-20T15:30:00Z",
-          "submitted_by": "Admin User",
+          "score_submitted_by": "Auto Score",
           "auto_score": true
         }
       ]
@@ -2295,7 +2360,6 @@ X-Api-Key: <your_api_key>
 
 Clients receive notifcations usin WebSockets. For example, [broadcasts](#create-broadcast) made via the `platform` medium at target users (or roles) will come through the notifications endpoint, allowing clients to receive instant updates without needing to poll the server.
 
-
 #### Real-time Notifications
 
 Connect to this endpoint to receive `platform` notifications in real-time.
@@ -2303,6 +2367,7 @@ Connect to this endpoint to receive `platform` notifications in real-time.
 **Endpoint:** `ws://<host>/v1/ws/notifications/` (preferrably `wss://` for secure connections in production)
 
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 Authorization: Bearer <access_token>
@@ -2333,6 +2398,7 @@ Clients can send messages to the server to perform actions, like `mark_as_read`.
 Marks a specific notification as read.
 
 **Request Payload:**
+
 ```json
 {
     "action": "mark_as_read",
@@ -2344,6 +2410,7 @@ Marks a specific notification as read.
 
 **Server Response:**
 If the action is unknown or the payload is invalid, the server will send back an error message:
+
 ```json
 {
     "type": "error",
@@ -2357,17 +2424,19 @@ If the action is unknown or the payload is invalid, the server will send back an
 
 The broadcast system allows authorized staff to send targeted communications to candidates. Broadcasts are sent asynchronously, and their status can be tracked.
 
-
 #### List Broadcasts
 
 **Endpoint:** `GET /broadcasts/`  
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
+
 **Required Role:** `manager` or higher  
 
 **Response:** `200 OK`
+
 ```json
 {
   "count": 1,
@@ -2395,11 +2464,14 @@ X-Api-Key: <your_api_key>
 
 **Endpoint:** `POST /broadcasts/`  
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 ```
+
 **Required Role:** `manager` or higher  
 **Request Body:**
+
 ```json
 {
   "subject": "New Exam Available",
@@ -2408,7 +2480,9 @@ X-Api-Key: <your_api_key>
   "target_roles": ["final"]
 }
 ```
+
 **Response:** `201 Created`
+
 ```json
 {
     "id": 2,
@@ -2423,6 +2497,7 @@ X-Api-Key: <your_api_key>
     "logs": []
 }
 ```
+
 *Note: Creating a broadcast triggers an asynchronous task. The response includes the task_id for tracking. If platform is a medium, a real-time notification will be pushed to connected clients via WebSockets.*
 
 #### Get Broadcast Details
@@ -2434,7 +2509,6 @@ X-Api-Key: <your_api_key>
 
 ---
 </details>
-
 <details>
 <summary>Advanced Topics</summary>
 
@@ -2462,10 +2536,10 @@ X-Api-Key: <your_api_key>
 | `/staff/` | `occupation` | string | Filter by occupation |
 | `/exams/` | `stage` | string | Filter by exam stage (`screening`, `league`) |
 | `/exams/` | `active` | boolean | Filter by active status (`true` or `false`) |
-| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `medium`, `hard`) |
+| `/questions/` | `difficulty` | string | Filter by question difficulty (`easy`, `moderate`, `hard`) |
 | `/questions/` | `created_by` | uuid | Filter by the UUID of the staff member who created the question |
 | `/user/verification/list/` | `is_pending` | boolean | Filter by pending verification status |
-| `/user/verification/list/` | `is_verified` | boolean | Filter by verified status |
+| `/user/verification/list/` | `is_approved` | boolean | Filter by verified status |
 | `/user/verification/list/` | `is_rejected` | boolean | Filter by rejected status |
 
 #### Date Filtering
@@ -2551,22 +2625,26 @@ The API returns errors in a standardized format to ensure consistency and ease o
 ### Rate Limit Policy
 
 **Authenticated Users:**
+
 - 1000 requests per day
 - 60 requests per hour
 - 10 requests per minute
 
 **Anonymous Users:**
+
 - 60 requests per day
 - 5 requests per minute
 
 ### Rate Limit Headers
 
 When a rate limit is applied, the following headers are included in the response:
+
 ```text
 X-RateLimit-Limit: 1000
 X-RateLimit-Remaining: 999
 X-RateLimit-Reset: 1640995200
 ```
+
 - `X-RateLimit-Limit`: The maximum number of requests allowed in the current period.
 - `X-RateLimit-Remaining`: The number of requests remaining in the current period.
 - `X-RateLimit-Reset`: The UTC epoch seconds when the current rate limit window resets.
@@ -2575,12 +2653,14 @@ X-RateLimit-Reset: 1640995200
 
 If you exceed the allocated rate limit, the API will return a `429 Too Many Requests` response:
 **Response:** `429 Too Many Requests`
+
 ```json
 {
   "detail": "Request was throttled. Expected available in 10 seconds.",
   "code": "throttle_exceeded"
 }
 ```
+
 *Note: The exact `detail` message and `code` might vary slightly based on the throttling implementation.*
 
 ---
@@ -2607,6 +2687,7 @@ The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 ## Interactive Documentation
 
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:
+
 - **Swagger UI**: `https://api.verboheit.org/v1/docs/swagger/`
 - **ReDoc**: `https://api.verboheit.org/v1/docs/redoc/`
 
@@ -2619,10 +2700,12 @@ Explore the API interactively using our documentation interfaces, automatically 
 ## Support
 
 For technical support, API key requests, or questions:
+
 - **Email:** `theolujay@gmail.com`
 - **Discord:** `@olujay`
 - **X:** `@theolujay`
 - **Response Time:** Within 48 hours for support requests.
+
 </details>
 
 <details>
@@ -2630,8 +2713,72 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
-### Tue, 22nd of Oct, 2025
+## Changelog
 
+- **2025-10-31**
+  - **Exam**:
+    - Contains new fields `level` and `stage_display`.
+      - Should be used in "Upload Exam" or "Edit Exams".
+      - `level` defaults to `1` if not provided.
+      - Use case:
+        *Leaderboard*
+        - Paired with stage to give `stage_display`.
+        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+  - **Pagination**:
+    - Now contains more information, such as `has_previous`.
+    - Is better structured and puts into a new `"pagination"` field for each paginated response.
+  - **API consistency**:
+    - Standardized list responses to use the `results` key instead of `list` in the `GET /questions/` and `GET /exams/` endpoints.
+  - **Leaderboard**
+    - `POST /publish-leaderboard/`:
+      - Now `POST /leaderboard/publish/` and requires no response body.
+    - `GET /load-leaderboard/`:
+      - Now `GET /leaderboard/`
+      - Lists available leaderboards.
+      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - Includes `exam_details`, `top_three`, and `remaining_candidates`.
+      - Paginated.
+    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - Cached for 6 hours.
+  - **OTP**:
+    - `POST /resend-email-otp/`:
+      - Now `POST /send-email-otp/` and accepts a `"resend"` field.
+
+- **2025-10-30**
+  - **User/profile data**
+    - Profile object (e.g. candidate) `is_verified` field is renamed to `is_user_verified`.
+    - User object (e.g. candidate.user) now contains `is_email_verified` field accros endpoints.
+  - **User verification**
+    - `is_verified` is now renamed to `is_approved`. E.g. Manager approves user verification: `"is_approved": true` | `"is_rejected": true`
+
+- **2025-10-29**
+  - **Leaderboard**
+    - *Breaking Change:* Modified the leaderboard generation and retrieval process.
+        - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+        - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
+            - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
+            - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
+    - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
+  - **Exams**
+    - `GET /exams/{exam_id}/` is now paginated.
+
+- **2025-10-28**
+  - The `meta` key in the response of `GET /exams/` and `GET /questions` endpoints have been renamed to `question_pool_data`.
+  - Implemented automatic revocation of staff registrations.
+    - If a newly registered staff member does not verify their email within 15 minutes, their account will be automatically deleted.
+    - This allows the email to be used for registration again.
+    - This feature does not apply to candidate registrations.
+  - Questions difficulty `medium` is renamed to `moderate`.
+
+### Fri, 24th of Oct, 2025
+  - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
+  - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
+  - **Question Management**: 
+    Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
+
+    Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
+
+### Tue, 22nd of Oct, 2025
 - **Staff**: Added `POST /staff/invite/` endpoint.
 
 ### Wed, 15th of Oct, 2025
@@ -2639,27 +2786,22 @@ For technical support, API key requests, or questions:
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
 - **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
 - **API**: Updated the response for `GET /candidates/{candidate_id}/` to include a more detailed `records` object containing performance stats and exam history.
-- **Exam**: `GET /exams/` now includes `exam_date` in response.
+- **Exam**: `GET /exams/` now includes `scheduled_date` in response.
 - **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4
-
 - **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.
 - **API Docs**: Corrected permissions for several endpoints to match the codebase.
 - **API Docs**: Corrected the response payload for the `GET /candidates/{candidate_id}/` endpoint.
-
 ### Version 0.3.3
-
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
 - **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
 
 ### Version 0.3.2
-
 - **Registration**: Now takes flat rather than nested structure.
 - **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.
 
 ### Version 0.3.0
-
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
@@ -2667,12 +2809,10 @@ For technical support, API key requests, or questions:
 - **RBAC**: Only `manager` and `superadmin` can view staff details.
 
 ### Version 0.2.0
-
 - **Base URL** is now `https://api.verboheit.org/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 
 ### Version 0.1.0
-
 - Initial API release
 - Complete user management system
 - Exam administration features
@@ -2680,4 +2820,5 @@ For technical support, API key requests, or questions:
 - Role-based access control
 
 _Last Updated: October 2025_
+
 </details>

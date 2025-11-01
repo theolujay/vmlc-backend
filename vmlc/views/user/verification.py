@@ -111,7 +111,7 @@ class UserVerificationStatusView(APIView):
         verification, _ = UserVerification.objects.get_or_create(user=target_user)
 
         # Determine status based on verification record
-        if verification.is_verified:
+        if verification.is_approved:
             logger.info(f"User {target_user.id} is verified.")
             return Response(
                 {"status": "verified", "detail": "User is verified."},
@@ -257,7 +257,7 @@ class UserVerificationUploadView(APIView):
                 "Email not verified. Please verify your email before uploading documents."
             )
 
-        if verification.is_verified:
+        if verification.is_approved:
             logger.warning(f"User {request.user.id} is already verified.")
             raise ValidationError("This user is already verified.")
 
@@ -316,7 +316,7 @@ class UserVerificationUploadView(APIView):
             logger.error(f"No verification data found for user {request.user.id}")
             raise NotFound("No verification data found for this user.")
 
-        if verification.is_verified:
+        if verification.is_approved:
             logger.warning(
                 f"Cannot update verification data for already verified user {request.user.id}"
             )
@@ -566,7 +566,7 @@ class UserVerificationActionView(APIView):
             raise NotFound("User verification not found.")
 
         # Check if already processed
-        if verification.is_verified:
+        if verification.is_approved:
             logger.warning(f"User {target_user.id} is already verified.")
             raise ValidationError("This user is already verified.")
 
@@ -577,15 +577,15 @@ class UserVerificationActionView(APIView):
         if serializer.is_valid():
             # Determine action
             validated_data = serializer.validated_data
-            if validated_data.get("is_verified"):
+            if validated_data.get("is_approved"):
                 action = "approved"
                 message = "User verified successfully."
             elif validated_data.get("is_rejected"):
                 action = "rejected"
                 message = "User verification rejected."
             else:
-                logger.error("Must specify either is_verified or is_rejected.")
-                raise ValidationError("Must specify either is_verified or is_rejected.")
+                logger.error("Must specify either is_approved or is_rejected.")
+                raise ValidationError("Must specify either is_approved or is_rejected.")
             with transaction.atomic():
                 verification = serializer.save()
                 
@@ -593,7 +593,7 @@ class UserVerificationActionView(APIView):
             base_message = f"Your verification details have been {action}.\n\n"
             footer = "Best Regards,\nManagement."
             action_content = ""
-            if action == "approved" and verification.is_verified:
+            if action == "approved" and verification.is_approved:
                 action_content = (
                     'Kindly proceed to take the "Tour" of Verboheit MLC Portal.\n\n'
                 )

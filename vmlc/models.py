@@ -67,35 +67,20 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser):
-    """Custom user model."""
+def validate_profile_picture(value): 
+    """Validate profile picture file"""
+    if not value:
+        return
 
-    id = models.UUIDField(
-        default=uuid.uuid4, unique=True, primary_key=True, editable=False
-    )
-    email = models.EmailField(unique=True)
-    is_email_verified = models.BooleanField(default=False)
-    first_name = models.CharField(max_length=30, blank=False)
-    last_name = models.CharField(max_length=30, blank=False)
-    phone_regex = RegexValidator(
-        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-    )
-    phone = models.CharField(
-        validators=[phone_regex],
-        max_length=17,
-        help_text="Nigerian phone number for SMS notifications and contact",
-    )
-    username = models.CharField(max_length=255, unique=True)
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+        )
 
-    objects = CustomUserManager()
-
-    def get_full_name(self):
-        """Return the user's full name."""
-        return f"{self.first_name} {self.last_name}".strip()
-
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 5MB.")
 
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""
@@ -113,9 +98,7 @@ def validate_id_card_file(value):
         raise ValidationError("File size cannot exceed 2MB.")
 
 
-def validate_face_id(
-    value,
-):  # TODO: swap and reconfigure for `avatar` and `face_id`
+def validate_face_id(value):
     """Validate face ID file"""
     if not value:
         return
@@ -147,6 +130,42 @@ def validate_document_file(value):
         raise ValidationError("Document size cannot exceed 2MB.")
 
 
+class User(AbstractUser):
+    """Custom user model."""
+
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
+    email = models.EmailField(unique=True)
+    is_email_verified = models.BooleanField(default=False)
+    first_name = models.CharField(max_length=30, blank=False)
+    last_name = models.CharField(max_length=30, blank=False)
+    phone_regex = RegexValidator(
+        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+    )
+    phone = models.CharField(
+        validators=[phone_regex],
+        max_length=17,
+        help_text="Nigerian phone number for SMS notifications and contact",
+    )
+    profile_picture = models.ImageField(
+        upload_to="profile_pictures/",
+        blank=True,
+        null=True,
+        storage=PublicMediaStorage(),
+        validators=[validate_profile_picture],
+    )
+    username = models.CharField(max_length=255, unique=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    objects = CustomUserManager()
+
+    def get_full_name(self):
+        """Return the user's full name."""
+        return f"{self.first_name} {self.last_name}".strip()
+
 class UserVerification(models.Model):
     """Model for user verification data."""
 
@@ -154,7 +173,7 @@ class UserVerification(models.Model):
         "User", on_delete=models.CASCADE, related_name="verification"
     )
     is_pending = models.BooleanField(default=False)
-    is_verified = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
     face_id = models.ImageField(
         upload_to="face_ids/",
@@ -250,7 +269,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="staff_profile"
     )
-    occupation = models.CharField(max_length=50, blank=True)
+    occupation = models.CharField(max_length=50, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "Staff",
@@ -306,11 +325,11 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             return None
 
     @property
-    def is_verified(self):
+    def is_user_verified(self):
         """Check if user has verification and is verified"""
         if self._verification_override is not None:
             return self._verification_override
-        return hasattr(self.user, "verification") and self.user.verification.is_verified
+        return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -342,7 +361,7 @@ class Question(models.Model):
         """Difficulty levels for a question."""
 
         EASY = "easy", "Easy"
-        MEDIUM = "medium", "Medium"
+        MODERATE = "moderate", "Moderate"
         HARD = "hard", "Hard"
 
     text = models.TextField()
@@ -370,9 +389,27 @@ class Question(models.Model):
     difficulty = models.CharField(
         max_length=10,
         choices=Difficulty.choices,
-        default=Difficulty.MEDIUM,
+        default=Difficulty.MODERATE,
     )
-    is_active = models.BooleanField(default=True, db_index=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    
+    def archive(self):
+        """Archive the question instead of deleting it."""
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save()
+    
+    def get_related_exams(self):
+        """Get a list of exams a question has been added to."""
+        exams = self.exams.values(
+            'id', 'title', 'description', 'stage', 'scheduled_date'
+        )
+        
+        return {
+            "count": self.exams.count(),
+            "list": list(exams)
+        }
 
     def __str__(self):
         """Return a string representation of the question."""
@@ -389,19 +426,27 @@ class Exam(models.Model):
 
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
+        
+    class Status(models.TextChoices):
+        """Statuses for an exam."""
 
+        DRAFT = "draft", "Draft"
+        SCHEDULED = "scheduled", "Scheduled"
+        ONGOING = "ongoing", "Ongoing"
+        CONCLUDED = "concluded", "Concluded"
+        CANCELLED = "cancelled", "Cancelled"
+
+    title = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True, null=True)
     stage = models.CharField(
         max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
-    title = models.CharField(max_length=100, blank=True)
-    description = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=False, db_index=True)
-    exam_date = models.DateTimeField(blank=True, null=True, db_index=True)
-    open_duration_hours = models.PositiveIntegerField(default=12)
-    countdown_minutes = models.PositiveIntegerField(default=60)
+    level = models.PositiveIntegerField(
+        default=1,
+        db_index=True,
+        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    questions = models.ManyToManyField(Question, blank=True)
     created_by = models.ForeignKey(
         Staff,
         blank=True,
@@ -416,11 +461,38 @@ class Exam(models.Model):
         related_name="exams_updated",
         on_delete=models.SET_NULL,
     )
-
+    open_duration_hours = models.PositiveIntegerField(default=12)
+    countdown_minutes = models.PositiveIntegerField(default=60)
+    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    
+    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # # Ensure only one exam per stage-level combination can be active at a time
+        # constraints = [
+        #     models.UniqueConstraint(
+        #         fields=['stage', 'level'],
+        #         condition=models.Q(is_active=True),
+        #         name='unique_active_stage_level'
+        #     )
+        # ]
+        indexes = [
+            models.Index(fields=['stage', 'level', 'is_active']),
+        ]
+    
     def __str__(self):
         """Return a string representation of the exam."""
-        return f"{self.title} ({self.id})"
-
+        if self.stage == self.Stages.SCREENING:
+            return f"Screening {self.level}: {self.title} ({self.id})"
+        return f"League {self.level}: {self.title} ({self.id})"
+    
+    @property
+    def stage_display(self):
+        """Returns a formatted stage display like 'screening_1' or 'league_2'"""
+        return f"{self.stage}_{self.level}"
+    
     @classmethod
     def active_exams(cls):
         """
@@ -432,16 +504,64 @@ class Exam(models.Model):
     def is_currently_open(self):
         """
         Exam is open only if it's active, and either:
-        - exam_date is None (always open)
+        - scheduled_date is None (always open)
         - or current time is within open window
         """
         if not self.is_active:
             return False
-        if self.exam_date is None:
+        if self.scheduled_date is None:
             return True
+        if self.scheduled_date:
+            now = timezone.now()
+            end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+            return self.scheduled_date <= now <= end_time
+        else:
+            return False
+        
+    @property
+    def status(self):
+        """
+        Returns the current status of the exam.
+        
+        Status flow:
+        - DRAFT: No scheduled date set
+        - CANCELLED: Exam was deactivated (is_active=False)
+        - SCHEDULED: Has a future scheduled date
+        - ONGOING: Currently open for taking
+        - CONCLUDED: Past the end time
+        """
+        # Check cancellation first - it overrides everything except draft
+        if not self.is_active:
+            # Unless it's never been scheduled, it's cancelled
+            if self.scheduled_date is None:
+                return self.Status.DRAFT
+            return self.Status.CANCELLED
+        # If no scheduled date, it's still being drafted
+        if self.scheduled_date is None:
+            return self.Status.DRAFT
+        # If no duration set, can't determine time-based status
+        if self.open_duration_hours is None:
+            return self.Status.DRAFT
         now = timezone.now()
-        end_time = self.exam_date + timedelta(hours=self.open_duration_hours)
-        return self.exam_date <= now <= end_time
+        # Calculate the conclusion time
+        conclusion_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        # Check time-based statuses
+        if now < self.scheduled_date:
+            return self.Status.SCHEDULED
+        elif now < conclusion_time:
+            return self.Status.ONGOING
+        else:
+            return self.Status.CONCLUDED
+            
+    @property
+    def concluded_at(self):
+    
+        if self.scheduled_date is not None and self.open_duration_hours is not None:
+            now = timezone.now()
+            end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+            if end_time < now:
+                return end_time
+        return None        
 
     def get_question_count(self):
         """
@@ -486,7 +606,7 @@ class CandidateManager(models.Manager):
         """
         return (
             self.with_scores()
-            .prefetch_related("scores__exam", "scores__submitted_by__user")
+            .prefetch_related("scores__exam", "scores__score_submitted_by__user")
             .select_related("user")
         )
 
@@ -580,11 +700,11 @@ class Candidate(models.Model):
             return None
 
     @property
-    def is_verified(self):
+    def is_user_verified(self):
         """Check if user has verification and is verified"""
         if self._verification_override is not None:
             return self._verification_override
-        return hasattr(self.user, "verification") and self.user.verification.is_verified
+        return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -675,11 +795,11 @@ class Candidate(models.Model):
 
         # available_exams
         available_exams_list = []
-        if self.is_verified:
+        if self.is_user_verified:
             all_relevant_exams = (
                 Exam.objects.filter(stage=self.role, is_active=True)
                 .annotate(question_count=Count("questions"))
-                .order_by("exam_date")[:5]
+                .order_by("scheduled_date")[:5]
             )
 
             for exam in all_relevant_exams:
@@ -690,7 +810,7 @@ class Candidate(models.Model):
                             "title": exam.title,
                             "description": exam.description,
                             "open_duration_hours": exam.open_duration_hours,
-                            "exam_date": exam.exam_date,
+                            "scheduled_date": exam.scheduled_date,
                             "countdown_minutes": exam.countdown_minutes,
                             "question_count": exam.question_count,
                             "stage": exam.stage,
@@ -731,25 +851,44 @@ class Candidate(models.Model):
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related("exam", "submitted_by__user").all()
-
-        exams_taken_list = [
-            {
-                "exam_id": s.exam.id,
-                "exam_title": s.exam.title,
-                "exam_stage": s.exam.stage,
-                "exam_date": s.exam.exam_date,
-                "score": float(s.score),
-                "recorded_at": s.recorded_at.isoformat(),
-                "submitted_by": (
-                    s.submitted_by.user.get_full_name()
-                    if s.submitted_by and s.submitted_by.user
+            scores = self.scores.select_related(
+                "exam", "score_submitted_by__user"
+            ).prefetch_related(
+                "answers__question"
+            ).all()
+    
+        exams_taken_list = []
+        for score in scores:
+            answers = score.answers.all()
+            
+            submission_list = []
+            for answer in answers:
+                submission_list.append({
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "selected_option": answer.selected_option,
+                    "answered_at": answer.answered_at.isoformat(),
+                })
+                
+            exams_taken_list.append({
+                "exam_id": score.exam.id,
+                "exam_title": score.exam.title,
+                "exam_stage": score.exam.stage,
+                "scheduled_date": score.exam.scheduled_date,
+                "score": float(score.score),
+                "recorded_at": score.recorded_at.isoformat(),
+                "score_submitted_by": (
+                    score.score_submitted_by.user.get_full_name()
+                    if score.score_submitted_by and score.score_submitted_by.user
                     else None
                 ),
-                "auto_score": s.auto_score,
-            }
-            for s in scores
-        ]
+                "auto_score": score.auto_score,
+                "submission": submission_list,
+            })
 
         records = {
             "performance": {
@@ -772,7 +911,7 @@ class Candidate(models.Model):
                     "lowest_score": float(score_stats["lowest_score"] or 0),
                     "highest_obtainable_score": 100.0,
                 },
-                "exams": exams_taken_list,
+                "exams_taken": exams_taken_list,
             },
             "available_exams": available_exams_list,
         }
@@ -802,7 +941,7 @@ class CandidateScore(models.Model):
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     recorded_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-    submitted_by = models.ForeignKey(
+    score_submitted_by = models.ForeignKey(
         Staff, on_delete=models.SET_NULL, null=True, blank=True
     )
     auto_score = models.BooleanField(default=False, db_index=True)
@@ -813,40 +952,19 @@ class CandidateScore(models.Model):
         unique_together = ("candidate", "exam")
         ordering = ["-recorded_at"]
 
-    def calculate_and_save_auto_score(self, submitted_answers):
-        """
-        Scores an exam based on a list of submitted answers, updates the
-        instance, and saves it.
-
-        Args:
-            submitted_answers (list[CandidateAnswer]): A list of unsaved
-                CandidateAnswer objects. This avoids a race condition by not
-                re-querying the database within the transaction.
-        """
-        total_questions = self.exam.questions.count()
-        if not total_questions:
-            self.score = 0
-        else:
-            correct_count = sum(
-                1
-                for answer in submitted_answers
-                if answer.selected_option == answer.question.correct_answer
-            )
-            score = (correct_count / total_questions) * 100
-            self.score = round(score, 2)
-
-        self.auto_score = True
-        self.recorded_at = timezone.now()
-        self.save()
-
 
 class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_score = models.ForeignKey(
-        CandidateScore, related_name="answers", on_delete=models.CASCADE
+        CandidateScore,
+        related_name="answers",
+        on_delete=models.PROTECT
     )
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.PROTECT
+    )
     selected_option = models.CharField(
         max_length=1,
         choices=Question.Options.choices,
@@ -866,16 +984,20 @@ class CandidateAnswer(models.Model):
         ]
 
     def __str__(self):
-        """Return a string representation of the candidate's answer."""
-        return f"Answer by {self.candidate_score.candidate.user.username} for Q{self.question.id}"
-
+        if self.candidate_score and self.question:
+            username = self.candidate_score.candidate.user.username
+            return f"Answer by {username} for Q{self.question.id}"
+        elif self.candidate_score:
+            return f"Answer by {self.candidate_score.candidate.user.username} (deleted question)"
+        elif self.question:
+            return f"Answer for Q{self.question.id} (deleted score)"
+        return f"Orphaned Answer #{self.id}"
 
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_published = models.BooleanField(default=False)
     published_by = models.ForeignKey(
         Staff,
         on_delete=models.SET_NULL,
@@ -888,7 +1010,6 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         """Meta options for the LeaderboardSnapshot model."""
 
         ordering = ["-created_at"]
-
 
 class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's score."""
@@ -909,4 +1030,3 @@ class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-me
         """Meta options for the CandidateScoreSnapshot model."""
 
         ordering = ["-created_at"]
-

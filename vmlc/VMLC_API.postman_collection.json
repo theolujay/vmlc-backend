@@ -1271,7 +1271,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"exam_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
+									"raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"scheduled_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1582,7 +1582,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"difficulty\": \"medium\"\n}",
+									"raw": "{\n    \"difficulty\": \"moderate\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2017,7 +2017,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"is_verified\": true\n}",
+									"raw": "{\n    \"is_approved\": true\n}",
 									"options": {
 										"raw": {
 											"language": "json"

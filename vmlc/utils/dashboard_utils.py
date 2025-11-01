@@ -75,12 +75,12 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
 
     # Optimize available_exams
     available_exams_list = []
-    if candidate.is_verified:
+    if candidate.is_user_verified:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
             .annotate(question_count=Count("questions"))  # Annotate question count here
-            .order_by("exam_date")[:5]
+            .order_by("scheduled_date")[:5]
         )  # Limit to 5 as per original logic
 
         now = timezone.now()
@@ -93,7 +93,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                         "title": exam.title,
                         "description": exam.description,
                         "open_duration_hours": exam.open_duration_hours,
-                        "exam_date": exam.exam_date,
+                        "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,  # Use annotated value
                         "stage": exam.stage,
@@ -135,7 +135,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "phone": candidate.user.phone,
             "school": candidate.school,
             "role": candidate.get_role_display(),
-            "is_verified": candidate.is_verified,
+            "is_user_verified": candidate.is_user_verified,
+            "is_email_verified": candidate.user.is_email_verified,
+            "is_active": candidate.user.is_active,
             "date_joined": candidate.created_at,
             # "face_id": (
             #     candidate.face_id.url if candidate.face_id else None
@@ -204,7 +206,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         total_candidates=Count("user_id"),
         active_candidates=Count("user_id", filter=Q(user__is_active=True)),
         verified_candidates=Count(
-            "user_id", filter=Q(user__verification__is_verified=True)
+            "user_id", filter=Q(user__verification__is_approved=True)
         ),
         recent_registrations=Count("user_id", filter=Q(created_at__gte=last_week)),
     )
@@ -263,9 +265,9 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     )
 
     upcoming_exams_list = list(
-        Exam.objects.filter(exam_date__gte=now, is_active=True)
-        .order_by("exam_date")
-        .values("id", "title", "exam_date", "is_active", "stage", "countdown_minutes")
+        Exam.objects.filter(scheduled_date__gte=now, is_active=True)
+        .order_by("scheduled_date")
+        .values("id", "title", "scheduled_date", "is_active", "stage", "countdown_minutes")
         .annotate(question_count=Count("questions"))[:5]  # Annotate question count here
     )
 
@@ -274,7 +276,9 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "email": staff.user.email,
         "role": staff.get_role_display(),
         "occupation": staff.occupation,
-        "is_verified": staff.is_verified,
+        "is_user_verified": staff.is_user_verified,
+        "is_email_verified": staff.user.is_email_verified,
+        "is_active": staff.user.is_active,
         "date_joined": staff.created_at,
         # "face_id": staff.face_id.url if staff.face_id else None,
     }
@@ -323,7 +327,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
             {
                 "id": exam["id"],
                 "title": exam["title"],
-                "exam_date": exam["exam_date"],
+                "scheduled_date": exam["scheduled_date"],
                 "is_active": exam["is_active"],
                 "stage": Exam.objects.get(
                     pk=exam["id"]

@@ -1,20 +1,27 @@
 import logging
+import uuid
+from collections import OrderedDict
 
-from django.utils.decorators import method_decorator
+from django.core.cache import cache
+from django.core.paginator import Paginator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
+from rest_framework.settings import api_settings
 
-from ..utils import ToggleFeatureFlagView
-from ..models import FeatureFlag, LeaderboardSnapshot
+
+
+from ..models import Candidate, LeaderboardSnapshot
 from ..permissions import (
-    AuthenticatedUser,
-    IsLeagueCandidateOrStaff,
+    CandidatePermissions,
     VerifiedAdminPermissions,
-    VerifiedManagerPermissions,
+    VerifiedModeratorPermissions,
+)
+from ..serializers.leaderboard import (
+    PublishLeaderboardSerializer,
 )
 from ..utils.swagger_schemas import (
     api_key,
@@ -30,18 +37,21 @@ logger = logging.getLogger(__name__)
 
 class PublishLeaderboardView(APIView):
     """
-    Refreshes and publishes the leaderboard snapshot. Admin/Superadmin only.
+    Refreshes and publishes the leaderboard snapshot for a specific exam.
+    Admin role required.
     """
 
     permission_classes = VerifiedAdminPermissions
 
     @swagger_auto_schema(
-        operation_summary="Publish Leaderboard",
-        operation_description="Refreshes and publishes the leaderboard snapshot.",
+        operation_summary="Publish Exam Leaderboard",
+        operation_description="Refreshes and publishes the leaderboard snapshot for a given exam.",
+        request_body=PublishLeaderboardSerializer,
         responses={
             202: openapi.Response(
                 "Leaderboard generation has been started and will be available shortly."
             ),
+            400: "Invalid request",
             401: error_response_401,
             403: error_response_403,
         },
@@ -50,18 +60,24 @@ class PublishLeaderboardView(APIView):
     )
     def post(self, request: Request) -> Response:
         """
-        Triggers an asynchronous task to generate and publish the leaderboard.
+        Triggers an asynchronous task to generate and publish the leaderboard for an exam.
         """
-        from ..tasks import generate_scores_snapshot_task, generate_leaderboard_snapshot_task
-
         staff_id = request.user.staff_profile.pk
+
+        from ..tasks import (
+            generate_scores_snapshot_task,
+            generate_leaderboard_snapshot_task,
+        )
+
         logger.info(
             f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
         generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 
-        logger.info(f"Leaderboard generation triggered by staff {staff_id}")
+        logger.info(
+            f"Leaderboard generation triggered by staff {staff_id}"
+        )
 
         return Response(
             {
@@ -73,90 +89,236 @@ class PublishLeaderboardView(APIView):
 
 class LoadLeaderboardView(APIView):
     """
-    Returns the most recently published leaderboard snapshot.
+    Returns published leaderboard snapshots.
+    Filters leaderboards based on the user's role.
     """
 
-    permission_classes = AuthenticatedUser + [IsLeagueCandidateOrStaff]
+    permission_classes = VerifiedModeratorPermissions or CandidatePermissions
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
-    @swagger_auto_schema(
-        operation_summary="Load Leaderboard",
-        operation_description="Returns the most recently published leaderboard snapshot.",
-        responses={
-            200: leaderboard_snapshot_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["Leaderboard"],
-        manual_parameters=[api_key, bearer_auth],
-    )
-    def get(self, request):
+    def get(self, request: Request):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
-        if hasattr(request.user, "candidate_profile"):
-            if not request.user.candidate_profile.is_verified:
-                logger.warning(
-                    f"Unverified candidate {request.user.id} attempted to view the leaderboard."
-                )
+        user = request.user
+
+        requested_stage = request.query_params.get("stage")
+        requested_level = request.query_params.get("level")
+        paginator = self.pagination_class()
+        page = request.query_params.get(paginator.page_query_param, 1)
+
+        user_role_key = "staff"
+        if hasattr(user, "candidate_profile"):
+            user_role_key = f"candidate_{user.candidate_profile.role}_{user.candidate_profile.is_user_verified}"
+
+        latest_snapshot = (
+            LeaderboardSnapshot.objects.filter(is_published=True)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if latest_snapshot is None:
+            return Response(
+                {"detail": "No published leaderboard found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        cache_key = f"leaderboard_view_{latest_snapshot.id}_{user_role_key}_{requested_stage or 'all'}_{requested_level or 'all'}_{page}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached leaderboard data for key: {cache_key}")
+            return Response(cached_data)
+
+        all_leaderboards = latest_snapshot.data
+
+        if hasattr(user, "candidate_profile"):
+            if not user.candidate_profile.is_user_verified:
                 return Response(
                     {"detail": "Candidate must be verified to view the leaderboard."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-        elif hasattr(request.user, "staff_profile"):
-            if not request.user.staff_profile.is_verified:
-                logger.warning(
-                    f"Unverified staff {request.user.id} attempted to view the leaderboard."
-                )
+
+        if requested_stage and requested_level:
+            leaderboard_key = f"{requested_stage}_{requested_level}"
+
+            if leaderboard_key not in all_leaderboards:
                 return Response(
-                    {"detail": "Staff must be verified to view the leaderboard."},
-                    status=status.HTTP_403_FORBIDDEN,
+                    {
+                        "detail": f"No leaderboard found for {requested_stage} level {requested_level}"
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
-        leaderboard_visible = FeatureFlag.get_bool("leaderboard_visible", default=False)
-        logger.info(f"Leaderboard visibility is set to {leaderboard_visible}")
-        if not leaderboard_visible:
-            logger.warning(
-                f"User {request.user.id} attempted to view the leaderboard while it is not visible."
-            )
-            return Response(
-                {"detail": "The leaderboard is currently not available."},
-                status=status.HTTP_403_FORBIDDEN,
+            leaderboard_data = all_leaderboards[leaderboard_key]
+
+            if hasattr(user, "candidate_profile"):
+                candidate = user.candidate_profile
+
+                if (
+                    candidate.role == Candidate.Roles.SCREENING
+                    and requested_stage != "screening"
+                ):
+                    return Response(
+                        {"detail": "You can only view screening leaderboards."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            entries = leaderboard_data.get("entries", [])
+            for entry in entries:
+                entry["candidate"].pop("submissions", None)
+            top_three = entries[:3] if len(entries) >= 3 else entries
+            remaining = entries[3:] if len(entries) > 3 else []
+
+            exam_details = {
+                "id": leaderboard_data.get("exam_id"),
+                "title": leaderboard_data.get("exam_title"),
+                "stage": leaderboard_data.get("stage"),
+                "level": leaderboard_data.get("level"),
+                "scheduled_date": leaderboard_data.get("scheduled_date"),
+                "concluded_at": leaderboard_data.get("concluded_at"),
+                "total_questions": leaderboard_data.get("total_questions"),
+                "total_candidates": leaderboard_data.get("total_candidates"),
+                "average_score": leaderboard_data.get("average_score"),
+            }
+
+            paginated_remaining = paginator.paginate_queryset(
+                remaining, request, view=self
             )
 
-        snapshot = self._get_snapshot()
+            pagination_data = paginator.get_paginated_response_data(
+                paginated_remaining
+            )
 
-        if not snapshot:
-            logger.warning("Leaderboard requested but not yet published.")
+            response_data = OrderedDict(
+                [
+                    ("exam_details", exam_details),
+                    ("top_three", top_three),
+                    ("remaining_candidates", pagination_data["results"]),
+                    ("pagination", pagination_data["pagination"]),
+                ]
+            )
+            cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+            return Response(response_data)
+
+        accessible_leaderboards = {}
+
+        if hasattr(user, "candidate_profile"):
+            candidate = user.candidate_profile
+
+            if candidate.role == Candidate.Roles.SCREENING:
+                accessible_leaderboards = {
+                    key: value
+                    for key, value in all_leaderboards.items()
+                    if key.startswith("screening_")
+                }
+            else:
+                accessible_leaderboards = all_leaderboards
+        elif hasattr(user, "staff_profile"):
+            accessible_leaderboards = all_leaderboards
+
+        leaderboards_summary = []
+        for key in sorted(accessible_leaderboards.keys()):
+            lb = accessible_leaderboards[key]
+            if isinstance(lb, dict):
+                leaderboards_summary.append(
+                    {
+                        "stage": lb.get("stage"),
+                        "level": lb.get("level"),
+                        "stage_display": key,
+                        "exam_title": lb.get("exam_title"),
+                        "total_candidates": lb.get("total_candidates"),
+                        "average_score": lb.get("average_score"),
+                    }
+                )
+
+        response_data = {
+            "snapshot_id": latest_snapshot.id,
+            "published_at": latest_snapshot.created_at.isoformat(),
+            "available_leaderboards": leaderboards_summary,
+        }
+        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        return Response(response_data)
+    
+class LoadLeaderboardDetailView(APIView):
+    """
+    Returns detailed performance for a specific candidate in a specific exam.
+    
+    URL: leaderboard/<stage>/<level>/candidate/<candidate_id>/
+    Example: leaderboard/league/2/candidate/123/
+    """
+    
+    permission_classes = VerifiedModeratorPermissions or CandidatePermissions
+    
+    def get(self, request: Request, stage: str, level: int, candidate_id: int):
+        user = request.user
+        user_role_key = "staff"
+        if hasattr(user, "candidate_profile"):
+            user_role_key = f"candidate_{user.candidate_profile.role}"
+
+        latest_snapshot = (
+            LeaderboardSnapshot.objects.filter(is_published=True)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not latest_snapshot:
             return Response(
-                {"detail": "The leaderboard has not been published yet."},
+                {"detail": "No published leaderboard found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        logger.info(f"Leaderboard loaded successfully for user {request.user.id}")
-        return Response(snapshot.data)
+        cache_key = f"leaderboard_detail_{latest_snapshot.id}_{stage}_{level}_{candidate_id}_{user_role_key}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached leaderboard detail for key: {cache_key}")
+            return Response(cached_data)
 
-    def _get_snapshot(self):
-        return LeaderboardSnapshot.objects.order_by("-created_at").first()
+        leaderboard_key = f"{stage}_{level}"
 
+        if leaderboard_key not in latest_snapshot.data:
+            return Response(
+                {"detail": f"No leaderboard found for {stage} level {level}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-@method_decorator(
-    name="post",
-    decorator=swagger_auto_schema(
-        operation_summary="Toggle Leaderboard Visibility",
-        operation_description="Toggles the visibility of the leaderboard.",
-        responses={
-            200: openapi.Response("Feature flag toggled successfully."),
-            401: error_response_401,
-            403: error_response_403,
-        },
-        tags=["Leaderboard"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
-class ToggleLeaderboardVisibilityView(ToggleFeatureFlagView):
-    """
-    Toggles the 'leaderboard_open' feature flag.
-    Accessible only by staff with 'admin' or 'superadmin' roles.
-    """
+        leaderboard = latest_snapshot.data[leaderboard_key]
+        entries = leaderboard.get("entries", [])
 
-    permission_classes = VerifiedManagerPermissions
-    feature_flag_key = "leaderboard_visible"
+        candidate_entry = next(
+            (
+                entry
+                for entry in entries
+                if entry["candidate"]["id"] == candidate_id
+            ),
+            None,
+        )
+
+        if not candidate_entry:
+            return Response(
+                {"detail": "Candidate not found in this leaderboard"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if hasattr(request.user, "candidate_profile"):
+            if request.user.candidate_profile.role == Candidate.Roles.SCREENING:
+                if request.user.candidate_profile.id != candidate_id:
+                    return Response(
+                        {"detail": "You can only view your own performance."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+        exam_details = {
+            "id": leaderboard.get("exam_id"),
+            "title": leaderboard.get("exam_title"),
+            "stage": leaderboard.get("stage"),
+            "level": leaderboard.get("level"),
+            "scheduled_date": leaderboard.get("scheduled_date"),
+            "concluded_at": leaderboard.get("concluded_at"),
+            "total_questions": leaderboard.get("total_questions"),
+            "total_candidates": leaderboard.get("total_candidates"),
+            "average_score": leaderboard.get("average_score"),
+        }
+
+        response_data = {
+            "exam_details": exam_details,
+            "candidate_performance": candidate_entry,
+        }
+        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        return Response(response_data)

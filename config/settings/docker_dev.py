@@ -127,8 +127,8 @@ SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
 BROADCAST_WEBHOOK_URL = read_secret("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
 
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = read_secret("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(read_secret("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = read_secret("EMAIL_HOST_USER", "")
@@ -234,17 +234,10 @@ if USE_S3:
 
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "region_name": AWS_S3_REGION_NAME,
-                "object_parameters": AWS_S3_OBJECT_PARAMETERS,
-                "file_overwrite": AWS_S3_FILE_OVERWRITE,
-                "querystring_auth": AWS_QUERYSTRING_AUTH,
-                "querystring_expire": AWS_QUERYSTRING_EXPIRE,
-                "signature_version": AWS_S3_SIGNATURE_VERSION,
-                "location": "media",
-            },
+            "BACKEND": "vmlc.storage_backends.PrivateMediaStorage",
+        },
+        "public": {
+            "BACKEND": "vmlc.storage_backends.PublicMediaStorage",
         },
         "staticfiles": {
             "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
