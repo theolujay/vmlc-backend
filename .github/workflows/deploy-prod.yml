@@ -150,7 +150,7 @@ jobs:
             mkdir -p ~/deployments/backups
             
             # Save current deployment info
-            docker service ls --format "{{.Name}} {{.Image}}" | grep vmlc-backend > ~/deployments/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
+            docker service ls --format "{{.Name}} {{.Image}}" | grep vmlc-prod > ~/deployments/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
             
             # Keep only last 10 backups
             cd ~/deployments/backups && ls -t | tail -n +11 | xargs -r rm
@@ -160,7 +160,7 @@ jobs:
       - name: Deploy to Production
         uses: cssnr/stack-deploy-action@v1
         with:
-          name: vmlc-backend
+          name: vmlc-prod
           file: stack.prod.yml
           host: ${{ secrets.VPS_HOST }}
           user: deploy
@@ -181,7 +181,7 @@ jobs:
             # Wait up to 5 minutes for services to stabilize
             for i in {1..30}; do
               # Check if all services are running
-              REPLICAS=$(docker service ls --filter name=vmlc-backend --format "{{.Replicas}}" | grep -v "0/")
+              REPLICAS=$(docker service ls --filter name=vmlc-prod --format "{{.Replicas}}" | grep -v "0/")
               
               if echo "$REPLICAS" | grep -qv "/"; then
                 echo "All services are up!"
