@@ -1,35 +1,189 @@
 import logging
-from datetime import timedelta, datetime
-
-from django.utils import timezone 
-from django.contrib.auth.tokens import default_token_generator
-from django.urls import reverse
-from django.conf import settings
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
-from rest_framework.generics import CreateAPIView
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from datetime import timedelta
 
-from vmlc.permissions import VerifiedManagerPermissions
-from vmlc.serializers import StaffInviteSerializer
-from vmlc.tasks import send_mail_task, revoke_staff_invite_task
-from vmlc.models import Staff
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone 
+from django.conf import settings
+
+from rest_framework.generics import CreateAPIView
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, MultiPartParser
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+from vmlc.models import User
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    error_response_400,
+    staff_registration_request_body,
+    account_management_response_schema,
+    account_management_request_body,
     error_response_401,
     error_response_403,
-    staff_registration_request_body,
+    error_response_404,
+    error_response_400,
+)
+from vmlc.permissions import (
+    AuthenticatedUser,
+    IsObjectOwnerOrManagerRole,
+    VerifiedManagerPermissions,
+)
+from vmlc.serializers import (
+    CandidateDetailSerializer,
+    StaffDetailSerializer,
+    StaffInviteSerializer,
+    UserSerializer,
+)
+from vmlc.tasks import (
+    send_mail_task,
+    revoke_staff_invite_task,
 )
 
 logger = logging.getLogger(__name__)
 
+class AccountManagementView(APIView):
+    """
+    Retrieve or update user account and profile information.
+
+    - GET: Retrieve account and profile information.
+    - PUT/PATCH: Update account and profile.
+
+    Regular users can manage their own accounts.
+    Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
+    """
+
+    permission_classes = AuthenticatedUser
+    parser_classes = [MultiPartParser, FormParser]
+
+    def _get_target_user(self, request, user_id=None):
+        """
+        Determines the target user for the action and checks permissions.
+        """
+        if user_id is None or user_id == str(request.user.id):
+            return request.user
+
+        # If a user_id is provided, check if the requester has permission.
+        target_user = get_object_or_404(User, id=user_id)
+        if not IsObjectOwnerOrManagerRole().has_object_permission(
+            request, self, target_user
+        ):
+            logger.warning(
+                f"User {request.user.id} does not have permission to manage user {user_id}."
+            )
+            raise PermissionDenied("You are not authorized to manage this user.")
+        return target_user
+
+    def _get_profile_and_serializer(self, user):
+        """
+        Gets the user's profile (Candidate or Staff) and the appropriate serializer.
+        """
+        if hasattr(user, "candidate_profile"):
+            return user.candidate_profile, CandidateDetailSerializer
+        if hasattr(user, "staff_profile"):
+            return user.staff_profile, StaffDetailSerializer
+        return None, None
+
+    @swagger_auto_schema(
+        operation_summary="Get User Account",
+        operation_description="Retrieve the account and profile data of the target user.",
+        responses={
+            200: account_management_response_schema,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Account Management"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def get(self, request, user_id=None):
+        """
+        Retrieve the account and profile data of the target user.
+        """
+        logger.info(
+            f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
+        )
+        target_user = self._get_target_user(request, user_id)
+        # user_data = UserSerializer(target_user).data
+        profile, profile_serializer_class = self._get_profile_and_serializer(
+            target_user
+        )
+
+        if profile and profile_serializer_class:
+            profile_data = profile_serializer_class(profile).data
+        else:
+            logger.error(f"User {target_user.id} does not have a profile.")
+            return Response(
+                {"detail": "User does not have a profile."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({"profile": profile_data})
+
+    def _update_account(self, request, partial, user_id=None):
+        """
+        Handles the update logic for both user and profile data.
+        """
+        logger.info(
+            f"AccountManagementView (_update_account): request from user {request.user.id} for user {user_id} with data: {request.data}"
+        )
+        target_user = self._get_target_user(request, user_id)
+        user_data = request.data.get("user", {})
+        profile_data = request.data.get("profile", {})
+
+        user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
+        user_serializer.is_valid(raise_exception=True)
+        profile, profile_serializer_class = self._get_profile_and_serializer(
+            target_user
+        )
+        profile_serializer = None
+        if profile and profile_serializer_class:
+            profile_serializer = profile_serializer_class(
+                profile, data=profile_data, partial=partial
+            )
+            profile_serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            user_serializer.save()
+            if profile_serializer:
+                profile_serializer.save()
+
+        logger.info(
+            "Account for user %s updated by %s.",
+            target_user.id,
+            request.user.id,
+        )
+        return Response(
+            {
+                "message": "Account updated successfully.",
+                # "user": user_serializer.data,
+                "profile": profile_serializer.data if profile_serializer else None,
+            }
+        )
+
+    @swagger_auto_schema(
+        operation_summary="Update User Account",
+        operation_description="Partially update user and/or profile data.",
+        request_body=account_management_request_body,
+        responses={
+            200: openapi.Response("Account updated successfully."),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["Account Management"],
+        manual_parameters=[api_key, bearer_auth],
+    )
+    def patch(self, request, user_id=None):
+        """
+        Partially update user and/or profile data.
+        """
+        return self._update_account(request, partial=True, user_id=user_id)
 
 class StaffInviteView(CreateAPIView):
     """

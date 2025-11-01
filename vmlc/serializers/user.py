@@ -33,12 +33,19 @@ class UserSerializer(serializers.ModelSerializer):
             "is_email_verified",
             "first_name",
             "last_name",
+            "profile_picture",
             "phone",
             "date_joined",
         ]
         read_only_fields = ["id", "date_joined"]
 
-
+    def get_profile_picture(self, obj: User):
+        """
+        Safely returns the profile picture URL if it exists, otherwise returns None.
+        This prevents errors when a user hasn't uploaded a profile picture yet.
+        """
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            return obj.profile_picture.url
 class MinimalUserSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for listing user info.

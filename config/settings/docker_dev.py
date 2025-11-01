@@ -234,17 +234,10 @@ if USE_S3:
 
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "region_name": AWS_S3_REGION_NAME,
-                "object_parameters": AWS_S3_OBJECT_PARAMETERS,
-                "file_overwrite": AWS_S3_FILE_OVERWRITE,
-                "querystring_auth": AWS_QUERYSTRING_AUTH,
-                "querystring_expire": AWS_QUERYSTRING_EXPIRE,
-                "signature_version": AWS_S3_SIGNATURE_VERSION,
-                "location": "media",
-            },
+            "BACKEND": "vmlc.storage_backends.PrivateMediaStorage",
+        },
+        "public": {
+            "BACKEND": "vmlc.storage_backends.PublicMediaStorage",
         },
         "staticfiles": {
             "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",

@@ -24,7 +24,6 @@ from .candidate import (
 from .dashboard import (
     CandidateDashboardView,
     StaffDashboardView,
-    AccountManagementView,
 )
 from .exam import (
     ExamListView,
@@ -64,6 +63,7 @@ from .staff import (
     StaffMeView,
 )
 from .user import (
+    AccountManagementView,
     UserVerificationStatusView,
     UserVerificationUploadView,
     UserVerificationDocumentView,
