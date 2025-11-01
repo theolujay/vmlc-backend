@@ -700,13 +700,156 @@ class BulkQuestionExamAssociationView(APIView):
                     )
         
         # Summary log
+        return Response(results, status=status.HTTP_200_OK)
+
+
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Bulk Archive Questions",
+        operation_description="Archive multiple questions in one operation. Admin only.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['question_ids'],
+            properties={
+                'question_ids': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    description='List of question IDs to archive',
+                    example=[1, 2, 3]
+                ),
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                "Questions archived successfully.",
+                openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'summary': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'total_questions': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'successful_archives': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'failed_archives': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            }
+                        ),
+                        'details': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'archived': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'question_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        }
+                                    )
+                                ),
+                                'failed': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'question_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            'reason': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                ),
+                            }
+                        )
+                    }
+                )
+            ),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["Questions"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+class BulkQuestionArchiveView(APIView):
+    """
+    Bulk archive questions.
+    
+    POST: Archive multiple questions in one operation.
+    
+    Permissions:
+        - Only accessible to verified staff with role: admin or superadmin.
+    """
+    
+    permission_classes = VerifiedAdminPermissions
+    
+    def post(self, request):
+        """
+        Archive multiple questions.
+        
+        Request body:
+        {
+            "question_ids": [1, 2, 3]
+        }
+        """
+        question_ids = request.data.get("question_ids", [])
+        
+        if not isinstance(question_ids, list) or not question_ids:
+            return Response(
+                {"error": "question_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        results = {
+            "summary": {
+                "total_questions": len(question_ids),
+                "successful_archives": 0,
+                "failed_archives": 0,
+            },
+            "details": {
+                "archived": [],
+                "failed": [],
+            }
+        }
+        
+        questions_to_archive = Question.objects.filter(id__in=question_ids, is_archived=False)
+        
+        found_question_ids = set(questions_to_archive.values_list('id', flat=True))
+        missing_question_ids = set(question_ids) - found_question_ids
+        
+        for q_id in missing_question_ids:
+            results["details"]["failed"].append({
+                "question_id": q_id,
+                "reason": "Question not found or already archived"
+            })
+            results["summary"]["failed_archives"] += 1
+        
+        for question in questions_to_archive:
+            try:
+                question.archive()
+                results["details"]["archived"].append(question.id)
+                results["summary"]["successful_archives"] += 1
+                logger.info(
+                    "Question %s archived by user %s",
+                    question.id,
+                    request.user.id
+                )
+            except Exception as e:
+                results["details"]["failed"].append({
+                    "question_id": question.id,
+                    "reason": str(e)
+                })
+                results["summary"]["failed_archives"] += 1
+                logger.error(
+                    "Error archiving question %s: %s",
+                    question.id,
+                    str(e)
+                )
+        
         logger.info(
-            "Bulk operation by user %s: %s successful, %s skipped, %s failed out of %s total",
+            "Bulk archive operation by user %s: %s successful, %s failed out of %s total",
             request.user.id,
-            results["summary"]["successful"],
-            results["summary"]["skipped"],
-            results["summary"]["failed"],
-            results["summary"]["total_operations"]
+            results["summary"]["successful_archives"],
+            results["summary"]["failed_archives"],
+            results["summary"]["total_questions"]
         )
         
         return Response(results, status=status.HTTP_200_OK)
