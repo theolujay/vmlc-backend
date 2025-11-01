@@ -206,7 +206,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         total_candidates=Count("user_id"),
         active_candidates=Count("user_id", filter=Q(user__is_active=True)),
         verified_candidates=Count(
-            "user_id", filter=Q(user__verification__is_verified=True)
+            "user_id", filter=Q(user__verification__is_approved=True)
         ),
         recent_registrations=Count("user_id", filter=Q(created_at__gte=last_week)),
     )
