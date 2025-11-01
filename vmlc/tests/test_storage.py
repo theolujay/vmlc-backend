@@ -41,9 +41,9 @@ class StorageTestCase(TestCase):
         self.verification.save()
 
         self.assertIsInstance(self.verification.id_card.storage, PrivateMediaStorage)
-        self.assertIn("AWSAccessKeyId", self.verification.id_card.url)
-        self.assertIn("Signature", self.verification.id_card.url)
-        self.assertIn("Expires", self.verification.id_card.url)
+        self.assertIn("X-Amz-Algorithm", self.verification.id_card.url)
+        self.assertIn("X-Amz-Credential", self.verification.id_card.url)
+        self.assertIn("X-Amz-Signature", self.verification.id_card.url)
 
     @override_settings(
         STORAGES={
