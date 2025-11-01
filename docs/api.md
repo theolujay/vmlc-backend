@@ -2246,15 +2246,18 @@ To reject a user:
 ---
 
 ### Account Management
-The account management endpoints allow users to view and update their own profile information. Superadmins have the ability to manage other users' accounts.
+This endpoint allows users to retrieve and update their own account information. Staff members with `manager` or `superadmin` roles can also manage other users' accounts.
 
-#### Get Account Details (Self)
-**Endpoint:** `GET /account-management/`
+#### Get User Account
+**Endpoint:** `GET /account-management/{user_id}/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
 ```
-**Required Role:** Any authenticated user
+**Required Role:** Authenticated User (for their own account), `manager` or `superadmin` (for other accounts).
+
+If `user_id` is not provided, it defaults to the current authenticated user.
 
 **Response:** `200 OK`
 ```json
@@ -2266,36 +2269,52 @@ X-Api-Key: <your_api_key>
       "is_email_verified": true,
       "first_name": "John",
       "last_name": "Doe",
+      "profile_picture": "https://vmlc.s3.amazonaws.com/profile_pictures/john_doe.jpg",
       "phone": "+23490xxxxxxxx",
       "date_joined": "2024-01-15T10:30:00Z"
     },
-    "school": "Mathematics High School",
-    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/john_doe.jpg",
-    "role": "league",
+    "occupation": "Mathematics Teacher",
+    "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
+    "role": "moderator",
     "is_active": true,
     "is_user_verified": true,
-    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_doe_id.pdf?AWSAccessKeyId=...",
-    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_doe_doc.pdf?AWSAccessKeyId=...",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-20T11:00:00Z",
-    "scores": {
-      "total_score": 380.0,
-      "average_score": 95.0,
-      "scores": [
-        {
-          "exam_id": 1,
-          "exam_title": "Algebra Screening",
-          "score": 88.0,
-          "recorded_at": "2024-01-20T15:30:00Z",
-          "score_submitted_by": "Auto Score",
-          "auto_score": true
-        }
-      ]
-    }
+    "id_card": "https://vmlc.s3.amazonaws.com/id_cards/john_smith_id.pdf?AWSAccessKeyId=...",
+    "verification_document": "https://vmlc.s3.amazonaws.com/verification_docs/john_smith_doc.pdf?AWSAccessKeyId=...",
+    "created_at": "2024-01-01T08:00:00Z",
+    "updated_at": "2024-01-05T09:00:00Z"
   }
 }
 ```
-*Note: The structure of the `profile` object will vary based on whether the user is a candidate or staff.*
+
+#### Update User Account
+**Endpoint:** `PATCH /account-management/{user_id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+Content-Type: multipart/form-data
+```
+**Required Role:** Authenticated User (for their own account), `manager` or `superadmin` (for other accounts).
+
+If `user_id` is not provided, it defaults to the current authenticated user.
+
+**Request Body (form-data):**
+- `first_name` (string, optional)
+- `last_name` (string, optional)
+- `profile_picture` (file, optional)
+- `phone_number` (string, optional)
+- `school` (string, optional, for candidates)
+- `occupation` (string, optional, for staff)
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Account updated successfully.",
+  "profile": {
+     ... updated profile data ...
+  }
+}
+```
 
 #### Get Account Details (Admin)
 **Endpoint:** `GET /account-management/{user_id}/`
@@ -2700,6 +2719,14 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-11-01**:
+  - **Account Management**:
+    - Updated `/account-management/{user_id}/` endpoint to handle `PATCH` operations (multipart).
+    - Now contains `profile_picture` field, which also reflects across endpoint responses with `"user"` field.
+  - **Exam**:
+    - Now contains `status` field, carrying any of the following values:
+      - `draft`, `scheduled`, `ongoing`, `concluded`, `cancelled`
+
 - **2025-10-31**
   - **Exam**:
     - Contains new fields `level` and `stage_display`.
@@ -2804,4 +2831,4 @@ For technical support, API key requests, or questions:
 - Leaderboard functionality
 - Role-based access control
 
-_Last Updated: October 2025_
+_Last Updated: November 2025_

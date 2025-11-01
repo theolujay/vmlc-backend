@@ -37,7 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "date_joined",
         ]
-        read_only_fields = ["id", "date_joined"]
+        read_only_fields = ["id", "date_joined", "is_email_verified"]
 
     def get_profile_picture(self, obj: User):
         """

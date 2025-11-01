@@ -115,6 +115,7 @@ class AccountManagementView(APIView):
 
         if profile and profile_serializer_class:
             profile_data = profile_serializer_class(profile).data
+            if profile_data["records"]: profile_data.pop("records")
         else:
             logger.error(f"User {target_user.id} does not have a profile.")
             return Response(
@@ -130,10 +131,31 @@ class AccountManagementView(APIView):
         """
         logger.info(
             f"AccountManagementView (_update_account): request from user {request.user.id} for user {user_id} with data: {request.data}"
-        )
-        target_user = self._get_target_user(request, user_id)
-        user_data = request.data.get("user", {})
-        profile_data = request.data.get("profile", {})
+        )       
+        editable_fields = [
+            "first_name",
+            "last_name",
+            "profile_picture",
+            "phone_number",
+            "school",
+            "occupation",
+        ]
+        user_data = {}
+        profile_data = {}
+        target_user = self._get_target_user(request, user_id) 
+        request_data = request.data
+    
+        for k, v in request_data.items():
+            if k not in editable_fields:
+                request_data.pop(k)
+            elif k in editable_fields[:3]:
+                user_data[k] = v
+            elif k in editable_fields[3:]:
+                profile_data[k] = v
+
+        # If no data was extracted, it's a bad request.
+        if not user_data and not profile_data:
+            return Response({"detail": "No user or profile data provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
         user_serializer.is_valid(raise_exception=True)
@@ -157,11 +179,18 @@ class AccountManagementView(APIView):
             target_user.id,
             request.user.id,
         )
+        
+        # Re-serialize to get the latest data for the response
+        updated_profile, updated_serializer_class = self._get_profile_and_serializer(target_user)
+        if updated_profile and updated_serializer_class:
+            response_profile_data = updated_serializer_class(updated_profile).data
+        else:
+            response_profile_data = None
+
         return Response(
             {
                 "message": "Account updated successfully.",
-                # "user": user_serializer.data,
-                "profile": profile_serializer.data if profile_serializer else None,
+                "profile": response_profile_data,
             }
         )
 
