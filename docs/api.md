@@ -475,15 +475,22 @@ Password-change:
 - `GET /dashboard/candidate/` — candidate dashboard (shows exams allowed, history, profile). Candidate role required. `200 OK`.
     
 - `GET /dashboard/staff/` — staff dashboard (moderator+). `200 OK`. Contains staff info, candidate counts, exams, questions, scores. `200 OK`.
-    
 
 ---
 
-#### Leaderboard & publishing
+#### Scoring & Submissions
 
-- `POST /publish-leaderboard/` — start generation & publish snapshot for a specific exam (admin+). Request: `{ exam_id: <int> }`. `202 Accepted`.
-    
-- `GET /load-leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
+- `POST /exams/{id}/submit-exam-answers/` — candidate submits answers. `200 OK`.
+
+- `PUT /exams/{id}/submit-exam-score/` — manual score submission (admin). `200 OK`.
+
+---
+
+#### Leaderboard
+
+- `POST /leaderboard/publish/` — start generation & publish snapshot for a specific exam (admin+). `202 Accepted`.
+
+- `GET /leaderboard/` — fetch latest published snapshot(s). Role: `league` candidates and above, all staff. Query: `exam_id` (optional, to get a specific leaderboard), `limit`, `offset`. `200 OK`.
     
 
 ---

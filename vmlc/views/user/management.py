@@ -115,7 +115,7 @@ class AccountManagementView(APIView):
 
         if profile and profile_serializer_class:
             profile_data = profile_serializer_class(profile).data
-            if profile_data["records"]: profile_data.pop("records")
+            profile_data.pop("records", None)
         else:
             logger.error(f"User {target_user.id} does not have a profile.")
             return Response(
