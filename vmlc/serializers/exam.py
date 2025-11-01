@@ -102,37 +102,37 @@ class ExamDetailSerializer(serializers.ModelSerializer):
     def get_stage_display(self, obj):
         return obj.stage_display
 
-    def to_representation(self, instance):
-        """
-        Customize the exam representation to include a nested structure
-        for questions with metadata.
-        """
-        representation = super().to_representation(instance)
-        questions_queryset = instance.questions.all()
+    # def to_representation(self, instance):
+    #     """
+    #     Customize the exam representation to include a nested structure
+    #     for questions with metadata.
+    #     """
+    #     representation = super().to_representation(instance)
+    #     questions_queryset = instance.questions.all()
 
-        pool = questions_queryset.aggregate(
-            total_count=Count(
-                "id",
-                filter=Q(is_archived=False),
-            ),
-            hard_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
-            ),
-            medium_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
-            ),
-            easy_questions_count=Count(
-                "id", filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
-            ),
-        )
+    #     pool = questions_queryset.aggregate(
+    #         total_count=Count(
+    #             "id",
+    #             filter=Q(is_archived=False),
+    #         ),
+    #         hard_questions_count=Count(
+    #             "id", filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
+    #         ),
+    #         medium_questions_count=Count(
+    #             "id", filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
+    #         ),
+    #         easy_questions_count=Count(
+    #             "id", filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
+    #         ),
+    #     )
 
-        representation["questions"] = {
-            "pool": pool,
-            "list": QuestionDetailSerializer(
-                questions_queryset, many=True, context=self.context
-            ).data,
-        }
-        return representation
+    #     representation["questions"] = {
+    #         "pool": pool,
+    #         "list": QuestionDetailSerializer(
+    #             questions_queryset, many=True, context=self.context
+    #         ).data,
+    #     }
+    #     return representation
 
 
 class CandidateExamSerializer(serializers.ModelSerializer):

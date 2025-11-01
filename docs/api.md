@@ -1154,7 +1154,10 @@ X-Api-Key: <your_api_key>
       "level": 1,
       "stage_display": "screening_1",
       "question_count": 20,
-      "created_at": "2024-01-10T09:00:00Z"
+      "created_at": "2024-01-10T09:00:00Z",
+      "scheduled_date": "2024-01-20T15:00:00Z",
+      "status": "concluded",
+      "concluded_at": "2024-01-21T15:00:00Z"
     }
   ],
   "pagination": {
@@ -1182,6 +1185,7 @@ X-Api-Key: <your_api_key>
 {
   "title": "New Algebra Exam",
   "stage": "screening",
+  "level": 1,
   "description": "A new exam for algebra screening.",
   "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
@@ -1196,11 +1200,15 @@ X-Api-Key: <your_api_key>
   "id": 4,
   "title": "New Algebra Exam",
   "stage": "screening",
+  "level": 1,
+  "stage_display": "screening_1",
   "description": "A new exam for algebra screening.",
   "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
   "open_duration_hours": 24,
   "is_active": true,
+  "status": "upcoming",
+  "concluded_at": null,
   "questions": [1, 2, 3],
   "created_by": {
     "user": {
@@ -1214,6 +1222,7 @@ X-Api-Key: <your_api_key>
     "occupation": "Administrator",
     "role": "superadmin"
   },
+  "updated_by": null,
   "average_score": 0.0,
   "created_at": "2025-09-18T12:00:00Z"
 }
@@ -1244,6 +1253,8 @@ X-Api-Key: <your_api_key>
   "countdown_minutes": 90,
   "open_duration_hours": 24,
   "is_active": true,
+  "status": "concluded",
+  "concluded_at": "2024-01-21T15:00:00Z",
   "questions": {
     "question_pool_data": {
         "total_questions": 3,
