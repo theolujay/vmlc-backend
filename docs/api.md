@@ -179,8 +179,8 @@ This table provides a detailed breakdown of each user role, its key abilities on
 
 | Role | Key Abilities (What they can do) | Accessible API Endpoints |
 |------|-----------------------------------|--------------------------|
-| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /load-leaderboard/` (for screening exams) |
-| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard. | • All `screening` endpoints.<br>• `GET /load-leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
+| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /leaderboard/` (for screening exams) |
+| **`league`** | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard. | • All `screening` endpoints.<br>• `GET /leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`) |
 | **`final`** | • All `league` abilities.<br>• Access to (offline) final-stage exams. | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`) |
 | **`winner`** | • Ceremonial role with all candidate permissions. Registered winner of the final stage. | • All `final` endpoints. |
 
@@ -191,7 +191,7 @@ This table provides a detailed breakdown of each user role, its key abilities on
 | Role | Key Abilities (What they can do) | Newly Accessible API Endpoints (in addition to lower roles) |
 |------|-----------------------------------|-------------------------------------------------------------|
 | **`volunteer`** | • View their own profile.<br>• Submit their own documents for verification. | • `GET /staff/me/`<br>• `GET /user/verification/status/`<br>• `POST/PATCH /user/verification/upload/` |
-| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /publish-leaderboard/` |
+| **`admin`** | • View details for any candidate.<br>• Change roles for candidates.<br>• Full management (CRUD) of exams.<br>• Manually submit scores.<br>• Publish leaderboard for a specific exam. | • `GET /candidates/{id}/`<br>• `GET /candidates/{id}/scores/`<br>• `GET /candidates/{id}/exam-history/`<br>• `PUT /candidates/{id}/roles/assign/`<br>• `GET/POST /exams/`<br>• `GET/PUT/PATCH/DELETE /exams/{id}/`<br>• `PUT /exams/{id}/submit-exam-score/`<br>• `POST /leaderboard/publish/` |
 | **`manager`** | • View details for any staff member.<br>• Change roles for staff (except `manager` or `superadmin`).<br>• Manage user verifications for candidates and staff members (approve/reject).<br>• Create and view broadcasts. | • `GET /staff/{id}/`<br>• `PUT /staff/{id}/roles/assign/`<br>• `GET /user/verification/list/`<br>• `POST /user/verification/action/{id}/`<br>• `GET /user/verification/documents/{type}/{id}/`<br>• `GET/POST /broadcasts/`<br>• `GET /broadcasts/{id}/`<br>• `GET/PATCH /account-management/{id}/` |
 | **`superadmin`** | • Can assign any staff role (except `superadmin`).<br>• Has full platform control inheriting all permissions. | *(Inherits all `manager` endpoints with zero restrictions)* |
 | **`sponsor`** | • A vanity role with no specific permissions. | *(No specific endpoints)* |
@@ -1866,6 +1866,74 @@ X-Api-Key: <your_api_key>
 
 ---
 
+### Scoring & Submissions
+
+#### Submit Exam Answers (Candidate)
+Allows a candidate to submit their answers for an exam. This endpoint handles bulk submission, performs eligibility checks, prevents re-submission, and triggers asynchronous auto-scoring.
+
+**Endpoint:** `POST /exams/{exam_id}/submit-exam-answers/`  
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** Authenticated `candidate` currently taking the exam.  
+**Request Body:**
+```json
+{
+  "answers": [
+    {
+      "question": 1,
+      "selected_option": "B"
+    },
+    {
+      "question": 2,
+      "selected_option": "A"
+    }
+  ]
+}
+```
+*Note: `selected_option` can be an empty string `""` if the question is unanswered.*
+
+**Response:** `201 Created`
+```json
+{
+  "message": "Answers submitted successfully!"
+}
+```
+*Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam.*
+
+#### Submit Exam Score (Manual by Staff)
+Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
+
+**Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+```
+**Required Role:** `admin` or higher
+**Request Body:**
+```json
+{
+    "candidate_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+    "score": 95.5
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+    "message": "Score updated.",
+    "data": {
+        "candidate": "John Doe",
+        "exam": "Algebra Screening Exam",
+        "score": 95.5
+    }
+}
+```
+*Note: If the score is being submitted for the first time, the message will be "Score submitted."*
+
+---
+
 ### Leaderboard
 The leaderboard system provides detailed performance rankings across different competition stages and levels. It consists of two main views:
 <!-- - `LoadLeaderboardView`: For fetching a summary of all available leaderboards or a detailed, paginated view of a specific leaderboard.
@@ -2802,7 +2870,7 @@ For technical support, API key requests, or questions:
 - **2025-10-29**
   - **Leaderboard**
     - *Breaking Change:* Modified the leaderboard generation and retrieval process.
-        - `POST /publish-leaderboard/`: Now requires an `exam_id` in the request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+        - `POST /leaderboard/publish/`: Now requires no request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
         - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
             - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
             - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
