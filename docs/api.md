@@ -1682,6 +1682,33 @@ The API provides CRUD operations for managing exam questions.
 }
 ```
 
+#### Bulk Archive Questions
+
+**Endpoint:** `POST /questions/bulk-archive/`
+**Required Role:** `admin` or higher
+**Request Body**:
+```json
+{
+    "question_ids": [1, 2, 3]
+}
+```
+**Response** `200 OK`:
+```json
+{
+    "summary": {
+        "total_questions": 3,
+        "successful_archives": 2,
+        "failed_archives": 1
+    },
+    "details": {
+        "archived": [1, 2],
+        "failed": [
+            {"question_id": 3, "reason": "Question not found or already archived"}
+        ]
+    }
+}
+```
+
 ### Dashboard
 Personalized dashboards provide an overview of relevant information for both candidates and staff members. Dashboard data is cached for performance and updated asynchronously.
 
@@ -2720,6 +2747,8 @@ For technical support, API key requests, or questions:
 ## Changelog
 
 - **2025-11-01**:
+  - **Question Management**:
+    - Added `POST /questions/bulk-archive/` endpoint for bulk archiving of questions.
   - **Account Management**:
     - Updated `/account-management/{user_id}/` endpoint to handle `PATCH` operations (multipart).
     - Now contains `profile_picture` field, which also reflects across endpoint responses with `"user"` field.
