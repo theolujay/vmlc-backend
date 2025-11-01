@@ -53,7 +53,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "face_id",
             "role",
             "is_active",
-            "is_verified",
+            "is_user_verified",
             "id_card",
             "verification_document",
             "created_at",

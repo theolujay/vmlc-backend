@@ -32,12 +32,19 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
+            "profile_picture",
             "phone",
             "date_joined",
         ]
         read_only_fields = ["id", "date_joined"]
 
-
+    def get_profile_picture(self, obj: User):
+        """
+        Safely returns the profile picture URL if it exists, otherwise returns None.
+        This prevents errors when a user hasn't uploaded a profile picture yet.
+        """
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            return obj.profile_picture.url
 class MinimalUserSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for listing user info.
@@ -67,7 +74,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
             "is_pending",
-            "is_verified",
+            "is_approved",
             "is_rejected",
             "has_face_id",
             "has_id_card",
@@ -97,7 +104,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
         model = UserVerification
         fields = [
             "is_pending",
-            "is_verified",
+            "is_approved",
             "is_rejected",
             "created_at",
             "recorded_at",
@@ -132,17 +139,17 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserVerification
-        fields = ["is_verified", "is_rejected"]
+        fields = ["is_approved", "is_rejected"]
 
     def update(self, instance, validated_data):
         """
         Handle verification status updates."""
-        is_verified = validated_data.get("is_verified")
+        is_approved = validated_data.get("is_approved")
         is_rejected = validated_data.get("is_rejected")
 
-        if is_verified is True:
+        if is_approved is True:
             # Approve
-            instance.is_verified = True
+            instance.is_approved = True
             instance.is_pending = False
             instance.is_rejected = False
             send_mail_task.delay(
@@ -153,7 +160,7 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
 
         elif is_rejected is True:
             # Reject
-            instance.is_verified = False
+            instance.is_approved = False
             instance.is_pending = False
             instance.is_rejected = True
             send_mail_task.delay(

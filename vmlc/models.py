@@ -67,35 +67,20 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser):
-    """Custom user model."""
+def validate_profile_picture(value): 
+    """Validate profile picture file"""
+    if not value:
+        return
 
-    id = models.UUIDField(
-        default=uuid.uuid4, unique=True, primary_key=True, editable=False
-    )
-    email = models.EmailField(unique=True)
-    is_email_verified = models.BooleanField(default=False)
-    first_name = models.CharField(max_length=30, blank=False)
-    last_name = models.CharField(max_length=30, blank=False)
-    phone_regex = RegexValidator(
-        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-    )
-    phone = models.CharField(
-        validators=[phone_regex],
-        max_length=17,
-        help_text="Nigerian phone number for SMS notifications and contact",
-    )
-    username = models.CharField(max_length=255, unique=True)
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+        )
 
-    objects = CustomUserManager()
-
-    def get_full_name(self):
-        """Return the user's full name."""
-        return f"{self.first_name} {self.last_name}".strip()
-
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 5MB.")
 
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""
@@ -113,9 +98,7 @@ def validate_id_card_file(value):
         raise ValidationError("File size cannot exceed 2MB.")
 
 
-def validate_face_id(
-    value,
-):  # TODO: swap and reconfigure for `avatar` and `face_id`
+def validate_face_id(value):
     """Validate face ID file"""
     if not value:
         return
@@ -146,6 +129,42 @@ def validate_document_file(value):
     if value.size > 2 * 1024 * 1024:
         raise ValidationError("Document size cannot exceed 2MB.")
 
+
+class User(AbstractUser):
+    """Custom user model."""
+
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
+    email = models.EmailField(unique=True)
+    is_email_verified = models.BooleanField(default=False)
+    first_name = models.CharField(max_length=30, blank=False)
+    last_name = models.CharField(max_length=30, blank=False)
+    phone_regex = RegexValidator(
+        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+    )
+    phone = models.CharField(
+        validators=[phone_regex],
+        max_length=17,
+        help_text="Nigerian phone number for SMS notifications and contact",
+    )
+    profile_picture = models.ImageField(
+        upload_to="profile_pictures/",
+        blank=True,
+        null=True,
+        storage=PublicMediaStorage(),
+        validators=[validate_profile_picture],
+    )
+    username = models.CharField(max_length=255, unique=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    objects = CustomUserManager()
+
+    def get_full_name(self):
+        """Return the user's full name."""
+        return f"{self.first_name} {self.last_name}".strip()
 
 class UserVerification(models.Model):
     """Model for user verification data."""
