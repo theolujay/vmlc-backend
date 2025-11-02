@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -43,6 +44,7 @@ from vmlc.tasks import (
     send_mail_task,
     revoke_staff_invite_task,
 )
+from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,12 @@ class AccountManagementView(APIView):
             f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
         )
         target_user = self._get_target_user(request, user_id)
+        cache_key = f"account_management_{target_user.id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         # user_data = UserSerializer(target_user).data
         profile, profile_serializer_class = self._get_profile_and_serializer(
             target_user
@@ -123,7 +131,9 @@ class AccountManagementView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response({"profile": profile_data})
+        response_data = {"profile": profile_data}
+        cache.set(cache_key, response_data, 86400)  # Cache for 24 hours
+        return Response(response_data)
 
     def _update_account(self, request, partial, user_id=None):
         """
@@ -173,6 +183,22 @@ class AccountManagementView(APIView):
             user_serializer.save()
             if profile_serializer:
                 profile_serializer.save()
+
+        # Invalidate the account management cache
+        cache.delete(f"account_management_{target_user.id}")
+
+        # Invalidate candidate dashboard cache if the user has a candidate profile
+        if hasattr(target_user, "candidate_profile"):
+            cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
+            # Invalidate all staff dashboards as candidate data changes
+            from vmlc.utils.helpers import invalidate_all_staff_dashboards
+            invalidate_all_staff_dashboards()
+        
+        # Invalidate all staff dashboards if the user has a staff profile
+        if hasattr(target_user, "staff_profile"):
+            from vmlc.models import Staff
+            for staff in Staff.objects.all():
+                cache.delete(f"staff_dashboard_data_{staff.pk}")
 
         logger.info(
             "Account for user %s updated by %s.",

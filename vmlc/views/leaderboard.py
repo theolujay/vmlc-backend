@@ -14,16 +14,16 @@ from rest_framework.settings import api_settings
 
 
 
-from ..models import Candidate, LeaderboardSnapshot
-from ..permissions import (
+from vmlc.models import Candidate, LeaderboardSnapshot
+from vmlc.permissions import (
     CandidatePermissions,
     VerifiedAdminPermissions,
     VerifiedModeratorPermissions,
 )
-from ..serializers.leaderboard import (
+from vmlc.serializers.leaderboard import (
     PublishLeaderboardSerializer,
 )
-from ..utils.swagger_schemas import (
+from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     leaderboard_snapshot_response_schema,
@@ -63,8 +63,8 @@ class PublishLeaderboardView(APIView):
         Triggers an asynchronous task to generate and publish the leaderboard for an exam.
         """
         staff_id = request.user.staff_profile.pk
-
-        from ..tasks import (
+        from vmlc.utils.helpers import invalidate_all_candidate_records
+        from vmlc.tasks import (
             generate_scores_snapshot_task,
             generate_leaderboard_snapshot_task,
         )
@@ -72,6 +72,7 @@ class PublishLeaderboardView(APIView):
         logger.info(
             f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
+        invalidate_all_candidate_records()
         generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 

@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
@@ -70,7 +71,15 @@ class CandidateMeView(RetrieveAPIView):
         """
         Returns a structured data payload for the authenticated candidate.
         """
+        user_id = self.request.user.id
+        cache_key = f"candidate_profile_{user_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
         data = Candidate.objects.get(user=self.request.user)
+        cache.set(cache_key, data, 3600)  # Cache for 1 hour
         return data
 
 
@@ -180,6 +189,20 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             .all()
         )
 
+    def retrieve(self, request, *args, **kwargs):
+        candidate_id = self.kwargs.get(self.lookup_url_kwarg)
+        cache_key = f"candidate_detail_{candidate_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        cache.set(cache_key, data, 86400)  # Cache for 24 hours
+        return Response(data)
+
     def perform_update(self, serializer):
         """
         Save updates to candidate and log the action.
@@ -191,7 +214,8 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             serializer.validated_data,
         )
         serializer.save(updated_by=self.request.user.staff_profile)
-        
+        cache.delete(f"candidate_detail_{serializer.instance.pk}")
+        cache.delete(f"candidate_profile_{serializer.instance.user.id}")
     def perform_destroy(self, instance):
         """
         Soft-delete candidate by setting `is_active` to False.
@@ -201,6 +225,8 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
             instance.pk,
             self.request.user.id,
         )
+        cache.delete(f"candidate_detail_{instance.pk}")
+        cache.delete(f"candidate_profile_{instance.user.id}")
         instance.is_active = False
         instance.save()
 
@@ -246,6 +272,10 @@ class AssignCandidateRoleView(UpdateAPIView):
 
         old_role = serializer.instance.role
         super().perform_update(serializer)
+
+        cache.delete(f"candidate_detail_{serializer.instance.pk}")
+        cache.delete(f"candidate_profile_{serializer.instance.user.id}")
+        cache.delete(f"account_management_{serializer.instance.user.id}")
 
         logger.info(
             "Changed candidate %s role from '%s' to '%s' by user %s",

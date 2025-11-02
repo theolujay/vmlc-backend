@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -25,7 +26,9 @@ from ..utils.swagger_schemas import (
     error_response_401,
 )
 from ..utils.exceptions import PermissionDenied
-from ..utils.helpers import sanitize_data
+from ..utils import ToggleFeatureFlagView
+from ..utils.helpers import sanitize_data, invalidate_all_staff_dashboards
+from ..models import FeatureFlag
 
 
 logger = logging.getLogger(__name__)
@@ -95,6 +98,14 @@ class CandidateRegistrationView(BaseRegistrationView):
     serializer_class = CandidateRegistrationSerializer
     feature_flag_key = "candidate_registration"
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        # Invalidate the candidate's dashboard cache
+        cache.delete(f"candidate_dashboard_{serializer.instance.pk}")
+        # Invalidate all staff dashboards as candidate count changes
+        from vmlc.utils.helpers import invalidate_all_staff_dashboards
+        invalidate_all_staff_dashboards()
+
 
 @method_decorator(
     name="post",
@@ -118,6 +129,13 @@ class StaffRegistrationView(BaseRegistrationView):
 
     serializer_class = StaffRegistrationSerializer
     feature_flag_key = "staff_registration"
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        # Invalidate all staff dashboards
+        from ..models import Staff
+        for staff in Staff.objects.all():
+            cache.delete(f"staff_dashboard_data_{staff.pk}")
 
 
 @method_decorator(

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.core.cache import cache
 
 
 from ..models import (
@@ -75,7 +76,13 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         """
         Returns a dictionary containing candidate's records (performance and available exams).
         """
-        return obj.get_records()
+        cache_key = f"candidate_records_{obj.pk}"
+        records = cache.get(cache_key)
+        if records is None:
+            records = obj.get_records()
+            # Cache for 24 hours.
+            cache.set(cache_key, records, timeout=86400)
+        return records
     
     def get_face_id(self, obj: Candidate):
         """
@@ -101,5 +108,3 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         if obj.id_card and hasattr(obj.id_card, 'url'):
             return obj.id_card.url
         return None
-
-

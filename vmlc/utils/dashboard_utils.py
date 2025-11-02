@@ -267,7 +267,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     upcoming_exams_list = list(
         Exam.objects.filter(scheduled_date__gte=now, is_active=True)
         .order_by("scheduled_date")
-        .values("id", "title", "scheduled_date", "is_active", "stage", "countdown_minutes")
+        .values("id", "title", "scheduled_date", "is_active", "stage", "level", "countdown_minutes")
         .annotate(question_count=Count("questions"))[:5]  # Annotate question count here
     )
 
@@ -329,9 +329,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
                 "title": exam["title"],
                 "scheduled_date": exam["scheduled_date"],
                 "is_active": exam["is_active"],
-                "stage": Exam.objects.get(
-                    pk=exam["id"]
-                ).get_stage_display(),  # Need to get object to use get_stage_display
+                "stage": f"{exam['stage']}_{exam['level']}",
                 "question_count": exam["question_count"],
                 "countdown_minutes": exam["countdown_minutes"],
             }

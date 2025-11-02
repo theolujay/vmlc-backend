@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -67,7 +68,15 @@ class StaffMeView(RetrieveAPIView):
         """
         Return the staff profile for the currently authenticated user.
         """
+        user_id = self.request.user.id
+        cache_key = f"staff_profile_{user_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
         data = Staff.objects.get(user=self.request.user)
+        cache.set(cache_key, data, 86400)  # Cache for 24 hours
         return data
 
 
@@ -182,6 +191,8 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
             self.request.user.id,
         )
         serializer.save()
+        cache.delete(f"staff_profile_{serializer.instance.user.id}")
+        cache.delete(f"staff_dashboard_data_{serializer.instance.pk}")
 
     def perform_destroy(self, instance):
         """
@@ -192,6 +203,8 @@ class StaffDetailView(RetrieveUpdateDestroyAPIView):
             instance.pk,
             self.request.user.id,
         )
+        cache.delete(f"staff_profile_{instance.user.id}")
+        cache.delete(f"staff_dashboard_data_{instance.pk}")
         instance.is_active = False
         instance.save()
 
@@ -247,6 +260,8 @@ class AssignStaffRoleView(UpdateAPIView):
     def perform_update(self, serializer):
         old_role = serializer.instance.role
         super().perform_update(serializer)
+        cache.delete(f"staff_profile_{serializer.instance.user.id}")
+        cache.delete(f"staff_dashboard_data_{serializer.instance.pk}")
         logger.info(
             "Changed staff %s role from '%s' to '%s' by user %s.",
             serializer.instance.pk,

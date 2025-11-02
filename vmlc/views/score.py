@@ -1,6 +1,8 @@
 import logging
 
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
@@ -104,6 +106,15 @@ class SubmitScoreView(APIView):
             action,
             staff.pk,
         )
+        # Invalidate the candidate's dashboard cache
+        cache.delete(f"candidate_dashboard_{candidate.pk}")
+        # Invalidate the account management cache
+        cache.delete(f"account_management_{candidate.user.id}")
+        # Invalidate the exam history cache
+        cache.delete(f"exam_history_{candidate.pk}")
+        # Invalidate all staff dashboards as candidate score data changes
+        from vmlc.utils.helpers import invalidate_all_staff_dashboards
+        invalidate_all_staff_dashboards()
 
         return Response(
             {
