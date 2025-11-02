@@ -2,14 +2,6 @@
 
 set -euo pipefail
 
-if [ -f "$SECRET_KEY_FILE" ]; then
-    export SECRET_KEY=$(cat "$SECRET_KEY_FILE")
-fi
-
-if [ -f "$DATABASE_URL_FILE" ]; then
-    export DATABASE_URL=$(cat "$DATABASE_URL_FILE")
-fi
-
 log_info() {
     echo -e "[INFO] $(date -u +"%Y-%m-%dT%H:%M:%SZ") PID=$$ - $1" >&1
 }
@@ -53,7 +45,7 @@ validate_environment() {
         log_info "DATABASE_URL not set, reading from ${DATABASE_URL_FILE}"
         export DATABASE_URL=$(cat "${DATABASE_URL_FILE}")
     fi
-
+    
     if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
         log_error "DJANGO_SETTINGS_MODULE environment variable is required"
         exit 1
