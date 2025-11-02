@@ -130,7 +130,7 @@ jobs:
           sleep 30
           
           # Check if the service is responding (adjust URL as needed)
-          HEALTH_URL="${{ secrets.STAGING_HEALTH_CHECK_URL || 'https://staging-verboheit.org/v1/health' }}"
+          HEALTH_URL="${{ secrets.STAGING_HEALTH_CHECK_URL || 'https://staging-api.verboheit.org/v1/health' }}"
           
           for i in {1..10}; do
             if curl -f -s -o /dev/null "$HEALTH_URL"; then
@@ -162,8 +162,6 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Actor: ${{ github.actor }}"
           
-          Add your notification service here (Slack, Discord, email, etc.)
-          Example for Slack:
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d '{
