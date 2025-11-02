@@ -176,7 +176,7 @@ services:
     networks:
       - prod
 
-  migrate:
+  db-migrate:
     <<: *vmlc-common
     image: &vmlcImage ghcr.io/verboheit/vmlc-backend:prod
     pull_policy: always
@@ -199,7 +199,7 @@ services:
         max_attempts: 3
         window: 120s
 
-  web:
+  django:
     <<: *vmlc-common
     image: *vmlcImage
     entrypoint: ./scripts/entrypoint.sh
@@ -214,18 +214,18 @@ services:
       - ./scripts/runserver.sh
     environment:
       <<: *prod-otel-env
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=web
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=django
     depends_on:
-      migrate:
+      db-migrate:
         condition: service_completed_successfully
         restart: true
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`api.verboheit.org`)"
-      - "traefik.http.routers.web.entrypoints=websecure"
-      - "traefik.http.routers.web.tls.certresolver=le"
-      - "traefik.http.routers.web.tls=true"
-      - "traefik.http.services.web.loadbalancer.server.port=8000"
+      - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
+      - "traefik.http.routers.django.entrypoints=websecure"
+      - "traefik.http.routers.django.tls.certresolver=le"
+      - "traefik.http.routers.django.tls=true"
+      - "traefik.http.services.django.loadbalancer.server.port=8000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
       interval: 45s
@@ -276,7 +276,7 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=celery_worker
     restart: unless-stopped
     depends_on:
-      migrate:
+      db-migrate:
         condition: service_completed_successfully
         restart: true
     healthcheck:
@@ -300,7 +300,7 @@ services:
     entrypoint: ./scripts/entrypoint.sh
     command: ["celery", "-A", "config", "beat", "-l", "warning", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     depends_on:
-      migrate:
+      db-migrate:
         condition: service_completed_successfully
         restart: true
     restart: unless-stopped
