@@ -555,7 +555,7 @@ class QuestionExamAssociationView(APIView):
         manual_parameters=[api_key, bearer_auth],
     ),
 )
-class BulkQuestionExamAssociationView(APIView):
+class BulkAddQuestionsToExamsView(APIView):
     """
     Bulk add questions to exams.
     

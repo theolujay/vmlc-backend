@@ -151,7 +151,9 @@ class ExamListView(ListCreateAPIView):
             f"ExamListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         return (
-            Exam.objects.annotate(question_count=Count("questions"))
+            Exam.objects.annotate(
+                question_count=Count("questions", filter=Q(questions__is_archived=False))
+            )
             .select_related("created_by__user")
             .order_by("-created_at")
         )
