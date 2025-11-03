@@ -314,7 +314,7 @@ class StaffInviteView(CreateAPIView):
         )
         headers = self.get_success_headers({})
         logger.info(
-            f"Staff profile created successfully with email: {user.email} by {request.user.email}"
+            f"Staff profile created successfully with user: {user.id} by user {request.user.id}"
         )
         return Response(
             {"message": "Staff profile created, invite sent."},
