@@ -538,8 +538,8 @@ def revoke_user_invite_task(user_id):
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
 
-@shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
-def revoke_staff_registration_task(self, user_id):
+@shared_task(bind=True, name="revoke_user_invite_task", max_retries=20)
+def revoke_user_invite_task(self, user_id):
     """
     Delete staff registration if not email_verified
     """
@@ -613,6 +613,26 @@ def revoke_staff_registration_task(self, user_id):
             exc_info=True
         )
         
+        if self.request.retries >= 3:
+            logger.error(f"Max retries reached for user {user_id}. Giving up.")
+            return
+        
+        raise self.retry(exc=e, countdown=60)
+
+@shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
+def send_welcome_mail_task(self, user_id, generated_password):
+    """Send welcome email to newly registered user."""
+    from .utils.auth import send_welcome_email
+    from .models import User
+    user = User.objects.get(pk=user_id)
+
+    try:
+        send_welcome_email(user, generated_password)
+        logger.info(f"Welcome email sent to {user.email}")
+    except Retry:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to send welcome email to {user.email}: {e}")
         if self.request.retries >= 3:
             logger.error(f"Max retries reached for user {user_id}. Giving up.")
             return

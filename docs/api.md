@@ -545,9 +545,13 @@ X-Api-Key: <your_api_key>
   "phone": "+23490xxxxxxxx",
   "password": "secure_password_123",
   "password2": "secure_password_123",
-  "school": "Mathematics High School"
+  "school": "Mathematics High School",
+  "generate_password": true
 }
 ```
+
+*Note: If `generate_password` is set to `true`, the `password` and `password2` fields can be omitted. The system will generate a secure password and email it to the user.*
+
 
 **Response:** `201 Created`
 ```json
@@ -572,9 +576,12 @@ X-Api-Key: <your_api_key>
   "phone": "+23490xxxxxxxx",
   "password": "secure_password_123",
   "password2": "secure_password_123",
-  "occupation": "Mathematics Teacher"
+  "occupation": "Mathematics Teacher",
+  "generate_password": true
 }
 ```
+*Note: If `generate_password` is set to `true`, the `password` and `password2` fields can be omitted. The system will generate a secure password and email it to the user.*
+
 *Note: If staff registration is closed, a `403 Forbidden` response will be returned.*
 
 ---
@@ -2831,6 +2838,11 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-11-03**:
+  - **Registration**:
+    - Added `generate_password` boolean field to the registration endpoints (`/register/candidate/` and `/register/staff/`).
+    - If `generate_password` is `true`, the `password` and `password2` fields are optional. The system will generate a secure password and email it to the user.
 
 - **2025-11-01**:
   - **Question Management**:

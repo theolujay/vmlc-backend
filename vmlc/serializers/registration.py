@@ -5,7 +5,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
-from vmlc.tasks import revoke_staff_registration_task
+from vmlc.tasks import revoke_user_invite_task
 from ..models import (
     Candidate,
     Staff,
@@ -41,6 +41,13 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         label="Confirm password",
     )
+    generate_password = serializers.BooleanField(write_only=True, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.initial_data.get("generate_password"):
+            self.fields["password"].required = False
+            self.fields["password2"].required = False
 
     def validate_phone(self, value):
         """Validate phone number format."""
@@ -52,8 +59,9 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Validate that passwords match"""
-        if attrs["password"] != attrs["password2"]:
-            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        if not self.initial_data.get("generate_password"):
+            if attrs["password"] != attrs["password2"]:
+                raise serializers.ValidationError({"password2": "Passwords do not match."})
         return attrs
 
     def create_user(self, user_data, password):
@@ -76,15 +84,16 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             "last_name": validated_data.pop("last_name"),
             "phone": validated_data.pop("phone"),
         }
-        password = validated_data.pop("password")
-        validated_data.pop("password2")
+        password = validated_data.pop("password", None)
+        validated_data.pop("password2", None)
+        validated_data.pop("generate_password", None)
 
         try:
             with transaction.atomic():
                 user = self.create_user(user_data, password)
                 profile = self.Meta.model.objects.create(user=user, **validated_data)
                 if hasattr(user, "staff_profile"):
-                    revoke_staff_registration_task.apply_async(
+                    revoke_user_invite_task.apply_async(
                         args=[user.id], countdown=60 * 15
                     )
                 return profile
@@ -120,6 +129,7 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
             "password",
             "password2",
             "school",
+            "generate_password",
         ]
 
 
@@ -140,6 +150,7 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
             "password",
             "password2",
             "occupation",
+            "generate_password",
         ]
 
 
@@ -164,6 +175,7 @@ class StaffInviteSerializer(BaseRegistrationSerializer):
             "role",
             "occupation",
             "created_by",
+            "generate_password",
         ]
 
     def validate_role(self, value):
@@ -221,6 +233,7 @@ class CandidateInviteSerializer(BaseRegistrationSerializer):
             "role",
             "school",
             "created_by",
+            "generate_password",
         ]
 
     def validate_role(self, value):

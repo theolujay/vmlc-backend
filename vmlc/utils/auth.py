@@ -3,6 +3,7 @@ import string
 import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Any
@@ -286,3 +287,48 @@ def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
             f"Error verifying password change OTP for user {user.id}: {str(e)}"
         )
         return False
+
+def send_welcome_email(user: User, generated_password: str = None) -> None:
+    """
+    Sends a welcome email to the newly registered user.
+
+    Args:
+        user: User object
+        generated_password: Optional generated password for the user
+    """
+    login_url = f"{settings.FRONTEND_LOGIN}"
+    generated_password_msg = ""
+    if generated_password is not None:
+        generated_password_msg = (
+            f"Your generated password is: {generated_password}\n"
+            f"Please use 'Forgot Password' to set your own password.\n"
+        )
+    try:
+        from ..tasks import send_mail_task
+        subject: str = f"Welcome to Verboheit MLC!"
+        message: str = (
+            f"Hi!\n\n"
+            f"Good to have you onboard {user.first_name}. "
+            f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
+            f"An opportunity to journey with your mates far and near and compete against one another awaits you.\n\n"
+            f"Kindly follow the login link below to begin.\n\n"
+            f"{generated_password_msg}"
+            f"Login: {login_url}\n\n"
+            "Best regards,\n"
+            "The VMLC Team."
+        )
+        # html_message = create_email_html(
+        #     subject=subject,
+        #     message=message,
+        # )
+        send_mail_task.delay(
+            subject=subject,
+            message=message,
+            recipient_list=[user.email],
+            # html_message=html_message,
+        )
+        
+        logger.info(f"Welcome email sent successfully to user {user.id}")
+
+    except Exception as e:
+        logger.error(f"Failed to send welcome email to user {user.id}: {str(e)}")

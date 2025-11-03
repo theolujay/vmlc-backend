@@ -357,14 +357,14 @@ class BaseInviteView(CreateAPIView):
         elif self.profile_type == "candidate":
             profile_msg = (
                 f"Your profile has been created to participate in the "
-                f"Verboheit Mathematics League Competition {timezone.now().year}. "
+                f"Verboheit Mathematics League Competition. "
             )
         message = (
             f"Hello, {user.first_name}.\n\n"
             f"{profile_msg}"
             f"To accept, log in using the link "
-            f"below with this email address and the temporary password provided. Please remember "
-            f"to change the password after login. If you choose not to accept, simply ignore this message. "
+            f"below with this email address and the generated password provided. Please use "
+            f"'Forgot Password' to set your own password. If you choose not to accept, simply ignore this message. "
             f"Note that the credentials will expire in {time_to_revoke_str} if you do not log in.\n\n"
             f"Email: {user.email}\n"
             f"Password: {temp_password}\n"
