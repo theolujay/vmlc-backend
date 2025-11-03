@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.utils import timezone 
+from django.utils import timezone
 from django.conf import settings
 
 from rest_framework.generics import CreateAPIView
@@ -22,8 +22,8 @@ from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     staff_registration_request_body,
+    candidate_registration_request_body,
     account_management_response_schema,
-    account_management_request_body,
     error_response_401,
     error_response_403,
     error_response_404,
@@ -38,15 +38,16 @@ from vmlc.serializers import (
     CandidateDetailSerializer,
     StaffDetailSerializer,
     StaffInviteSerializer,
+    CandidateInviteSerializer,
     UserSerializer,
 )
 from vmlc.tasks import (
     send_mail_task,
     revoke_staff_invite_task,
 )
-from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
 
 logger = logging.getLogger(__name__)
+
 
 class AccountManagementView(APIView):
     """
@@ -141,7 +142,7 @@ class AccountManagementView(APIView):
         """
         logger.info(
             f"AccountManagementView (_update_account): request from user {request.user.id} for user {user_id} with data: {request.data}"
-        )       
+        )
         editable_fields = [
             "first_name",
             "last_name",
@@ -152,9 +153,9 @@ class AccountManagementView(APIView):
         ]
         user_data = {}
         profile_data = {}
-        target_user = self._get_target_user(request, user_id) 
+        target_user = self._get_target_user(request, user_id)
         request_data = request.data
-    
+
         for k, v in request_data.items():
             if k not in editable_fields:
                 request_data.pop(k)
@@ -165,7 +166,10 @@ class AccountManagementView(APIView):
 
         # If no data was extracted, it's a bad request.
         if not user_data and not profile_data:
-            return Response({"detail": "No user or profile data provided."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "No user or profile data provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
         user_serializer.is_valid(raise_exception=True)
@@ -192,11 +196,13 @@ class AccountManagementView(APIView):
             cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
             # Invalidate all staff dashboards as candidate data changes
             from vmlc.utils.helpers import invalidate_all_staff_dashboards
+
             invalidate_all_staff_dashboards()
-        
+
         # Invalidate all staff dashboards if the user has a staff profile
         if hasattr(target_user, "staff_profile"):
             from vmlc.models import Staff
+
             for staff in Staff.objects.all():
                 cache.delete(f"staff_dashboard_data_{staff.pk}")
 
@@ -205,9 +211,11 @@ class AccountManagementView(APIView):
             target_user.id,
             request.user.id,
         )
-        
+
         # Re-serialize to get the latest data for the response
-        updated_profile, updated_serializer_class = self._get_profile_and_serializer(target_user)
+        updated_profile, updated_serializer_class = self._get_profile_and_serializer(
+            target_user
+        )
         if updated_profile and updated_serializer_class:
             response_profile_data = updated_serializer_class(updated_profile).data
         else:
@@ -224,14 +232,44 @@ class AccountManagementView(APIView):
         operation_summary="Update User Account",
         operation_description="Partially update user and/or profile data.",
         manual_parameters=[
-            openapi.Parameter("first_name", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's first name."),
-            openapi.Parameter("last_name", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's last name."),
-            openapi.Parameter("profile_picture", openapi.IN_FORM, type=openapi.TYPE_FILE, description="User's profile picture."),
-            openapi.Parameter("phone_number", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's phone number."),
-            openapi.Parameter("school", openapi.IN_FORM, type=openapi.TYPE_STRING, description="Candidate's school."),
-            openapi.Parameter("occupation", openapi.IN_FORM, type=openapi.TYPE_STRING, description="Staff's occupation."),
-            api_key, 
-            bearer_auth
+            openapi.Parameter(
+                "first_name",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="User's first name.",
+            ),
+            openapi.Parameter(
+                "last_name",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="User's last name.",
+            ),
+            openapi.Parameter(
+                "profile_picture",
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="User's profile picture.",
+            ),
+            openapi.Parameter(
+                "phone_number",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="User's phone number.",
+            ),
+            openapi.Parameter(
+                "school",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="Candidate's school.",
+            ),
+            openapi.Parameter(
+                "occupation",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="Staff's occupation.",
+            ),
+            api_key,
+            bearer_auth,
         ],
         responses={
             200: openapi.Response("Account updated successfully."),
@@ -240,7 +278,7 @@ class AccountManagementView(APIView):
             403: error_response_403,
             404: error_response_404,
         },
-        tags=["Account Management"],
+        tags=["User Management"],
     )
     def patch(self, request, user_id=None):
         """
@@ -248,27 +286,37 @@ class AccountManagementView(APIView):
         """
         return self._update_account(request, partial=True, user_id=user_id)
 
-class StaffInviteView(CreateAPIView):
+
+class BaseInviteView(CreateAPIView):
     """
-    API view to create a new staff member.
+    Base API view to create a new user invite.
     """
+
     permission_classes = VerifiedManagerPermissions
-    serializer_class = StaffInviteSerializer
+    serializer_class = None
+    profile_type = ""
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user.staff_profile)
-
+        
     @swagger_auto_schema(
-        operation_summary="Create Staff Member",
-        operation_description="Creates a new staff member with the provided details.",
-        request_body=staff_registration_request_body,
+        operation_summary=f"Create {profile_type.title()} User",
+        operation_description=(
+            f"Creates a new {profile_type.title()} user with the provided details."
+            " An invitation email with login credentials will be sent to the user."
+        ),
+        request_body=(
+            staff_registration_request_body
+            if profile_type == "staff"
+            else candidate_registration_request_body
+        ),
         responses={
-            201: openapi.Response("Staff member created successfully."),
+            201: openapi.Response(f"{profile_type.title()} user created successfully."),
             400: error_response_400,
             401: error_response_401,
             403: error_response_403,
         },
-        tags=["Staff Management"],
+        tags=["User Management"],
         manual_parameters=[api_key, bearer_auth],
     )
     def post(self, request, *args, **kwargs):
@@ -283,33 +331,45 @@ class StaffInviteView(CreateAPIView):
 
         # Schedule the revocation task to run after 'time_to_revoke'
         revoke_staff_invite_task.apply_async(
-            args=[serializer.instance.user.id],
-            eta=time_to_revoke
+            args=[serializer.instance.user.id], eta=time_to_revoke
         )
 
-        staff_profile = serializer.instance
-        user = staff_profile.user
+        profile = serializer.instance
+        user = profile.user
+        profile_msg = ""
 
         # Dynamically generate the human-readable time string
         if not settings.DEBUG:
             time_to_revoke_str = f"{revoke_delta.days} days"
         else:
             time_to_revoke_str = f"{revoke_delta.seconds // 60} minutes"
-        send_mail_task.delay(
-            subject="Staff Invite",
-            message = (
-                f"Hello, {user.first_name}.\n\n"
+
+        if self.profile_type == "staff":
+            profile_msg = (
                 f"You've been invited to join the Verboheit Mathematics League Competition "
-                f"{timezone.now().year} as a staff member. To accept, log in using the link "
-                f"below with this email address and the temporary password provided. Please remember "
-                f"to change the password after login. If you choose not to accept, simply ignore this message. "
-                f"Note that the credentials will expire in {time_to_revoke_str} if you do not log in.\n\n"
-                f"Email: {user.email}\n"
-                f"Password: {temp_password}\n"
-                f"Login: {login_url}\n\n"
-                f"Regards,\n"
-                f"Management, Verboheit MLC."
-            ),
+                f"{timezone.now().year} as a staff member. "
+            )
+        elif self.profile_type == "candidate":
+            profile_msg = (
+                f"Your profile has been created to participate in the "
+                f"Verboheit Mathematics League Competition {timezone.now().year}. "
+            )
+        message = (
+            f"Hello, {user.first_name}.\n\n"
+            f"{profile_msg}"
+            f"To accept, log in using the link "
+            f"below with this email address and the temporary password provided. Please remember "
+            f"to change the password after login. If you choose not to accept, simply ignore this message. "
+            f"Note that the credentials will expire in {time_to_revoke_str} if you do not log in.\n\n"
+            f"Email: {user.email}\n"
+            f"Password: {temp_password}\n"
+            f"Login: {login_url}\n\n"
+            f"Regards,\n"
+            f"Management, Verboheit MLC."
+        )
+        send_mail_task.delay(
+            subject="Welcome to Verboheit MLC - Your Account Details",
+            message=message,
             recipient_list=[user.email],
         )
         headers = self.get_success_headers({})
@@ -321,3 +381,35 @@ class StaffInviteView(CreateAPIView):
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
+
+
+class StaffInviteView(BaseInviteView):
+    """
+    API view to create a new staff member.
+    """
+
+    permission_classes = VerifiedManagerPermissions
+    serializer_class = StaffInviteSerializer
+    profile_type = "staff"
+
+    def post(self, request, *args, **kwargs):
+        """
+        Creates a new staff user and sends an invitation email.
+        """
+        return super().post(request, *args, **kwargs)
+
+
+class CandidateInviteView(BaseInviteView):
+    """
+    API view to create a new candidate.
+    """
+
+    permission_classes = VerifiedManagerPermissions
+    serializer_class = CandidateInviteSerializer
+    profile_type = "candidate"
+
+    def post(self, request, *args, **kwargs):
+        """
+        Creates a new candidate user and sends an invitation email.
+        """
+        return super().post(request, *args, **kwargs)
