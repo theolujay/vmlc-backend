@@ -132,4 +132,7 @@ LOGGING = {
 
 
 FRONTEND_BASE_URL = "https://test-portal.verboheit.org"
+FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
+FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
+FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = "verboheitmlc@gmail.com"

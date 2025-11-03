@@ -223,7 +223,16 @@ class AccountManagementView(APIView):
     @swagger_auto_schema(
         operation_summary="Update User Account",
         operation_description="Partially update user and/or profile data.",
-        request_body=account_management_request_body,
+        manual_parameters=[
+            openapi.Parameter("first_name", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's first name."),
+            openapi.Parameter("last_name", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's last name."),
+            openapi.Parameter("profile_picture", openapi.IN_FORM, type=openapi.TYPE_FILE, description="User's profile picture."),
+            openapi.Parameter("phone_number", openapi.IN_FORM, type=openapi.TYPE_STRING, description="User's phone number."),
+            openapi.Parameter("school", openapi.IN_FORM, type=openapi.TYPE_STRING, description="Candidate's school."),
+            openapi.Parameter("occupation", openapi.IN_FORM, type=openapi.TYPE_STRING, description="Staff's occupation."),
+            api_key, 
+            bearer_auth
+        ],
         responses={
             200: openapi.Response("Account updated successfully."),
             400: error_response_400,
@@ -232,7 +241,6 @@ class AccountManagementView(APIView):
             404: error_response_404,
         },
         tags=["Account Management"],
-        manual_parameters=[api_key, bearer_auth],
     )
     def patch(self, request, user_id=None):
         """
@@ -265,7 +273,7 @@ class StaffInviteView(CreateAPIView):
     )
     def post(self, request, *args, **kwargs):
         temp_password = request.data.get("password")
-        login_url = f"{settings.FRONTEND_BASE_URL}/auth/login/" # TODO: make this dynamic rather than hard-coded
+        login_url = f"{settings.FRONTEND_LOGIN}"
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
