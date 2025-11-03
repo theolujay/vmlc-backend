@@ -81,8 +81,8 @@ jobs:
             -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
             -e AWS_ACCESS_KEY_ID=${{ secrets.TEST_AWS_ACCESS_KEY_ID || 'minio' }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.TEST_AWS_SECRET_ACCESS_KEY || 'minio123' }} \
-            -e AWS_S3_REGION_NAME=us-east-1 \
-            -e AWS_STORAGE_BUCKET_NAME=testbucket \
+            -e AWS_S3_REGION_NAME=eu-north-1 \
+            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             --network test-network \
             --entrypoint "" \
             ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
