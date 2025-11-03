@@ -32,7 +32,7 @@ x-vmlc-env: &vmlc-env
   CORS_ALLOW_ALL_ORIGINS: "false"
   CORS_ALLOW_CREDENTIALS: "true"
   DEBUG: "false"
-  DEFAULT_FROM_EMAIL: verboheitmlc@gmail.com
+  DEFAULT_FROM_EMAIL: "Verboheit MLC <verboheitmlc@gmail.com>"
   DJANGO_SETTINGS_MODULE: config.settings.prod
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
   EMAIL_HOST: smtp.gmail.com
