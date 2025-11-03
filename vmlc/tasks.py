@@ -8,6 +8,7 @@ from django.core.mail import send_mail
 from django.db import OperationalError
 from django.utils import timezone
 from celery import shared_task
+from celery.exceptions import Retry
 from PIL import Image
 import magic
 
@@ -512,10 +513,10 @@ def update_candidate_ranking_cache_task():
         logger.error(f"Failed to update candidate ranking cache: {e}")
 
 
-@shared_task(name="revoke_staff_invite_task")
-def revoke_staff_invite_task(user_id):
+@shared_task(name="revoke_user_invite_task")
+def revoke_user_invite_task(user_id):
     """
-    Celery task to revoke staff credentials if they haven't logged in within a week.
+    Celery task to revoke user credentials if they haven't logged in within a week since invite.
     """
     from .models import User
 
@@ -601,6 +602,9 @@ def revoke_staff_registration_task(self, user_id):
         # Database temporarily unavailable - retry makes sense
         logger.error(f"Database error during revocation for user {user_id}: {e}")
         raise self.retry(exc=e, countdown=60)
+
+    except Retry:
+        raise
 
     except Exception as e:
         # Unexpected error - log and decide if we should retry

@@ -18,6 +18,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from vmlc.models import User
+from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
@@ -43,7 +44,7 @@ from vmlc.serializers import (
 )
 from vmlc.tasks import (
     send_mail_task,
-    revoke_staff_invite_task,
+    revoke_user_invite_task,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,7 +109,8 @@ class AccountManagementView(APIView):
         Retrieve the account and profile data of the target user.
         """
         logger.info(
-            f"AccountManagementView (get): request from user {request.user.id} for user {user_id}"
+            f"AccountManagementView (get): "
+            f"request from user {request.user.id} for user {user_id}"
         )
         target_user = self._get_target_user(request, user_id)
         cache_key = f"account_management_{target_user.id}"
@@ -141,7 +143,8 @@ class AccountManagementView(APIView):
         Handles the update logic for both user and profile data.
         """
         logger.info(
-            f"AccountManagementView (_update_account): request from user {request.user.id} for user {user_id} with data: {request.data}"
+            f"AccountManagementView (_update_account): request from user {request.user.id} "
+            f"for user {user_id} with data: {request.data}"
         )
         editable_fields = [
             "first_name",
@@ -298,7 +301,7 @@ class BaseInviteView(CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user.staff_profile)
-        
+
     @swagger_auto_schema(
         operation_summary=f"Create {profile_type.title()} User",
         operation_description=(
@@ -320,9 +323,12 @@ class BaseInviteView(CreateAPIView):
         manual_parameters=[api_key, bearer_auth],
     )
     def post(self, request, *args, **kwargs):
-        temp_password = request.data.get("password")
+        request_data = request.data.copy()
+        temp_password = generate_password()
+        request_data["password"] = temp_password
+        request_data["password2"] = temp_password
         login_url = f"{settings.FRONTEND_LOGIN}"
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         # Calculate the time delta based on environment
@@ -330,14 +336,13 @@ class BaseInviteView(CreateAPIView):
         time_to_revoke = timezone.now() + revoke_delta
 
         # Schedule the revocation task to run after 'time_to_revoke'
-        revoke_staff_invite_task.apply_async(
+        revoke_user_invite_task.apply_async(
             args=[serializer.instance.user.id], eta=time_to_revoke
         )
 
         profile = serializer.instance
         user = profile.user
         profile_msg = ""
-
         # Dynamically generate the human-readable time string
         if not settings.DEBUG:
             time_to_revoke_str = f"{revoke_delta.days} days"
@@ -374,10 +379,10 @@ class BaseInviteView(CreateAPIView):
         )
         headers = self.get_success_headers({})
         logger.info(
-            f"Staff profile created successfully with user: {user.id} by user {request.user.id}"
+            f"{self.profile_type.title()} profile created successfully with user: {user.id} by user {request.user.id}"
         )
         return Response(
-            {"message": "Staff profile created, invite sent."},
+            {"message": f"{self.profile_type.title()} profile created, invite sent."},
             status=status.HTTP_201_CREATED,
             headers=headers,
         )

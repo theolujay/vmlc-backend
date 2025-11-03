@@ -295,7 +295,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         default=None,
         null=True,
         blank=True,
-        related_name="invited_staff"
+        related_name="invited_staffs"
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -668,6 +668,14 @@ class Candidate(models.Model):
     )
     school = models.CharField(max_length=150)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="invited_candidates"
+    )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
         max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True
