@@ -298,7 +298,7 @@ class StaffInviteView(CreateAPIView):
         send_mail_task.delay(
             subject="Staff Invite",
             message = (
-                f"Hello {user.get_full_name()},\n\n"
+                f"Hello, {user.first_name}.\n\n"
                 f"You've been invited to join the Verboheit Mathematics League Competition "
                 f"{timezone.now().year} as a staff member. To accept, log in using the link "
                 f"below with this email address and the temporary password provided. Please remember "
