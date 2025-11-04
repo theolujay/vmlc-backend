@@ -851,6 +851,7 @@ class BulkQuestionArchiveView(APIView):
             try:
                 for exam in question.exams.all():
                     cache.delete(f"exam_questions_{exam.id}")
+                    cache.delete(f"exam_detail_{exam.id}")
                 question.archive()
                 results["details"]["archived"].append(question.id)
                 results["summary"]["successful_archives"] += 1
