@@ -88,7 +88,7 @@ jobs:
             --entrypoint "" \
             ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }} \
             sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
-
+        timeout-minutes: 10
       - name: Cleanup test containers
         if: always()
         run: |
