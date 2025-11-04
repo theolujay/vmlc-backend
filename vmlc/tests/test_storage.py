@@ -2,11 +2,13 @@ from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from moto import mock_s3
 
 from vmlc.models import User, UserVerification
 from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 
+@mock_s3
 class StorageTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -31,9 +33,7 @@ class StorageTestCase(TestCase):
             },
         }
     )
-    @patch("vmlc.storage_backends.PrivateMediaStorage._save")
-    def test_private_storage_uses_private_media_storage(self, mock_save):
-        mock_save.return_value = "test_path"
+    def test_private_storage_uses_private_media_storage(self):
         dummy_file = SimpleUploadedFile("test.jpg", b"file_content", content_type="image/jpeg")
 
         self.verification.id_card = dummy_file
@@ -69,4 +69,3 @@ class StorageTestCase(TestCase):
         self.assertNotIn("AWSAccessKeyId", self.user.profile_picture.url)
         self.assertNotIn("Signature", self.user.profile_picture.url)
         self.assertNotIn("Expires", self.user.profile_picture.url)
-# TODO: Fix S3 issue in tests in CI/CD pipeline
