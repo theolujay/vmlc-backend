@@ -331,6 +331,7 @@ class BaseInviteView(CreateAPIView):
         serializer = self.get_serializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
+        UserVerification.objects.get_or_create(user=serializer.instance.user)
         # Calculate the time delta based on environment
         revoke_delta = timedelta(days=7) if not settings.DEBUG else timedelta(minutes=5)
         time_to_revoke = timezone.now() + revoke_delta
