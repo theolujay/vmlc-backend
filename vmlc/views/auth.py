@@ -2,6 +2,7 @@
 Authentication-related API views for login, logout, and registration.
 """
 
+from asyncio import sleep
 import logging
 
 from django.core.cache import cache
@@ -101,6 +102,7 @@ class VerifyEmailOTPView(APIView):
         return self._verify_email(request.data)
 
     def _verify_email(self, data):
+        from vmlc.tasks import send_welcome_mail_task
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
             try:
@@ -115,6 +117,9 @@ class VerifyEmailOTPView(APIView):
                     recipient_list=[user.email],
                     html_message=html_message,
                 )
+                if hasattr(user, "staff_profile") and user.last_login is None:
+                    sleep(60)  # Ensure email is sent after transaction commit
+                    send_welcome_mail_task.delay(user_id=user.pk, generated_password=None)
                 logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
                     {"message": "Email verified successfully."},

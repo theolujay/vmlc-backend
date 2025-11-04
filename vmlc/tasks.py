@@ -620,7 +620,7 @@ def revoke_user_invite_task(user_id):
 #         raise self.retry(exc=e, countdown=60)
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(self, user_id, generated_password):
+def send_welcome_mail_task(self, user_id, generated_password = None):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
     from .models import User

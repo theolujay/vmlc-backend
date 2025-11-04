@@ -306,26 +306,34 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
     try:
         from ..tasks import send_mail_task
         subject: str = f"Welcome to Verboheit MLC!"
-        message: str = (
-            f"Hi!\n\n"
-            f"Good to have you onboard {user.first_name}. "
-            f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
-            f"An opportunity to journey with your mates far and near and compete against one another awaits you.\n\n"
-            f"Kindly follow the login link below to begin.\n\n"
-            f"{generated_password_msg}"
-            f"Login: {login_url}\n\n"
-            "Best regards,\n"
-            "The VMLC Team."
-        )
-        # html_message = create_email_html(
-        #     subject=subject,
-        #     message=message,
-        # )
+        if hasattr(user, "candidate_profile"):
+            message: str = (
+                f"Hi!\n\n"
+                f"Good to have you onboard, {user.first_name}. "
+                f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
+                f"An opportunity to journey with your mates far and near and compete against one another awaits you.\n\n"
+                f"Kindly follow the login link below to begin.\n\n"
+                f"{generated_password_msg}"
+                f"Login: {login_url}\n\n"
+                "Best regards,\n"
+                "The VMLC Team."
+            )
+        elif hasattr(user, "staff_profile"):
+            message: str = (
+                f"Welcome onboard, {user.first_name},\n\n"
+                f"You have chosen to be a part of the Verboheit Mathematics League Competition."
+                f"Glad to have you volunteering to make this competition a success. We look forward "
+                f"to your contributions. First things first, please follow the link below to log in "
+                f"to get started.\n\n"
+                f"Login: {login_url}\n\n"
+                "Looking forward to achieving great things together!\n\n"
+                "Best regards,\n"
+                "The VMLC Team."
+            )
         send_mail_task.delay(
             subject=subject,
             message=message,
-            recipient_list=[user.email],
-            # html_message=html_message,
+            recipient_list=[user.email]
         )
         
         logger.info(f"Welcome email sent successfully to user {user.id}")
