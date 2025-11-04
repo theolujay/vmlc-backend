@@ -105,11 +105,11 @@ class UserAdmin(admin.ModelAdmin):
         cache.delete(f"user_verification_status_{user.id}")
         if hasattr(user, "candidate_profile"):
             cache.delete(f"candidate_profile_{user.id}")
-            cache.delete(f"candidate_detail_{user.candidate_profile.id}")
-            cache.delete(f"candidate_dashboard_{user.candidate_profile.id}")
+            cache.delete(f"candidate_detail_{user.id}")
+            cache.delete(f"candidate_dashboard_{user.id}")
         if hasattr(user, "staff_profile"):
             cache.delete(f"staff_profile_{user.id}")
-            cache.delete(f"staff_dashboard_data_{user.staff_profile.id}")
+            cache.delete(f"staff_dashboard_data_{user.id}")
 
     @admin.display(description="User Profile")
     def user_profile(self, obj):
@@ -161,7 +161,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         cache.delete(f"user_verification_status_{user.id}")
         cache.delete(f"account_management_{user.id}")
         if hasattr(user, "candidate_profile"):
-            cache.delete(f"candidate_dashboard_{user.candidate_profile.id}")
+            cache.delete(f"candidate_dashboard_{user.id}")
 
     def _invalidate_queryset_cache(self, queryset):
         for verification in queryset:
@@ -248,9 +248,9 @@ class CandidateAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        cache.delete(f"candidate_detail_{candidate.id}")
+        cache.delete(f"candidate_detail_{candidate.user.id}")
         cache.delete(f"candidate_profile_{candidate.user.id}")
-        cache.delete(f"candidate_dashboard_{candidate.id}")
+        cache.delete(f"candidate_dashboard_{candidate.user.id}")
         cache.delete(f"account_management_{candidate.user.id}")
         invalidate_all_staff_dashboards()
 
@@ -336,7 +336,7 @@ class StaffAdmin(admin.ModelAdmin):
 
     def _invalidate_staff_cache(self, staff):
         cache.delete(f"staff_profile_{staff.user.id}")
-        cache.delete(f"staff_dashboard_data_{staff.id}")
+        cache.delete(f"staff_dashboard_data_{staff.user.id}")
         cache.delete(f"account_management_{staff.user.id}")
 
     @admin.display(description="Email", ordering="user__email")
@@ -523,9 +523,9 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     def _invalidate_score_cache(self, score):
         candidate = score.candidate
         exam = score.exam
-        cache.delete(f"candidate_dashboard_{candidate.id}")
+        cache.delete(f"candidate_dashboard_{candidate.user.id}")
         cache.delete(f"account_management_{candidate.user.id}")
-        cache.delete(f"exam_history_{candidate.id}")
+        cache.delete(f"exam_history_{candidate.user.id}")
         cache.delete(f"exam_results_{exam.id}")
         invalidate_all_staff_dashboards()
 
