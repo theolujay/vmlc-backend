@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
 from django.urls import reverse
@@ -21,6 +22,9 @@ from .models import (
 )
 
 from .utils.email import create_email_html
+from .utils.helpers import invalidate_all_staff_dashboards
+
+
 class EmailForm(forms.Form):
     subject = forms.CharField(max_length=100, required=True)
     message = forms.CharField(widget=forms.Textarea, required=True)
@@ -34,16 +38,18 @@ def send_email_to_users(modeladmin, request, queryset):
             subject = form.cleaned_data["subject"]
             message = form.cleaned_data["message"]
             html_message = create_email_html(subject=subject, message=message)
-            recipient_emails = list(queryset.values_list('email', flat=True))
+            recipient_emails = list(queryset.values_list("email", flat=True))
 
             send_mail_task.delay(
                 subject=subject,
-                message="", # Plain text part is empty
+                message="",  # Plain text part is empty
                 recipient_list=recipient_emails,
-                html_message=html_message
+                html_message=html_message,
             )
 
-            modeladmin.message_user(request, f"Scheduled sending emails to {len(recipient_emails)} users.")
+            modeladmin.message_user(
+                request, f"Scheduled sending emails to {len(recipient_emails)} users."
+            )
             return None
     else:
         form = EmailForm()
@@ -79,12 +85,38 @@ class UserAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "date_joined")
     search_fields = ("email", "first_name")
 
+    def save_model(self, request, obj, form, change):
+        """Invalidate cache when user is updated."""
+        super().save_model(request, obj, form, change)
+        self._invalidate_user_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_user_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_user_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_user_cache(self, user):
+        """Invalidate all caches related to a user."""
+        cache.delete(f"account_management_{user.id}")
+        cache.delete(f"user_verification_status_{user.id}")
+        if hasattr(user, "candidate_profile"):
+            cache.delete(f"candidate_profile_{user.id}")
+            cache.delete(f"candidate_detail_{user.id}")
+            cache.delete(f"candidate_dashboard_{user.id}")
+        if hasattr(user, "staff_profile"):
+            cache.delete(f"staff_profile_{user.id}")
+            cache.delete(f"staff_dashboard_data_{user.id}")
+
     @admin.display(description="User Profile")
     def user_profile(self, obj):
         try:
             if hasattr(obj, "candidate_profile"):
                 return "Candidate"
-            elif hasattr(obj, "staff_profile"):
+            if hasattr(obj, "staff_profile"):
                 return "Staff"
         except ObjectDoesNotExist:
             return "—"
@@ -120,6 +152,21 @@ class UserVerificationAdmin(admin.ModelAdmin):
         ),
     )
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_verification_cache(obj)
+
+    def _invalidate_verification_cache(self, verification):
+        user = verification.user
+        cache.delete(f"user_verification_status_{user.id}")
+        cache.delete(f"account_management_{user.id}")
+        if hasattr(user, "candidate_profile"):
+            cache.delete(f"candidate_dashboard_{user.id}")
+
+    def _invalidate_queryset_cache(self, queryset):
+        for verification in queryset:
+            self._invalidate_verification_cache(verification)
+
     @admin.display(description="Status")
     def verification_status(self, obj):
         """Display verification status with color coding."""
@@ -145,12 +192,14 @@ class UserVerificationAdmin(admin.ModelAdmin):
     @admin.action(description="Approve selected verifications")
     def approve_selected(self, request, queryset):
         """Approve selected verification requests."""
+        self._invalidate_queryset_cache(queryset)
         count = queryset.update(is_approved=True, is_pending=False)
         self.message_user(request, f"{count} verification(s) approved.")
 
     @admin.action(description="Reject selected verifications")
     def reject_selected(self, request, queryset):
         """Reject selected verification requests."""
+        self._invalidate_queryset_cache(queryset)
         count = queryset.update(is_approved=False, is_pending=False)
         self.message_user(request, f"{count} verification(s) rejected.")
 
@@ -175,16 +224,35 @@ class CandidateAdmin(admin.ModelAdmin):
         "created_at",
     )
     readonly_fields = ("created_at", "updated_at")
-    # Fixed: Use actual database fields for filtering
     list_filter = (
         "role",
-        "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_approved",  # Filter by verification status
+        "user__is_active",
+        "user__verification__is_approved",
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "school")
     list_select_related = ("user", "user__verification")
     date_hierarchy = "created_at"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_candidate_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_candidate_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_candidate_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_candidate_cache(self, candidate):
+        cache.delete(f"candidate_detail_{candidate.user.id}")
+        cache.delete(f"candidate_profile_{candidate.user.id}")
+        cache.delete(f"candidate_dashboard_{candidate.user.id}")
+        cache.delete(f"account_management_{candidate.user.id}")
+        invalidate_all_staff_dashboards()
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -243,16 +311,33 @@ class StaffAdmin(admin.ModelAdmin):
         "created_by",
     )
     readonly_fields = ("created_at", "updated_at")
-    # Fixed: Use actual database fields for filtering
     list_filter = (
         "role",
-        "user__is_active",  # Filter by user's is_active field
-        "user__verification__is_approved",  # Filter by verification status
+        "user__is_active",
+        "user__verification__is_approved",
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "occupation")
     list_select_related = ("user", "user__verification")
     date_hierarchy = "created_at"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_staff_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_staff_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_staff_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_staff_cache(self, staff):
+        cache.delete(f"staff_profile_{staff.user.id}")
+        cache.delete(f"staff_dashboard_data_{staff.user.id}")
+        cache.delete(f"account_management_{staff.user.id}")
 
     @admin.display(description="Email", ordering="user__email")
     def email(self, obj):
@@ -275,12 +360,13 @@ class StaffAdmin(admin.ModelAdmin):
     @admin.display(description="Active", boolean=True, ordering="user__is_active")
     def is_active(self, obj):
         return obj.is_active
-    
+
     @admin.display(description="Invited Staff")
     def created_by(self, obj):
         if obj.created_by:
             return obj.created_by.user.get_full_name()
         return None
+
 
 @admin.register(Exam)
 class ExamAdmin(admin.ModelAdmin):
@@ -306,9 +392,29 @@ class ExamAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
     filter_horizontal = ("questions",)
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_exam_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_exam_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_exam_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_exam_cache(self, exam):
+        cache.delete(f"exam_detail_{exam.id}")
+        cache.delete(f"exam_results_{exam.id}")
+        cache.delete(f"exam_questions_{exam.id}")
+        invalidate_all_staff_dashboards()
+        for score in exam.scores.all():
+            cache.delete(f"account_management_{score.candidate.user.id}")
+
     @admin.display(description="Question Count", ordering="question_count")
     def get_question_count(self, obj):
-        # This will be efficient if the queryset is annotated
         if hasattr(obj, "question_count"):
             return obj.question_count
         return obj.questions.count()
@@ -320,7 +426,8 @@ class ExamAdmin(admin.ModelAdmin):
     @admin.display(description="Results")
     def view_results_link(self, obj):
         url = (
-            reverse("admin:vmlc_candidatescore_changelist") + f"?exam__id__exact={obj.pk}"
+            reverse("admin:vmlc_candidatescore_changelist")
+            + f"?exam__id__exact={obj.pk}"
         )
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
 
@@ -332,12 +439,40 @@ class QuestionAdmin(admin.ModelAdmin):
     Displays question text, difficulty, and creator.
     """
 
-    list_display = ("id", "text", "difficulty", "creator_name", "is_archived", "archived_at", "created_at")
+    list_display = (
+        "id",
+        "text",
+        "difficulty",
+        "creator_name",
+        "is_archived",
+        "archived_at",
+        "created_at",
+    )
     readonly_fields = ("created_at", "updated_at", "archived_at")
     list_filter = ("difficulty", "created_by", "is_archived")
     search_fields = ("text", "created_by__user__email")
     list_select_related = ("created_by__user",)
     date_hierarchy = "created_at"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_question_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_question_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_question_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_question_cache(self, question):
+        cache.delete("question_pool_data")
+        for exam in question.exams.all():
+            cache.delete(f"exam_questions_{exam.id}")
+            cache.delete(f"exam_detail_{exam.id}")
+        invalidate_all_staff_dashboards()
 
     @admin.display(description="Created By", ordering="created_by__user__first_name")
     def creator_name(self, obj):
@@ -364,9 +499,35 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("recorded_at", "updated_at")
     list_filter = ("exam", "auto_score", "score_submitted_by")
-    search_fields = ("candidate__user__email", "exam__title", "score_submitted_by__user__email")
+    search_fields = (
+        "candidate__user__email",
+        "exam__title",
+        "score_submitted_by__user__email",
+    )
     list_select_related = ("candidate__user", "exam", "score_submitted_by__user")
     date_hierarchy = "recorded_at"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_score_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_score_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_score_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_score_cache(self, score):
+        candidate = score.candidate
+        exam = score.exam
+        cache.delete(f"candidate_dashboard_{candidate.user.id}")
+        cache.delete(f"account_management_{candidate.user.id}")
+        cache.delete(f"exam_history_{candidate.user.id}")
+        cache.delete(f"exam_results_{exam.id}")
+        invalidate_all_staff_dashboards()
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
     def candidate_email(self, obj):
@@ -376,7 +537,10 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     def exam_title(self, obj):
         return obj.exam.title
 
-    @admin.display(description="Score Submitted By", ordering="score_submitted_by__user__first_name")
+    @admin.display(
+        description="Score Submitted By",
+        ordering="score_submitted_by__user__first_name",
+    )
     def score_submitted_by_name(self, obj):
         if obj.score_submitted_by:
             return obj.score_submitted_by.user.get_full_name()
@@ -448,6 +612,17 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     list_select_related = ("published_by__user",)
     date_hierarchy = "created_at"
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Invalidate all leaderboard caches as they are dynamic
+        # A targeted approach is complex, so we clear all
+        # This could be improved with a more specific key pattern
+        cache.delete_pattern("leaderboard_*")
+
+    def delete_model(self, request, obj):
+        cache.delete_pattern("leaderboard_*")
+        super().delete_model(request, obj)
+
     @admin.display(description="Published By", ordering="published_by__user__email")
     def published_by_name(self, obj):
         if obj.published_by:
@@ -461,8 +636,16 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
         screening_leaderboard = str(json.dumps(obj.data["screening_leaderboard"]))
         league_leaderboard = str(json.dumps(obj.data["league_leaderboard"]))
         summary = {
-            "screening_leaderboard": (screening_leaderboard[:75] + "...") if len(screening_leaderboard) > 75 else screening_leaderboard,
-            "league_leaderboard": (league_leaderboard[:75] + "...") if len(league_leaderboard) > 75 else league_leaderboard,
+            "screening_leaderboard": (
+                (screening_leaderboard[:75] + "...")
+                if len(screening_leaderboard) > 75
+                else screening_leaderboard
+            ),
+            "league_leaderboard": (
+                (league_leaderboard[:75] + "...")
+                if len(league_leaderboard) > 75
+                else league_leaderboard
+            ),
         }
         return summary
 

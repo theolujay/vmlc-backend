@@ -2,8 +2,10 @@
 Authentication-related API views for login, logout, and registration.
 """
 
+from asyncio import sleep
 import logging
 
+from django.core.cache import cache
 from django.contrib.auth.signals import user_logged_in
 from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -100,11 +102,12 @@ class VerifyEmailOTPView(APIView):
         return self._verify_email(request.data)
 
     def _verify_email(self, data):
+        from vmlc.tasks import send_welcome_mail_task
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
             try:
                 user = serializer.save()
-
+                cache.delete(f"account_management_{user.id}")
                 subject = "Email Verified Successfully"
                 message = "Your email has been successfully verified."
                 html_message = create_email_html(subject=subject, message=message)
@@ -114,6 +117,9 @@ class VerifyEmailOTPView(APIView):
                     recipient_list=[user.email],
                     html_message=html_message,
                 )
+                if hasattr(user, "staff_profile") and user.last_login is None:
+                    sleep(60)  # Ensure email is sent after transaction commit
+                    send_welcome_mail_task.delay(user_id=user.pk, generated_password=None)
                 logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
                     {"message": "Email verified successfully."},

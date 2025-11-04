@@ -78,7 +78,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
         # Create user verification object
         from ..models import UserVerification
 
-        UserVerification.objects.create(user=user)
+        UserVerification.objects.get_or_create(user=user)
 
         logger.info(f"Email verified successfully for user {user.id}")
         return user

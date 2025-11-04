@@ -307,7 +307,7 @@ class InviteStaffTest(APITestCase):
         self.staff_profile = Staff.objects.create(user=self.staff_user, role=Staff.Roles.MANAGER)
         self.verification = UserVerification.objects.create(user=self.staff_user, is_approved=True)
 
-    @patch('vmlc.serializers.registration.revoke_user_invite_task.apply_async')
+    @patch('vmlc.tasks.revoke_user_invite_task.apply_async')
     def test_invite_staff_success(self, mock_task):
         self.client.force_authenticate(user=self.staff_user)
         url = reverse('vmlc:staff-invite')

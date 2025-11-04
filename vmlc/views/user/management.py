@@ -17,7 +17,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from vmlc.models import User
+from vmlc.models import User, UserVerification
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -331,6 +331,7 @@ class BaseInviteView(CreateAPIView):
         serializer = self.get_serializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
+        UserVerification.objects.get_or_create(user=serializer.instance.user)
         # Calculate the time delta based on environment
         revoke_delta = timedelta(days=7) if not settings.DEBUG else timedelta(minutes=5)
         time_to_revoke = timezone.now() + revoke_delta
