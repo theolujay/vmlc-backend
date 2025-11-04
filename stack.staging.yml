@@ -33,13 +33,13 @@ x-vmlc-env: &vmlc-env
   CORS_ALLOW_ALL_ORIGINS: "true"
   CORS_ALLOW_CREDENTIALS: "true"
   DEBUG: "false"
-  DEFAULT_FROM_EMAIL: "Verboheit MLC <mlc@verboheit.org>"
+  DEFAULT_FROM_EMAIL: "Verboheit MLC <staging-mlc@verboheit.org>"
   DJANGO_SETTINGS_MODULE: config.settings.staging
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
   # EMAIL_HOST: live.smtp.mailtrap.io
   EMAIL_HOST: smtp.gmail.com
   # EMAIL_HOST_USER: api
-  EMAIL_HOST_USER: verboheitmlc@gmail.com
+  EMAIL_HOST_USER: olujay.dev.testing@gmail.com
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
   INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
