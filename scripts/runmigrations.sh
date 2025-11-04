@@ -45,6 +45,11 @@ validate_environment() {
         log_info "DATABASE_URL not set, reading from ${DATABASE_URL_FILE}"
         export DATABASE_URL=$(cat "${DATABASE_URL_FILE}")
     fi
+
+    if [[ -z "${SECRET_KEY:-}" && -n "${SECRET_KEY_FILE:-}" && -f "${SECRET_KEY_FILE}" ]]; then
+        log_info "SECRET_KEY not set, reading from ${SECRET_KEY_FILE}"
+        export SECRET_KEY=$(cat "${SECRET_KEY_FILE}")
+    fi
     
     if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
         log_error "DJANGO_SETTINGS_MODULE environment variable is required"
