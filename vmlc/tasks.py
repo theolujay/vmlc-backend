@@ -523,8 +523,8 @@ def revoke_user_invite_task(user_id):
     try:
         user = User.objects.get(pk=user_id)
         if user.last_login is None:
-            user.is_active = False
-            user.save()
+            # user.is_active = False
+            user.delete()
             send_mail_task.delay(
                 subject="Your account has been revoked",
                 message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
@@ -538,86 +538,86 @@ def revoke_user_invite_task(user_id):
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
 
-@shared_task(bind=True, name="revoke_user_invite_task", max_retries=20)
-def revoke_user_invite_task(self, user_id):
-    """
-    Delete staff registration if not email_verified
-    """
-    from datetime import timedelta
-    from .models import User, EmailOTP
+# @shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
+# def revoke_staff_registration_task(self, user_id):
+#     """
+#     Delete staff registration if not email_verified
+#     """
+#     from datetime import timedelta
+#     from .models import User, EmailOTP
     
-    try:
-        user = User.objects.get(pk=user_id)
+#     try:
+#         user = User.objects.get(pk=user_id)
 
-        if not hasattr(user, "staff_profile"):
-            logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
-            return
+#         if not hasattr(user, "staff_profile"):
+#             logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
+#             return
             
-        if user.is_email_verified:
-            logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
-            return
+#         if user.is_email_verified:
+#             logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
+#             return
 
-        latest_otp = (
-            EmailOTP.objects.filter(user=user).order_by("-created_at").first()
-        )
-        if not latest_otp:
-            if self.request.retries >= 5:
-                logger.warning(
-                    f"No OTP found for user {user.id} after {self.request.retries} retries. "
-                    "Deleting user as precaution."
-                )
-                user.delete()
-                return
+#         latest_otp = (
+#             EmailOTP.objects.filter(user=user).order_by("-created_at").first()
+#         )
+#         if not latest_otp:
+#             if self.request.retries >= 5:
+#                 logger.warning(
+#                     f"No OTP found for user {user.id} after {self.request.retries} retries. "
+#                     "Deleting user as precaution."
+#                 )
+#                 user.delete()
+#                 return
             
-            logger.debug(
-                f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
-            )
-            raise self.retry(countdown=60)
+#             logger.debug(
+#                 f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
+#             )
+#             raise self.retry(countdown=60)
 
-        time_since_last: timedelta = timezone.now() - latest_otp.created_at
-        grace_period: timedelta = timedelta(minutes=5)
+#         time_since_last: timedelta = timezone.now() - latest_otp.created_at
+#         grace_period: timedelta = timedelta(minutes=5)
         
-        if latest_otp.is_expired() and time_since_last >= grace_period:
-            logger.debug(
-                f"Registration grace period elapsed. Revoking user registration for {user.id}."
-            )
+#         if latest_otp.is_expired() and time_since_last >= grace_period:
+#             logger.debug(
+#                 f"Registration grace period elapsed. Revoking user registration for {user.id}."
+#             )
         
-            user.delete()
-            logger.info(f"Revoked staff registration for user {user.email}")
+#             user.delete()
+#             logger.info(f"Revoked staff registration for user {user.email}")
         
-        elif latest_otp.is_expired() and time_since_last < grace_period:
-            logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
-            # Retry the task after the grace period has passed
-            raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
+#         elif latest_otp.is_expired() and time_since_last < grace_period:
+#             logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
+#             # Retry the task after the grace period has passed
+#             raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
         
-        else:
-            logger.info(f"OTP for user {user.id} is still valid. No action taken.")
+#         else:
+#             logger.info(f"OTP for user {user.id} is still valid. No action taken.")
 
-    except User.DoesNotExist:
-        logger.warning(f"User with id {user_id} not found for registration revocation.")
-        # Don't retry - user is gone
-        return
+#     except User.DoesNotExist:
+#         logger.warning(f"User with id {user_id} not found for registration revocation.")
+#         # Don't retry - user is gone
+#         return
 
-    except OperationalError as e:
-        # Database temporarily unavailable - retry makes sense
-        logger.error(f"Database error during revocation for user {user_id}: {e}")
-        raise self.retry(exc=e, countdown=60)
+#     except OperationalError as e:
+#         # Database temporarily unavailable - retry makes sense
+#         logger.error(f"Database error during revocation for user {user_id}: {e}")
+#         raise self.retry(exc=e, countdown=60)
 
-    except Retry:
-        raise
+#     except Retry:
+#         raise
 
-    except Exception as e:
-        # Unexpected error - log and decide if we should retry
-        logger.error(
-            f"Unexpected error during revocation for user {user_id}: {e}",
-            exc_info=True
-        )
+#     except Exception as e:
+#         # Unexpected error - log and decide if we should retry
+#         logger.error(
+#             f"Unexpected error during revocation for user {user_id}: {e}",
+#             exc_info=True
+#         )
         
-        if self.request.retries >= 3:
-            logger.error(f"Max retries reached for user {user_id}. Giving up.")
-            return
+#         if self.request.retries >= 3:
+#             logger.error(f"Max retries reached for user {user_id}. Giving up.")
+#             return
         
-        raise self.retry(exc=e, countdown=60)
+#         raise self.retry(exc=e, countdown=60)
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
 def send_welcome_mail_task(self, user_id, generated_password):

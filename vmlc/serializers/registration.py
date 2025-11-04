@@ -5,7 +5,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
-from vmlc.tasks import revoke_user_invite_task
+# from vmlc.tasks import revoke_staff_registration_task
 from ..models import (
     Candidate,
     Staff,
@@ -92,10 +92,10 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             with transaction.atomic():
                 user = self.create_user(user_data, password)
                 profile = self.Meta.model.objects.create(user=user, **validated_data)
-                if hasattr(user, "staff_profile"):
-                    revoke_user_invite_task.apply_async(
-                        args=[user.id], countdown=60 * 15
-                    )
+                # if hasattr(user, "staff_profile"):
+                #     revoke_staff_registration_task.apply_async(
+                #         args=[user.id], countdown=60 * 15
+                #     )
                 return profile
 
         except IntegrityError:
@@ -138,7 +138,7 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
     Serializer for registering new staff.
     """
 
-    occupation = serializers.CharField(max_length=50)
+    occupation = serializers.CharField(max_length=50, required=False)
 
     class Meta:
         model = Staff
