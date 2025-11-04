@@ -17,7 +17,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from vmlc.models import User
+from vmlc.models import User, UserVerification
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
