@@ -81,7 +81,7 @@ jobs:
             -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             --network test-network \
             --entrypoint "" \
-            ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
+            ${{ steps.meta.outputs.REPO_NAME }}-staging:${{ steps.meta.outputs.SHORT_SHA }} \
             sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
         timeout-minutes: 10
 
