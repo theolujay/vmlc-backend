@@ -1,3 +1,6 @@
+from django.core.cache import cache
+from vmlc.models import Staff, Candidate
+
 SENSITIVE_FIELDS = {
     # User credentials
     'password', 'passwd', 'pwd', 'old_password', 'new_password',
@@ -63,3 +66,17 @@ def sanitize_data(data, redact_text="***REDACTED***"):
     else:
         # Primitive type (string, int, etc.) - return as is
         return data
+
+def invalidate_all_staff_dashboards():
+    """
+    Invalidates the dashboard cache for all staff members.
+    """
+    for staff in Staff.objects.all():
+        cache.delete(f"staff_dashboard_data_{staff.pk}")
+
+def invalidate_all_candidate_records():
+    """
+    Invalidates Candidate.records cache for all candidate
+    """
+    for candidate in Candidate.objects.all():
+        cache.delete(f"candidate_records_{candidate.pk}")

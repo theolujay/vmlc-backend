@@ -1,7 +1,9 @@
 import logging
 
+from django.core.cache import cache
 from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
@@ -76,24 +78,30 @@ class QuestionListView(ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
-        question_pool_data = Question.objects.aggregate(
-            total_questions=Count(
-                "id",
-                filter=Q(is_archived=False)
-            ),
-            hard_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
-            ),
-            moderate_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
-            ),
-            easy_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
-            ),
-        )
+        # --- Caching for question pool data ---
+        cache_key = "question_pool_data"
+        question_pool_data = cache.get(cache_key)
+        if not question_pool_data:
+            logger.info("Question pool data not in cache. Calculating and caching.")
+            question_pool_data = Question.objects.aggregate(
+                total_questions=Count(
+                    "id",
+                    filter=Q(is_archived=False)
+                ),
+                hard_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
+                ),
+                moderate_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
+                ),
+                easy_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
+                ),
+            )
+            cache.set(cache_key, question_pool_data, timeout=3600) # Cache for 1 hour
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -134,6 +142,8 @@ class QuestionListView(ListCreateAPIView):
         Set the `created_by` field to the current staff user.
         """
         question = serializer.save(created_by=self.request.user.staff_profile)
+        cache.delete("question_pool_data")
+        invalidate_all_staff_dashboards()
         logger.info(
             "Question created by user %s with data: %s",
             self.request.user.id,
@@ -154,6 +164,7 @@ class QuestionListView(ListCreateAPIView):
                 try:
                     exam = Exam.objects.get(id=exam_id)
                     exam.questions.add(question)
+                    cache.delete(f"exam_questions_{exam_id}")  # Invalidate cache
                     added_count += 1
                     logger.info(
                         "Question %s added to exam %s",
@@ -280,7 +291,12 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         Set the `updated_by` field to the current staff user.
         Optionally add/remove question from exams (admin only).
         """
+        question = serializer.instance
         serializer.save(updated_by=self.request.user.staff_profile)
+        for exam in question.exams.all():
+            cache.delete(f"exam_questions_{exam.id}")
+        invalidate_all_staff_dashboards()
+
         logger.info(
             "Question %s updated by %s with data: %s",
             serializer.instance.id,
@@ -293,7 +309,12 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         Archive the question by setting `is_archived` to True and log the action.
         """
         question_id = instance.id
+        # Invalidate the cache for all exams containing this question
+        for exam in instance.exams.all():
+            cache.delete(f"exam_questions_{exam.id}")
         instance.archive()
+        invalidate_all_staff_dashboards()
+        
         logger.info("Question %s removed by user %s", question_id, self.request.user.id)
 
 @method_decorator(
@@ -370,6 +391,7 @@ class QuestionExamAssociationView(APIView):
                         exam = Exam.objects.get(id=exam_id)
                         if question not in exam.questions.all():
                             exam.questions.add(question)
+                            cache.delete(f"exam_questions_{exam.id}")  # Invalidate cache
                             results["added"].append({
                                 "exam_id": exam.id,
                                 "exam_title": exam.title
@@ -405,6 +427,7 @@ class QuestionExamAssociationView(APIView):
                         exam = Exam.objects.get(id=exam_id)
                         if question in exam.questions.all():
                             exam.questions.remove(question)
+                            cache.delete(f"exam_questions_{exam.id}")  # Invalidate cache
                             results["removed"].append({
                                 "exam_id": exam.id,
                                 "exam_title": exam.title
@@ -431,6 +454,7 @@ class QuestionExamAssociationView(APIView):
                     {"error": "remove_from_exams must be a list"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        invalidate_all_staff_dashboards()
         
         return Response(results, status=status.HTTP_200_OK)
 
@@ -531,7 +555,7 @@ class QuestionExamAssociationView(APIView):
         manual_parameters=[api_key, bearer_auth],
     ),
 )
-class BulkQuestionExamAssociationView(APIView):
+class BulkAddQuestionsToExamsView(APIView):
     """
     Bulk add questions to exams.
     
@@ -669,6 +693,8 @@ class BulkQuestionExamAssociationView(APIView):
                     
                     # Add the question to the exam
                     exam.questions.add(question)
+                    cache.delete(f"exam_questions_{exam.id}")
+                    cache.delete(f"exam_detail_{exam.id}")
                     results["details"]["added"].append({
                         "question_id": question.id,
                         "exam_id": exam.id,
@@ -698,8 +724,8 @@ class BulkQuestionExamAssociationView(APIView):
                         exam.id,
                         str(e)
                     )
-        
-        # Summary log
+                    
+        invalidate_all_staff_dashboards()
         return Response(results, status=status.HTTP_200_OK)
 
 
@@ -824,6 +850,9 @@ class BulkQuestionArchiveView(APIView):
         
         for question in questions_to_archive:
             try:
+                for exam in question.exams.all():
+                    cache.delete(f"exam_questions_{exam.id}")
+                    cache.delete(f"exam_detail_{exam.id}")
                 question.archive()
                 results["details"]["archived"].append(question.id)
                 results["summary"]["successful_archives"] += 1
@@ -843,6 +872,8 @@ class BulkQuestionArchiveView(APIView):
                     question.id,
                     str(e)
                 )
+    
+        invalidate_all_staff_dashboards()
         
         logger.info(
             "Bulk archive operation by user %s: %s successful, %s failed out of %s total",

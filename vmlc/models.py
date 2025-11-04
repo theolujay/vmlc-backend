@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -27,10 +28,27 @@ class FeatureFlag(models.Model):
     @classmethod
     def get_bool(cls, key, default=True):
         """Get the boolean value of a feature flag."""
+        cache_key = f"feature_flag_{key}"
+        cached_value = cache.get(cache_key)
+        if cached_value is not None:
+            return cached_value
+
         try:
-            return cls.objects.get(key=key).value
+            value = cls.objects.get(key=key).value
+            cache.set(cache_key, value, 86400)  # Cache for 24 hours
+            return value
         except cls.DoesNotExist:
             return default
+
+    def save(self, *args, **kwargs):
+        """Invalidate the cache when a feature flag is saved."""
+        cache.delete(f"feature_flag_{self.key}")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Invalidate the cache when a feature flag is deleted."""
+        cache.delete(f"feature_flag_{self.key}")
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         """Return a string representation of the feature flag."""
@@ -277,7 +295,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         default=None,
         null=True,
         blank=True,
-        related_name="invited_staff"
+        related_name="invited_staffs"
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -650,6 +668,14 @@ class Candidate(models.Model):
     )
     school = models.CharField(max_length=150)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="invited_candidates"
+    )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
         max_length=15, choices=Roles.choices, default=Roles.SCREENING, db_index=True

@@ -3,6 +3,7 @@ import string
 import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Any
@@ -12,6 +13,49 @@ from .email import create_email_html
 
 logger = logging.getLogger(__name__)
 
+
+
+def generate_password(length: int = 12) -> str:
+    """
+    Generates a secure random password that meets these criteria:
+    - 8-32 characters long
+    - At least 1 lowercase character (a-z)
+    - At least 1 uppercase character (A-Z)
+    - At least 1 number (0-9)
+    - At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
+    
+    Args:
+        length: Desired password length (default: 12)
+        
+    Returns:
+        A secure random password as a string
+        
+    Raises:
+        ValueError: If length is not between 8 and 32
+    """
+
+    if length < 8 or length > 32:
+        raise ValueError("Password length must be between 8 and 32 characters")
+
+    lowercase = string.ascii_lowercase  # a-z
+    uppercase = string.ascii_uppercase  # A-Z
+    digits = string.digits  # 0-9
+    special = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    all_characters = lowercase + uppercase + digits + special
+
+    password = [
+        secrets.choice(lowercase),
+        secrets.choice(uppercase),
+        secrets.choice(digits),
+        secrets.choice(special),
+    ]
+
+    for _ in range(length - 4):
+        password.append(secrets.choice(all_characters))
+    
+    secrets.SystemRandom().shuffle(password)
+
+    return "".join(password)
 
 def generate_otp(length: int = 6) -> str:
     """
@@ -243,3 +287,48 @@ def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
             f"Error verifying password change OTP for user {user.id}: {str(e)}"
         )
         return False
+
+def send_welcome_email(user: User, generated_password: str = None) -> None:
+    """
+    Sends a welcome email to the newly registered user.
+
+    Args:
+        user: User object
+        generated_password: Optional generated password for the user
+    """
+    login_url = f"{settings.FRONTEND_LOGIN}"
+    generated_password_msg = ""
+    if generated_password is not None:
+        generated_password_msg = (
+            f"Your generated password is: {generated_password}\n"
+            f"Please use 'Forgot Password' to set your own password.\n"
+        )
+    try:
+        from ..tasks import send_mail_task
+        subject: str = f"Welcome to Verboheit MLC!"
+        message: str = (
+            f"Hi!\n\n"
+            f"Good to have you onboard {user.first_name}. "
+            f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
+            f"An opportunity to journey with your mates far and near and compete against one another awaits you.\n\n"
+            f"Kindly follow the login link below to begin.\n\n"
+            f"{generated_password_msg}"
+            f"Login: {login_url}\n\n"
+            "Best regards,\n"
+            "The VMLC Team."
+        )
+        # html_message = create_email_html(
+        #     subject=subject,
+        #     message=message,
+        # )
+        send_mail_task.delay(
+            subject=subject,
+            message=message,
+            recipient_list=[user.email],
+            # html_message=html_message,
+        )
+        
+        logger.info(f"Welcome email sent successfully to user {user.id}")
+
+    except Exception as e:
+        logger.error(f"Failed to send welcome email to user {user.id}: {str(e)}")

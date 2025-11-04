@@ -1,7 +1,9 @@
 import logging
 
+from django.core.cache import cache
 from django.db.models import Avg, Count, Q
 from django.utils.decorators import method_decorator
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.settings import api_settings
@@ -94,24 +96,29 @@ class ExamListView(ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
-        question_pool_data = Question.objects.aggregate(
-            total_questions=Count(
-                "id",
-                filter=Q(is_archived=False)
-            ),
-            hard_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
-            ),
-            moderate_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
-            ),
-            easy_questions_count=Count(
-                "id",
-                filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
-            ),
-        )
+        # Try to get question_pool_data from cache
+        question_pool_data = cache.get("question_pool_data")
+        if not question_pool_data:
+            question_pool_data = Question.objects.aggregate(
+                total_questions=Count(
+                    "id",
+                    filter=Q(is_archived=False)
+                ),
+                hard_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.HARD) & Q(is_archived=False)
+                ),
+                moderate_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.MODERATE) & Q(is_archived=False)
+                ),
+                easy_questions_count=Count(
+                    "id",
+                    filter=Q(difficulty=Question.Difficulty.EASY) & Q(is_archived=False)
+                ),
+            )
+            # Cache the data for 1 hour
+            cache.set("question_pool_data", question_pool_data, 3600)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -144,7 +151,9 @@ class ExamListView(ListCreateAPIView):
             f"ExamListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         return (
-            Exam.objects.annotate(question_count=Count("questions"))
+            Exam.objects.annotate(
+                question_count=Count("questions", filter=Q(questions__is_archived=False))
+            )
             .select_related("created_by__user")
             .order_by("-created_at")
         )
@@ -154,6 +163,9 @@ class ExamListView(ListCreateAPIView):
         Saves the staff member who created the exam
         """
         serializer.save(created_by=self.request.user.staff_profile)
+        # Invalidate all staff dashboards as exam data changes
+        from vmlc.utils.helpers import invalidate_all_staff_dashboards
+        invalidate_all_staff_dashboards()
         logger.info(
             f"Exam created by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -253,6 +265,14 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        exam_id = instance.id
+        cache_key = f"exam_detail_{exam_id}"
+
+        # Try to get the data from the cache
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         serializer = self.get_serializer(instance)
         data = serializer.data
 
@@ -302,17 +322,40 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
                 "next": None,
                 "previous": None,
             }
-            
+
+        # Cache the data for 24 hours
+        cache.set(cache_key, data, 86400)
+        
         return Response(data)
 
     def perform_update(self, serializer):
         """
-        Saves the staff member who updated the exam
+        Saves the staff member who updated the exam and invalidates the cache.
         """
+        instance = serializer.instance
         serializer.save(updated_by=self.request.user.staff_profile)
+        
+        # Invalidate the cache
+        cache.delete(f"exam_detail_{instance.id}")
+        # Invalidate all staff dashboards as exam data changes
+        invalidate_all_staff_dashboards()
+
+        # Invalidate account management cache for all candidates who have taken this exam
+        for score in instance.scores.all():
+            cache.delete(f"account_management_{score.candidate.user.id}")
+        
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        exam_id = instance.id
+        response = super().destroy(request, *args, **kwargs)
+        cache.delete(f"exam_detail_{exam_id}")
+        # Invalidate all staff dashboards as exam data changes
+        invalidate_all_staff_dashboards()
+        return response
 
 
 @method_decorator(
@@ -340,6 +383,23 @@ class ExamResultsView(ListAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
+
+    def list(self, request, *args, **kwargs):
+        exam_id = self.kwargs[self.lookup_url_kwarg]
+        cache_key = f"exam_results_{exam_id}"
+        
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            logger.info(f"Returning cached results for exam {exam_id}")
+            # We need to manually construct a Response object from cached data
+            return Response(cached_response)
+
+        response = super().list(request, *args, **kwargs)
+        
+        # Only cache if the response was successful
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, timeout=86400)  # Cache for 24 hours
+        return response
 
     def get_queryset(self):
         """
@@ -387,6 +447,20 @@ class ExamQuestionsView(ListAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = QuestionListSerializer
 
+    def list(self, request, *args, **kwargs):
+        exam_id = self.kwargs["exam_id"]
+        cache_key = f"exam_questions_{exam_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        cache.set(cache_key, data, 86400)
+        return Response(data)
+
     def get_queryset(self):
         """
         Returns the queryset of questions related to a given exam.
@@ -430,6 +504,19 @@ class ExamHistoryView(ListAPIView):
     permission_classes = VerifiedAdminPermissions
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"
+
+    def list(self, request, *args, **kwargs):
+        candidate_id = self.kwargs[self.lookup_url_kwarg]
+        cache_key = f"exam_history_{candidate_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, 86400)  # Cache for 24 hours
+        return response
 
     def get_queryset(self):
         """

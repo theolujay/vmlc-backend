@@ -8,6 +8,7 @@ from django.core.mail import send_mail
 from django.db import OperationalError
 from django.utils import timezone
 from celery import shared_task
+from celery.exceptions import Retry
 from PIL import Image
 import magic
 
@@ -512,10 +513,10 @@ def update_candidate_ranking_cache_task():
         logger.error(f"Failed to update candidate ranking cache: {e}")
 
 
-@shared_task(name="revoke_staff_invite_task")
-def revoke_staff_invite_task(user_id):
+@shared_task(name="revoke_user_invite_task")
+def revoke_user_invite_task(user_id):
     """
-    Celery task to revoke staff credentials if they haven't logged in within a week.
+    Celery task to revoke user credentials if they haven't logged in within a week since invite.
     """
     from .models import User
 
@@ -537,8 +538,8 @@ def revoke_staff_invite_task(user_id):
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
 
-@shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
-def revoke_staff_registration_task(self, user_id):
+@shared_task(bind=True, name="revoke_user_invite_task", max_retries=20)
+def revoke_user_invite_task(self, user_id):
     """
     Delete staff registration if not email_verified
     """
@@ -602,6 +603,9 @@ def revoke_staff_registration_task(self, user_id):
         logger.error(f"Database error during revocation for user {user_id}: {e}")
         raise self.retry(exc=e, countdown=60)
 
+    except Retry:
+        raise
+
     except Exception as e:
         # Unexpected error - log and decide if we should retry
         logger.error(
@@ -609,6 +613,26 @@ def revoke_staff_registration_task(self, user_id):
             exc_info=True
         )
         
+        if self.request.retries >= 3:
+            logger.error(f"Max retries reached for user {user_id}. Giving up.")
+            return
+        
+        raise self.retry(exc=e, countdown=60)
+
+@shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
+def send_welcome_mail_task(self, user_id, generated_password):
+    """Send welcome email to newly registered user."""
+    from .utils.auth import send_welcome_email
+    from .models import User
+    user = User.objects.get(pk=user_id)
+
+    try:
+        send_welcome_email(user, generated_password)
+        logger.info(f"Welcome email sent to {user.email}")
+    except Retry:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to send welcome email to {user.email}: {e}")
         if self.request.retries >= 3:
             logger.error(f"Max retries reached for user {user_id}. Giving up.")
             return

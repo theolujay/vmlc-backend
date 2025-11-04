@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -7,9 +8,9 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 
-from ..tasks import send_otp_on_registration_task
+from ..tasks import send_otp_on_registration_task, send_welcome_mail_task
 from ..utils import ToggleFeatureFlagView
-from ..models import FeatureFlag
+from ..models import FeatureFlag, Candidate, Staff
 from ..permissions import HasXAPIKey, VerifiedManagerPermissions
 from ..serializers import (
     CandidateRegistrationSerializer,
@@ -25,7 +26,7 @@ from ..utils.swagger_schemas import (
     error_response_401,
 )
 from ..utils.exceptions import PermissionDenied
-from ..utils.helpers import sanitize_data
+from ..utils.helpers import sanitize_data, invalidate_all_staff_dashboards
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class BaseRegistrationView(CreateAPIView):
     feature_flag_key = None  # Subclasses must define this
 
     def create(self, request, *args, **kwargs):
+        from vmlc.utils.auth import generate_password
         safe_data = sanitize_data(request.data)
         logger.info(
             f"{self.__class__.__name__}: Registration attempt with data: {safe_data}"
@@ -50,7 +52,6 @@ class BaseRegistrationView(CreateAPIView):
                 "Already authenticated. Please log out to register a new account."
             )
 
-        # Use the specific feature flag key for the registration type
         if self.feature_flag_key and not FeatureFlag.get_bool(
             self.feature_flag_key, default=False
         ):
@@ -61,12 +62,27 @@ class BaseRegistrationView(CreateAPIView):
                 f"{self.feature_flag_key.replace('_', ' ').title()} is currently closed."
             )
 
-        serializer = self.get_serializer(data=request.data)
+        request_data = request.data.copy()
+        generated_password = None
+        if request_data.get("generate_password"):
+            generated_password = generate_password()
+            request_data["password"] = generated_password
+            request_data["password2"] = generated_password
+
+        serializer = self.get_serializer(data=request_data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        send_otp_on_registration_task.delay(serializer.instance.pk)
+        instance = serializer.save()
+
+        if isinstance(instance, Candidate):
+            send_welcome_mail_task.delay(instance.user.pk, generated_password)
+            cache.delete(f"candidate_dashboard_{instance.pk}")
+            invalidate_all_staff_dashboards()
+        elif isinstance(instance, Staff):
+            send_otp_on_registration_task.delay(instance.user.pk)
+            invalidate_all_staff_dashboards()
+
         logger.info(
-            f"Successfully registered new user with email: {serializer.instance.user.email}"
+            f"Successfully registered new user with email: {instance.user.email}"
         )
         return Response(
             {"message": "Registration successful."},

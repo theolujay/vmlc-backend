@@ -8,6 +8,7 @@ on:
 jobs:
   run-tests-and-deploy:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write 
@@ -25,7 +26,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('requirements.txt', 'Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -42,29 +43,57 @@ jobs:
           file: Dockerfile
           target: test
           tags: ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }}
-          load: true # Load to local Docker daemon for testing
+          load: true
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      
+      # Prevent cache from growing indefinitely
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
             
       - name: Run tests
         run: |
+          # Create test network
           docker network create test-network
+          
+          # Start PostgreSQL
           docker run -d --rm \
-            -e POSTGRES_USER=testuser \
-            -e POSTGRES_PASSWORD=testpassword \
-            -e POSTGRES_DB=testdb \
+            -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
+            -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
+            -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
             --network test-network \
             --name db \
+            --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
             postgres:17.2-bookworm
-          sleep 10
+          
+          # Wait for database to be healthy
+          echo "Waiting for database to be ready..."
+          timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
+          echo "Database is ready!"
+          
+          # Run migrations and tests
           docker run --rm \
+            -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.TEST_AWS_ACCESS_KEY_ID || 'minio' }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.TEST_AWS_SECRET_ACCESS_KEY || 'minio123' }} \
+            -e AWS_S3_REGION_NAME=eu-north-1 \
+            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             --network test-network \
             --entrypoint "" \
             ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
             sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
-          docker stop db
-          docker network rm test-network
         timeout-minutes: 10
+
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          docker stop db 2>/dev/null || true
+          docker network rm test-network 2>/dev/null || true
 
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -80,11 +109,12 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
           cache-from: type=local,src=/tmp/.buildx-cache
 
-      - name: create env file
+      - name: Create env file
         run: |
           echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" > ./envfile
         
       - name: Docker Stack Deploy
+        id: deploy
         uses: cssnr/stack-deploy-action@v1
         with:
           name: vmlc-backend
@@ -93,4 +123,55 @@ jobs:
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           env_file: ./envfile
+
+      - name: Run deployment health check
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
           
+          # Check if the service is responding (adjust URL as needed)
+          HEALTH_URL="${{ secrets.STAGING_HEALTH_CHECK_URL || 'https://staging-api.verboheit.org/v1/health' }}"
+          
+          for i in {1..10}; do
+            if curl -f -s -o /dev/null "$HEALTH_URL"; then
+              echo "✅ Deployment health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, retrying in 10s..."
+            sleep 10
+          done
+          
+          echo "❌ Deployment health check failed after 10 attempts"
+          exit 1
+        timeout-minutes: 3
+        continue-on-error: true
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            STATUS="✅ SUCCESS"
+            COLOR="good"
+          else
+            STATUS="❌ FAILED"
+            COLOR="danger"
+          fi
+          
+          echo "Deployment $STATUS"
+          echo "Commit: ${{ steps.meta.outputs.SHORT_SHA }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "Staging Deployment '"$STATUS"'",
+              "attachments": [{
+                "color": "'"$COLOR"'",
+                "fields": [
+                  {"title": "Commit", "value": "${{ steps.meta.outputs.SHORT_SHA }}", "short": true},
+                  {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+                ]
+              }]
+            }'

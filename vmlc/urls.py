@@ -44,7 +44,7 @@ from .views import (
     QuestionListView,
     QuestionDetailView,
     QuestionExamAssociationView,
-    BulkQuestionExamAssociationView,
+    BulkAddQuestionsToExamsView,
     BulkQuestionArchiveView,
     PublishScoresView,
     PublishLeaderboardView,
@@ -53,6 +53,7 @@ from .views import (
     CandidateDashboardView,
     StaffDashboardView,
     AccountManagementView,
+    CandidateInviteView,
     UserVerificationStatusView,
     UserVerificationUploadView,
     UserVerificationDocumentView,
@@ -160,11 +161,6 @@ urlpatterns = [
         AssignStaffRoleView.as_view(),
         name="staff-role-assign",
     ),
-    path(
-        "staff/invite/",
-        StaffInviteView.as_view(),
-        name="staff-invite",
-    ),
     # =============================================================================
     # EXAM MANAGEMENT
     # =============================================================================
@@ -209,7 +205,7 @@ urlpatterns = [
     path('questions/<int:question_id>/exams/', QuestionExamAssociationView.as_view(), name='question-exam-associations'),
     path(
         'questions/bulk-add-to-exams/',
-        BulkQuestionExamAssociationView.as_view(),
+        BulkAddQuestionsToExamsView.as_view(),
         name='bulk-question-exam-associations'
     ),
     path(
@@ -247,7 +243,7 @@ urlpatterns = [
         StaffDashboardView.as_view(),
         name="staff-dashboard",
     ),
-    # Account Management
+    # User Management
     path(
         "account-management/",
         AccountManagementView.as_view(),
@@ -257,6 +253,16 @@ urlpatterns = [
         "account-management/<uuid:user_id>/",
         AccountManagementView.as_view(),
         name="account-management-detail",
+    ),
+    path(
+        "staff/invite/",
+        StaffInviteView.as_view(),
+        name="staff-invite",
+    ),
+    path(
+        "candidate/invite/",
+        CandidateInviteView.as_view(),
+        name="candidate-invite",
     ),
     # =============================================================================
     # USER VERIFICATION

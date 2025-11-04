@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 import boto3
 from botocore.exceptions import ClientError
 from django.db import transaction
@@ -44,6 +45,7 @@ from vmlc.utils.exceptions import (
     ValidationError,
     APIException,
 )
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 
 logger = logging.getLogger(__name__)
 
@@ -68,15 +70,12 @@ class UserVerificationStatusView(APIView):
         manual_parameters=[api_key, bearer_auth],
     )
     def get(self, request, user_id=None):
-        return self._get_user_verification_status(request.user, user_id)
-
-    def _get_user_verification_status(self, user, user_id):
         logger.info(
-            f"UserVerificationStatusView: request from user {user.id} for user {user_id}"
+            f"UserVerificationStatusView: request from user {request.user.id} for user {user_id}"
         )
         # Determine target user
         if user_id is None:
-            target_user = user
+            target_user = request.user
         else:
             try:
                 target_user = User.objects.get(id=user_id)
@@ -84,28 +83,32 @@ class UserVerificationStatusView(APIView):
                 logger.error(f"User with id {user_id} not found.")
                 raise NotFound("User not found.")
             if (
-                user.id != target_user.id
+                request.user.id != target_user.id
                 and not IsObjectOwnerOrManagerRole().has_object_permission(
                     self.request, self, target_user
                 )
             ):
                 logger.warning(
-                    f"User {user.id} does not have permission to access user {user_id}'s verification status."
+                    f"User {request.user.id} does not have permission to access user {user_id}'s verification status."
                 )
                 raise PermissionDenied(
                     "You don't have permission to access this user's verification status."
                 )
 
+        cache_key = f"user_verification_status_{target_user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         # Check email verification first
         if not target_user.is_email_verified:
             logger.warning(f"User {target_user.id} has not verified their email.")
-            return Response(
-                {
-                    "status": "email_not_verified",
-                    "detail": "Email not verified. Verify email for user verification.",
-                },
-                status=status.HTTP_200_OK,
-            )
+            response_data = {
+                "status": "email_not_verified",
+                "detail": "Email not verified. Verify email for user verification.",
+            }
+            cache.set(cache_key, response_data, 86400)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # Get or create verification record
         verification, _ = UserVerification.objects.get_or_create(user=target_user)
@@ -113,43 +116,39 @@ class UserVerificationStatusView(APIView):
         # Determine status based on verification record
         if verification.is_approved:
             logger.info(f"User {target_user.id} is verified.")
-            return Response(
-                {"status": "verified", "detail": "User is verified."},
-                status=status.HTTP_200_OK,
-            )
+            response_data = {"status": "verified", "detail": "User is verified."}
+            cache.set(cache_key, response_data, 86400)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         if verification.is_pending:
             # Return detailed verification data for pending cases
             serializer = UserVerificationStatusSerializer(verification)
             logger.info(f"User {target_user.id} has a pending verification request.")
-            return Response(
-                {
-                    "status": "pending",
-                    "detail": "Verification request is pending review.",
-                    "verification_data": serializer.data,
-                },
-                status=status.HTTP_200_OK,
-            )
+            response_data = {
+                "status": "pending",
+                "detail": "Verification request is pending review.",
+                "verification_data": serializer.data,
+            }
+            cache.set(cache_key, response_data, 86400)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         if verification.is_rejected:
             logger.info(f"User {target_user.id} has a rejected verification request.")
-            return Response(
-                {
-                    "status": "rejected",
-                    "detail": "Verification request was rejected. You may resubmit with updated documents.",
-                },
-                status=status.HTTP_200_OK,
-            )
+            response_data = {
+                "status": "rejected",
+                "detail": "Verification request was rejected. You may resubmit with updated documents.",
+            }
+            cache.set(cache_key, response_data, 86400)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # Not verified, not pending, not rejected = never submitted
         logger.info(f"User {target_user.id} has not submitted a verification request.")
-        return Response(
-            {
-                "status": "not_submitted",
-                "detail": "No verification request submitted.",
-            },
-            status=status.HTTP_200_OK,
-        )
+        response_data = {
+            "status": "not_submitted",
+            "detail": "No verification request submitted.",
+        }
+        cache.set(cache_key, response_data, 86400)
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 @method_decorator(
@@ -279,6 +278,11 @@ class UserVerificationUploadView(APIView):
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
 
+            # Invalidate caches
+            cache.delete(f"user_verification_status_{request.user.id}")
+            if hasattr(request.user, "candidate_profile"):
+                cache.delete(f"candidate_dashboard_{request.user.candidate_profile.pk}")
+
             logger.info(
                 "Verification data submitted by user %s. Validation is pending.",
                 request.user.id,
@@ -335,6 +339,11 @@ class UserVerificationUploadView(APIView):
 
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
+
+            # Invalidate caches
+            cache.delete(f"user_verification_status_{request.user.id}")
+            if hasattr(request.user, "candidate_profile"):
+                cache.delete(f"candidate_dashboard_{request.user.candidate_profile.pk}")
 
             logger.info(
                 "Verification data updated by user %s. Validation is pending.",
@@ -588,6 +597,14 @@ class UserVerificationActionView(APIView):
                 raise ValidationError("Must specify either is_approved or is_rejected.")
             with transaction.atomic():
                 verification = serializer.save()
+
+            # Invalidate caches
+            cache.delete(f"user_verification_status_{target_user.id}")
+            if hasattr(target_user, "candidate_profile"):
+                cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
+            cache.delete(f"account_management_{target_user.id}")
+            from vmlc.utils.helpers import invalidate_all_staff_dashboards
+            invalidate_all_staff_dashboards()
                 
             user = verification.user
             base_message = f"Your verification details have been {action}.\n\n"

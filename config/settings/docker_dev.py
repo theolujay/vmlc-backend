@@ -389,4 +389,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 
 FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "https://dev-portal.verboheit.org")
+FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
+FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
+FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")

@@ -42,7 +42,7 @@ from .question import (
     QuestionListView,
     QuestionDetailView,
     QuestionExamAssociationView,
-    BulkQuestionExamAssociationView,
+    BulkAddQuestionsToExamsView,
     BulkQuestionArchiveView,
 )
 from .registration import (
@@ -70,6 +70,7 @@ from .user import (
     UserVerificationDocumentView,
     UserVerificationListView,
     UserVerificationActionView,
+    CandidateInviteView,
     StaffInviteView,
 )
 from .health import health_check
@@ -112,7 +113,7 @@ __all__ = [
     "QuestionListView",
     "QuestionDetailView",
     "QuestionExamAssociationView",
-    "BulkQuestionExamAssociationView",
+    "BulkAddQuestionsToExamsView",
     "BulkQuestionArchiveView",
     # registration
     "CandidateRegistrationView",
@@ -139,4 +140,5 @@ __all__ = [
     "UserVerificationListView",
     "UserVerificationActionView",
     "StaffInviteView",
+    "CandidateInviteView",
 ]

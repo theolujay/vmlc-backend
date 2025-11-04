@@ -1,7 +1,7 @@
 """
 Test environment for CI/CD pipelines.
 """
-
+import os
 import dj_database_url
 
 from .base import *
@@ -38,11 +38,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BROKER_URL = 'memory://'  # Use in-memory broker for tests
 CELERY_RESULT_BACKEND = 'cache+memory://'  # Use in-memory results
 
-AWS_ACCESS_KEY_ID = "test-access-key"
-AWS_SECRET_ACCESS_KEY = "test-secret-key"
-AWS_STORAGE_BUCKET_NAME = "test-bucket"
-AWS_S3_REGION_NAME = "us-west-2"
 
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
 AWS_S3_CUSTOM_DOMAIN = (
     f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
 )
@@ -132,4 +132,7 @@ LOGGING = {
 
 
 FRONTEND_BASE_URL = "https://test-portal.verboheit.org"
+FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
+FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
+FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = "verboheitmlc@gmail.com"
