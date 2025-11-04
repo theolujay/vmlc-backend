@@ -693,7 +693,8 @@ class BulkAddQuestionsToExamsView(APIView):
                     
                     # Add the question to the exam
                     exam.questions.add(question)
-                    cache.delete(f"exam_questions_{exam.id}")  # Invalidate cache
+                    cache.delete(f"exam_questions_{exam.id}")
+                    cache.delete(f"exam_detail_{exam.id}")
                     results["details"]["added"].append({
                         "question_id": question.id,
                         "exam_id": exam.id,
