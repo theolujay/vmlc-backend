@@ -1,8 +1,5 @@
 name: Production CI/CD pipeline
 
-# Triggers on PR merge from 'release' to 'main'
-# This uses GitHub's "pull_request" event with "closed" type
-# Docs: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
 on:
   pull_request:
     types: [closed]
@@ -10,15 +7,11 @@ on:
       - main
 
 jobs:
-  # Only run if PR was merged (not just closed)
-  # Check the 'merged' flag to distinguish between closed and merged PRs
+
   deploy-to-production:
-    # Conditional execution - only merged PRs from 'release' branch
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release'
     runs-on: ubuntu-24.04
-    
-    # Environment protection rules - IMPORTANT for production safety
-    # Docs: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment
+
     environment:
       name: production
       url: https://api.verboheit.org
@@ -26,7 +19,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      pull-requests: write  # For commenting on PR
+      pull-requests: write
 
     steps:
       - name: Checkout source code
@@ -53,9 +46,7 @@ jobs:
           echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-        
-      # Run tests again as safety check (belt and suspenders approach)
-      # Even though staging passed, main might have conflicts
+
       - name: Build Docker image for tests
         uses: docker/build-push-action@v6
         with:
@@ -70,35 +61,49 @@ jobs:
       - name: Run tests
         run: |
           docker network create test-network
+
           docker run -d --rm \
-            -e POSTGRES_USER=testuser \
-            -e POSTGRES_PASSWORD=testpassword \
-            -e POSTGRES_DB=testdb \
+            -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
+            -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
+            -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
             --network test-network \
             --name db \
+            --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
             postgres:17.2-bookworm
-          sleep 10
+
+          echo "Waiting for database to be ready..."
+          timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
+          echo "Database is ready!"
+
           docker run --rm \
+            -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
+            -e AWS_S3_REGION_NAME=eu-north-1 \
+            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             --network test-network \
             --entrypoint "" \
-            ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }} \
+            ${{ steps.meta.outputs.REPO_NAME }}-dev:${{ steps.meta.outputs.SHORT_SHA }} \
             sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
-          docker stop db
-          docker network rm test-network
-        timeout-minutes: 10
 
-      # Move cache to prevent it from growing indefinitely
-      # Docs: https://github.com/docker/build-push-action/blob/master/docs/advanced/cache.md#local-cache
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          docker stop db 2>/dev/null || true
+          docker network rm test-network 2>/dev/null || true
+      
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         
-      # Build and push with multiple tags for better version tracking
-      # 'prod' = latest production, SHA = specific version, VERSION = dated version
       - name: Build and push Docker image to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
@@ -158,6 +163,7 @@ jobs:
 
       # Main deployment step
       - name: Deploy to Production
+        id: deploy
         uses: cssnr/stack-deploy-action@v1
         with:
           name: vmlc-prod
@@ -167,8 +173,6 @@ jobs:
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           env_file: ./envfile
 
-      # Health check after deployment
-      # Wait for services to be healthy before declaring success
       - name: Wait for deployment health check
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -201,8 +205,6 @@ jobs:
             exit 1
         timeout-minutes: 6
 
-        
-      # Comment on PR with deployment status
       - name: Comment on PR
         if: always()
         uses: actions/github-script@v7
@@ -225,9 +227,36 @@ jobs:
               body: message
             });
 
-      # Send notification (optional - requires webhook setup)
-      # You can use Slack, Discord, Email, etc.
-      # Docs: https://github.com/marketplace?category=notifications
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            STATUS="✅ SUCCESS"
+            COLOR="good"
+          else
+            STATUS="❌ FAILED"
+            COLOR="danger"
+          fi
+          
+          echo "Deployment $STATUS"
+          echo "Commit: ${{ steps.meta.outputs.SHORT_SHA }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "Production Deployment '"$STATUS"'",
+              "attachments": [{
+                "color": "'"$COLOR"'",
+                "fields": [
+                  {"title": "Commit", "value": "${{ steps.meta.outputs.SHORT_SHA }}", "short": true},
+                  {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+                ]
+              }]
+            }'
+
       - name: Send deployment notification
         if: always()
         uses: appleboy/ssh-action@v1.2.0
@@ -240,8 +269,6 @@ jobs:
             echo "$(date): Production deployment ${{ job.status }} - Version ${{ steps.meta.outputs.VERSION }}" >> ~/deployments/deployment.log
         continue-on-error: true
 
-  # Optional: Create a GitHub Release for each production deployment
-  # This provides a nice changelog and version history
   create-release:
     needs: deploy-to-production
     runs-on: ubuntu-24.04
