@@ -4,6 +4,7 @@ Authentication-related API views for login, logout, and registration.
 
 import logging
 
+from django.core.cache import cache
 from django.contrib.auth.signals import user_logged_in
 from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -104,7 +105,7 @@ class VerifyEmailOTPView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
-
+                cache.delete(f"account_management_{user.id}")
                 subject = "Email Verified Successfully"
                 message = "Your email has been successfully verified."
                 html_message = create_email_html(subject=subject, message=message)
