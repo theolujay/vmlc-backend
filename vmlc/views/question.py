@@ -295,6 +295,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         serializer.save(updated_by=self.request.user.staff_profile)
         for exam in question.exams.all():
             cache.delete(f"exam_questions_{exam.id}")
+        cache.delete("question_pool_data")
         invalidate_all_staff_dashboards()
 
         logger.info(
@@ -313,6 +314,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         for exam in instance.exams.all():
             cache.delete(f"exam_questions_{exam.id}")
         instance.archive()
+        cache.delete("question_pool_data")
         invalidate_all_staff_dashboards()
         
         logger.info("Question %s removed by user %s", question_id, self.request.user.id)
@@ -872,7 +874,7 @@ class BulkQuestionArchiveView(APIView):
                     question.id,
                     str(e)
                 )
-    
+        cache.delete("question_pool_data")
         invalidate_all_staff_dashboards()
         
         logger.info(
