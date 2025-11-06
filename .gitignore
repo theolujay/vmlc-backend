@@ -137,3 +137,8 @@ data/
 credentials.txt
 # Docker volumes
 docker-compose.override.local.yml
+
+
+
+
+backup_*

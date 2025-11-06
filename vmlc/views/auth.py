@@ -79,6 +79,10 @@ logger = logging.getLogger(__name__)
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [HasXAPIKey]
 
+from django.db import transaction
+
+# ... (other imports)
+
 class VerifyEmailOTPView(APIView):
     """
     Handles OTP verification for user registration.
@@ -107,7 +111,9 @@ class VerifyEmailOTPView(APIView):
         if serializer.is_valid():
             try:
                 user = serializer.save()
-                cache.delete(f"account_management_{user.id}")
+                transaction.on_commit(
+                    lambda: cache.delete(f"account_management_{user.id}")
+                )
                 subject = "Email Verified Successfully"
                 message = "Your email has been successfully verified."
                 html_message = create_email_html(subject=subject, message=message)
