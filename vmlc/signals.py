@@ -12,13 +12,13 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     if (
         hasattr(user, "staff_profile")
         and user.is_email_verified
-        and user.is_user_verified
+        and user.staff_profile.is_user_verified
     ):
         update_staff_dashboard_cache_task.delay(user.id)
     if (
         hasattr(user, "candidate_profile")
         and user.is_email_verified
-        and user.is_user_verified
+        and user.candidate_profile.is_user_verified
     ):
         update_candidate_dashboard_cache_task.delay(user.id)
     if (
