@@ -14,6 +14,7 @@ from .query_filters import (
     filter_questions,
     ExamFilter,
 )
+from .stats_utils import generate_stats_overview_data
 
 __all__ = [
     # auth
@@ -28,4 +29,6 @@ __all__ = [
     "filter_staffs",
     "filter_questions",
     "ExamFilter",
+    # stats_utils
+    "generate_stats_overview_data",
 ]

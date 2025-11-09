@@ -13,6 +13,7 @@ from PIL import Image
 import magic
 
 from vmlc.models import Exam
+from .utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
 
@@ -641,3 +642,12 @@ def send_welcome_mail_task(self, user_id, generated_password = None):
             return
         
         raise self.retry(exc=e, countdown=60)
+
+@shared_task(name="generate_stats_overview_task")
+def generate_stats_overview_task():
+    """
+    Asynchronously generates and caches the statistics overview.
+    """
+    data = generate_stats_overview_data()
+    cache.set("stats_overview", data, timeout=3600)  # Cache for 1 hour
+    logger.info("Successfully generated and cached stats overview.")
