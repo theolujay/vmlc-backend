@@ -215,6 +215,29 @@ class IsObjectOwnerOrManagerRole(BasePermission):
 
         return is_owner or is_manager
 
+
+class IsVerifiedModeratorOrCandidate(BasePermission):
+    """
+    Grants access to verified staff with at least a Moderator role, or any user with a candidate profile.
+    """
+
+    def has_permission(self, request, view):
+        # Check for verified moderator role
+        staff_profile = _get_staff_profile(request)
+        is_verified_moderator = (
+            staff_profile is not None
+            and staff_profile.is_user_verified
+            and StaffRoleHierarchy.has_minimum_role(
+                staff_profile.role, Staff.Roles.MODERATOR
+            )
+        )
+
+        # Check for candidate profile
+        is_candidate = _get_candidate_profile(request) is not None
+
+        return is_verified_moderator or is_candidate
+
+
 AuthenticatedUser = [
     HasXAPIKey,
     IsAuthenticated,

@@ -79,6 +79,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "countdown_minutes",
             "scheduled_date",
             "is_active",
+            "is_currently_open",
             "status",
             "concluded_at",
             "questions",
@@ -102,6 +103,9 @@ class ExamDetailSerializer(serializers.ModelSerializer):
     def get_stage_display(self, obj):
         return obj.stage_display
 
+    def get_is_currently_open(self, obj):
+        return obj.is_currently_open
+    
 class CandidateExamSerializer(serializers.ModelSerializer):
     questions = serializers.SerializerMethodField()
 

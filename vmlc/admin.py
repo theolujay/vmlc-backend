@@ -22,7 +22,7 @@ from .models import (
 )
 
 from .utils.email import create_email_html
-from .utils.helpers import invalidate_all_staff_dashboards
+from .utils.helpers import invalidate_all_dashboard_caches, invalidate_all_dashboard_caches
 
 
 class EmailForm(forms.Form):
@@ -250,9 +250,9 @@ class CandidateAdmin(admin.ModelAdmin):
     def _invalidate_candidate_cache(self, candidate):
         cache.delete(f"candidate_detail_{candidate.user.id}")
         cache.delete(f"candidate_profile_{candidate.user.id}")
-        cache.delete(f"candidate_dashboard_{candidate.user.id}")
+        
         cache.delete(f"account_management_{candidate.user.id}")
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -409,7 +409,7 @@ class ExamAdmin(admin.ModelAdmin):
         cache.delete(f"exam_detail_{exam.id}")
         cache.delete(f"exam_results_{exam.id}")
         cache.delete(f"exam_questions_{exam.id}")
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
         for score in exam.scores.all():
             cache.delete(f"account_management_{score.candidate.user.id}")
 
@@ -472,7 +472,7 @@ class QuestionAdmin(admin.ModelAdmin):
         for exam in question.exams.all():
             cache.delete(f"exam_questions_{exam.id}")
             cache.delete(f"exam_detail_{exam.id}")
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
 
     @admin.display(description="Created By", ordering="created_by__user__first_name")
     def creator_name(self, obj):
@@ -523,11 +523,10 @@ class CandidateScoreAdmin(admin.ModelAdmin):
     def _invalidate_score_cache(self, score):
         candidate = score.candidate
         exam = score.exam
-        cache.delete(f"candidate_dashboard_{candidate.user.id}")
         cache.delete(f"account_management_{candidate.user.id}")
         cache.delete(f"exam_history_{candidate.user.id}")
         cache.delete(f"exam_results_{exam.id}")
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
     def candidate_email(self, obj):

@@ -16,9 +16,9 @@ from rest_framework.settings import api_settings
 
 from vmlc.models import Candidate, LeaderboardSnapshot
 from vmlc.permissions import (
-    CandidatePermissions,
+    AuthenticatedUser,
+    IsVerifiedModeratorOrCandidate,
     VerifiedAdminPermissions,
-    VerifiedModeratorPermissions,
 )
 from vmlc.serializers.leaderboard import (
     PublishLeaderboardSerializer,
@@ -94,7 +94,7 @@ class LoadLeaderboardView(APIView):
     Filters leaderboards based on the user's role.
     """
 
-    permission_classes = VerifiedModeratorPermissions or CandidatePermissions
+    permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def get(self, request: Request):
@@ -246,7 +246,7 @@ class LoadLeaderboardDetailView(APIView):
     Example: leaderboard/league/2/candidate/123/
     """
     
-    permission_classes = VerifiedModeratorPermissions or CandidatePermissions
+    permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
     
     def get(self, request: Request, stage: str, level: int, candidate_id: int):
         user = request.user

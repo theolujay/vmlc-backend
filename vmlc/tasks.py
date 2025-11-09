@@ -13,6 +13,7 @@ from PIL import Image
 import magic
 
 from vmlc.models import Exam
+from .utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
 
@@ -436,12 +437,11 @@ def update_staff_dashboard_cache_task(staff_id=None):
             staff_members = Staff.objects.all()
 
         for staff in staff_members:
-            staff_identifier = staff.user_id
             dashboard_data = get_staff_dashboard_data(staff)
             cache.set(
-                f"staff_dashboard_data_{staff_identifier}", dashboard_data, timeout=3600
+                f"staff_dashboard_data_{staff.user_id}", dashboard_data, timeout=3600
             )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for staff {staff_identifier}")
+            logger.info(f"Successfully updated cache for staff {staff.user_id}")
 
     except Exception as e:
         logger.error(
@@ -450,7 +450,7 @@ def update_staff_dashboard_cache_task(staff_id=None):
 
 
 @shared_task(name="update_candidate_dashboard_cache_task")
-def update_candidate_dashboard_cache_task(candidate_id):
+def update_candidate_dashboard_cache_task(candidate_id=None):
     """
     Celery task to update the candidate dashboard cache.
     """
@@ -458,14 +458,18 @@ def update_candidate_dashboard_cache_task(candidate_id):
     from .utils.dashboard_utils import get_candidate_dashboard_data
 
     try:
-        candidate = Candidate.objects.get(pk=candidate_id)
-        dashboard_data = get_candidate_dashboard_data(candidate)
-        cache.set(
-            f"candidate_dashboard_{candidate_id}", dashboard_data, timeout=3600
-        )  # Cache for 1 hour
-        logger.info(f"Successfully updated cache for candidate {candidate_id}")
-    except Candidate.DoesNotExist:
-        logger.error(f"Candidate with id {candidate_id} does not exist.")
+        if candidate_id:
+            candidates = Candidate.objects.filter(pk=candidate_id)
+            if not candidates.exists():
+                logger.error(f"Candidate with id {candidate_id} does not exist.")
+        else:
+            candidates = Candidate.objects.all()
+        for candidate in candidates:
+            dashboard_data = get_candidate_dashboard_data(candidate)
+            cache.set(
+                f"candidate_dashboard_{candidate.user_id}", dashboard_data, timeout=3600
+            )  # Cache for 1 hour
+            logger.info(f"Successfully updated cache for candidate {candidate.user_id}")
     except Exception as e:
         logger.error(
             f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
@@ -638,3 +642,12 @@ def send_welcome_mail_task(self, user_id, generated_password = None):
             return
         
         raise self.retry(exc=e, countdown=60)
+
+@shared_task(name="generate_stats_overview_task")
+def generate_stats_overview_task():
+    """
+    Asynchronously generates and caches the statistics overview.
+    """
+    data = generate_stats_overview_data()
+    cache.set("stats_overview", data, timeout=3600)  # Cache for 1 hour
+    logger.info("Successfully generated and cached stats overview.")

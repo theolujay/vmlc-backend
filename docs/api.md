@@ -478,6 +478,12 @@ Password-change:
 
 ---
 
+#### Statistics
+
+- `GET /stats/overview/` — get overall statistics for candidates and staff. Role: `moderator`+. `200 OK` (or `202 Accepted` if generating).
+
+---
+
 #### Scoring & Submissions
 
 - `POST /exams/{id}/submit-exam-answers/` — candidate submits answers. `200 OK`.
@@ -1998,6 +2004,40 @@ Returns a list of all available leaderboards that the current user is permitted 
       "exam_title": "Screening Exam 2024 - Basic Mathematics",
       "total_candidates": 150,
       "average_score": 78.5
+```
+
+### Statistics
+The statistics endpoint provides an overview of user activity and status within the system. Data is cached for performance and generated asynchronously.
+
+#### Get Statistics Overview
+**Endpoint:** `GET /stats/overview/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+```
+**Required Role:** `moderator` or higher
+
+**Response (200 OK):**
+```json
+{
+  "candidates": {
+    "registered": 100,
+    "active": 50,
+    "inactive": 50,
+    "pending_verification": 10,
+    "deactivated": 5
+  },
+  "staff": {
+    "registered": 20,
+    "active": 15,
+    "inactive": 5,
+    "pending_verification": 2,
+    "deactivated": 1
+  }
+}
+```
+*Note: If statistics data is not immediately available (e.g., first load or cache invalidation), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously. The client should retry the request after a short delay.*
     },
     {
       "stage": "league",
@@ -2838,6 +2878,12 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-11-09**:
+  - **New Feature**: Added `GET /stats/overview/` endpoint to provide an overview of user statistics.
+    - The endpoint is accessible to `moderator` roles and higher.
+    - The data is generated asynchronously and cached for performance.
+    - If the data is not in the cache, the API returns a `202 Accepted` response.
 
 - **2025-11-03**:
   - **Registration**:
