@@ -63,6 +63,7 @@ from .staff import (
     AssignStaffRoleView,
     StaffMeView,
 )
+from .stats import stats_overview
 from .user import (
     AccountManagementView,
     UserVerificationStatusView,
@@ -133,6 +134,8 @@ __all__ = [
     "StaffListView",
     "StaffDetailView",
     "AssignStaffRoleView",
+    # stats
+    "stats_overview",
     # user
     "UserVerificationStatusView",
     "UserVerificationUploadView",

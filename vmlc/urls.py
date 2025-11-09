@@ -63,6 +63,7 @@ from .views import (
     CandidateMeView,
     StaffMeView,
     StaffInviteView,
+    stats_overview,
 )
 
 app_name = "vmlc"
@@ -264,6 +265,10 @@ urlpatterns = [
         CandidateInviteView.as_view(),
         name="candidate-invite",
     ),
+    # =============================================================================
+    # STATISTICS
+    # =============================================================================
+    path("stats/overview/", stats_overview, name="stats-overview"),
     # =============================================================================
     # USER VERIFICATION
     # =============================================================================
