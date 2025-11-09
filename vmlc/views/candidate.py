@@ -9,7 +9,6 @@ from rest_framework.generics import (
     RetrieveAPIView,
 )
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.settings import api_settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -38,7 +37,6 @@ from ..utils.swagger_schemas import (
     error_response_403,
     error_response_404,
 )
-from ..utils.dashboard_utils import get_candidate_dashboard_data
 from ..utils.query_filters import filter_candidates
 from ..utils.exceptions import ValidationError
 

@@ -73,6 +73,13 @@ def invalidate_all_staff_dashboards():
     """
     for staff in Staff.objects.all():
         cache.delete(f"staff_dashboard_data_{staff.pk}")
+        
+def invalidate_all_candidate_dashboards():
+    """
+    Invalidates the dashboard cache for all candidates.
+    """
+    for candidate in Candidate.objects.all():
+        cache.delete(f"candidate_dashboard_{candidate.pk}")
 
 def invalidate_all_candidate_records():
     """
@@ -80,3 +87,10 @@ def invalidate_all_candidate_records():
     """
     for candidate in Candidate.objects.all():
         cache.delete(f"candidate_records_{candidate.pk}")
+        
+def invalidate_all_dashboard_caches():
+    """
+    Invalidates all dashboard caches for both staff and candidates.
+    """
+    invalidate_all_staff_dashboards()
+    invalidate_all_candidate_dashboards()

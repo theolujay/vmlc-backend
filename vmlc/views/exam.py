@@ -3,7 +3,7 @@ import logging
 from django.core.cache import cache
 from django.db.models import Avg, Count, Q
 from django.utils.decorators import method_decorator
-from vmlc.utils.helpers import invalidate_all_staff_dashboards
+from vmlc.utils.helpers import invalidate_all_dashboard_caches
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.settings import api_settings
@@ -164,8 +164,8 @@ class ExamListView(ListCreateAPIView):
         """
         serializer.save(created_by=self.request.user.staff_profile)
         # Invalidate all staff dashboards as exam data changes
-        from vmlc.utils.helpers import invalidate_all_staff_dashboards
-        invalidate_all_staff_dashboards()
+        from vmlc.utils.helpers import invalidate_all_dashboard_caches
+        invalidate_all_dashboard_caches()
         logger.info(
             f"Exam created by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -338,7 +338,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         # Invalidate the cache
         cache.delete(f"exam_detail_{instance.id}")
         # Invalidate all staff dashboards as exam data changes
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
 
         # Invalidate account management cache for all candidates who have taken this exam
         for score in instance.scores.all():
@@ -354,7 +354,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         response = super().destroy(request, *args, **kwargs)
         cache.delete(f"exam_detail_{exam_id}")
         # Invalidate all staff dashboards as exam data changes
-        invalidate_all_staff_dashboards()
+        invalidate_all_dashboard_caches()
         return response
 
 

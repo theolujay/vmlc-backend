@@ -32,13 +32,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent scores, and upcoming exams.
     """
-    cache_key = f"candidate_dashboard_{candidate.pk}"
-    cached_data = cache.get(cache_key)
 
-    if cached_data:
-        return cached_data
-
-    # Optimize fetching candidate's user data
     candidate = Candidate.objects.select_related("user").get(pk=candidate.pk)
 
     latest_snapshot: Optional[CandidateScoreSnapshot] = (
@@ -63,7 +57,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         scores_qs.order_by("-recorded_at")
         .select_related("exam")
         .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
-    )  # Convert to list to avoid re-querying
+    )  # Converted to list to avoid re-querying
 
     latest_score_data = None
     if recent_scores_list:
@@ -80,7 +74,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
             .annotate(question_count=Count("questions"))  # Annotate question count here
-            .order_by("scheduled_date")[:5]
+            .order_by("scheduled_date")
         )  # Limit to 5 as per original logic
 
         now = timezone.now()
@@ -91,12 +85,14 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                     {
                         "id": exam.id,
                         "title": exam.title,
+                        "stage": exam.stage,
+                        "level": exam.level,
+                        "stage_display": exam.stage_display,
                         "description": exam.description,
                         "open_duration_hours": exam.open_duration_hours,
                         "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,  # Use annotated value
-                        "stage": exam.stage,
                     }
                 )
 
@@ -134,14 +130,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "email": candidate.user.email,
             "phone": candidate.user.phone,
             "school": candidate.school,
-            "role": candidate.get_role_display(),
+            "role": candidate.role,
             "is_user_verified": candidate.is_user_verified,
             "is_email_verified": candidate.user.is_email_verified,
             "is_active": candidate.user.is_active,
             "date_joined": candidate.created_at,
-            # "face_id": (
-            #     candidate.face_id.url if candidate.face_id else None
-            # ),
         },
         "exam_stats": {
             "total_exams_taken": score_stats["total_exams_taken"],
@@ -170,7 +163,8 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ],
         "available_exams": available_exams_list,
     }
-
+    
+    cache_key = f"candidate_dashboard_{candidate.pk}"
     cache.set(cache_key, dashboard_data, timeout=3600)  # Cache for 1 hour
     return dashboard_data
 

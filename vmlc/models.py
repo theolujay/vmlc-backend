@@ -521,20 +521,21 @@ class Exam(models.Model):
     @property
     def is_currently_open(self):
         """
-        Exam is open only if it's active, and either:
-        - scheduled_date is None (always open)
-        - or current time is within open window
+        Determines if the exam is currently open for submissions.
+
+        An exam is considered open if it is marked as active, has a scheduled
+        start date, and the current time is within the allowed window
+        (from `scheduled_date` to `scheduled_date` + `open_duration_hours`).
+
+        Returns:
+            bool: True if the exam is currently open, False otherwise.
         """
-        if not self.is_active:
+        if not self.is_active or not self.scheduled_date:
             return False
-        if self.scheduled_date is None:
-            return True
-        if self.scheduled_date:
-            now = timezone.now()
-            end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
-            return self.scheduled_date <= now <= end_time
-        else:
-            return False
+
+        now = timezone.now()
+        end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        return self.scheduled_date <= now <= end_time
         
     @property
     def status(self):
