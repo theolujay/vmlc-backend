@@ -478,7 +478,7 @@ Password-change:
 
 ---
 
-#### Statistics
+### Statistics
 
 - `GET /stats/overview/` — get overall statistics for candidates and staff. Role: `moderator`+. `200 OK` (or `202 Accepted` if generating).
 
@@ -1770,15 +1770,19 @@ X-Api-Key: <your_api_key>
     "average_score": 87.5,
     "highest_score": 95.0,
     "lowest_score": 78.0,
-    "latest_score": 88.0
+    "latest_score": {
+        "score": 99.88,
+        "exam_title": "Organized interactive parallelism",
+        "date": "2025-10-15T10:40:03.271586Z"
+    }
   },
   "leaderboard_ranking": {
-    "position": 15,
+    "current_rank": 15,
     "total_candidates": 150
   },
   "recent_scores": [
     {
-      "exam": "Algebra Screening",
+      "exam_title": "Algebra Screening",
       "score": 88.0,
       "date": "2024-01-20T15:30:00Z",
       "exam_stage": "league"
@@ -1788,12 +1792,27 @@ X-Api-Key: <your_api_key>
     {
       "id": 2,
       "title": "Geometry Screening",
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
       "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
-      "question_count": 25,
-      "stage": "screening"
+      "question_count": 25
+    }
+  ],
+  "concluded_exams": [
+    {
+      "id": 1,
+      "title": "Algebra Screening",
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
+      "description": "Comprehensive algebra exam.",
+      "concluded_at": "2024-01-21T15:00:00Z",
+      "question_count": 20,
+      "participation": "done"
     }
   ]
 }
@@ -2878,6 +2897,9 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2024-11-10**:
+  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed` or `done`.
 
 - **2025-11-09**:
   - **New Feature**: Added `GET /stats/overview/` endpoint to provide an overview of user statistics.
