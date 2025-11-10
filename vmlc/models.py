@@ -349,6 +349,23 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             return self._verification_override
         return hasattr(self.user, "verification") and self.user.verification.is_approved
 
+    @property
+    def get_status(self):
+        """Get the user status"""
+        if not self.user.is_active:
+            return "deactivated"
+        try:
+            if self.user.verification.is_pending:
+                return "pending"
+        except User.verification.RelatedObjectDoesNotExist:
+            pass
+
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        if self.user.last_login and self.user.last_login >= seven_days_ago:
+            return "active"
+
+        return "inactive"
+    
     def set_verification_override(self, value):
         """Manually override verification status"""
         self._verification_override = value
@@ -752,6 +769,42 @@ class Candidate(models.Model):
                 "average_score": float(self.average_score or 0),
             }
         return None
+    
+    @property
+    def get_status(self):
+        """Get the user status"""
+        if not self.user.is_active:
+            return "deactivated"
+        try:
+            if self.user.verification.is_pending:
+                return "pending"
+        except User.verification.RelatedObjectDoesNotExist:
+            pass
+
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        
+        all_exams = Exam.objects.filter(is_active=True, scheduled_date__isnull=False)
+        concluded_exams = [exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED]
+        last_concluded_exam = None
+        if concluded_exams:
+            last_concluded_exam = max(
+                concluded_exams,
+                key=lambda e: e.scheduled_date + timedelta(hours=e.open_duration_hours),
+            )
+            
+        if last_concluded_exam:
+            is_active_based_on_exam = self.__class__.objects.filter(
+                pk=self.pk,
+                user__is_active=True,
+                user__verification__is_approved=True,
+                user__last_login__gte=seven_days_ago,
+                scores__exam=last_concluded_exam,
+            ).distinct().exists()
+
+            if is_active_based_on_exam:
+                return "active"
+
+        return "inactive"
 
     @property
     def is_winner(self):
