@@ -54,6 +54,7 @@ from .views import (
     StaffDashboardView,
     AccountManagementView,
     CandidateInviteView,
+    UserListView,
     UserVerificationStatusView,
     UserVerificationUploadView,
     UserVerificationDocumentView,
@@ -265,6 +266,7 @@ urlpatterns = [
         CandidateInviteView.as_view(),
         name="candidate-invite",
     ),
+    path("user/list/", UserListView.as_view(), name="user-list"),
     # =============================================================================
     # STATISTICS
     # =============================================================================

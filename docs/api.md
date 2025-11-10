@@ -16,6 +16,7 @@
   - [User Profiles ("Me" Endpoints)](#user-profiles-me-endpoints)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
+  - [User Management](#user-management)
   - [User Verification](#user-verification)
   - [Account Management](#account-management)
   - [Exam Management](#exam-management)
@@ -420,6 +421,12 @@ Password-change:
     
 - `GET /account-management/{id}/` and `PATCH /account-management/{id}/` — account management endpoints used by staff (mentioned in role table). Role: `manager`+ or owner.
     
+
+---
+
+#### User management (staff-facing)
+
+- `GET /user/list/` — list all users. Role: `moderator`+. Query filters: `profile` ('candidate' for moderator+, 'staff' for manager+), `is_active`, `search`. `200 OK`.
 
 ---
 
@@ -1129,6 +1136,78 @@ Authorization: Bearer <access-token>
   "message": "Staff profile created, invite sent."
 }
 ```
+
+---
+
+### User Management
+
+#### List Users
+**Endpoint:** `GET /user/list/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+```
+**Required Role:** `moderator` or higher
+
+**Query Parameters:**
+- `profile` (string): Filter by user profile type.
+  - `candidate`: Returns a list of candidates. Available to `moderator` and higher.
+  - `staff`: Returns a list of staff. Available to `manager` and `superadmin` only.
+- `is_active` (boolean): Filter by active status.
+- `search` (string): Search by name or email.
+
+**Response:** `200 OK`
+
+The response includes a `stats_overview` and a paginated list of users.
+
+- **For `manager` and `superadmin` roles:**
+  - Can access `candidate`, `staff`, or the generic user list (by omitting the `profile` parameter).
+  - The `stats_overview` will contain full statistics.
+
+- **For `moderator` and `admin` roles:**
+  - Can only access the `candidate` list (`profile=candidate`).
+  - Accessing the `staff` list or the generic list will result in a `403 Forbidden` error.
+  - The `stats_overview` will only contain candidate-related statistics.
+
+**Sample Response (for `manager` or `superadmin`):**
+```json
+{
+    "stats_overview": {
+        "total_users": 250,
+        "active_users": 230,
+        "staff_count": 50,
+        "candidate_count": 200
+    },
+    "results": [
+        {
+            "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+            "email": "jane@example.com",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "is_active": true,
+            "date_joined": "2024-01-01T08:00:00Z",
+            "staff_profile": {
+                "occupation": "Mathematics Teacher",
+                "role": "moderator"
+            },
+            "candidate_profile": null
+        }
+    ],
+    "pagination": {
+        "count": 1,
+        "page": 1,
+        "page_size": 20,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
+}
+```
+*Note: The `stats_overview` provides a summary of user statistics and is regenerated periodically. If it's not available, a message will be displayed.*
+*When filtered with `profile=candidate` or `profile=staff`, the structure of the items in `results` will match the one from `GET /candidates/` or `GET /staff/` respectively.*
 
 ---
 
@@ -2898,7 +2977,11 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
-- **2024-11-10**:
+- **2025-11-10**:
+  - **User Management**: Updated `GET /user/list/` endpoint with more granular role-based access.
+    - `moderator` and `admin` roles can now only view the list of candidates (`profile=candidate`).
+    - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
+  - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
   - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed` or `done`.
 
 - **2025-11-09**:
