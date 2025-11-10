@@ -816,6 +816,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
+      "status": "active",
       "is_user_verified": true
     }
   ],
@@ -974,6 +975,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
+      "status": "active",
       "is_user_verified": true
     },
     "exam": {
@@ -1035,6 +1037,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "jane@example.com",
+        "is_email_verified": true,
         "first_name": "Jane",
         "last_name": "Smith",
         "phone": "+23490xxxxxxxx",
@@ -1878,7 +1881,8 @@ X-Api-Key: <your_api_key>
       "open_duration_hours": 12,
       "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
-      "question_count": 25
+      "question_count": 25,
+      "participation": "not_done"
     }
   ],
   "concluded_exams": [
@@ -1891,12 +1895,14 @@ X-Api-Key: <your_api_key>
       "description": "Comprehensive algebra exam.",
       "concluded_at": "2024-01-21T15:00:00Z",
       "question_count": 20,
-      "participation": "done"
+      "participation": "missed"
     }
   ]
 }
 ```
-*Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
+*Note:*
+  - *If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
+  - *participation is either missed, done, or not done*
 
 #### Staff Dashboard
 **Endpoint:** `GET /dashboard/staff/`  
@@ -2982,7 +2988,7 @@ For technical support, API key requests, or questions:
     - `moderator` and `admin` roles can now only view the list of candidates (`profile=candidate`).
     - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
   - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
-  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed` or `done`.
+  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed`, `not_done`, or `done`.
 
 - **2025-11-09**:
   - **New Feature**: Added `GET /stats/overview/` endpoint to provide an overview of user statistics.
