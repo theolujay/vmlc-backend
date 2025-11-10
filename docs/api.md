@@ -2989,6 +2989,7 @@ For technical support, API key requests, or questions:
     - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
   - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
   - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed`, `not_done`, or `done`.
+  - **Profile**: Added `status` field to staff and candidate profiles, which is either `active`, `inactive`, `pending`, or `deactivated`.
 
 - **2025-11-09**:
   - **New Feature**: Added `GET /stats/overview/` endpoint to provide an overview of user statistics.
