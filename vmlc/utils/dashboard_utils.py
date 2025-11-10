@@ -95,6 +95,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                         "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,
+                        "participation": (
+                            "done" if exam.id in taken_exam_ids else "not_done"
+                        ),
                     }
                 )
             if exam.status == Exam.Status.CONCLUDED:
