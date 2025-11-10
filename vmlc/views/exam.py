@@ -129,7 +129,7 @@ class ExamListView(ListCreateAPIView):
             return response
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response({"question_pool_data": question_pool_data, "list": serializer.data})
+        return Response({"question_pool_data": question_pool_data, "results": serializer.data})
     
     def get_serializer_class(self):
         """
