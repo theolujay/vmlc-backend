@@ -42,21 +42,24 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     )
 
     # Combine score stats and recent scores into one query if possible, or minimize separate hits
-    scores_qs = CandidateScore.objects.filter(candidate=candidate)
+    all_scores_qs = CandidateScore.objects.filter(candidate=candidate)
+    taken_exam_ids = set(all_scores_qs.values_list("exam_id", flat=True))
+
+    scores_qs_for_snapshot_stats = all_scores_qs
     if latest_snapshot:
-        scores_qs = scores_qs.filter(recorded_at__lte=latest_snapshot.published_at)
+        scores_qs_for_snapshot_stats = all_scores_qs.filter(
+            recorded_at__lte=latest_snapshot.published_at
+        )
 
-    taken_exam_ids = set(scores_qs.values_list("exam_id", flat=True))
-
-    score_stats = scores_qs.aggregate(
-        total_exams_taken=Count("id"),
+    score_stats = scores_qs_for_snapshot_stats.aggregate(
         average_score=Avg("score"),
         highest_score=Max("score"),
         lowest_score=Min("score"),
     )
+    total_exams_taken = all_scores_qs.count()
 
     recent_scores_list = list(
-        scores_qs.order_by("-recorded_at")
+        all_scores_qs.order_by("-recorded_at")
         .select_related("exam")
         .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
     )  # Converted to list to avoid re-querying
