@@ -53,7 +53,7 @@ class MinimalUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "phone", "date_joined"]
+        fields = ["id", "email", "is_email_verified", "first_name", "last_name", "phone", "date_joined"]
 
 
 class UserVerificationListSerializer(serializers.ModelSerializer):

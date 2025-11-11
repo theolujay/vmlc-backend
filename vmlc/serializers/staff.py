@@ -4,7 +4,7 @@ from ..models import (
     Staff,
 )
 
-from .user import UserSerializer
+from .user import UserSerializer, MinimalUserSerializer
 
 
 class MinimalStaffSerializer(serializers.ModelSerializer):
@@ -24,16 +24,21 @@ class StaffListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing staff info.
     """
 
-    user = UserSerializer(read_only=True)
+    user = MinimalUserSerializer(read_only=True)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
         fields = [
             "user",
             "role",
+            "status",
             "occupation",
+            "is_user_verified",
         ]
-
+        
+    def get_status(self, obj: Staff):
+        return obj.get_status
 
 class StaffDetailSerializer(serializers.ModelSerializer):
     """

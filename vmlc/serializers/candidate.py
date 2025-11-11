@@ -27,7 +27,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
     """
 
     user = MinimalUserSerializer(read_only=True)
-
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Candidate
@@ -35,8 +35,12 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "user",
             "school",
             "role",
+            "status",
             "is_user_verified",
         ]
+        
+    def get_status(self, obj: Candidate):
+        return obj.get_status
 
 
 class CandidateDetailSerializer(serializers.ModelSerializer):

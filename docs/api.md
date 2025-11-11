@@ -16,6 +16,7 @@
   - [User Profiles ("Me" Endpoints)](#user-profiles-me-endpoints)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
+  - [User Management](#user-management)
   - [User Verification](#user-verification)
   - [Account Management](#account-management)
   - [Exam Management](#exam-management)
@@ -423,6 +424,12 @@ Password-change:
 
 ---
 
+#### User management (staff-facing)
+
+- `GET /user/list/` — list all users. Role: `moderator`+. Query filters: `profile` ('candidate' for moderator+, 'staff' for manager+), `is_active`, `search`. `200 OK`.
+
+---
+
 #### User verification endpoints
 
 - `GET /user/verification/status/` — get current user's verification status. `200 OK`.
@@ -478,7 +485,7 @@ Password-change:
 
 ---
 
-#### Statistics
+### Statistics
 
 - `GET /stats/overview/` — get overall statistics for candidates and staff. Role: `moderator`+. `200 OK` (or `202 Accepted` if generating).
 
@@ -809,6 +816,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
+      "status": "active",
       "is_user_verified": true
     }
   ],
@@ -967,6 +975,7 @@ X-Api-Key: <your_api_key>
       },
       "school": "Mathematics High School",
       "role": "league",
+      "status": "active",
       "is_user_verified": true
     },
     "exam": {
@@ -1028,6 +1037,7 @@ X-Api-Key: <your_api_key>
       "user": {
         "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "email": "jane@example.com",
+        "is_email_verified": true,
         "first_name": "Jane",
         "last_name": "Smith",
         "phone": "+23490xxxxxxxx",
@@ -1129,6 +1139,78 @@ Authorization: Bearer <access-token>
   "message": "Staff profile created, invite sent."
 }
 ```
+
+---
+
+### User Management
+
+#### List Users
+**Endpoint:** `GET /user/list/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access-token>
+```
+**Required Role:** `moderator` or higher
+
+**Query Parameters:**
+- `profile` (string): Filter by user profile type.
+  - `candidate`: Returns a list of candidates. Available to `moderator` and higher.
+  - `staff`: Returns a list of staff. Available to `manager` and `superadmin` only.
+- `is_active` (boolean): Filter by active status.
+- `search` (string): Search by name or email.
+
+**Response:** `200 OK`
+
+The response includes a `stats_overview` and a paginated list of users.
+
+- **For `manager` and `superadmin` roles:**
+  - Can access `candidate`, `staff`, or the generic user list (by omitting the `profile` parameter).
+  - The `stats_overview` will contain full statistics.
+
+- **For `moderator` and `admin` roles:**
+  - Can only access the `candidate` list (`profile=candidate`).
+  - Accessing the `staff` list or the generic list will result in a `403 Forbidden` error.
+  - The `stats_overview` will only contain candidate-related statistics.
+
+**Sample Response (for `manager` or `superadmin`):**
+```json
+{
+    "stats_overview": {
+        "total_users": 250,
+        "active_users": 230,
+        "staff_count": 50,
+        "candidate_count": 200
+    },
+    "results": [
+        {
+            "id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
+            "email": "jane@example.com",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "is_active": true,
+            "date_joined": "2024-01-01T08:00:00Z",
+            "staff_profile": {
+                "occupation": "Mathematics Teacher",
+                "role": "moderator"
+            },
+            "candidate_profile": null
+        }
+    ],
+    "pagination": {
+        "count": 1,
+        "page": 1,
+        "page_size": 20,
+        "total_pages": 1,
+        "has_next": false,
+        "has_previous": false,
+        "next": null,
+        "previous": null
+    }
+}
+```
+*Note: The `stats_overview` provides a summary of user statistics and is regenerated periodically. If it's not available, a message will be displayed.*
+*When filtered with `profile=candidate` or `profile=staff`, the structure of the items in `results` will match the one from `GET /candidates/` or `GET /staff/` respectively.*
 
 ---
 
@@ -1770,15 +1852,19 @@ X-Api-Key: <your_api_key>
     "average_score": 87.5,
     "highest_score": 95.0,
     "lowest_score": 78.0,
-    "latest_score": 88.0
+    "latest_score": {
+        "score": 99.88,
+        "exam_title": "Organized interactive parallelism",
+        "date": "2025-10-15T10:40:03.271586Z"
+    }
   },
   "leaderboard_ranking": {
-    "position": 15,
+    "current_rank": 15,
     "total_candidates": 150
   },
   "recent_scores": [
     {
-      "exam": "Algebra Screening",
+      "exam_title": "Algebra Screening",
       "score": 88.0,
       "date": "2024-01-20T15:30:00Z",
       "exam_stage": "league"
@@ -1788,17 +1874,35 @@ X-Api-Key: <your_api_key>
     {
       "id": 2,
       "title": "Geometry Screening",
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
       "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
-      "stage": "screening"
+      "participation": "not_done"
+    }
+  ],
+  "concluded_exams": [
+    {
+      "id": 1,
+      "title": "Algebra Screening",
+      "stage": "screening",
+      "level": 1,
+      "stage_display": "screening_1",
+      "description": "Comprehensive algebra exam.",
+      "concluded_at": "2024-01-21T15:00:00Z",
+      "question_count": 20,
+      "participation": "missed"
     }
   ]
 }
 ```
-*Note: If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
+*Note:*
+  - *If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously.*
+  - *participation is either missed, done, or not done*
 
 #### Staff Dashboard
 **Endpoint:** `GET /dashboard/staff/`  
@@ -2878,6 +2982,14 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-11-10**:
+  - **User Management**: Updated `GET /user/list/` endpoint with more granular role-based access.
+    - `moderator` and `admin` roles can now only view the list of candidates (`profile=candidate`).
+    - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
+  - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
+  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed`, `not_done`, or `done`.
+  - **Profile**: Added `status` field to staff and candidate profiles, which is either `active`, `inactive`, `pending`, or `deactivated`.
 
 - **2025-11-09**:
   - **New Feature**: Added `GET /stats/overview/` endpoint to provide an overview of user statistics.

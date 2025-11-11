@@ -46,6 +46,8 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     if latest_snapshot:
         scores_qs = scores_qs.filter(recorded_at__lte=latest_snapshot.published_at)
 
+    taken_exam_ids = set(scores_qs.values_list("exam_id", flat=True))
+
     score_stats = scores_qs.aggregate(
         total_exams_taken=Count("id"),
         average_score=Avg("score"),
@@ -69,6 +71,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
 
     # Optimize available_exams
     available_exams_list = []
+    concluded_exams_list = []
     if candidate.is_user_verified:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
@@ -79,8 +82,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
 
         now = timezone.now()
         for exam in all_relevant_exams:
-            # is_currently_open logic is still in Python, but we've reduced initial queries
-            if exam.is_currently_open:  # This property needs to be evaluated
+            if exam.status == Exam.Status.ONGOING:
                 available_exams_list.append(
                     {
                         "id": exam.id,
@@ -92,9 +94,31 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                         "open_duration_hours": exam.open_duration_hours,
                         "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
-                        "question_count": exam.question_count,  # Use annotated value
+                        "question_count": exam.question_count,
+                        "participation": (
+                            "done" if exam.id in taken_exam_ids else "not_done"
+                        ),
                     }
                 )
+            if exam.status == Exam.Status.CONCLUDED:
+                concluded_exams_list.append(
+                    {
+                        "id": exam.id,
+                        "title": exam.title,
+                        "stage": exam.stage,
+                        "level": exam.level,
+                        "stage_display": exam.stage_display,
+                        "description": exam.description,
+                        "concluded_at": exam.concluded_at,
+                        "question_count": exam.question_count,
+                        "participation": (
+                            "done" if exam.id in taken_exam_ids else "missed"
+                        ),
+                    }
+                )
+                
+                
+            
 
     # Optimize leaderboard ranking
     candidate_rank: Optional[int] = None
@@ -162,6 +186,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             for score in recent_scores_list
         ],
         "available_exams": available_exams_list,
+        "concluded_exams": concluded_exams_list
     }
     
     cache_key = f"candidate_dashboard_{candidate.pk}"

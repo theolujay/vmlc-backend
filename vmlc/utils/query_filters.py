@@ -3,8 +3,13 @@ from django.db.models import Q, QuerySet
 import django_filters
 from typing import Any, List
 
-from ..models import Exam, Candidate, Staff, Question
-
+from vmlc.models import (
+    Exam,
+    Candidate,
+    Staff,
+    Question,
+    User
+)
 
 def filter_candidates(
     queryset: QuerySet[Candidate], params: Any
@@ -90,6 +95,24 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
 
     return queryset
 
+def filter_users(queryset: QuerySet[User], params: Any) -> QuerySet[User]:
+    is_active = params.get("is_active")
+    search = params.get("search")
+    
+    if is_active is not None:
+        if is_active.lower() == "true":
+            queryset = queryset.filter(is_active=True)
+        elif is_active.lower() == "false":
+            queryset = queryset.filter(is_active=False)
+
+    if search:
+        queryset = queryset.filter(
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(email__icontains=search)
+        )
+
+    return queryset
 
 def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Question]:
     """

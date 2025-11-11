@@ -7,8 +7,10 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
+from django.utils.decorators import method_decorator
 
-from rest_framework.generics import CreateAPIView
+from rest_framework.settings import api_settings
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,7 +19,11 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from vmlc.models import User, UserVerification
+from vmlc.serializers import (
+    StaffListSerializer,
+    CandidateListSerializer,
+)
+from vmlc.models import User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -34,6 +40,7 @@ from vmlc.permissions import (
     AuthenticatedUser,
     IsObjectOwnerOrManagerRole,
     VerifiedManagerPermissions,
+    VerifiedModeratorPermissions,
 )
 from vmlc.serializers import (
     CandidateDetailSerializer,
@@ -43,8 +50,14 @@ from vmlc.serializers import (
     UserSerializer,
 )
 from vmlc.tasks import (
+    generate_stats_overview_task,
     send_mail_task,
     revoke_user_invite_task,
+)
+from vmlc.utils.query_filters import (
+    filter_staffs,
+    filter_candidates,
+    filter_users,
 )
 
 logger = logging.getLogger(__name__)
@@ -419,3 +432,110 @@ class CandidateInviteView(BaseInviteView):
         Creates a new candidate user and sends an invitation email.
         """
         return super().post(request, *args, **kwargs)
+
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List Users",
+        operation_description="List all users. Can be filtered by profile type ('staff' or 'candidate').",
+        manual_parameters=[
+            openapi.Parameter(
+                "profile",
+                openapi.IN_QUERY,
+                description="Filter by user profile type ('staff' or 'candidate').",
+                type=openapi.TYPE_STRING,
+            ),
+            api_key,
+            bearer_auth,
+        ],
+        responses={
+            200: openapi.Response("Paginated list of users."),
+            401: error_response_401,
+            403: error_response_403,
+        },
+        tags=["User Management"],
+    ),
+)
+class UserListView(ListAPIView):
+    """
+    List all users with pagination and optional filtering.
+    Can be filtered by `profile` query parameter to 'staff' or 'candidate'.
+    Level of detail depends on role.
+    """
+
+    permission_classes = VerifiedModeratorPermissions
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        staff = Staff.objects.get(user=user)
+        queryset = self.filter_queryset(self.get_queryset())
+        stats_overview = cache.get("stats_overview")
+
+        if staff.role in [Staff.Roles.MODERATOR, Staff.Roles.ADMIN]:
+            if stats_overview is not None:
+                _ = stats_overview.pop("staff")
+            if stats_overview is None:
+                generate_stats_overview_task.delay()
+                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+            if (
+                request.query_params.get("profile") is None
+                or request.query_params.get("profile") == "staff"
+            ):
+                return Response(
+                    {
+                        "detail": "manager or superadmin role required"
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+        if staff.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
+            if stats_overview is None:
+                generate_stats_overview_task.delay()
+                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["stats_overview"] = stats_overview
+            response.data["results"] = response.data.pop("results")
+            return response
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {
+                "stats_overview": stats_overview,
+                "results": serializer.data
+            }
+        )
+
+    def get_serializer_class(self):
+        requested_profile = self.request.query_params.get("profile")
+        if requested_profile == "candidate":
+            return CandidateListSerializer
+        if requested_profile == "staff":
+            return StaffListSerializer
+        return UserSerializer
+
+    def get_queryset(self):
+        """Returns a filtered queryset of users"""
+
+        requested_profile = self.request.query_params.get("profile")
+        logger.info(
+            f"UserListView: request from user {self.request.user.id} with query params: {self.request.query_params}"
+        )
+        if requested_profile == "candidate":
+            queryset = Candidate.objects.select_related("user").order_by("-created_at")
+            return filter_candidates(queryset, self.request.query_params)
+        if requested_profile == "staff":
+            queryset = Staff.objects.select_related("user").order_by("-created_at")
+            return filter_staffs(queryset, self.request.query_params)
+
+        queryset = User.objects.prefetch_related(
+            "staff_profile", "candidate_profile"
+        ).order_by("-date_joined")
+        return filter_users(queryset, self.request.query_params)
+
+        
+    
