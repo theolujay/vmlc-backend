@@ -462,7 +462,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
 
         user_logged_in.send(
-            sender=self.user.__class__, request=self.context["request"], user=self.user
+            _sender=self.user.__class__, request=self.context["request"], user=self.user
         )
 
         # Add profile information (candidate or staff)
