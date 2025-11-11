@@ -76,7 +76,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
-            .annotate(question_count=Count("questions"))  # Annotate question count here
+            .annotate(question_count=Count("questions", filter=Q(questions__is_archived=False)))
             .order_by("scheduled_date")
         )  # Limit to 5 as per original logic
 

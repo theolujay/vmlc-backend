@@ -102,7 +102,7 @@ class SubmitAnswersView(APIView):
                 {"detail": "You have already submitted answers for this exam."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         # 3. Data Validation
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
