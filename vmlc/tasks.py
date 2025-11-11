@@ -102,7 +102,7 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             candidate_score.score = round(score, 2)
 
         candidate_score.auto_score = True
-        candidate_score.score_submitted_by = "Auto Score"
+        candidate_score.score_submitted_by = None
         candidate_score.recorded_at = timezone.now()
         candidate_score.save()
         cache.delete(f"candidate_dashboard_{candidate_score.candidate.pk}")

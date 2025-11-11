@@ -78,7 +78,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     if candidate.is_user_verified:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
-            Exam.objects.filter(stage=candidate.role, is_active=True)
+            Exam.objects.filter(stage=candidate.role.lower(), is_active=True)
             .annotate(
                 question_count=Count(
                     "questions", filter=Q(questions__is_archived=False)
@@ -158,14 +158,14 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "email": candidate.user.email,
             "phone": candidate.user.phone,
             "school": candidate.school,
-            "role": candidate.role,
+            "role": candidate.role.lower(),
             "is_user_verified": candidate.is_user_verified,
             "is_email_verified": candidate.user.is_email_verified,
             "is_active": candidate.user.is_active,
             "date_joined": candidate.created_at,
         },
         "exam_stats": {
-            "total_exams_taken": score_stats["total_exams_taken"],
+            "total_exams_taken": total_exams_taken,
             "available_exams_count": len(available_exams_list),
             "average_score": round(float(score_stats["average_score"] or 0), 2),
             "highest_score": float(score_stats["highest_score"] or 0),
