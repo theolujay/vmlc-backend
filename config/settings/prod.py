@@ -56,8 +56,8 @@ db_config = dj_database_url.config(
     )
 
 db_config['POOL_OPTIONS'] = {
-    'POOL_SIZE': 5,
-    'MAX_OVERFLOW': 10,
+    'POOL_SIZE': 3,
+    'MAX_OVERFLOW': 5,
     'RECYCLE': 3600,
     'PRE_PING': True,
 }
