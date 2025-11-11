@@ -11,8 +11,6 @@ class VMLCException(APIException):
     Subclasses should provide a `default_detail` and `status_code`.
     """
 
-    pass
-
 
 class AuthenticationFailed(VMLCException):
     status_code = 401

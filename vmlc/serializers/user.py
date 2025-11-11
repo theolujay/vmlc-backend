@@ -46,6 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
         """
         if obj.profile_picture and hasattr(obj.profile_picture, "url"):
             return obj.profile_picture.url
+        return None
 
 
 class MinimalUserSerializer(serializers.ModelSerializer):

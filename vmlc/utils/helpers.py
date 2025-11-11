@@ -83,8 +83,7 @@ def sanitize_data(data, redact_text="***REDACTED***"):
                 sanitized[key] = sanitize_data(value, redact_text)
         return sanitized
 
-    elif isinstance(data, (list, tuple)):
-        # Sanitize each item in the list/tuple
+    if isinstance(data, (list, tuple)):
         return type(data)(sanitize_data(item, redact_text) for item in data)
 
     else:

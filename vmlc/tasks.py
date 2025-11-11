@@ -1,18 +1,16 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import F, Avg, ExpressionWrapper, DateTimeField
+from django.db.models import F, Avg, ExpressionWrapper, DateTimeField, Sum, Window, Q
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
-from django.db import OperationalError
 from django.utils import timezone
 from celery import shared_task
 from celery.exceptions import Retry
 from PIL import Image
 import magic
 
-from vmlc.models import Exam
 from .utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
@@ -128,131 +126,28 @@ def update_exam_statuses_task():
 def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
-
-    This task creates a comprehensive leaderboard structure that organizes
-    exams by their stage (screening/league) and level (1, 2, 3, etc.).
-
-    The resulting data structure looks like:
-    {
-        "screening_1": {...},
-        "screening_2": {...},
-        "league_1": {...},
-        "league_2": {...},
-        ...
-    }
-
-    Each key is a combination of stage and level, making it easy to fetch
-    specific leaderboards from the frontend.
     """
-    from .models import Exam, CandidateScore, LeaderboardSnapshot, Staff
-    from .serializers import CandidateLeaderboardPerfSerializer
+    from .models import LeaderboardSnapshot, Staff
 
     now = timezone.now()
+    concluded_exams = _get_concluded_exams(now)
 
-    # Find all concluded exams
-    # We annotate each exam with its conclusion_time to filter efficiently
-    exams = (
-        Exam.objects.annotate(
-            conclusion_time=ExpressionWrapper(
-                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
-                output_field=DateTimeField(),
-            )
-        )
-        .filter(is_active=True, conclusion_time__lte=now)  # Only concluded exams
-        .annotate(average_score=Avg("scores__score"))
-        .order_by("stage", "level")
-    )  # Order by stage, then level for consistent processing
-
-    if not exams.exists():
+    if not concluded_exams.exists():
         logger.info(
             f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
         )
         return
 
-    # Get the staff member who triggered this
     staff = Staff.objects.get(pk=staff_id) if staff_id else None
-
-    # Dictionary to hold all leaderboards
-    # Key format: "screening_1", "league_2", etc.
     all_leaderboards = {}
 
-    for exam in exams:
-        # Create a unique key for this exam: stage_level (e.g., "screening_1", "league_2")
+    for exam in concluded_exams:
         leaderboard_key = f"{exam.stage}_{exam.level}"
-
-        # Get all scores for this exam, ordered by score (highest first)
-        scores = (
-            CandidateScore.objects.filter(exam=exam)
-            .select_related("candidate__user")
-            .prefetch_related("answers__question")
-            .order_by("-score")
+        leaderboard_entries = _build_leaderboard_entries(exam)
+        all_leaderboards[leaderboard_key] = _create_exam_leaderboard_data(
+            exam, leaderboard_entries, leaderboard_key
         )
 
-        # Build the leaderboard for this specific exam
-        leaderboard_entries = []
-
-        for index, score in enumerate(scores):
-            # Get candidate data
-            candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
-
-            # Get all answers for this candidate's exam submission
-            answers = score.answers.all()
-
-            # Build submission details (all questions and selected answers)
-            submission_list = []
-            for answer in answers:
-                submission_list.append(
-                    {
-                        "question_id": answer.question.id,
-                        "question_text": answer.question.text,
-                        "option_a": answer.question.option_a,
-                        "option_b": answer.question.option_b,
-                        "option_c": answer.question.option_c,
-                        "option_d": answer.question.option_d,
-                        "correct_answer": answer.question.correct_answer,
-                        "selected_option": answer.selected_option,
-                        "is_correct": answer.selected_option
-                        == answer.question.correct_answer,
-                        "answered_at": answer.answered_at.isoformat(),
-                    }
-                )
-
-            candidate_data["submissions"] = submission_list
-
-            # Add this candidate to the leaderboard
-            leaderboard_entries.append(
-                {
-                    "rank": index + 1,
-                    "candidate": candidate_data,
-                    "score": float(score.score),
-                    "percentage": (
-                        round((float(score.score) / exam.questions.count() * 100), 2)
-                        if exam.questions.count() > 0
-                        else 0
-                    ),
-                }
-            )
-
-        # Store this exam's complete leaderboard data
-        all_leaderboards[leaderboard_key] = {
-            "exam_id": exam.id,
-            "exam_title": exam.title,
-            "exam_description": exam.description,
-            "stage": exam.stage,
-            "level": exam.level,
-            "stage_display": leaderboard_key,  # e.g., "league_2"
-            "scheduled_date": exam.scheduled_date.isoformat(),
-            "concluded_at": (
-                exam.concluded_at.isoformat() if exam.concluded_at else None
-            ),
-            "status": exam.status,
-            "total_questions": exam.questions.count(),
-            "average_score": float(exam.average_score) if exam.average_score else 0.0,
-            "total_candidates": len(leaderboard_entries),
-            "entries": leaderboard_entries,
-        }
-
-    # Create the snapshot with all leaderboards
     snapshot = LeaderboardSnapshot.objects.create(
         data=all_leaderboards,
         published_by=staff,
@@ -264,6 +159,91 @@ def generate_leaderboard_snapshot_task(staff_id=None):
         f"Snapshot ID: {snapshot.pk}. "
         f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
     )
+
+
+def _get_concluded_exams(now):
+    """Helper to get all concluded exams."""
+    from .models import Exam
+
+    return (
+        Exam.objects.annotate(
+            conclusion_time=ExpressionWrapper(
+                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
+                output_field=DateTimeField(),
+            )
+        )
+        .filter(is_active=True, conclusion_time__lte=now)
+        .annotate(average_score=Avg("scores__score"))
+        .order_by("stage", "level")
+    )
+
+
+def _build_leaderboard_entries(exam):
+    """Helper to build leaderboard entries for a given exam."""
+    from .models import CandidateScore
+    from .serializers import CandidateLeaderboardPerfSerializer
+
+    scores = (
+        CandidateScore.objects.filter(exam=exam)
+        .select_related("candidate__user")
+        .prefetch_related("answers__question")
+        .order_by("-score")
+    )
+
+    leaderboard_entries = []
+    for index, score in enumerate(scores):
+        candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
+        answers = score.answers.all()
+        submission_list = []
+        for answer in answers:
+            submission_list.append(
+                {
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "correct_answer": answer.question.correct_answer,
+                    "selected_option": answer.selected_option,
+                    "is_correct": answer.selected_option
+                    == answer.question.correct_answer,
+                    "answered_at": answer.answered_at.isoformat(),
+                }
+            )
+        candidate_data["submissions"] = submission_list
+        leaderboard_entries.append(
+            {
+                "rank": index + 1,
+                "candidate": candidate_data,
+                "score": float(score.score),
+                "percentage": (
+                    round((float(score.score) / exam.questions.count() * 100), 2)
+                    if exam.questions.count() > 0
+                    else 0
+                ),
+            }
+        )
+    return leaderboard_entries
+
+
+def _create_exam_leaderboard_data(exam, leaderboard_entries, leaderboard_key):
+    """Helper to create the final data structure for an exam's leaderboard."""
+    return {
+        "exam_id": exam.id,
+        "exam_title": exam.title,
+        "exam_description": exam.description,
+        "stage": exam.stage,
+        "level": exam.level,
+        "stage_display": leaderboard_key,
+        "scheduled_date": exam.scheduled_date.isoformat(),
+        "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
+        "status": exam.status,
+        "total_questions": exam.questions.count(),
+        "average_score": float(exam.average_score) if exam.average_score else 0.0,
+        "total_candidates": len(leaderboard_entries),
+        "entries": leaderboard_entries,
+    }
 
 
 @shared_task(name="generate_scores_snapshot_task")
@@ -501,7 +481,6 @@ def update_candidate_ranking_cache_task():
     Celery task to update the candidate ranking cache for all league candidates.
     """
     from .models import Candidate
-    from django.db.models import Sum, Q, F, Window
     from django.db.models.functions import Rank
     from vmlc.models import CandidateScoreSnapshot
 

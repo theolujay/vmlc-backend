@@ -3,7 +3,7 @@ import logging
 from django.core.cache import cache
 from django.db.models import Avg, Count, Q
 from django.utils.decorators import method_decorator
-from vmlc.utils.helpers import invalidate_all_dashboard_caches
+
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.settings import api_settings
@@ -15,6 +15,7 @@ from rest_framework.generics import (
     ListCreateAPIView,
 )
 
+from vmlc.utils.helpers import invalidate_all_dashboard_caches
 from ..models import Exam, CandidateScore, Candidate, Question
 from ..serializers import (
     ExamListSerializer,
@@ -168,8 +169,6 @@ class ExamListView(ListCreateAPIView):
         """
         serializer.save(created_by=self.request.user.staff_profile)
         # Invalidate all staff dashboards as exam data changes
-        from vmlc.utils.helpers import invalidate_all_dashboard_caches
-
         invalidate_all_dashboard_caches()
         logger.info(
             f"Exam created by user {self.request.user.id} with data: {serializer.data}"
@@ -270,20 +269,23 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        exam_id = instance.id
-        cache_key = f"exam_detail_{exam_id}"
-
-        # Try to get the data from the cache
+        cache_key = f"exam_detail_{instance.id}"
         cached_data = cache.get(cache_key)
+
         if cached_data:
             return Response(cached_data)
 
         serializer = self.get_serializer(instance)
         data = serializer.data
+        data["questions"] = self._get_questions_data(instance, request)
 
-        questions_qs = instance.questions.filter(is_archived=False)
+        cache.set(cache_key, data, 86400)  # Cache for 24 hours
+        return Response(data)
 
-        # Calculate question_pool_data for the current exam's questions
+    def _get_questions_data(self, exam_instance, request):
+        """Helper to get paginated and aggregated question data for an exam."""
+        questions_qs = exam_instance.questions.filter(is_archived=False)
+
         question_pool_data = questions_qs.aggregate(
             total_questions=Count("id", filter=Q(is_archived=False)),
             hard_questions_count=Count(
@@ -309,27 +311,17 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         )
 
         if page is not None:
-            paginated_questions_response_data = self.get_paginated_response(
-                question_serializer.data
-            ).data
-            # Add question_pool_data to the paginated response
-            paginated_questions_response_data["question_pool_data"] = question_pool_data
-            data["questions"] = paginated_questions_response_data
-        else:
-            # If not paginated, just add question_pool_data to the questions list
-            questions_data = question_serializer.data
-            data["questions"] = {
-                "question_pool_data": question_pool_data,
-                "results": questions_data,
-                "count": len(questions_data),
-                "next": None,
-                "previous": None,
-            }
+            paginated_response = self.get_paginated_response(question_serializer.data)
+            paginated_response.data["question_pool_data"] = question_pool_data
+            return paginated_response.data
 
-        # Cache the data for 24 hours
-        cache.set(cache_key, data, 86400)
-
-        return Response(data)
+        return {
+            "question_pool_data": question_pool_data,
+            "results": question_serializer.data,
+            "count": len(question_serializer.data),
+            "next": None,
+            "previous": None,
+        }
 
     def perform_update(self, serializer):
         """

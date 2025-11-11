@@ -19,8 +19,8 @@ app.conf.beat_schedule = {
         "task": "update_staff_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
-    "update-candidate-ranking-cache-every-30-minutes": {
-        "task": "update_candidate_ranking_cache_task",
+    "update-candidate-dashboard_cache_every-30-minutes": {
+        "task": "update_candidate_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
     "update-exam-statuses-task": {

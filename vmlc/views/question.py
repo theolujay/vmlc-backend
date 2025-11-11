@@ -3,30 +3,31 @@ import logging
 from django.core.cache import cache
 from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
-from vmlc.utils.helpers import invalidate_all_staff_dashboards
+
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
-from rest_framework import status
 
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from ..models import Exam, Question
 from ..permissions import VerifiedAdminPermissions, VerifiedModeratorPermissions
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
+from ..utils.query_filters import filter_questions
 from ..utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    question_list_response_schema,
-    question_detail_request_body,
-    question_detail_response_schema,
     error_response_400,
     error_response_401,
     error_response_403,
     error_response_404,
+    question_detail_request_body,
+    question_detail_response_schema,
+    question_list_response_schema,
 )
-from ..utils.query_filters import filter_questions
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,9 @@ class QuestionListView(ListCreateAPIView):
             return response
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response({"meta": meta, "list": serializer.data})
+        return Response(
+            {"question_pool_data": question_pool_data, "results": serializer.data}
+        )
 
     def get_serializer_class(self):
         """
@@ -165,9 +168,7 @@ class QuestionListView(ListCreateAPIView):
                     exam.questions.add(question)
                     cache.delete(f"exam_questions_{exam_id}")  # Invalidate cache
                     added_count += 1
-                    logger.info(
-                        "Question %s added to exam %s", question.id, exam.id, exam.title
-                    )
+                    logger.info("Question %s added to exam %s", question.id, exam.id)
                 except Exam.DoesNotExist:
                     failed_exams.append(exam_id)
                     logger.warning(
@@ -175,7 +176,9 @@ class QuestionListView(ListCreateAPIView):
                         question.id,
                         exam_id,
                     )
-                except Exception as e:
+                except (
+                    Exception
+                ) as e:  # Catching broad exception for robustness in background task
                     failed_exams.append(exam_id)
                     logger.error(
                         "Error adding question %s to exam %s: %s",
@@ -193,6 +196,7 @@ class QuestionListView(ListCreateAPIView):
                 logger.warning(
                     "Failed to add question %s to %s exams: %s",
                     question.id,
+                    len(failed_exams),
                     failed_exams,
                 )
 
@@ -381,76 +385,75 @@ class QuestionExamAssociationView(APIView):
             "failed_removals": [],
         }
 
-        # Add to exams
         if add_to_exams:
-            if isinstance(add_to_exams, list):
-                for exam_id in add_to_exams:
-                    try:
-                        exam = Exam.objects.get(id=exam_id)
-                        if question not in exam.questions.all():
-                            exam.questions.add(question)
-                            cache.delete(
-                                f"exam_questions_{exam.id}"
-                            )  # Invalidate cache
-                            results["added"].append(
-                                {"exam_id": exam.id, "exam_title": exam.title}
-                            )
-                            logger.info(
-                                "Question %s added to exam %s by user %s",
-                                question.id,
-                                exam.id,
-                                request.user.id,
-                            )
-                        else:
-                            logger.info(
-                                "Question %s already in exam %s", question.id, exam.id
-                            )
-                    except Exam.DoesNotExist:
-                        results["failed_additions"].append(
-                            {"exam_id": exam_id, "reason": "Exam not found"}
-                        )
-            else:
+            if not isinstance(add_to_exams, list):
                 return Response(
                     {"error": "add_to_exams must be a list"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            self._handle_add_to_exams(question, add_to_exams, results, request)
 
-        # Remove from exams
         if remove_from_exams:
-            if isinstance(remove_from_exams, list):
-                for exam_id in remove_from_exams:
-                    try:
-                        exam = Exam.objects.get(id=exam_id)
-                        if question in exam.questions.all():
-                            exam.questions.remove(question)
-                            cache.delete(
-                                f"exam_questions_{exam.id}"
-                            )  # Invalidate cache
-                            results["removed"].append(
-                                {"exam_id": exam.id, "exam_title": exam.title}
-                            )
-                            logger.info(
-                                "Question %s removed from exam %s by user %s",
-                                question.id,
-                                exam.id,
-                                request.user.id,
-                            )
-                        else:
-                            logger.info(
-                                "Question %s not in exam %s", question.id, exam.id
-                            )
-                    except Exam.DoesNotExist:
-                        results["failed_removals"].append(
-                            {"exam_id": exam_id, "reason": "Exam not found"}
-                        )
-            else:
+            if not isinstance(remove_from_exams, list):
                 return Response(
                     {"error": "remove_from_exams must be a list"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            self._handle_remove_from_exams(
+                question, remove_from_exams, results, request
+            )
+
         invalidate_all_staff_dashboards()
 
         return Response(results, status=status.HTTP_200_OK)
+
+    def _handle_add_to_exams(self, question, add_to_exams, results, request):
+        """Helper to add a question to a list of exams."""
+        for exam_id in add_to_exams:
+            try:
+                exam = Exam.objects.get(id=exam_id)
+                if question not in exam.questions.all():
+                    exam.questions.add(question)
+                    cache.delete(f"exam_questions_{exam.id}")  # Invalidate cache
+                    results["added"].append(
+                        {"exam_id": exam.id, "exam_title": exam.title}
+                    )
+                    logger.info(
+                        "Question %s added to exam %s by user %s",
+                        question.id,
+                        exam.id,
+                        request.user.id,
+                    )
+                else:
+                    logger.info("Question %s already in exam %s", question.id, exam.id)
+            except Exam.DoesNotExist:
+                results["failed_additions"].append(
+                    {"exam_id": exam_id, "reason": "Exam not found"}
+                )
+
+    def _handle_remove_from_exams(self, question, remove_from_exams, results, request):
+        """Helper to remove a question from a list of exams."""
+        for exam_id in remove_from_exams:
+            try:
+                exam = Exam.objects.get(id=exam_id)
+                if question in exam.questions.all():
+                    exam.questions.remove(question)
+                    cache.delete(f"exam_questions_{exam.id}")  # Invalidate cache
+                    results["removed"].append(
+                        {"exam_id": exam.id, "exam_title": exam.title}
+                    )
+                    logger.info(
+                        "Question %s removed from exam %s by user %s",
+                        question.id,
+                        exam.id,
+                        request.user.id,
+                    )
+                else:
+                    logger.info("Question %s not in exam %s", question.id, exam.id)
+            except Exam.DoesNotExist:
+                results["failed_removals"].append(
+                    {"exam_id": exam_id, "reason": "Exam not found"}
+                )
 
 
 @method_decorator(
@@ -599,31 +602,10 @@ class BulkAddQuestionsToExamsView(APIView):
         question_ids = request.data.get("question_ids", [])
         exam_ids = request.data.get("exam_ids", [])
 
-        # Validation
-        if not question_ids:
-            return Response(
-                {"error": "question_ids is required and cannot be empty"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        validation_response = self._validate_bulk_add_request(question_ids, exam_ids)
+        if validation_response:
+            return validation_response
 
-        if not exam_ids:
-            return Response(
-                {"error": "exam_ids is required and cannot be empty"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not isinstance(question_ids, list):
-            return Response(
-                {"error": "question_ids must be a list"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not isinstance(exam_ids, list):
-            return Response(
-                {"error": "exam_ids must be a list"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Initialize results tracking
         results = {
             "summary": {
                 "total_operations": len(question_ids) * len(exam_ids),
@@ -639,60 +621,90 @@ class BulkAddQuestionsToExamsView(APIView):
             },
         }
 
-        # Bulk fetch questions and exams (efficient!)
         questions = Question.objects.filter(id__in=question_ids, is_archived=False)
         exams = Exam.objects.filter(id__in=exam_ids)
 
-        # Track which IDs were found
         found_question_ids = set(questions.values_list("id", flat=True))
         found_exam_ids = set(exams.values_list("id", flat=True))
 
-        # Track missing IDs
+        self._process_missing_ids(
+            question_ids, exam_ids, found_question_ids, found_exam_ids, results, request
+        )
+        self._add_questions_to_exams(questions, exams, results, request)
+
+        invalidate_all_staff_dashboards()
+        return Response(results, status=status.HTTP_200_OK)
+
+    def _validate_bulk_add_request(self, question_ids, exam_ids):
+        """Helper to validate the input for bulk add questions to exams."""
+        if not question_ids:
+            return Response(
+                {"error": "question_ids is required and cannot be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not exam_ids:
+            return Response(
+                {"error": "exam_ids is required and cannot be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(question_ids, list):
+            return Response(
+                {"error": "question_ids must be a list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(exam_ids, list):
+            return Response(
+                {"error": "exam_ids must be a list"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return None
+
+    def _process_missing_ids(
+        self,
+        question_ids,
+        exam_ids,
+        found_question_ids,
+        found_exam_ids,
+        results,
+        request,
+    ):
+        """Helper to handle logging and updating results for missing questions/exams."""
         missing_question_ids = set(question_ids) - found_question_ids
         missing_exam_ids = set(exam_ids) - found_exam_ids
 
-        # Log missing questions
         if missing_question_ids:
             for q_id in missing_question_ids:
                 results["details"]["failed_questions"].append(
                     {"question_id": q_id, "reason": "Question not found or archived"}
                 )
-                results["summary"]["failed"] += len(exam_ids)  # Failed for all exams
-
+                results["summary"]["failed"] += len(exam_ids)
             logger.warning(
                 "Questions not found by user %s: %s",
                 request.user.id,
                 list(missing_question_ids),
             )
 
-        # Log missing exams
         if missing_exam_ids:
             for e_id in missing_exam_ids:
                 results["details"]["failed_exams"].append(
                     {"exam_id": e_id, "reason": "Exam not found"}
                 )
-                results["summary"]["failed"] += len(
-                    found_question_ids
-                )  # Failed for all questions
-
+                results["summary"]["failed"] += len(found_question_ids)
             logger.warning(
                 "Exams not found by user %s: %s",
                 request.user.id,
                 list(missing_exam_ids),
             )
 
-        # Process each exam-question combination
+    def _add_questions_to_exams(self, questions, exams, results, request):
+        """Helper to perform the actual addition of questions to exams."""
         for exam in exams:
-            # Get existing question IDs for this exam (efficient check)
             existing_question_ids = set(
-                exam.questions.filter(id__in=found_question_ids).values_list(
+                exam.questions.filter(id__in=[q.id for q in questions]).values_list(
                     "id", flat=True
                 )
             )
-
             for question in questions:
                 try:
-                    # Check if already exists
                     if question.id in existing_question_ids:
                         results["details"]["skipped"].append(
                             {
@@ -710,7 +722,6 @@ class BulkAddQuestionsToExamsView(APIView):
                         )
                         continue
 
-                    # Add the question to the exam
                     exam.questions.add(question)
                     cache.delete(f"exam_questions_{exam.id}")
                     cache.delete(f"exam_detail_{exam.id}")
@@ -722,7 +733,6 @@ class BulkAddQuestionsToExamsView(APIView):
                         }
                     )
                     results["summary"]["successful"] += 1
-
                     logger.info(
                         "Question %s added to exam %s (%s) by user %s",
                         question.id,
@@ -730,8 +740,9 @@ class BulkAddQuestionsToExamsView(APIView):
                         exam.title,
                         request.user.id,
                     )
-
-                except Exception as e:
+                except (
+                    Exception
+                ) as e:  # Catching broad exception to allow bulk operation to continue
                     results["details"]["added"].append(
                         {
                             "question_id": question.id,
@@ -740,16 +751,12 @@ class BulkAddQuestionsToExamsView(APIView):
                         }
                     )
                     results["summary"]["failed"] += 1
-
                     logger.error(
                         "Error adding question %s to exam %s: %s",
                         question.id,
                         exam.id,
                         str(e),
                     )
-
-        invalidate_all_staff_dashboards()
-        return Response(results, status=status.HTTP_200_OK)
 
 
 @method_decorator(
@@ -898,7 +905,9 @@ class BulkQuestionArchiveView(APIView):
                 logger.info(
                     "Question %s archived by user %s", question.id, request.user.id
                 )
-            except Exception as e:
+            except (
+                Exception
+            ) as e:  # Catching broad exception to allow bulk operation to continue
                 results["details"]["failed"].append(
                     {"question_id": question.id, "reason": str(e)}
                 )

@@ -22,10 +22,7 @@ from .models import (
 )
 
 from .utils.email import create_email_html
-from .utils.helpers import (
-    invalidate_all_dashboard_caches,
-    invalidate_all_dashboard_caches,
-)
+from .utils.helpers import invalidate_all_dashboard_caches
 
 
 class EmailForm(forms.Form):
@@ -123,6 +120,7 @@ class UserAdmin(admin.ModelAdmin):
                 return "Staff"
         except ObjectDoesNotExist:
             return "—"
+        return "—"
 
 
 @admin.register(UserVerification)
@@ -175,10 +173,11 @@ class UserVerificationAdmin(admin.ModelAdmin):
         """Display verification status with color coding."""
         if obj.is_approved:
             return format_html('<span style="color: green;">✓ Verified</span>')
-        elif obj.is_pending:
+        if obj.is_pending:
             return format_html('<span style="color: orange;">⏳ Pending</span>')
-        elif obj.is_rejected:
+        if obj.is_rejected:
             return format_html('<span style="color: red;">❌ Rejected</span>')
+        return "—"
 
     @admin.display(description="Photo", boolean=True)
     def has_face_id(self, obj):
