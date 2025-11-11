@@ -48,7 +48,9 @@ class Broadcast(models.Model):
         help_text="Overall broadcast status",
     )
     last_attempt = models.DateTimeField(null=True, blank=True)
-    task_id = models.CharField(max_length=255, null=True, blank=True, help_text="Celery task ID for tracking")
+    task_id = models.CharField(
+        max_length=255, null=True, blank=True, help_text="Celery task ID for tracking"
+    )
 
     def __str__(self):
         mediums = ", ".join(self.mediums)
@@ -79,11 +81,15 @@ class BroadcastLog(models.Model):
     def __str__(self):
         return f"{self.broadcast.subject} [{self.medium} -> {self.target_role}] {self.status}"
 
+
 class Notification(models.Model):
     """
     Represents a real-time notification sent to a user.
     """
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
     subject = models.CharField(max_length=100)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -91,6 +97,6 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        
+
     def __str__(self):
         return f"Notification for {self.recipient.email}: {self.subject}"

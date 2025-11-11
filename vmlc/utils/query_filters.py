@@ -1,15 +1,10 @@
-from django.db.models import Q, QuerySet
-
-import django_filters
 from typing import Any, List
 
-from vmlc.models import (
-    Exam,
-    Candidate,
-    Staff,
-    Question,
-    User
-)
+import django_filters
+from django.db.models import Q, QuerySet
+
+from vmlc.models import Candidate, Exam, Question, Staff, User
+
 
 def filter_candidates(
     queryset: QuerySet[Candidate], params: Any
@@ -95,10 +90,11 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
 
     return queryset
 
+
 def filter_users(queryset: QuerySet[User], params: Any) -> QuerySet[User]:
     is_active = params.get("is_active")
     search = params.get("search")
-    
+
     if is_active is not None:
         if is_active.lower() == "true":
             queryset = queryset.filter(is_active=True)
@@ -113,6 +109,7 @@ def filter_users(queryset: QuerySet[User], params: Any) -> QuerySet[User]:
         )
 
     return queryset
+
 
 def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Question]:
     """
@@ -166,7 +163,7 @@ class ExamFilter(django_filters.FilterSet):
         fields: List[str] = ("search", "created_at")
 
     def filter_search(
-        self, queryset: QuerySet[Exam], name: str, value: str
+        self, queryset: QuerySet[Exam], _name: str, value: str
     ) -> QuerySet[Exam]:
         """Custom filter method for search functionality"""
         if value:

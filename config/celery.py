@@ -3,6 +3,7 @@ from celery import Celery
 from celery.schedules import crontab
 from django.apps import apps
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning, module="pycparser")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
@@ -18,12 +19,12 @@ app.conf.beat_schedule = {
         "task": "update_staff_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
-    "update-candidate-ranking-cache-every-30-minutes": {
-        "task": "update_candidate_ranking_cache_task",
+    "update-candidate-dashboard-cache-every-30-minutes": {
+        "task": "update_candidate_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
     "update-exam-statuses-task": {
         "task": "update_exam_statuses_task",
-        "schedule": crontab(minute="*/30")
-    }
+        "schedule": crontab(minute="*/30"),
+    },
 }

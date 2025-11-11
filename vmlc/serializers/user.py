@@ -44,8 +44,11 @@ class UserSerializer(serializers.ModelSerializer):
         Safely returns the profile picture URL if it exists, otherwise returns None.
         This prevents errors when a user hasn't uploaded a profile picture yet.
         """
-        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+        if obj.profile_picture and hasattr(obj.profile_picture, "url"):
             return obj.profile_picture.url
+        return None
+
+
 class MinimalUserSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for listing user info.
@@ -53,7 +56,15 @@ class MinimalUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "is_email_verified", "first_name", "last_name", "phone", "date_joined"]
+        fields = [
+            "id",
+            "email",
+            "is_email_verified",
+            "first_name",
+            "last_name",
+            "phone",
+            "date_joined",
+        ]
 
 
 class UserVerificationListSerializer(serializers.ModelSerializer):

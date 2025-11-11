@@ -163,21 +163,21 @@ class AccountManagementView(APIView):
             "first_name",
             "last_name",
             "profile_picture",
-            "phone_number",
+            "phone",  # Changed from phone_number to phone
             "school",
             "occupation",
         ]
         user_data = {}
         profile_data = {}
         target_user = self._get_target_user(request, user_id)
-        request_data = request.data
+        request_data = request.data.copy()  # Use a copy to avoid modifying original
 
         for k, v in request_data.items():
             if k not in editable_fields:
-                request_data.pop(k)
-            elif k in editable_fields[:3]:
+                continue  # Skip non-editable fields
+            if k in ["first_name", "last_name", "profile_picture", "phone"]:
                 user_data[k] = v
-            elif k in editable_fields[3:]:
+            elif k in ["school", "occupation"]:
                 profile_data[k] = v
 
         # If no data was extracted, it's a bad request.
@@ -204,23 +204,7 @@ class AccountManagementView(APIView):
             if profile_serializer:
                 profile_serializer.save()
 
-        # Invalidate the account management cache
-        cache.delete(f"account_management_{target_user.id}")
-
-        # Invalidate candidate dashboard cache if the user has a candidate profile
-        if hasattr(target_user, "candidate_profile"):
-            cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
-            # Invalidate all staff dashboards as candidate data changes
-            from vmlc.utils.helpers import invalidate_all_staff_dashboards
-
-            invalidate_all_staff_dashboards()
-
-        # Invalidate all staff dashboards if the user has a staff profile
-        if hasattr(target_user, "staff_profile"):
-            from vmlc.models import Staff
-
-            for staff in Staff.objects.all():
-                cache.delete(f"staff_dashboard_data_{staff.pk}")
+        self._invalidate_profile_caches(target_user)
 
         logger.info(
             "Account for user %s updated by %s.",
@@ -243,6 +227,22 @@ class AccountManagementView(APIView):
                 "profile": response_profile_data,
             }
         )
+
+    def _invalidate_profile_caches(self, user):
+        """Helper to invalidate caches related to user profiles."""
+        cache.delete(f"account_management_{user.id}")
+
+        if hasattr(user, "candidate_profile"):
+            cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
+            # Invalidate all staff dashboards as candidate data changes
+            from vmlc.utils.helpers import invalidate_all_staff_dashboards
+
+            invalidate_all_staff_dashboards()
+
+        if hasattr(user, "staff_profile"):
+
+            for staff in Staff.objects.all():
+                cache.delete(f"staff_dashboard_data_{staff.pk}")
 
     @swagger_auto_schema(
         operation_summary="Update User Account",
@@ -365,13 +365,13 @@ class BaseInviteView(CreateAPIView):
 
         if self.profile_type == "staff":
             profile_msg = (
-                f"You've been invited to join the Verboheit Mathematics League Competition "
+                "You've been invited to join the Verboheit Mathematics League Competition "
                 f"{timezone.now().year} as a staff member. "
             )
         elif self.profile_type == "candidate":
             profile_msg = (
-                f"Your profile has been created to participate in the "
-                f"Verboheit Mathematics League Competition. "
+                "Your profile has been created to participate in the "
+                "Verboheit Mathematics League Competition. "
             )
         message = (
             f"Hello, {user.first_name}.\n\n"
@@ -411,12 +411,6 @@ class StaffInviteView(BaseInviteView):
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
 
-    def post(self, request, *args, **kwargs):
-        """
-        Creates a new staff user and sends an invitation email.
-        """
-        return super().post(request, *args, **kwargs)
-
 
 class CandidateInviteView(BaseInviteView):
     """
@@ -427,11 +421,6 @@ class CandidateInviteView(BaseInviteView):
     serializer_class = CandidateInviteSerializer
     profile_type = "candidate"
 
-    def post(self, request, *args, **kwargs):
-        """
-        Creates a new candidate user and sends an invitation email.
-        """
-        return super().post(request, *args, **kwargs)
 
 @method_decorator(
     name="get",
@@ -469,30 +458,11 @@ class UserListView(ListAPIView):
     def list(self, request, *args, **kwargs):
         user = request.user
         staff = Staff.objects.get(user=user)
-        queryset = self.filter_queryset(self.get_queryset())
-        stats_overview = cache.get("stats_overview")
+        requested_profile = request.query_params.get("profile")
 
-        if staff.role in [Staff.Roles.MODERATOR, Staff.Roles.ADMIN]:
-            if stats_overview is not None:
-                _ = stats_overview.pop("staff")
-            if stats_overview is None:
-                generate_stats_overview_task.delay()
-                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
-            if (
-                request.query_params.get("profile") is None
-                or request.query_params.get("profile") == "staff"
-            ):
-                return Response(
-                    {
-                        "detail": "manager or superadmin role required"
-                    },
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-        if staff.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
-            if stats_overview is None:
-                generate_stats_overview_task.delay()
-                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+        stats_overview = self._get_stats_overview(staff.role, requested_profile)
+
+        queryset = self.filter_queryset(self.get_queryset())
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -501,14 +471,28 @@ class UserListView(ListAPIView):
             response.data["stats_overview"] = stats_overview
             response.data["results"] = response.data.pop("results")
             return response
-        
+
         serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {
-                "stats_overview": stats_overview,
-                "results": serializer.data
-            }
-        )
+        return Response({"stats_overview": stats_overview, "results": serializer.data})
+
+    def _get_stats_overview(self, staff_role, requested_profile):
+        """Helper to get or trigger generation of stats overview."""
+        stats_overview = cache.get("stats_overview")
+
+        if staff_role in [Staff.Roles.MODERATOR, Staff.Roles.ADMIN]:
+            if stats_overview is not None:
+                _ = stats_overview.pop("staff")
+            if stats_overview is None:
+                generate_stats_overview_task.delay()
+                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+            if requested_profile is None or requested_profile == "staff":
+                raise PermissionDenied("manager or superadmin role required")
+
+        if staff_role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
+            if stats_overview is None:
+                generate_stats_overview_task.delay()
+                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+        return stats_overview
 
     def get_serializer_class(self):
         requested_profile = self.request.query_params.get("profile")
@@ -536,6 +520,3 @@ class UserListView(ListAPIView):
             "staff_profile", "candidate_profile"
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
-
-        
-    

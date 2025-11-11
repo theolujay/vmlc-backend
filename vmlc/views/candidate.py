@@ -118,6 +118,7 @@ class CandidateListView(ListAPIView):
         queryset = Candidate.objects.select_related("user").order_by("-created_at")
         return filter_candidates(queryset, self.request.query_params)
 
+
 @method_decorator(
     name="get",
     decorator=swagger_auto_schema(
@@ -163,7 +164,7 @@ class CandidateListView(ListAPIView):
         },
         tags=["Candidates"],
         manual_parameters=[api_key, bearer_auth],
-    )
+    ),
 )
 class CandidateDetailView(RetrieveUpdateDestroyAPIView):
     """
@@ -214,6 +215,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         serializer.save(updated_by=self.request.user.staff_profile)
         cache.delete(f"candidate_detail_{serializer.instance.pk}")
         cache.delete(f"candidate_profile_{serializer.instance.user.id}")
+
     def perform_destroy(self, instance):
         """
         Soft-delete candidate by setting `is_active` to False.
@@ -227,6 +229,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         cache.delete(f"candidate_profile_{instance.user.id}")
         instance.is_active = False
         instance.save()
+
 
 @method_decorator(
     name="put",
@@ -243,7 +246,7 @@ class CandidateDetailView(RetrieveUpdateDestroyAPIView):
         },
         tags=["Candidates"],
         manual_parameters=[api_key, bearer_auth],
-    )
+    ),
 )
 class AssignCandidateRoleView(UpdateAPIView):
     """

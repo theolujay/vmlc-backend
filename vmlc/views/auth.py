@@ -5,10 +5,12 @@ Authentication-related API views for login, logout, and registration.
 from asyncio import sleep
 import logging
 
-from django.core.cache import cache
 from django.contrib.auth.signals import user_logged_in
-from django.utils.decorators import method_decorator
-from rest_framework_simplejwt.views import TokenRefreshView
+from django.core.cache import cache
+from django.db import transaction
+
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,72 +18,63 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
 from ..models import User
 from ..permissions import HasXAPIKey
 from ..serializers import (
+    MinimalCandidateSerializer,
+    MinimalStaffSerializer,
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     RequestPasswordChangeSerializer,
     SendEmailOTPSerializer,
-    MinimalCandidateSerializer,
-    MinimalStaffSerializer,
     VerifyEmailOTPSerializer,
 )
-from ..utils.helpers import sanitize_data
-from ..utils.swagger_schemas import (
-    api_key, 
-    bearer_auth,
-    login_request_body,
-    login_response_schema,
-    logout_request_body,
-    token_refresh_request_body,
-    token_refresh_response_schema,
-    error_response_400,
-    error_response_401,
-    error_response_404,
-    verify_email_otp_request_body,
-    resend_email_otp_request_body,
-    request_password_change_request_body,
-    password_change_otp_confirm_request_body,
-    password_change_request_body,
-    resend_password_change_otp_request_body,
-)
 from ..tasks import send_mail_task
+from ..utils.email import create_email_html
 from ..utils.exceptions import (
     InvalidTokenError,
     NotFound,
     ServerError,
     ValidationError,
 )
-from ..utils.email import create_email_html
+from ..utils.swagger_schemas import (
+    api_key,
+    error_response_400,
+    error_response_401,
+    error_response_404,
+    login_request_body,
+    login_response_schema,
+    logout_request_body,
+    password_change_otp_confirm_request_body,
+    password_change_request_body,
+    request_password_change_request_body,
+    resend_email_otp_request_body,
+    resend_password_change_otp_request_body,
+    verify_email_otp_request_body,
+)
 
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(
-    name="post",
-    decorator=swagger_auto_schema(
-        operation_summary="Refresh Access Token",
-        operation_description="Takes a refresh token and returns an access token.",
-        request_body=token_refresh_request_body,
-        responses={
-            200: token_refresh_response_schema,
-            400: error_response_400,
-            401: error_response_401,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
+# @method_decorator(
+#     name="post",
+#     decorator=swagger_auto_schema(
+#         operation_summary="Refresh Access Token",
+#         operation_description="Takes a refresh token and returns an access token.",
+#         request_body=token_refresh_request_body,
+#         responses={
+#             200: token_refresh_response_schema,
+#             400: error_response_400,
+#             401: error_response_401,
+#         },
+#         tags=["Authentication"],
+#         manual_parameters=[api_key, bearer_auth],
+#     ),
+# )
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [HasXAPIKey]
 
-from django.db import transaction
-
-# ... (other imports)
 
 class VerifyEmailOTPView(APIView):
     """
@@ -107,6 +100,7 @@ class VerifyEmailOTPView(APIView):
 
     def _verify_email(self, data):
         from vmlc.tasks import send_welcome_mail_task
+
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
             try:
@@ -125,7 +119,9 @@ class VerifyEmailOTPView(APIView):
                 )
                 if hasattr(user, "staff_profile") and user.last_login is None:
                     sleep(60)  # Ensure email is sent after transaction commit
-                    send_welcome_mail_task.delay(user_id=user.pk, generated_password=None)
+                    send_welcome_mail_task.delay(
+                        user_id=user.pk, generated_password=None
+                    )
                 logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
                     {"message": "Email verified successfully."},
@@ -165,7 +161,7 @@ class SendEmailOTPView(APIView):
 
     def _resend_email_otp(self, data):
         serializer = SendEmailOTPSerializer(data=data)
-        
+
         if serializer.is_valid():
             try:
                 user = serializer.save()

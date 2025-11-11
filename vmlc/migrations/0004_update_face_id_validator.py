@@ -4,6 +4,7 @@ from django.db import migrations, models
 import vmlc.models
 import vmlc.storage_backends
 
+
 class Migration(migrations.Migration):
 
     dependencies = [

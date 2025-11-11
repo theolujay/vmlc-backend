@@ -1,10 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework_api_key.permissions import HasAPIKey
-from channels.db import database_sync_to_async
 
 
-from .models import Candidate, Staff, User
+from .models import Candidate, Staff
 
 
 def _is_api_key_valid(key):
@@ -127,7 +126,7 @@ def HasMinimumStaffRole(minimum_role):
             staff_profile = _get_staff_profile(request)
 
             if not staff_profile:
-                False
+                return False
             return StaffRoleHierarchy.has_minimum_role(staff_profile.role, minimum_role)
 
     return HasMinimumStaffRolePermission
@@ -275,6 +274,3 @@ VerifiedManagerPermissions = [
     IsVerifiedStaff,
     HasMinimumStaffRole(Staff.Roles.MANAGER),
 ]
-
-
-

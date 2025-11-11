@@ -1,24 +1,28 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import F, Avg, ExpressionWrapper, DateTimeField
+from django.db.models import F, Avg, ExpressionWrapper, DateTimeField, Sum, Window, Q
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
-from django.db import OperationalError
 from django.utils import timezone
 from celery import shared_task
 from celery.exceptions import Retry
 from PIL import Image
 import magic
 
-from vmlc.models import Exam
 from .utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, name="send_mail_task", max_retries=3, default_retry_delay=60, queue="comms")
+@shared_task(
+    bind=True,
+    name="send_mail_task",
+    max_retries=3,
+    default_retry_delay=60,
+    queue="comms",
+)
 def send_mail_task(self, subject, message, recipient_list, html_message=None):
     """
     Celery task to send an email asynchronously.
@@ -48,7 +52,7 @@ def send_mail_task(self, subject, message, recipient_list, html_message=None):
     name="send_otp_on_registration_task",
     max_retries=3,
     default_retry_delay=60,
-    queue="comms"
+    queue="comms",
 )
 def send_otp_on_registration_task(self, user_id):
     """
@@ -81,7 +85,9 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             candidate_score=candidate_score
         )
 
-        total_questions = candidate_score.exam.questions.count()
+        total_questions = candidate_score.exam.questions.filter(
+            is_archived=False
+        ).count()
         if not total_questions:
             candidate_score.score = 0
         else:
@@ -94,10 +100,10 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             candidate_score.score = round(score, 2)
 
         candidate_score.auto_score = True
-        candidate_score.score_submitted_by = "Auto Score"
+        candidate_score.score_submitted_by = None
         candidate_score.recorded_at = timezone.now()
         candidate_score.save()
-
+        cache.delete(f"candidate_dashboard_{candidate_score.candidate.pk}")
         logger.info(
             f"Successfully calculated score for CandidateScore {candidate_score_id}"
         )
@@ -108,131 +114,40 @@ def calculate_and_save_auto_score_task(candidate_score_id):
             f"Failed to calculate score for CandidateScore {candidate_score_id}: {e}"
         )
 
+
 @shared_task(name="update_exam_statuses_task")
 def update_exam_statuses_task():
     """This task is deprecated since Exam.status is now a property."""
     logger.info("update_exam_statuses_task is deprecated and does nothing.")
     return "Task is deprecated."
 
+
 @shared_task(name="generate_leaderboard_snapshot_task")
 def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
-    
-    This task creates a comprehensive leaderboard structure that organizes
-    exams by their stage (screening/league) and level (1, 2, 3, etc.).
-    
-    The resulting data structure looks like:
-    {
-        "screening_1": {...},
-        "screening_2": {...},
-        "league_1": {...},
-        "league_2": {...},
-        ...
-    }
-    
-    Each key is a combination of stage and level, making it easy to fetch
-    specific leaderboards from the frontend.
     """
-    from .models import Exam, CandidateScore, LeaderboardSnapshot, Staff
-    from .serializers import CandidateLeaderboardPerfSerializer
-    
+    from .models import LeaderboardSnapshot, Staff
+
     now = timezone.now()
-    
-    # Find all concluded exams
-    # We annotate each exam with its conclusion_time to filter efficiently
-    exams = Exam.objects.annotate(
-        conclusion_time=ExpressionWrapper(
-            F('scheduled_date') + F('open_duration_hours') * timedelta(hours=1),
-            output_field=DateTimeField()
-        )
-    ).filter(
-        is_active=True,
-        conclusion_time__lte=now  # Only concluded exams
-    ).annotate(
-        average_score=Avg("scores__score")
-    ).order_by('stage', 'level')  # Order by stage, then level for consistent processing
-    
-    if not exams.exists():
+    concluded_exams = _get_concluded_exams(now)
+
+    if not concluded_exams.exists():
         logger.info(
             f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
         )
         return
 
-    # Get the staff member who triggered this
     staff = Staff.objects.get(pk=staff_id) if staff_id else None
-    
-    # Dictionary to hold all leaderboards
-    # Key format: "screening_1", "league_2", etc.
     all_leaderboards = {}
-    
-    for exam in exams:
-        # Create a unique key for this exam: stage_level (e.g., "screening_1", "league_2")
-        leaderboard_key = f"{exam.stage}_{exam.level}"
-        
-        # Get all scores for this exam, ordered by score (highest first)
-        scores = (
-            CandidateScore.objects
-            .filter(exam=exam)
-            .select_related('candidate__user')
-            .prefetch_related('answers__question')
-            .order_by("-score")
-        )
-        
-        # Build the leaderboard for this specific exam
-        leaderboard_entries = []
-        
-        for index, score in enumerate(scores):
-            # Get candidate data
-            candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
-            
-            # Get all answers for this candidate's exam submission
-            answers = score.answers.all()
-            
-            # Build submission details (all questions and selected answers)
-            submission_list = []
-            for answer in answers:
-                submission_list.append({
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "correct_answer": answer.question.correct_answer,
-                    "selected_option": answer.selected_option,
-                    "is_correct": answer.selected_option == answer.question.correct_answer,
-                    "answered_at": answer.answered_at.isoformat(),
-                })
-            
-            candidate_data["submissions"] = submission_list
-            
-            # Add this candidate to the leaderboard
-            leaderboard_entries.append({
-                "rank": index + 1,
-                "candidate": candidate_data,
-                "score": float(score.score),
-                "percentage": round((float(score.score) / exam.questions.count() * 100), 2) if exam.questions.count() > 0 else 0
-            })
-        
-        # Store this exam's complete leaderboard data
-        all_leaderboards[leaderboard_key] = {
-            "exam_id": exam.id,
-            "exam_title": exam.title,
-            "exam_description": exam.description,
-            "stage": exam.stage,
-            "level": exam.level,
-            "stage_display": leaderboard_key,  # e.g., "league_2"
-            "scheduled_date": exam.scheduled_date.isoformat(),
-            "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
-            "status": exam.status,
-            "total_questions": exam.questions.count(),
-            "average_score": float(exam.average_score) if exam.average_score else 0.0,
-            "total_candidates": len(leaderboard_entries),
-            "entries": leaderboard_entries
-        }
 
-    # Create the snapshot with all leaderboards
+    for exam in concluded_exams:
+        leaderboard_key = f"{exam.stage}_{exam.level}"
+        leaderboard_entries = _build_leaderboard_entries(exam)
+        all_leaderboards[leaderboard_key] = _create_exam_leaderboard_data(
+            exam, leaderboard_entries, leaderboard_key
+        )
+
     snapshot = LeaderboardSnapshot.objects.create(
         data=all_leaderboards,
         published_by=staff,
@@ -244,7 +159,93 @@ def generate_leaderboard_snapshot_task(staff_id=None):
         f"Snapshot ID: {snapshot.pk}. "
         f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
     )
-        
+
+
+def _get_concluded_exams(now):
+    """Helper to get all concluded exams."""
+    from .models import Exam
+
+    return (
+        Exam.objects.annotate(
+            conclusion_time=ExpressionWrapper(
+                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
+                output_field=DateTimeField(),
+            )
+        )
+        .filter(is_active=True, conclusion_time__lte=now)
+        .annotate(average_score=Avg("scores__score"))
+        .order_by("stage", "level")
+    )
+
+
+def _build_leaderboard_entries(exam):
+    """Helper to build leaderboard entries for a given exam."""
+    from .models import CandidateScore
+    from .serializers import CandidateLeaderboardPerfSerializer
+
+    scores = (
+        CandidateScore.objects.filter(exam=exam)
+        .select_related("candidate__user")
+        .prefetch_related("answers__question")
+        .order_by("-score")
+    )
+
+    leaderboard_entries = []
+    for index, score in enumerate(scores):
+        candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
+        answers = score.answers.all()
+        submission_list = []
+        for answer in answers:
+            submission_list.append(
+                {
+                    "question_id": answer.question.id,
+                    "question_text": answer.question.text,
+                    "option_a": answer.question.option_a,
+                    "option_b": answer.question.option_b,
+                    "option_c": answer.question.option_c,
+                    "option_d": answer.question.option_d,
+                    "correct_answer": answer.question.correct_answer,
+                    "selected_option": answer.selected_option,
+                    "is_correct": answer.selected_option
+                    == answer.question.correct_answer,
+                    "answered_at": answer.answered_at.isoformat(),
+                }
+            )
+        candidate_data["submissions"] = submission_list
+        leaderboard_entries.append(
+            {
+                "rank": index + 1,
+                "candidate": candidate_data,
+                "score": float(score.score),
+                "percentage": (
+                    round((float(score.score) / exam.questions.count() * 100), 2)
+                    if exam.questions.count() > 0
+                    else 0
+                ),
+            }
+        )
+    return leaderboard_entries
+
+
+def _create_exam_leaderboard_data(exam, leaderboard_entries, leaderboard_key):
+    """Helper to create the final data structure for an exam's leaderboard."""
+    return {
+        "exam_id": exam.id,
+        "exam_title": exam.title,
+        "exam_description": exam.description,
+        "stage": exam.stage,
+        "level": exam.level,
+        "stage_display": leaderboard_key,
+        "scheduled_date": exam.scheduled_date.isoformat(),
+        "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
+        "status": exam.status,
+        "total_questions": exam.questions.count(),
+        "average_score": float(exam.average_score) if exam.average_score else 0.0,
+        "total_candidates": len(leaderboard_entries),
+        "entries": leaderboard_entries,
+    }
+
+
 @shared_task(name="generate_scores_snapshot_task")
 def generate_scores_snapshot_task(staff_id=None):
     """
@@ -344,9 +345,7 @@ def validate_user_verification_files_task(user_verification_id):
         if verification.face_id:
             _validate_file_size(verification.face_id, 2, "face ID")
             allowed_types = ["image/jpg", "image/jpeg", "image/png"]
-            _validate_file_type(
-                verification.face_id, allowed_types, "face ID"
-            )
+            _validate_file_type(verification.face_id, allowed_types, "face ID")
             _validate_image_file(verification.face_id, "face ID")
 
         # Validate ID card
@@ -482,7 +481,6 @@ def update_candidate_ranking_cache_task():
     Celery task to update the candidate ranking cache for all league candidates.
     """
     from .models import Candidate
-    from django.db.models import Sum, Q, F, Window
     from django.db.models.functions import Rank
     from vmlc.models import CandidateScoreSnapshot
 
@@ -532,15 +530,16 @@ def revoke_user_invite_task(user_id):
             send_mail_task.delay(
                 subject="Your account has been revoked",
                 message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
-                        f"Please contact {settings.SUPPORT_EMAIL} if you have any inquires.\n\n"
-                        "Regards,\n\nManagement, Verboheit MLC",
+                f"Please contact {settings.SUPPORT_EMAIL} if you have any inquires.\n\n"
+                "Regards,\n\nManagement, Verboheit MLC",
                 recipient_list=[user.email],
-            )                
+            )
             logger.info(f"Revoked credentials for user {user.email} due to inactivity.")
         else:
             logger.info(f"User {user.email} has logged in. No action taken.")
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
+
 
 # @shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
 # def revoke_staff_registration_task(self, user_id):
@@ -549,14 +548,14 @@ def revoke_user_invite_task(user_id):
 #     """
 #     from datetime import timedelta
 #     from .models import User, EmailOTP
-    
+
 #     try:
 #         user = User.objects.get(pk=user_id)
 
 #         if not hasattr(user, "staff_profile"):
 #             logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
 #             return
-            
+
 #         if user.is_email_verified:
 #             logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
 #             return
@@ -572,7 +571,7 @@ def revoke_user_invite_task(user_id):
 #                 )
 #                 user.delete()
 #                 return
-            
+
 #             logger.debug(
 #                 f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
 #             )
@@ -580,20 +579,20 @@ def revoke_user_invite_task(user_id):
 
 #         time_since_last: timedelta = timezone.now() - latest_otp.created_at
 #         grace_period: timedelta = timedelta(minutes=5)
-        
+
 #         if latest_otp.is_expired() and time_since_last >= grace_period:
 #             logger.debug(
 #                 f"Registration grace period elapsed. Revoking user registration for {user.id}."
 #             )
-        
+
 #             user.delete()
 #             logger.info(f"Revoked staff registration for user {user.email}")
-        
+
 #         elif latest_otp.is_expired() and time_since_last < grace_period:
 #             logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
 #             # Retry the task after the grace period has passed
 #             raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
-        
+
 #         else:
 #             logger.info(f"OTP for user {user.id} is still valid. No action taken.")
 
@@ -616,18 +615,20 @@ def revoke_user_invite_task(user_id):
 #             f"Unexpected error during revocation for user {user_id}: {e}",
 #             exc_info=True
 #         )
-        
+
 #         if self.request.retries >= 3:
 #             logger.error(f"Max retries reached for user {user_id}. Giving up.")
 #             return
-        
+
 #         raise self.retry(exc=e, countdown=60)
 
+
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(self, user_id, generated_password = None):
+def send_welcome_mail_task(self, user_id, generated_password=None):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
     from .models import User
+
     user = User.objects.get(pk=user_id)
 
     try:
@@ -640,8 +641,9 @@ def send_welcome_mail_task(self, user_id, generated_password = None):
         if self.request.retries >= 3:
             logger.error(f"Max retries reached for user {user_id}. Giving up.")
             return
-        
+
         raise self.retry(exc=e, countdown=60)
+
 
 @shared_task(name="generate_stats_overview_task")
 def generate_stats_overview_task():

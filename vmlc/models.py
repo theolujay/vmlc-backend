@@ -1,4 +1,3 @@
-
 """
 This module defines the database models for the VMLC backend application.
 """
@@ -85,7 +84,7 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-def validate_profile_picture(value): 
+def validate_profile_picture(value):
     """Validate profile picture file"""
     if not value:
         return
@@ -99,6 +98,7 @@ def validate_profile_picture(value):
 
     if value.size > 5 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 5MB.")
+
 
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""
@@ -183,6 +183,7 @@ class User(AbstractUser):
     def get_full_name(self):
         """Return the user's full name."""
         return f"{self.first_name} {self.last_name}".strip()
+
 
 class UserVerification(models.Model):
     """Model for user verification data."""
@@ -295,7 +296,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         default=None,
         null=True,
         blank=True,
-        related_name="invited_staffs"
+        related_name="invited_staffs",
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -365,7 +366,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             return "active"
 
         return "inactive"
-    
+
     def set_verification_override(self, value):
         """Manually override verification status"""
         self._verification_override = value
@@ -428,23 +429,20 @@ class Question(models.Model):
     )
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
-    
+
     def archive(self):
         """Archive the question instead of deleting it."""
         self.is_archived = True
         self.archived_at = timezone.now()
         self.save()
-    
+
     def get_related_exams(self):
         """Get a list of exams a question has been added to."""
         exams = self.exams.values(
-            'id', 'title', 'description', 'stage', 'scheduled_date'
+            "id", "title", "description", "stage", "scheduled_date"
         )
-        
-        return {
-            "count": self.exams.count(),
-            "list": list(exams)
-        }
+
+        return {"count": self.exams.count(), "list": list(exams)}
 
     def __str__(self):
         """Return a string representation of the question."""
@@ -461,7 +459,7 @@ class Exam(models.Model):
 
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
-        
+
     class Status(models.TextChoices):
         """Statuses for an exam."""
 
@@ -479,7 +477,7 @@ class Exam(models.Model):
     level = models.PositiveIntegerField(
         default=1,
         db_index=True,
-        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)"
+        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -500,10 +498,10 @@ class Exam(models.Model):
     countdown_minutes = models.PositiveIntegerField(default=60)
     scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
-    
+
     questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         # # Ensure only one exam per stage-level combination can be active at a time
         # constraints = [
@@ -514,20 +512,20 @@ class Exam(models.Model):
         #     )
         # ]
         indexes = [
-            models.Index(fields=['stage', 'level', 'is_active']),
+            models.Index(fields=["stage", "level", "is_active"]),
         ]
-    
+
     def __str__(self):
         """Return a string representation of the exam."""
         if self.stage == self.Stages.SCREENING:
             return f"Screening {self.level}: {self.title} ({self.id})"
         return f"League {self.level}: {self.title} ({self.id})"
-    
+
     @property
     def stage_display(self):
         """Returns a formatted stage display like 'screening_1' or 'league_2'"""
         return f"{self.stage}_{self.level}"
-    
+
     @classmethod
     def active_exams(cls):
         """
@@ -553,12 +551,12 @@ class Exam(models.Model):
         now = timezone.now()
         end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
         return self.scheduled_date <= now <= end_time
-        
+
     @property
     def status(self):
         """
         Returns the current status of the exam.
-        
+
         Status flow:
         - DRAFT: No scheduled date set
         - CANCELLED: Exam was deactivated (is_active=False)
@@ -566,38 +564,33 @@ class Exam(models.Model):
         - ONGOING: Currently open for taking
         - CONCLUDED: Past the end time
         """
-        # Check cancellation first - it overrides everything except draft
+        if self.scheduled_date is None or self.open_duration_hours is None:
+            return self.Status.DRAFT
+
         if not self.is_active:
-            # Unless it's never been scheduled, it's cancelled
-            if self.scheduled_date is None:
-                return self.Status.DRAFT
             return self.Status.CANCELLED
-        # If no scheduled date, it's still being drafted
-        if self.scheduled_date is None:
-            return self.Status.DRAFT
-        # If no duration set, can't determine time-based status
-        if self.open_duration_hours is None:
-            return self.Status.DRAFT
+
         now = timezone.now()
-        # Calculate the conclusion time
-        conclusion_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
-        # Check time-based statuses
+        conclusion_time = self.scheduled_date + timedelta(
+            hours=self.open_duration_hours
+        )
+
         if now < self.scheduled_date:
             return self.Status.SCHEDULED
-        elif now < conclusion_time:
+        if now < conclusion_time:
             return self.Status.ONGOING
-        else:
-            return self.Status.CONCLUDED
-            
+
+        return self.Status.CONCLUDED
+
     @property
     def concluded_at(self):
-    
+
         if self.scheduled_date is not None and self.open_duration_hours is not None:
             now = timezone.now()
             end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
             if end_time < now:
                 return end_time
-        return None        
+        return None
 
     def get_question_count(self):
         """
@@ -692,7 +685,7 @@ class Candidate(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="invited_candidates"
+        related_name="invited_candidates",
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -769,7 +762,7 @@ class Candidate(models.Model):
                 "average_score": float(self.average_score or 0),
             }
         return None
-    
+
     @property
     def get_status(self):
         """Get the user status"""
@@ -782,24 +775,30 @@ class Candidate(models.Model):
             pass
 
         seven_days_ago = timezone.now() - timedelta(days=7)
-        
+
         all_exams = Exam.objects.filter(is_active=True, scheduled_date__isnull=False)
-        concluded_exams = [exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED]
+        concluded_exams = [
+            exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED
+        ]
         last_concluded_exam = None
         if concluded_exams:
             last_concluded_exam = max(
                 concluded_exams,
                 key=lambda e: e.scheduled_date + timedelta(hours=e.open_duration_hours),
             )
-            
+
         if last_concluded_exam:
-            is_active_based_on_exam = self.__class__.objects.filter(
-                pk=self.pk,
-                user__is_active=True,
-                user__verification__is_approved=True,
-                user__last_login__gte=seven_days_ago,
-                scores__exam=last_concluded_exam,
-            ).distinct().exists()
+            is_active_based_on_exam = (
+                self.__class__.objects.filter(
+                    pk=self.pk,
+                    user__is_active=True,
+                    user__verification__is_approved=True,
+                    user__last_login__gte=seven_days_ago,
+                    scores__exam=last_concluded_exam,
+                )
+                .distinct()
+                .exists()
+            )
 
             if is_active_based_on_exam:
                 return "active"
@@ -841,6 +840,13 @@ class Candidate(models.Model):
         """
         Returns a dictionary of a candidate's performance stats, scores, and available exams.
         """
+        return {
+            "performance": self._get_performance_stats(),
+            "available_exams": self._get_available_exams(),
+        }
+
+    def _get_performance_stats(self):
+        """Helper to compute performance statistics for the candidate."""
         latest_snapshot = (
             CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
             .order_by("-published_at")
@@ -873,35 +879,35 @@ class Candidate(models.Model):
                 "date": recent_scores_list[0]["recorded_at"],
             }
 
-        # available_exams
-        available_exams_list = []
-        if self.is_user_verified:
-            all_relevant_exams = (
-                Exam.objects.filter(stage=self.role, is_active=True)
-                .annotate(question_count=Count("questions"))
-                .order_by("scheduled_date")[:5]
-            )
+        candidate_rank, total_league_candidates = self._get_leaderboard_ranking(
+            latest_snapshot
+        )
 
-            for exam in all_relevant_exams:
-                if exam.is_currently_open:
-                    available_exams_list.append(
-                        {
-                            "id": exam.id,
-                            "title": exam.title,
-                            "description": exam.description,
-                            "open_duration_hours": exam.open_duration_hours,
-                            "scheduled_date": exam.scheduled_date,
-                            "countdown_minutes": exam.countdown_minutes,
-                            "question_count": exam.question_count,
-                            "stage": exam.stage,
-                        }
-                    )
+        return {
+            "stats": {
+                "total_score": float(score_stats["total_score"] or 0),
+                "average_score": round(float(score_stats["average_score"] or 0), 2),
+                "leaderboard_ranking": (
+                    {
+                        "current_rank": candidate_rank,
+                        "total_candidates": total_league_candidates,
+                    }
+                    if self.role == self.Roles.LEAGUE
+                    else None
+                ),
+                "latest_score": latest_score_data,
+                "highest_score": float(score_stats["highest_score"] or 0),
+                "total_exams_taken": score_stats["total_exams_taken"],
+                "lowest_score": float(score_stats["lowest_score"] or 0),
+                "highest_obtainable_score": 100.0,
+            },
+            "exams_taken": self._get_exams_taken(),
+        }
 
-        # leaderboard ranking
-        candidate_rank = None
-        total_league_candidates = 0
+    def _get_leaderboard_ranking(self, latest_snapshot):
+        """Helper to get the candidate's leaderboard ranking."""
         if self.role == self.Roles.LEAGUE and latest_snapshot:
-            league_candidates_qs = Candidate.candidates_by_role(
+            league_candidates_qs = self.__class__.candidates_by_role(
                 self.Roles.LEAGUE
             ).annotate(
                 total_score=Sum(
@@ -920,83 +926,88 @@ class Candidate(models.Model):
 
             ranked_candidate = ranked_candidates_qs.filter(pk=self.pk).first()
             if ranked_candidate:
-                candidate_rank = ranked_candidate.rank
+                return ranked_candidate.rank, league_candidates_qs.count()
 
-            total_league_candidates = league_candidates_qs.count()
+        return None, 0
 
-        # Use prefetched scores for the `exams` list
+    def _get_available_exams(self):
+        """Helper to get a list of available exams for the candidate."""
+        if not self.is_user_verified:
+            return []
+
+        all_relevant_exams = (
+            Exam.objects.filter(stage=self.role, is_active=True)
+            .annotate(question_count=Count("questions"))
+            .order_by("scheduled_date")[:5]
+        )
+
+        available_exams_list = []
+        for exam in all_relevant_exams:
+            if exam.is_currently_open:
+                available_exams_list.append(
+                    {
+                        "id": exam.id,
+                        "title": exam.title,
+                        "description": exam.description,
+                        "open_duration_hours": exam.open_duration_hours,
+                        "scheduled_date": exam.scheduled_date,
+                        "countdown_minutes": exam.countdown_minutes,
+                        "question_count": exam.question_count,
+                        "stage": exam.stage,
+                    }
+                )
+        return available_exams_list
+
+    def _get_exams_taken(self):
+        """Helper to get a list of exams taken by the candidate."""
         if (
             hasattr(self, "_prefetched_objects_cache")
             and "scores" in self._prefetched_objects_cache
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related(
-                "exam", "score_submitted_by__user"
-            ).prefetch_related(
-                "answers__question"
-            ).all()
-    
+            scores = (
+                self.scores.select_related("exam", "score_submitted_by__user")
+                .prefetch_related("answers__question")
+                .all()
+            )
+
         exams_taken_list = []
         for score in scores:
             answers = score.answers.all()
-            
             submission_list = []
             for answer in answers:
-                submission_list.append({
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "selected_option": answer.selected_option,
-                    "answered_at": answer.answered_at.isoformat(),
-                })
-                
-            exams_taken_list.append({
-                "exam_id": score.exam.id,
-                "exam_title": score.exam.title,
-                "exam_stage": score.exam.stage,
-                "scheduled_date": score.exam.scheduled_date,
-                "score": float(score.score),
-                "recorded_at": score.recorded_at.isoformat(),
-                "score_submitted_by": (
-                    score.score_submitted_by.user.get_full_name()
-                    if score.score_submitted_by and score.score_submitted_by.user
-                    else None
-                ),
-                "auto_score": score.auto_score,
-                "submission": submission_list,
-            })
+                submission_list.append(
+                    {
+                        "question_id": answer.question.id,
+                        "question_text": answer.question.text,
+                        "option_a": answer.question.option_a,
+                        "option_b": answer.question.option_b,
+                        "option_c": answer.question.option_c,
+                        "option_d": answer.question.option_d,
+                        "selected_option": answer.selected_option,
+                        "answered_at": answer.answered_at.isoformat(),
+                    }
+                )
 
-        records = {
-            "performance": {
-                "stats": {
-                    "total_score": float(score_stats["total_score"] or 0),
-                    "average_score": round(
-                        float(score_stats["average_score"] or 0), 2
-                    ),
-                    "leaderboard_ranking": (
-                        {
-                            "current_rank": candidate_rank,
-                            "total_candidates": total_league_candidates,
-                        }
-                        if self.role == self.Roles.LEAGUE
+            exams_taken_list.append(
+                {
+                    "exam_id": score.exam.id,
+                    "exam_title": score.exam.title,
+                    "exam_stage": score.exam.stage,
+                    "scheduled_date": score.exam.scheduled_date,
+                    "score": float(score.score),
+                    "recorded_at": score.recorded_at.isoformat(),
+                    "score_submitted_by": (
+                        score.score_submitted_by.user.get_full_name()
+                        if score.score_submitted_by and score.score_submitted_by.user
                         else None
                     ),
-                    "latest_score": latest_score_data,
-                    "highest_score": float(score_stats["highest_score"] or 0),
-                    "total_exams_taken": score_stats["total_exams_taken"],
-                    "lowest_score": float(score_stats["lowest_score"] or 0),
-                    "highest_obtainable_score": 100.0,
-                },
-                "exams_taken": exams_taken_list,
-            },
-            "available_exams": available_exams_list,
-        }
-
-        return records
+                    "auto_score": score.auto_score,
+                    "submission": submission_list,
+                }
+            )
+        return exams_taken_list
 
     class Meta:
         """Meta options for the Candidate model."""
@@ -1037,14 +1048,9 @@ class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_score = models.ForeignKey(
-        CandidateScore,
-        related_name="answers",
-        on_delete=models.PROTECT
+        CandidateScore, related_name="answers", on_delete=models.PROTECT
     )
-    question = models.ForeignKey(
-        Question,
-        on_delete=models.PROTECT
-    )
+    question = models.ForeignKey(Question, on_delete=models.PROTECT)
     selected_option = models.CharField(
         max_length=1,
         choices=Question.Options.choices,
@@ -1067,14 +1073,16 @@ class CandidateAnswer(models.Model):
         if self.candidate_score and self.question:
             username = self.candidate_score.candidate.user.username
             return f"Answer by {username} for Q{self.question.id}"
-        elif self.candidate_score:
+        if self.candidate_score:
             return f"Answer by {self.candidate_score.candidate.user.username} (deleted question)"
-        elif self.question:
+        if self.question:
             return f"Answer for Q{self.question.id} (deleted score)"
         return f"Orphaned Answer #{self.id}"
 
+
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
+
     data = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=False)
@@ -1090,6 +1098,7 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         """Meta options for the LeaderboardSnapshot model."""
 
         ordering = ["-created_at"]
+
 
 class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's score."""

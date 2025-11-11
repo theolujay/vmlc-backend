@@ -2,17 +2,17 @@ import logging
 import string
 import secrets
 from datetime import timedelta
+from typing import Tuple, Any
 
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
-from typing import Tuple, Any
 
 from ..models import EmailOTP, User
 from .email import create_email_html
 
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 
 def generate_password(length: int = 12) -> str:
@@ -23,13 +23,13 @@ def generate_password(length: int = 12) -> str:
     - At least 1 uppercase character (A-Z)
     - At least 1 number (0-9)
     - At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-    
+
     Args:
         length: Desired password length (default: 12)
-        
+
     Returns:
         A secure random password as a string
-        
+
     Raises:
         ValueError: If length is not between 8 and 32
     """
@@ -52,10 +52,11 @@ def generate_password(length: int = 12) -> str:
 
     for _ in range(length - 4):
         password.append(secrets.choice(all_characters))
-    
+
     secrets.SystemRandom().shuffle(password)
 
     return "".join(password)
+
 
 def generate_otp(length: int = 6) -> str:
     """
@@ -93,14 +94,14 @@ def can_resend_otp(user: User, cooldown_minutes: int = 2) -> Tuple[bool, int]:
         if time_since_last >= cooldown_period:
             logger.debug(f"Cooldown period passed for user {user.id}, can resend")
             return True, 0
-        else:
-            seconds_remaining: int = int(
-                (cooldown_period - time_since_last).total_seconds()
-            )
-            logger.info(
-                f"User {user.id} must wait {seconds_remaining} seconds before resending OTP"
-            )
-            return False, seconds_remaining
+
+        seconds_remaining: int = int(
+            (cooldown_period - time_since_last).total_seconds()
+        )
+        logger.info(
+            f"User {user.id} must wait {seconds_remaining} seconds before resending OTP"
+        )
+        return False, seconds_remaining
 
     except Exception as e:
         logger.error(
@@ -120,6 +121,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
     """
     try:
         from ..tasks import send_mail_task
+
         # Check rate limiting for resends
         if is_resend:
             can_resend: bool
@@ -193,6 +195,7 @@ def send_password_change_otp(user: User) -> None:
     """
     try:
         from ..tasks import send_mail_task
+
         # Check rate limiting
         can_resend: bool
         seconds_remaining: int
@@ -288,6 +291,7 @@ def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
         )
         return False
 
+
 def send_welcome_email(user: User, generated_password: str = None) -> None:
     """
     Sends a welcome email to the newly registered user.
@@ -305,7 +309,9 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
         )
     try:
         from ..tasks import send_mail_task
-        subject: str = f"Welcome to Verboheit MLC!"
+
+        subject: str = "Welcome to Verboheit MLC!"
+        message = ""
         if hasattr(user, "candidate_profile"):
             message: str = (
                 f"Hi!\n\n"
@@ -331,11 +337,9 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
                 "The VMLC Team."
             )
         send_mail_task.delay(
-            subject=subject,
-            message=message,
-            recipient_list=[user.email]
+            subject=subject, message=message, recipient_list=[user.email]
         )
-        
+
         logger.info(f"Welcome email sent successfully to user {user.id}")
 
     except Exception as e:

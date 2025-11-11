@@ -17,7 +17,7 @@ from .tasks import (
 )
 
 
-def invalidate_stats_overview_cache(sender=None, instance=None, **kwargs):
+def invalidate_stats_overview_cache(sender=None, _instance=None, **kwargs):
     """Invalidates the cache for the stats overview."""
     cache.delete("stats_overview")
 

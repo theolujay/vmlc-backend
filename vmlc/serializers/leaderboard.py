@@ -31,6 +31,7 @@ class PublishLeaderboardSerializer(serializers.Serializer):
 
         return value
 
+
 class CandidateLeaderboardPerfSerializer(serializers.Serializer):
     """
     Serializer for candidate performance data on the leaderboard.
@@ -39,4 +40,3 @@ class CandidateLeaderboardPerfSerializer(serializers.Serializer):
     id = serializers.IntegerField(source="pk")
     full_name = serializers.CharField(source="user.get_full_name")
     school = serializers.CharField()
-    

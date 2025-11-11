@@ -5,6 +5,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
+
 # from vmlc.tasks import revoke_staff_registration_task
 from ..models import (
     Candidate,
@@ -61,7 +62,9 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         """Validate that passwords match"""
         if not self.initial_data.get("generate_password"):
             if attrs["password"] != attrs["password2"]:
-                raise serializers.ValidationError({"password2": "Passwords do not match."})
+                raise serializers.ValidationError(
+                    {"password2": "Passwords do not match."}
+                )
         return attrs
 
     def create_user(self, user_data, password):

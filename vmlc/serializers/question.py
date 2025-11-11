@@ -11,8 +11,9 @@ class QuestionListSerializer(serializers.ModelSerializer):
     """
     Serializer for exam questions
     """
-    
+
     created_by = MinimalStaffSerializer(read_only=True)
+
     class Meta:
         model = Question
         fields = [
@@ -34,10 +35,12 @@ class QuestionListSerializer(serializers.ModelSerializer):
     def get_related_exams_count(self, obj):
         return obj.get_related_exams()["count"]
 
+
 class QuestionDetailSerializer(serializers.ModelSerializer):
     """
     Serializer for exam questions with created_by staff included.
     """
+
     related_exams = serializers.SerializerMethodField()
     related_exams_count = serializers.SerializerMethodField()
     created_by = MinimalStaffSerializer(read_only=True)
@@ -60,10 +63,17 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "updated_by",
         ]
-        read_only_fields = ["id", "related_exams", "related_exams_count", "created_at", "created_by"]
+        read_only_fields = [
+            "id",
+            "related_exams",
+            "related_exams_count",
+            "created_at",
+            "created_by",
+        ]
 
     def get_related_exams(self, obj):
         return obj.get_related_exams()
+
     def get_related_exams_count(self, obj):
         return obj.get_related_exams()["count"]
 

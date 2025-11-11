@@ -40,7 +40,9 @@ class StaffRoleSerializer(serializers.ModelSerializer):
         - Prevents assigning 'superadmin'.
         - Prevents managers from assigning 'manager' roles.
         """
-        valid_roles: list[str] = [role[0] for role in Staff.Roles.choices if role != "superadmin"]
+        valid_roles: list[str] = [
+            role[0] for role in Staff.Roles.choices if role != "superadmin"
+        ]
         if value not in valid_roles:
             raise serializers.ValidationError(
                 f"'{value}' is not a valid role. "

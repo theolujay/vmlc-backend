@@ -35,20 +35,25 @@ from vmlc.utils.swagger_schemas import (
 logger = logging.getLogger(__name__)
 
 
-class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin, GenericAPIView):
+class ListCreateRetrieveAPIView(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    GenericAPIView,
+):
     """
     A custom view that combines list, create, and retrieve functionality.
-    
+
     This view handles:
     - GET (no ID): List all items
-    - GET (with ID): Retrieve specific item  
+    - GET (with ID): Retrieve specific item
     - POST: Create new item
     """
-    
+
     def get(self, request, *args, **kwargs):
         """
         Handle GET requests - either list all or retrieve specific item.
-        
+
         The key here is checking if we have a lookup parameter (like broadcast_id).
         If we do, it's a retrieve operation. If not, it's a list operation.
         """
@@ -57,7 +62,7 @@ class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, 
             return self.retrieve(request, *args, **kwargs)
         else:
             return self.list(request, *args, **kwargs)
-    
+
     def post(self, request, *args, **kwargs):
         """Handle POST requests for creating new items."""
         return self.create(request, *args, **kwargs)
@@ -73,8 +78,8 @@ class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, 
             401: error_response_401,
             403: error_response_403,
         },
-        tags=['Broadcast'],
-        manual_parameters=[api_key, bearer_auth]
+        tags=["Broadcast"],
+        manual_parameters=[api_key, bearer_auth],
     ),
 )
 @method_decorator(
@@ -89,8 +94,8 @@ class ListCreateRetrieveAPIView(mixins.ListModelMixin, mixins.CreateModelMixin, 
             401: error_response_401,
             403: error_response_403,
         },
-        tags=['Broadcast'],
-        manual_parameters=[api_key, bearer_auth]
+        tags=["Broadcast"],
+        manual_parameters=[api_key, bearer_auth],
     ),
 )
 class BroadcastView(ListCreateRetrieveAPIView):
@@ -99,10 +104,11 @@ class BroadcastView(ListCreateRetrieveAPIView):
     - GET /broadcasts/ : List all broadcasts (with pagination)
     - GET /broadcasts/{id}/ : Get specific broadcast details
     - POST /broadcasts/ : Create and send a new broadcast
-    
+
     Permissions:
         - Only accessible to verified staff with manager+ permissions
     """
+
     permission_classes = VerifiedManagerPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     lookup_url_kwarg = "broadcast_id"
@@ -110,14 +116,14 @@ class BroadcastView(ListCreateRetrieveAPIView):
     def get_serializer_class(self):
         """
         Choose the appropriate serializer based on the action.
-        
+
         - For POST (create): Use detailed serializer for more fields
         - For GET with ID (retrieve): Use detailed serializer for full info
         - For GET without ID (list): Use list serializer for performance
         """
         if self.request.method == "POST":
             return BroadcastDetailSerializer
-        elif hasattr(self, 'kwargs') and self.lookup_url_kwarg in self.kwargs:
+        elif hasattr(self, "kwargs") and self.lookup_url_kwarg in self.kwargs:
             return BroadcastDetailSerializer
         else:
             return BroadcastListSerializer
@@ -125,19 +131,18 @@ class BroadcastView(ListCreateRetrieveAPIView):
     def get_queryset(self):
         """
         Get the base queryset with appropriate optimizations.
-        
+
         Different operations need different query optimizations:
         - List: Basic select_related for created_by__user (for MinimalStaffSerializer)
         - Retrieve: Additional prefetch_related for logs (for BroadcastDetailSerializer)
         """
         queryset = Broadcast.objects.select_related("created_by__user")
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-        
-        if hasattr(self, 'kwargs') and lookup_url_kwarg in self.kwargs:
+
+        if hasattr(self, "kwargs") and lookup_url_kwarg in self.kwargs:
             queryset = queryset.prefetch_related(
                 models.Prefetch(
-                    "logs",
-                    queryset=BroadcastLog.objects.order_by("-attempted_at")
+                    "logs", queryset=BroadcastLog.objects.order_by("-attempted_at")
                 )
             ).order_by("-created_at")
             logger.info(
@@ -151,7 +156,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
                 f"BroadcastView (list): request from user {self.request.user.pk} "
                 f"with query params: {safe_params}"
             )
-            
+
         return queryset
 
     def retrieve(self, request, *args, **kwargs):
@@ -191,7 +196,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
             "Broadcast %s created by user %s. Subject: '%s'",
             broadcast.pk,
             self.request.user.pk,
-            broadcast.subject
+            broadcast.subject,
         )
 
         def on_commit_hook():
@@ -200,10 +205,17 @@ class BroadcastView(ListCreateRetrieveAPIView):
                 Broadcast.objects.filter(pk=broadcast.pk).update(task_id=task_result.id)
                 logger.info(
                     "Broadcast task queued for broadcast %s with task ID %s",
-                    broadcast.pk, task_result.id
+                    broadcast.pk,
+                    task_result.id,
                 )
             except Exception as e:
-                logger.error("Failed to queue broadcast task for broadcast %s: %s", broadcast.pk, str(e))
-                Broadcast.objects.filter(pk=broadcast.pk).update(status=Broadcast.Status.FAILED_TO_QUEUE)
+                logger.error(
+                    "Failed to queue broadcast task for broadcast %s: %s",
+                    broadcast.pk,
+                    str(e),
+                )
+                Broadcast.objects.filter(pk=broadcast.pk).update(
+                    status=Broadcast.Status.FAILED_TO_QUEUE
+                )
 
         transaction.on_commit(on_commit_hook)

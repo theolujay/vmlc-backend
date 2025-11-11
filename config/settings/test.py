@@ -1,6 +1,7 @@
 """
 Test environment for CI/CD pipelines.
 """
+
 import os
 import dj_database_url
 
@@ -11,6 +12,7 @@ if not SECRET_KEY:
     raise ValueError("The SECRET_KEY environment variable is not set.")
 
 from .base import *
+
 DEBUG = False
 INTERNAL_IPS = ["localhost"]
 ALLOWED_HOSTS = ["localhost"]
@@ -35,8 +37,8 @@ STORAGES = {
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
-CELERY_BROKER_URL = 'memory://'  # Use in-memory broker for tests
-CELERY_RESULT_BACKEND = 'cache+memory://'  # Use in-memory results
+CELERY_BROKER_URL = "memory://"  # Use in-memory broker for tests
+CELERY_RESULT_BACKEND = "cache+memory://"  # Use in-memory results
 
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -77,16 +79,16 @@ LOGGING = {
             # "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
             "formatter": "colored",
         },
-    #     "file": {
-    #         "level": "DEBUG",
-    #         "class": "logging.handlers.RotatingFileHandler",
-    #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-    #         "formatter": "json",
-    #         "maxBytes": 5 * 1024 * 1024,  # 5MB
-    #         "backupCount": 3,
-    #         "encoding": "utf-8",
-    #         "delay": True,
-    #     },
+        #     "file": {
+        #         "level": "DEBUG",
+        #         "class": "logging.handlers.RotatingFileHandler",
+        #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
+        #         "formatter": "json",
+        #         "maxBytes": 5 * 1024 * 1024,  # 5MB
+        #         "backupCount": 3,
+        #         "encoding": "utf-8",
+        #         "delay": True,
+        #     },
     },
     "root": {
         "level": "WARNING",
@@ -104,7 +106,6 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        
         # Django - only important stuff
         "django": {
             "level": "WARNING",  # Only warnings/errors
