@@ -10,6 +10,7 @@ import vmlc.storage_backends
 from django.conf import settings
 from django.db import migrations, models
 
+
 def validate_profile_photo(
     value,
 ):
@@ -26,6 +27,8 @@ def validate_profile_photo(
 
     if value.size > 10 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 10MB.")
+
+
 class Migration(migrations.Migration):
 
     initial = True

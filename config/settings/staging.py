@@ -15,13 +15,15 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="pycparser")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "staging.env")
 
+
 def read_secret(secret_name, default=""):
     """Read secret from file if SECRET_NAME_FILE env var exists"""
-    file_path = os.getenv(f'{secret_name}_FILE')
+    file_path = os.getenv(f"{secret_name}_FILE")
     if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return f.read().strip()
     return os.getenv(secret_name, default)
+
 
 SECRET_KEY = read_secret("SECRET_KEY")
 if not SECRET_KEY:
@@ -48,23 +50,21 @@ if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL environment variable is required")
 
 db_config = dj_database_url.config(
-        default=DATABASE_URL,
-        engine="dj_db_conn_pool.backends.postgresql",
-        conn_health_checks=True,
-    )
+    default=DATABASE_URL,
+    engine="dj_db_conn_pool.backends.postgresql",
+    conn_health_checks=True,
+)
 
-db_config['POOL_OPTIONS'] = {
-    'POOL_SIZE': 3,
-    'MAX_OVERFLOW': 5,
-    'RECYCLE': 3600,
-    'PRE_PING': True,
+db_config["POOL_OPTIONS"] = {
+    "POOL_SIZE": 3,
+    "MAX_OVERFLOW": 5,
+    "RECYCLE": 3600,
+    "PRE_PING": True,
 }
 
-db_config.pop('CONN_MAX_AGE', None)
+db_config.pop("CONN_MAX_AGE", None)
 
-DATABASES = {
-    "default": db_config
-}
+DATABASES = {"default": db_config}
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "anon": "1000/day",  # Unauthenticated
@@ -211,11 +211,13 @@ if cors_origins:
 else:
     CORS_ALLOWED_ORIGINS = []
 
-CORS_ALLOW_CREDENTIALS = read_secret("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
-CORS_ALLOW_ALL_ORIGINS = read_secret("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
-CORS_ALLOW_METHODS = (
-    *default_methods,
+CORS_ALLOW_CREDENTIALS = (
+    read_secret("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 )
+CORS_ALLOW_ALL_ORIGINS = (
+    read_secret("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+)
+CORS_ALLOW_METHODS = (*default_methods,)
 
 CORS_ALLOW_HEADERS = (
     *default_headers,
@@ -223,7 +225,9 @@ CORS_ALLOW_HEADERS = (
 )
 
 # === EMAIL CONFIGURATION ===
-EMAIL_BACKEND = read_secret("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_BACKEND = read_secret(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
 EMAIL_HOST = read_secret("EMAIL_HOST")
 EMAIL_PORT = int(read_secret("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = read_secret("EMAIL_USE_TLS", "True").lower() == "true"
@@ -345,7 +349,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
-FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "https://staging-portal.verboheit.org")
+FRONTEND_BASE_URL = read_secret(
+    "FRONTEND_BASE_URL", "https://staging-portal.verboheit.org"
+)
 FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
 FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
 FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"

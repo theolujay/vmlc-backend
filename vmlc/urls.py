@@ -142,7 +142,6 @@ urlpatterns = [
         AssignCandidateRoleView.as_view(),
         name="candidate-role-assign",
     ),
-
     path(
         "candidates/<uuid:candidate_id>/exam-history/",
         ExamHistoryView.as_view(),
@@ -204,16 +203,20 @@ urlpatterns = [
         QuestionDetailView.as_view(),
         name="question-detail",
     ),
-    path('questions/<int:question_id>/exams/', QuestionExamAssociationView.as_view(), name='question-exam-associations'),
     path(
-        'questions/bulk-add-to-exams/',
-        BulkAddQuestionsToExamsView.as_view(),
-        name='bulk-question-exam-associations'
+        "questions/<int:question_id>/exams/",
+        QuestionExamAssociationView.as_view(),
+        name="question-exam-associations",
     ),
     path(
-        'questions/bulk-archive/',
+        "questions/bulk-add-to-exams/",
+        BulkAddQuestionsToExamsView.as_view(),
+        name="bulk-question-exam-associations",
+    ),
+    path(
+        "questions/bulk-archive/",
         BulkQuestionArchiveView.as_view(),
-        name='bulk-question-archive'
+        name="bulk-question-archive",
     ),
     # =============================================================================
     # SCORING & RESULTS
@@ -227,10 +230,16 @@ urlpatterns = [
     # LEADERBOARD
     # =============================================================================
     path("leaderboard/", LoadLeaderboardView.as_view(), name="load-leaderboard"),
-    path("leaderboard/<str:stage>/<int:level>/candidate/<int:candidate_id>/", 
-         LoadLeaderboardDetailView.as_view(), 
-         name="load-leaderboard-detail"),
-    path("leaderboard/publish/", PublishLeaderboardView.as_view(), name="publish-leaderboard"),
+    path(
+        "leaderboard/<str:stage>/<int:level>/candidate/<int:candidate_id>/",
+        LoadLeaderboardDetailView.as_view(),
+        name="load-leaderboard-detail",
+    ),
+    path(
+        "leaderboard/publish/",
+        PublishLeaderboardView.as_view(),
+        name="publish-leaderboard",
+    ),
     # =============================================================================
     # DASHBOARDS & ACCOUNT MANAGEMENT
     # =============================================================================

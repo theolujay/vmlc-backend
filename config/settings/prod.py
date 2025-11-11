@@ -18,9 +18,9 @@ load_dotenv(BASE_DIR / "prod.env")
 
 def read_secret(secret_name, default=""):
     """Read secret from file if SECRET_NAME_FILE env var exists"""
-    file_path = os.getenv(f'{secret_name}_FILE')
+    file_path = os.getenv(f"{secret_name}_FILE")
     if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return f.read().strip()
     return os.getenv(secret_name, default)
 
@@ -50,23 +50,21 @@ if not DATABASE_URL:
     raise ImproperlyConfigured("DATABASE_URL environment variable is required")
 
 db_config = dj_database_url.config(
-        default=DATABASE_URL,
-        engine="dj_db_conn_pool.backends.postgresql",
-        conn_health_checks=True,
-    )
+    default=DATABASE_URL,
+    engine="dj_db_conn_pool.backends.postgresql",
+    conn_health_checks=True,
+)
 
-db_config['POOL_OPTIONS'] = {
-    'POOL_SIZE': 3,
-    'MAX_OVERFLOW': 5,
-    'RECYCLE': 3600,
-    'PRE_PING': True,
+db_config["POOL_OPTIONS"] = {
+    "POOL_SIZE": 3,
+    "MAX_OVERFLOW": 5,
+    "RECYCLE": 3600,
+    "PRE_PING": True,
 }
 
-db_config.pop('CONN_MAX_AGE', None)
+db_config.pop("CONN_MAX_AGE", None)
 
-DATABASES = {
-    "default": db_config
-}
+DATABASES = {"default": db_config}
 
 REQUIRED_AWS_VARS = [
     "AWS_ACCESS_KEY_ID",
@@ -195,11 +193,13 @@ if cors_origins:
 else:
     CORS_ALLOWED_ORIGINS = []
 
-CORS_ALLOW_CREDENTIALS = read_secret("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
-CORS_ALLOW_ALL_ORIGINS = read_secret("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
-CORS_ALLOW_METHODS = (
-    *default_methods,
+CORS_ALLOW_CREDENTIALS = (
+    read_secret("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 )
+CORS_ALLOW_ALL_ORIGINS = (
+    read_secret("CORS_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+)
+CORS_ALLOW_METHODS = (*default_methods,)
 
 CORS_ALLOW_HEADERS = (
     *default_headers,
@@ -253,7 +253,7 @@ CELERY_TASK_EAGER_PROPAGATES = False
 # Optimized for 12GB/6vCPU VPS for production only
 CELERY_WORKER_CONCURRENCY = 4
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-CELERY_WORKER_MAX_MEMORY_PER_CHILD = 1000000 # ~1000 MB
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 1000000  # ~1000 MB
 
 # Production monitoring and reliability
 CELERY_TASK_TRACK_STARTED = True

@@ -69,8 +69,16 @@ docs_urlpatterns = [
         schema_view.with_ui("redoc", cache_timeout=0),
         name="schema-redoc",
     ),
-    path('spec/', serve, {'document_root': settings.BASE_DIR / 'docs/views', 'path': 'index.html'}),
-    re_path(r'^spec/(?P<path>.*)$', serve, {'document_root': settings.BASE_DIR / 'docs/views'}),
+    path(
+        "spec/",
+        serve,
+        {"document_root": settings.BASE_DIR / "docs/views", "path": "index.html"},
+    ),
+    re_path(
+        r"^spec/(?P<path>.*)$",
+        serve,
+        {"document_root": settings.BASE_DIR / "docs/views"},
+    ),
 ]
 
 urlpatterns = [

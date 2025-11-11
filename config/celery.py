@@ -3,6 +3,7 @@ from celery import Celery
 from celery.schedules import crontab
 from django.apps import apps
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning, module="pycparser")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
@@ -24,6 +25,6 @@ app.conf.beat_schedule = {
     },
     "update-exam-statuses-task": {
         "task": "update_exam_statuses_task",
-        "schedule": crontab(minute="*/30")
-    }
+        "schedule": crontab(minute="*/30"),
+    },
 }

@@ -38,7 +38,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "status",
             "is_user_verified",
         ]
-        
+
     def get_status(self, obj: Candidate):
         return obj.get_status
 
@@ -87,28 +87,30 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             # Cache for 24 hours.
             cache.set(cache_key, records, timeout=86400)
         return records
-    
+
     def get_face_id(self, obj: Candidate):
         """
         Safely returns the face ID URL if it exists, otherwise returns None.
         This prevents errors when a candidate hasn't uploaded a face ID.
         """
-        if obj.face_id and hasattr(obj.face_id, 'url'):
+        if obj.face_id and hasattr(obj.face_id, "url"):
             return obj.face_id.url
         return None
+
     def get_verification_document(self, obj: Candidate):
         """
         Safely returns the verification document URL if it exists, otherwise returns None.
         This prevents errors when a candidate hasn't uploaded a verification document.
         """
-        if obj.verification_document and hasattr(obj.verification_document, 'url'):
+        if obj.verification_document and hasattr(obj.verification_document, "url"):
             return obj.verification_document.url
         return None
+
     def get_id_card(self, obj: Candidate):
         """
         Safely returns the ID card URL if it exists, otherwise returns None.
         This prevents errors when a candidate hasn't uploaded an ID card.
         """
-        if obj.id_card and hasattr(obj.id_card, 'url'):
+        if obj.id_card and hasattr(obj.id_card, "url"):
             return obj.id_card.url
         return None

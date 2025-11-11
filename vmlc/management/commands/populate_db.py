@@ -23,7 +23,7 @@ from vmlc.models import (
     FeatureFlag,
     UserVerification,
     LeaderboardSnapshot,
-    CandidateScoreSnapshot
+    CandidateScoreSnapshot,
 )
 from django.core.management.base import BaseCommand
 from vmlc.serializers.candidate import MinimalCandidateSerializer
@@ -56,8 +56,12 @@ class Command(BaseCommand):
 
         # Create FeatureFlags
         self.stdout.write("Creating feature flags...")
-        candidate_registration, _ = FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
-        staff_registratio, _ = FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
+        candidate_registration, _ = FeatureFlag.objects.get_or_create(
+            key="candidate_registration", value=True
+        )
+        staff_registratio, _ = FeatureFlag.objects.get_or_create(
+            key="staff_registration", value=True
+        )
 
         # Create staff users
         self.stdout.write("Creating staff users...")
@@ -80,7 +84,7 @@ class Command(BaseCommand):
                 user=user,
                 is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
-                is_rejected=random.choice([True, False])
+                is_rejected=random.choice([True, False]),
             )
             staff_list.append(staff)
 
@@ -105,7 +109,7 @@ class Command(BaseCommand):
                 user=user,
                 is_approved=random.choice([True, False]),
                 is_pending=random.choice([True, False]),
-                is_rejected=random.choice([True, False])
+                is_rejected=random.choice([True, False]),
             )
             candidate_list.append(candidate)
 
@@ -163,9 +167,11 @@ class Command(BaseCommand):
 
         # Generate Leaderboard Snapshot
         self.stdout.write("Generating leaderboard snapshot...")
-        league_candidates = Candidate.objects.filter(role="league", user__is_active=True).annotate(
-            total_score=Sum('scores__score')
-        ).order_by('-total_score')
+        league_candidates = (
+            Candidate.objects.filter(role="league", user__is_active=True)
+            .annotate(total_score=Sum("scores__score"))
+            .order_by("-total_score")
+        )
 
         leaderboard_data = [
             {
@@ -185,9 +191,9 @@ class Command(BaseCommand):
         # Generate Candidate Score Snapshot
         self.stdout.write("Generating candidate score snapshot...")
         all_candidates = Candidate.objects.annotate(
-            total_score=Sum('scores__score'),
-            average_score=Avg('scores__score'),
-            exams_taken=Count('scores')
+            total_score=Sum("scores__score"),
+            average_score=Avg("scores__score"),
+            exams_taken=Count("scores"),
         )
 
         scores_data = []

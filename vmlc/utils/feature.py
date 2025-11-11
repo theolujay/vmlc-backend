@@ -22,6 +22,7 @@ class ToggleFeatureFlagView(APIView):
     A generic view to toggle a boolean feature flag.
     Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
+
     swagger_schema = None
     permission_classes = [
         IsAuthenticated,

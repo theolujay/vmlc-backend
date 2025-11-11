@@ -36,9 +36,10 @@ class StaffListSerializer(serializers.ModelSerializer):
             "occupation",
             "is_user_verified",
         ]
-        
+
     def get_status(self, obj: Staff):
         return obj.get_status
+
 
 class StaffDetailSerializer(serializers.ModelSerializer):
     """

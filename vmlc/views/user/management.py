@@ -433,6 +433,7 @@ class CandidateInviteView(BaseInviteView):
         """
         return super().post(request, *args, **kwargs)
 
+
 @method_decorator(
     name="get",
     decorator=swagger_auto_schema(
@@ -483,12 +484,10 @@ class UserListView(ListAPIView):
                 or request.query_params.get("profile") == "staff"
             ):
                 return Response(
-                    {
-                        "detail": "manager or superadmin role required"
-                    },
-                    status=status.HTTP_403_FORBIDDEN
+                    {"detail": "manager or superadmin role required"},
+                    status=status.HTTP_403_FORBIDDEN,
                 )
-            
+
         if staff.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
             if stats_overview is None:
                 generate_stats_overview_task.delay()
@@ -501,14 +500,9 @@ class UserListView(ListAPIView):
             response.data["stats_overview"] = stats_overview
             response.data["results"] = response.data.pop("results")
             return response
-        
+
         serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {
-                "stats_overview": stats_overview,
-                "results": serializer.data
-            }
-        )
+        return Response({"stats_overview": stats_overview, "results": serializer.data})
 
     def get_serializer_class(self):
         requested_profile = self.request.query_params.get("profile")
@@ -536,6 +530,3 @@ class UserListView(ListAPIView):
             "staff_profile", "candidate_profile"
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
-
-        
-    

@@ -14,7 +14,6 @@ from .email import create_email_html
 logger = logging.getLogger(__name__)
 
 
-
 def generate_password(length: int = 12) -> str:
     """
     Generates a secure random password that meets these criteria:
@@ -23,13 +22,13 @@ def generate_password(length: int = 12) -> str:
     - At least 1 uppercase character (A-Z)
     - At least 1 number (0-9)
     - At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-    
+
     Args:
         length: Desired password length (default: 12)
-        
+
     Returns:
         A secure random password as a string
-        
+
     Raises:
         ValueError: If length is not between 8 and 32
     """
@@ -52,10 +51,11 @@ def generate_password(length: int = 12) -> str:
 
     for _ in range(length - 4):
         password.append(secrets.choice(all_characters))
-    
+
     secrets.SystemRandom().shuffle(password)
 
     return "".join(password)
+
 
 def generate_otp(length: int = 6) -> str:
     """
@@ -120,6 +120,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
     """
     try:
         from ..tasks import send_mail_task
+
         # Check rate limiting for resends
         if is_resend:
             can_resend: bool
@@ -193,6 +194,7 @@ def send_password_change_otp(user: User) -> None:
     """
     try:
         from ..tasks import send_mail_task
+
         # Check rate limiting
         can_resend: bool
         seconds_remaining: int
@@ -288,6 +290,7 @@ def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
         )
         return False
 
+
 def send_welcome_email(user: User, generated_password: str = None) -> None:
     """
     Sends a welcome email to the newly registered user.
@@ -305,6 +308,7 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
         )
     try:
         from ..tasks import send_mail_task
+
         subject: str = f"Welcome to Verboheit MLC!"
         if hasattr(user, "candidate_profile"):
             message: str = (
@@ -331,11 +335,9 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
                 "The VMLC Team."
             )
         send_mail_task.delay(
-            subject=subject,
-            message=message,
-            recipient_list=[user.email]
+            subject=subject, message=message, recipient_list=[user.email]
         )
-        
+
         logger.info(f"Welcome email sent successfully to user {user.id}")
 
     except Exception as e:

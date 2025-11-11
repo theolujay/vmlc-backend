@@ -16,13 +16,15 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+
 def read_secret(secret_name, default=""):
     """Read secret from file if SECRET_NAME_FILE env var exists"""
-    file_path = os.getenv(f'{secret_name}_FILE')
+    file_path = os.getenv(f"{secret_name}_FILE")
     if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return f.read().strip()
     return os.getenv(secret_name, default)
+
 
 SECRET_KEY = read_secret("SECRET_KEY")
 if not SECRET_KEY:
@@ -40,7 +42,7 @@ ALLOWED_HOSTS = [
     host.strip() for host in read_secret("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-if 'test' not in sys.argv:
+if "test" not in sys.argv:
     INSTALLED_APPS += [
         "debug_toolbar",
         "django_extensions",
@@ -61,23 +63,21 @@ DATABASE_URL = read_secret(
 )
 
 db_config = dj_database_url.config(
-        default=DATABASE_URL,
-        engine="dj_db_conn_pool.backends.postgresql",
-        conn_health_checks=True,
-    )
+    default=DATABASE_URL,
+    engine="dj_db_conn_pool.backends.postgresql",
+    conn_health_checks=True,
+)
 
-db_config['POOL_OPTIONS'] = {
-    'POOL_SIZE': 5,
-    'MAX_OVERFLOW': 10,
-    'RECYCLE': 3600,
-    'PRE_PING': True,
+db_config["POOL_OPTIONS"] = {
+    "POOL_SIZE": 5,
+    "MAX_OVERFLOW": 10,
+    "RECYCLE": 3600,
+    "PRE_PING": True,
 }
 
-db_config.pop('CONN_MAX_AGE', None)
+db_config.pop("CONN_MAX_AGE", None)
 
-DATABASES = {
-    "default": db_config
-}
+DATABASES = {"default": db_config}
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "anon": "10000/day",  # Unauthenticated
@@ -125,7 +125,10 @@ ADMINS = [
 EMAIL_SUBJECT_PREFIX = "[VMLC Portal]"
 SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
-BROADCAST_WEBHOOK_URL = read_secret("BROADCAST_WEBHOOK_URL", "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N")
+BROADCAST_WEBHOOK_URL = read_secret(
+    "BROADCAST_WEBHOOK_URL",
+    "https://discord.com/api/webhooks/1370874847856562217/LkstQ0YyZrqE_Unp01TxT2tYvChJvc0E-DXzUNp5sm1pa7GPq_1ERj67R5ZL96Dh1S0N",
+)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -281,16 +284,16 @@ LOGGING = {
             # "formatter": "colored" if read_secret("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
             "formatter": "colored",
         },
-    #     "file": {
-    #         "level": "DEBUG",
-    #         "class": "logging.handlers.RotatingFileHandler",
-    #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-    #         "formatter": "json",
-    #         "maxBytes": 5 * 1024 * 1024,  # 5MB
-    #         "backupCount": 3,
-    #         "encoding": "utf-8",
-    #         "delay": True,
-    #     },
+        #     "file": {
+        #         "level": "DEBUG",
+        #         "class": "logging.handlers.RotatingFileHandler",
+        #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
+        #         "formatter": "json",
+        #         "maxBytes": 5 * 1024 * 1024,  # 5MB
+        #         "backupCount": 3,
+        #         "encoding": "utf-8",
+        #         "delay": True,
+        #     },
     },
     "root": {
         "level": "WARNING",
@@ -308,7 +311,6 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        
         # Django - only important stuff
         "django": {
             "level": "WARNING",  # Only warnings/errors

@@ -1,5 +1,5 @@
 def create_email_html(subject, message, otp=None, otp_message=None):
-    html_template = '''
+    html_template = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
 <head>
@@ -164,25 +164,24 @@ text-decoration: none
 </td></tr></table></td></tr></table>
 </td></tr></table>
 </td></tr><tr><td><div class="t40" style="mso-line-height-rule:exactly;mso-line-height-alt:50px;line-height:50px;font-size:1px;display:block;">&nbsp;&nbsp;</div></td></tr></table></td></tr></table></div><div class="gmail-fix" style="display: none; white-space: nowrap; font: 15px courier; line-height: 0;">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</div></body>
-</html>'''
-    
+</html>"""
+
     html_message = html_template.replace("Your OTP Code", subject)
-    
+
     if otp:
         html_message = html_message.replace("123456", otp)
         if otp_message:
             html_message = html_message.replace(
-                '...expires in 10 minutes.',
-                otp_message
+                "...expires in 10 minutes.", otp_message
             )
     else:
         html_message = html_message.replace(
             '<p class="t12" style="margin:0;Margin:0;font-family:Roboto Mono,monospace;line-height:25px;font-weight:600;font-style:normal;font-size:40px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:center;mso-line-height-rule:exactly;mso-text-raise:-4px;">123456</p>',
-            f'<p style="font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif; line-height: 25px; font-size: 16px; color: #141414; text-align: left; white-space: pre-wrap; word-break: break-word;">{message}</p>'
+            f'<p style="font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif; line-height: 25px; font-size: 16px; color: #141414; text-align: left; white-space: pre-wrap; word-break: break-word;">{message}</p>',
         )
         html_message = html_message.replace(
             '<p class="t17" style="margin:0;Margin:0;font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:25px;font-weight:400;font-style:italic;font-size:12px;text-decoration:none;text-transform:none;letter-spacing:-0.1px;direction:ltr;color:#141414;text-align:right;mso-line-height-rule:exactly;mso-text-raise:4px;">...expires in 10 minutes.</p>',
-            ''
+            "",
         )
-        
+
     return html_message

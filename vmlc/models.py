@@ -1,4 +1,3 @@
-
 """
 This module defines the database models for the VMLC backend application.
 """
@@ -85,7 +84,7 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-def validate_profile_picture(value): 
+def validate_profile_picture(value):
     """Validate profile picture file"""
     if not value:
         return
@@ -99,6 +98,7 @@ def validate_profile_picture(value):
 
     if value.size > 5 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 5MB.")
+
 
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""
@@ -183,6 +183,7 @@ class User(AbstractUser):
     def get_full_name(self):
         """Return the user's full name."""
         return f"{self.first_name} {self.last_name}".strip()
+
 
 class UserVerification(models.Model):
     """Model for user verification data."""
@@ -295,7 +296,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         default=None,
         null=True,
         blank=True,
-        related_name="invited_staffs"
+        related_name="invited_staffs",
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -365,7 +366,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             return "active"
 
         return "inactive"
-    
+
     def set_verification_override(self, value):
         """Manually override verification status"""
         self._verification_override = value
@@ -428,23 +429,20 @@ class Question(models.Model):
     )
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
-    
+
     def archive(self):
         """Archive the question instead of deleting it."""
         self.is_archived = True
         self.archived_at = timezone.now()
         self.save()
-    
+
     def get_related_exams(self):
         """Get a list of exams a question has been added to."""
         exams = self.exams.values(
-            'id', 'title', 'description', 'stage', 'scheduled_date'
+            "id", "title", "description", "stage", "scheduled_date"
         )
-        
-        return {
-            "count": self.exams.count(),
-            "list": list(exams)
-        }
+
+        return {"count": self.exams.count(), "list": list(exams)}
 
     def __str__(self):
         """Return a string representation of the question."""
@@ -461,7 +459,7 @@ class Exam(models.Model):
 
         SCREENING = "screening", "Screening"
         LEAGUE = "league", "League"
-        
+
     class Status(models.TextChoices):
         """Statuses for an exam."""
 
@@ -479,7 +477,7 @@ class Exam(models.Model):
     level = models.PositiveIntegerField(
         default=1,
         db_index=True,
-        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)"
+        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -500,10 +498,10 @@ class Exam(models.Model):
     countdown_minutes = models.PositiveIntegerField(default=60)
     scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
-    
+
     questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         # # Ensure only one exam per stage-level combination can be active at a time
         # constraints = [
@@ -514,20 +512,20 @@ class Exam(models.Model):
         #     )
         # ]
         indexes = [
-            models.Index(fields=['stage', 'level', 'is_active']),
+            models.Index(fields=["stage", "level", "is_active"]),
         ]
-    
+
     def __str__(self):
         """Return a string representation of the exam."""
         if self.stage == self.Stages.SCREENING:
             return f"Screening {self.level}: {self.title} ({self.id})"
         return f"League {self.level}: {self.title} ({self.id})"
-    
+
     @property
     def stage_display(self):
         """Returns a formatted stage display like 'screening_1' or 'league_2'"""
         return f"{self.stage}_{self.level}"
-    
+
     @classmethod
     def active_exams(cls):
         """
@@ -553,12 +551,12 @@ class Exam(models.Model):
         now = timezone.now()
         end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
         return self.scheduled_date <= now <= end_time
-        
+
     @property
     def status(self):
         """
         Returns the current status of the exam.
-        
+
         Status flow:
         - DRAFT: No scheduled date set
         - CANCELLED: Exam was deactivated (is_active=False)
@@ -580,7 +578,9 @@ class Exam(models.Model):
             return self.Status.DRAFT
         now = timezone.now()
         # Calculate the conclusion time
-        conclusion_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
+        conclusion_time = self.scheduled_date + timedelta(
+            hours=self.open_duration_hours
+        )
         # Check time-based statuses
         if now < self.scheduled_date:
             return self.Status.SCHEDULED
@@ -588,16 +588,16 @@ class Exam(models.Model):
             return self.Status.ONGOING
         else:
             return self.Status.CONCLUDED
-            
+
     @property
     def concluded_at(self):
-    
+
         if self.scheduled_date is not None and self.open_duration_hours is not None:
             now = timezone.now()
             end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
             if end_time < now:
                 return end_time
-        return None        
+        return None
 
     def get_question_count(self):
         """
@@ -692,7 +692,7 @@ class Candidate(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="invited_candidates"
+        related_name="invited_candidates",
     )
     updated_at = models.DateTimeField(auto_now=True)
     role = models.CharField(
@@ -769,7 +769,7 @@ class Candidate(models.Model):
                 "average_score": float(self.average_score or 0),
             }
         return None
-    
+
     @property
     def get_status(self):
         """Get the user status"""
@@ -782,24 +782,30 @@ class Candidate(models.Model):
             pass
 
         seven_days_ago = timezone.now() - timedelta(days=7)
-        
+
         all_exams = Exam.objects.filter(is_active=True, scheduled_date__isnull=False)
-        concluded_exams = [exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED]
+        concluded_exams = [
+            exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED
+        ]
         last_concluded_exam = None
         if concluded_exams:
             last_concluded_exam = max(
                 concluded_exams,
                 key=lambda e: e.scheduled_date + timedelta(hours=e.open_duration_hours),
             )
-            
+
         if last_concluded_exam:
-            is_active_based_on_exam = self.__class__.objects.filter(
-                pk=self.pk,
-                user__is_active=True,
-                user__verification__is_approved=True,
-                user__last_login__gte=seven_days_ago,
-                scores__exam=last_concluded_exam,
-            ).distinct().exists()
+            is_active_based_on_exam = (
+                self.__class__.objects.filter(
+                    pk=self.pk,
+                    user__is_active=True,
+                    user__verification__is_approved=True,
+                    user__last_login__gte=seven_days_ago,
+                    scores__exam=last_concluded_exam,
+                )
+                .distinct()
+                .exists()
+            )
 
             if is_active_based_on_exam:
                 return "active"
@@ -931,52 +937,54 @@ class Candidate(models.Model):
         ):
             scores = self._prefetched_objects_cache["scores"]
         else:
-            scores = self.scores.select_related(
-                "exam", "score_submitted_by__user"
-            ).prefetch_related(
-                "answers__question"
-            ).all()
-    
+            scores = (
+                self.scores.select_related("exam", "score_submitted_by__user")
+                .prefetch_related("answers__question")
+                .all()
+            )
+
         exams_taken_list = []
         for score in scores:
             answers = score.answers.all()
-            
+
             submission_list = []
             for answer in answers:
-                submission_list.append({
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "selected_option": answer.selected_option,
-                    "answered_at": answer.answered_at.isoformat(),
-                })
-                
-            exams_taken_list.append({
-                "exam_id": score.exam.id,
-                "exam_title": score.exam.title,
-                "exam_stage": score.exam.stage,
-                "scheduled_date": score.exam.scheduled_date,
-                "score": float(score.score),
-                "recorded_at": score.recorded_at.isoformat(),
-                "score_submitted_by": (
-                    score.score_submitted_by.user.get_full_name()
-                    if score.score_submitted_by and score.score_submitted_by.user
-                    else None
-                ),
-                "auto_score": score.auto_score,
-                "submission": submission_list,
-            })
+                submission_list.append(
+                    {
+                        "question_id": answer.question.id,
+                        "question_text": answer.question.text,
+                        "option_a": answer.question.option_a,
+                        "option_b": answer.question.option_b,
+                        "option_c": answer.question.option_c,
+                        "option_d": answer.question.option_d,
+                        "selected_option": answer.selected_option,
+                        "answered_at": answer.answered_at.isoformat(),
+                    }
+                )
+
+            exams_taken_list.append(
+                {
+                    "exam_id": score.exam.id,
+                    "exam_title": score.exam.title,
+                    "exam_stage": score.exam.stage,
+                    "scheduled_date": score.exam.scheduled_date,
+                    "score": float(score.score),
+                    "recorded_at": score.recorded_at.isoformat(),
+                    "score_submitted_by": (
+                        score.score_submitted_by.user.get_full_name()
+                        if score.score_submitted_by and score.score_submitted_by.user
+                        else None
+                    ),
+                    "auto_score": score.auto_score,
+                    "submission": submission_list,
+                }
+            )
 
         records = {
             "performance": {
                 "stats": {
                     "total_score": float(score_stats["total_score"] or 0),
-                    "average_score": round(
-                        float(score_stats["average_score"] or 0), 2
-                    ),
+                    "average_score": round(float(score_stats["average_score"] or 0), 2),
                     "leaderboard_ranking": (
                         {
                             "current_rank": candidate_rank,
@@ -1037,14 +1045,9 @@ class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_score = models.ForeignKey(
-        CandidateScore,
-        related_name="answers",
-        on_delete=models.PROTECT
+        CandidateScore, related_name="answers", on_delete=models.PROTECT
     )
-    question = models.ForeignKey(
-        Question,
-        on_delete=models.PROTECT
-    )
+    question = models.ForeignKey(Question, on_delete=models.PROTECT)
     selected_option = models.CharField(
         max_length=1,
         choices=Question.Options.choices,
@@ -1073,8 +1076,10 @@ class CandidateAnswer(models.Model):
             return f"Answer for Q{self.question.id} (deleted score)"
         return f"Orphaned Answer #{self.id}"
 
+
 class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of the leaderboard."""
+
     data = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=False)
@@ -1090,6 +1095,7 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         """Meta options for the LeaderboardSnapshot model."""
 
         ordering = ["-created_at"]
+
 
 class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's score."""

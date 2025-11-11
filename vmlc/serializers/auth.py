@@ -5,7 +5,11 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
-from vmlc.utils.auth import send_otp_to_email, resend_otp_to_email, send_password_change_otp
+from vmlc.utils.auth import (
+    send_otp_to_email,
+    resend_otp_to_email,
+    send_password_change_otp,
+)
 
 from ..models import EmailOTP, User
 from .. import utils
@@ -83,11 +87,13 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
         logger.info(f"Email verified successfully for user {user.id}")
         return user
 
+
 class SendEmailOTPSerializer(serializers.Serializer):
     """Serializer for resending email OTP."""
+
     email = serializers.EmailField()
     resend = serializers.BooleanField(required=False, default=False)
-    
+
     def validate_email(self, value: str) -> str:
         """Validate email and check if user exists."""
         try:
@@ -96,19 +102,19 @@ class SendEmailOTPSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "No account found with this email address."
             )
-        
+
         if user.is_email_verified:
             raise serializers.ValidationError("Email is already verified.")
-        
+
         # Store user in context for later use
         self.context["user"] = user
         return value
-    
+
     def save(self, **validated_data) -> User:
         """Send or resend OTP to user's email."""
         user = self.context["user"]
         resend = validated_data.get("resend", False)
-        
+
         if resend:
             resend_otp_to_email(user)
         else:

@@ -40,6 +40,7 @@ class BaseRegistrationView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         from vmlc.utils.auth import generate_password
+
         safe_data = sanitize_data(request.data)
         logger.info(
             f"{self.__class__.__name__}: Registration attempt with data: {safe_data}"

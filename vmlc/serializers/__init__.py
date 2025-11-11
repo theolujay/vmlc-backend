@@ -24,7 +24,7 @@ from .exam import (
     CandidateExamSerializer,
     ExamResultSerializer,
 )
-from .leaderboard import(
+from .leaderboard import (
     PublishLeaderboardSerializer,
     CandidateLeaderboardPerfSerializer,
     LeaderboardSnapshotListSerializer,
@@ -83,7 +83,7 @@ __all__ = [
     "ExamDetailSerializer",
     "CandidateExamSerializer",
     "ExamResultSerializer",
-    #leaderboard
+    # leaderboard
     "LeaderboardSnapshotListSerializer",
     "CandidateLeaderboardPerfSerializer",
     "PublishLeaderboardSerializer",

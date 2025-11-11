@@ -114,6 +114,7 @@ class SubmitScoreView(APIView):
         cache.delete(f"exam_history_{candidate.pk}")
         # Invalidate all staff dashboards as candidate score data changes
         from vmlc.utils.helpers import invalidate_all_staff_dashboards
+
         invalidate_all_staff_dashboards()
 
         return Response(

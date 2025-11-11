@@ -604,8 +604,9 @@ class UserVerificationActionView(APIView):
                 cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
             cache.delete(f"account_management_{target_user.id}")
             from vmlc.utils.helpers import invalidate_all_staff_dashboards
+
             invalidate_all_staff_dashboards()
-                
+
             user = verification.user
             base_message = f"Your verification details have been {action}.\n\n"
             footer = "Best Regards,\nManagement."

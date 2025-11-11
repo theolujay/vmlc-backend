@@ -275,6 +275,3 @@ VerifiedManagerPermissions = [
     IsVerifiedStaff,
     HasMinimumStaffRole(Staff.Roles.MANAGER),
 ]
-
-
-

@@ -22,7 +22,10 @@ from .models import (
 )
 
 from .utils.email import create_email_html
-from .utils.helpers import invalidate_all_dashboard_caches, invalidate_all_dashboard_caches
+from .utils.helpers import (
+    invalidate_all_dashboard_caches,
+    invalidate_all_dashboard_caches,
+)
 
 
 class EmailForm(forms.Form):
@@ -250,7 +253,7 @@ class CandidateAdmin(admin.ModelAdmin):
     def _invalidate_candidate_cache(self, candidate):
         cache.delete(f"candidate_detail_{candidate.user.id}")
         cache.delete(f"candidate_profile_{candidate.user.id}")
-        
+
         cache.delete(f"account_management_{candidate.user.id}")
         invalidate_all_dashboard_caches()
 

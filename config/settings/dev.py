@@ -16,13 +16,15 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+
 def read_secret(secret_name, default=""):
     """Read secret from file if SECRET_NAME_FILE env var exists"""
-    file_path = os.getenv(f'{secret_name}_FILE')
+    file_path = os.getenv(f"{secret_name}_FILE")
     if file_path and os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return f.read().strip()
     return os.getenv(secret_name, default)
+
 
 SECRET_KEY = read_secret("SECRET_KEY")
 if not SECRET_KEY:
@@ -40,7 +42,7 @@ ALLOWED_HOSTS = [
     host.strip() for host in read_secret("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
 
-if 'test' not in sys.argv:
+if "test" not in sys.argv:
     INSTALLED_APPS += [
         "debug_toolbar",
         "django_extensions",
@@ -63,9 +65,7 @@ ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
 
 
 DATABASES = {
-    "default": dj_database_url.parse(
-        read_secret("NEON_DB_URL", "sqlite:///db.sqlite3")
-    )
+    "default": dj_database_url.parse(read_secret("NEON_DB_URL", "sqlite:///db.sqlite3"))
 }
 
 SIMPLE_JWT.update(

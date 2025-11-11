@@ -44,9 +44,10 @@ class ExamListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return obj.status
-    
+
     def get_stage_display(self, obj):
         return obj.stage_display
+
 
 class ExamDetailSerializer(serializers.ModelSerializer):
     """
@@ -84,7 +85,6 @@ class ExamDetailSerializer(serializers.ModelSerializer):
             "concluded_at",
             "questions",
             "average_score",
-            
         ]
         read_only_fields = ["id", "created_at", "created_by", "status"]
 
@@ -105,7 +105,8 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
     def get_is_currently_open(self, obj):
         return obj.is_currently_open
-    
+
+
 class CandidateExamSerializer(serializers.ModelSerializer):
     questions = serializers.SerializerMethodField()
 

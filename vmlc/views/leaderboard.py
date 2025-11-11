@@ -13,7 +13,6 @@ from rest_framework.request import Request
 from rest_framework.settings import api_settings
 
 
-
 from vmlc.models import Candidate, LeaderboardSnapshot
 from vmlc.permissions import (
     AuthenticatedUser,
@@ -76,9 +75,7 @@ class PublishLeaderboardView(APIView):
         generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 
-        logger.info(
-            f"Leaderboard generation triggered by staff {staff_id}"
-        )
+        logger.info(f"Leaderboard generation triggered by staff {staff_id}")
 
         return Response(
             {
@@ -184,9 +181,7 @@ class LoadLeaderboardView(APIView):
                 remaining, request, view=self
             )
 
-            pagination_data = paginator.get_paginated_response_data(
-                paginated_remaining
-            )
+            pagination_data = paginator.get_paginated_response_data(paginated_remaining)
 
             response_data = OrderedDict(
                 [
@@ -196,7 +191,7 @@ class LoadLeaderboardView(APIView):
                     ("pagination", pagination_data["pagination"]),
                 ]
             )
-            cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+            cache.set(cache_key, response_data, timeout=21600)  # cache for 6 hours
             return Response(response_data)
 
         accessible_leaderboards = {}
@@ -235,19 +230,20 @@ class LoadLeaderboardView(APIView):
             "published_at": latest_snapshot.created_at.isoformat(),
             "available_leaderboards": leaderboards_summary,
         }
-        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        cache.set(cache_key, response_data, timeout=21600)  # cache for 6 hours
         return Response(response_data)
-    
+
+
 class LoadLeaderboardDetailView(APIView):
     """
     Returns detailed performance for a specific candidate in a specific exam.
-    
+
     URL: leaderboard/<stage>/<level>/candidate/<candidate_id>/
     Example: leaderboard/league/2/candidate/123/
     """
-    
+
     permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
-    
+
     def get(self, request: Request, stage: str, level: int, candidate_id: int):
         user = request.user
         user_role_key = "staff"
@@ -284,11 +280,7 @@ class LoadLeaderboardDetailView(APIView):
         entries = leaderboard.get("entries", [])
 
         candidate_entry = next(
-            (
-                entry
-                for entry in entries
-                if entry["candidate"]["id"] == candidate_id
-            ),
+            (entry for entry in entries if entry["candidate"]["id"] == candidate_id),
             None,
         )
 
@@ -321,5 +313,5 @@ class LoadLeaderboardDetailView(APIView):
             "exam_details": exam_details,
             "candidate_performance": candidate_entry,
         }
-        cache.set(cache_key, response_data, timeout=21600) # cache for 6 hours
+        cache.set(cache_key, response_data, timeout=21600)  # cache for 6 hours
         return Response(response_data)

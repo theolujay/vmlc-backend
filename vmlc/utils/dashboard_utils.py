@@ -79,7 +79,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         # Fetch all relevant exams in one go
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
-            .annotate(question_count=Count("questions", filter=Q(questions__is_archived=False)))
+            .annotate(
+                question_count=Count(
+                    "questions", filter=Q(questions__is_archived=False)
+                )
+            )
             .order_by("scheduled_date")
         )  # Limit to 5 as per original logic
 
@@ -119,9 +123,6 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                         ),
                     }
                 )
-                
-                
-            
 
     # Optimize leaderboard ranking
     candidate_rank: Optional[int] = None
@@ -189,9 +190,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             for score in recent_scores_list
         ],
         "available_exams": available_exams_list,
-        "concluded_exams": concluded_exams_list
+        "concluded_exams": concluded_exams_list,
     }
-    
+
     cache_key = f"candidate_dashboard_{candidate.pk}"
     cache.set(cache_key, dashboard_data, timeout=3600)  # Cache for 1 hour
     return dashboard_data
@@ -289,7 +290,15 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     upcoming_exams_list = list(
         Exam.objects.filter(scheduled_date__gte=now, is_active=True)
         .order_by("scheduled_date")
-        .values("id", "title", "scheduled_date", "is_active", "stage", "level", "countdown_minutes")
+        .values(
+            "id",
+            "title",
+            "scheduled_date",
+            "is_active",
+            "stage",
+            "level",
+            "countdown_minutes",
+        )
         .annotate(question_count=Count("questions"))[:5]  # Annotate question count here
     )
 

@@ -18,7 +18,9 @@ def generate_stats_overview_data():
     total_registered_staff = registered_staff_qs.count()
 
     # Deactivated user counts
-    deactivated_candidates = registered_candidates_qs.filter(user__is_active=False).count()
+    deactivated_candidates = registered_candidates_qs.filter(
+        user__is_active=False
+    ).count()
     deactivated_staff = registered_staff_qs.filter(user__is_active=False).count()
 
     # Pending verification counts
@@ -39,7 +41,9 @@ def generate_stats_overview_data():
 
     # Find the last concluded exam to determine active candidates
     all_exams = Exam.objects.filter(is_active=True, scheduled_date__isnull=False)
-    concluded_exams = [exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED]
+    concluded_exams = [
+        exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED
+    ]
 
     last_concluded_exam = None
     if concluded_exams:

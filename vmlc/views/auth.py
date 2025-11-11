@@ -32,7 +32,7 @@ from ..serializers import (
 )
 from ..utils.helpers import sanitize_data
 from ..utils.swagger_schemas import (
-    api_key, 
+    api_key,
     bearer_auth,
     login_request_body,
     login_response_schema,
@@ -79,9 +79,11 @@ logger = logging.getLogger(__name__)
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [HasXAPIKey]
 
+
 from django.db import transaction
 
 # ... (other imports)
+
 
 class VerifyEmailOTPView(APIView):
     """
@@ -107,6 +109,7 @@ class VerifyEmailOTPView(APIView):
 
     def _verify_email(self, data):
         from vmlc.tasks import send_welcome_mail_task
+
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():
             try:
@@ -125,7 +128,9 @@ class VerifyEmailOTPView(APIView):
                 )
                 if hasattr(user, "staff_profile") and user.last_login is None:
                     sleep(60)  # Ensure email is sent after transaction commit
-                    send_welcome_mail_task.delay(user_id=user.pk, generated_password=None)
+                    send_welcome_mail_task.delay(
+                        user_id=user.pk, generated_password=None
+                    )
                 logger.info(f"Email verified successfully for user {user.id}")
                 return Response(
                     {"message": "Email verified successfully."},
@@ -165,7 +170,7 @@ class SendEmailOTPView(APIView):
 
     def _resend_email_otp(self, data):
         serializer = SendEmailOTPSerializer(data=data)
-        
+
         if serializer.is_valid():
             try:
                 user = serializer.save()

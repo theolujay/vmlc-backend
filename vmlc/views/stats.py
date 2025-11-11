@@ -34,6 +34,8 @@ def stats_overview(request):
 
     # And return a response indicating that the data is being generated
     return Response(
-        {"message": "Statistics overview is being generated. Please check back in a few moments."},
+        {
+            "message": "Statistics overview is being generated. Please check back in a few moments."
+        },
         status=status.HTTP_202_ACCEPTED,
     )
