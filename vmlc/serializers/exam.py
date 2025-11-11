@@ -1,4 +1,4 @@
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg
 
 from rest_framework import serializers
 
@@ -8,7 +8,7 @@ from ..models import (
     Exam,
 )
 
-from .question import CandidateQuestionSerializer, QuestionDetailSerializer
+from .question import CandidateQuestionSerializer
 from .staff import MinimalStaffSerializer
 
 

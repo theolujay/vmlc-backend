@@ -46,7 +46,6 @@ from .views import (
     QuestionExamAssociationView,
     BulkAddQuestionsToExamsView,
     BulkQuestionArchiveView,
-    PublishScoresView,
     PublishLeaderboardView,
     LoadLeaderboardView,
     LoadLeaderboardDetailView,

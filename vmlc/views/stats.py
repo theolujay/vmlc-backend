@@ -6,7 +6,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from vmlc.permissions import (
-    VerifiedManagerPermissions,
     VerifiedModeratorPermissions,
 )
 from ..tasks import generate_stats_overview_task

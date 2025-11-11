@@ -2,14 +2,15 @@ import logging
 import string
 import secrets
 from datetime import timedelta
+from typing import Tuple, Any
 
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
-from typing import Tuple, Any
 
 from ..models import EmailOTP, User
 from .email import create_email_html
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,14 +94,14 @@ def can_resend_otp(user: User, cooldown_minutes: int = 2) -> Tuple[bool, int]:
         if time_since_last >= cooldown_period:
             logger.debug(f"Cooldown period passed for user {user.id}, can resend")
             return True, 0
-        else:
-            seconds_remaining: int = int(
-                (cooldown_period - time_since_last).total_seconds()
-            )
-            logger.info(
-                f"User {user.id} must wait {seconds_remaining} seconds before resending OTP"
-            )
-            return False, seconds_remaining
+
+        seconds_remaining: int = int(
+            (cooldown_period - time_since_last).total_seconds()
+        )
+        logger.info(
+            f"User {user.id} must wait {seconds_remaining} seconds before resending OTP"
+        )
+        return False, seconds_remaining
 
     except Exception as e:
         logger.error(
@@ -309,7 +310,8 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
     try:
         from ..tasks import send_mail_task
 
-        subject: str = f"Welcome to Verboheit MLC!"
+        subject: str = "Welcome to Verboheit MLC!"
+        message = ""
         if hasattr(user, "candidate_profile"):
             message: str = (
                 f"Hi!\n\n"

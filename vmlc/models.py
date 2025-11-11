@@ -564,30 +564,23 @@ class Exam(models.Model):
         - ONGOING: Currently open for taking
         - CONCLUDED: Past the end time
         """
-        # Check cancellation first - it overrides everything except draft
+        if self.scheduled_date is None or self.open_duration_hours is None:
+            return self.Status.DRAFT
+
         if not self.is_active:
-            # Unless it's never been scheduled, it's cancelled
-            if self.scheduled_date is None:
-                return self.Status.DRAFT
             return self.Status.CANCELLED
-        # If no scheduled date, it's still being drafted
-        if self.scheduled_date is None:
-            return self.Status.DRAFT
-        # If no duration set, can't determine time-based status
-        if self.open_duration_hours is None:
-            return self.Status.DRAFT
+
         now = timezone.now()
-        # Calculate the conclusion time
         conclusion_time = self.scheduled_date + timedelta(
             hours=self.open_duration_hours
         )
-        # Check time-based statuses
+
         if now < self.scheduled_date:
             return self.Status.SCHEDULED
-        elif now < conclusion_time:
+        if now < conclusion_time:
             return self.Status.ONGOING
-        else:
-            return self.Status.CONCLUDED
+
+        return self.Status.CONCLUDED
 
     @property
     def concluded_at(self):
@@ -847,6 +840,13 @@ class Candidate(models.Model):
         """
         Returns a dictionary of a candidate's performance stats, scores, and available exams.
         """
+        return {
+            "performance": self._get_performance_stats(),
+            "available_exams": self._get_available_exams(),
+        }
+
+    def _get_performance_stats(self):
+        """Helper to compute performance statistics for the candidate."""
         latest_snapshot = (
             CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
             .order_by("-published_at")
@@ -879,35 +879,35 @@ class Candidate(models.Model):
                 "date": recent_scores_list[0]["recorded_at"],
             }
 
-        # available_exams
-        available_exams_list = []
-        if self.is_user_verified:
-            all_relevant_exams = (
-                Exam.objects.filter(stage=self.role, is_active=True)
-                .annotate(question_count=Count("questions"))
-                .order_by("scheduled_date")[:5]
-            )
+        candidate_rank, total_league_candidates = self._get_leaderboard_ranking(
+            latest_snapshot
+        )
 
-            for exam in all_relevant_exams:
-                if exam.is_currently_open:
-                    available_exams_list.append(
-                        {
-                            "id": exam.id,
-                            "title": exam.title,
-                            "description": exam.description,
-                            "open_duration_hours": exam.open_duration_hours,
-                            "scheduled_date": exam.scheduled_date,
-                            "countdown_minutes": exam.countdown_minutes,
-                            "question_count": exam.question_count,
-                            "stage": exam.stage,
-                        }
-                    )
+        return {
+            "stats": {
+                "total_score": float(score_stats["total_score"] or 0),
+                "average_score": round(float(score_stats["average_score"] or 0), 2),
+                "leaderboard_ranking": (
+                    {
+                        "current_rank": candidate_rank,
+                        "total_candidates": total_league_candidates,
+                    }
+                    if self.role == self.Roles.LEAGUE
+                    else None
+                ),
+                "latest_score": latest_score_data,
+                "highest_score": float(score_stats["highest_score"] or 0),
+                "total_exams_taken": score_stats["total_exams_taken"],
+                "lowest_score": float(score_stats["lowest_score"] or 0),
+                "highest_obtainable_score": 100.0,
+            },
+            "exams_taken": self._get_exams_taken(),
+        }
 
-        # leaderboard ranking
-        candidate_rank = None
-        total_league_candidates = 0
+    def _get_leaderboard_ranking(self, latest_snapshot):
+        """Helper to get the candidate's leaderboard ranking."""
         if self.role == self.Roles.LEAGUE and latest_snapshot:
-            league_candidates_qs = Candidate.candidates_by_role(
+            league_candidates_qs = self.__class__.candidates_by_role(
                 self.Roles.LEAGUE
             ).annotate(
                 total_score=Sum(
@@ -926,11 +926,40 @@ class Candidate(models.Model):
 
             ranked_candidate = ranked_candidates_qs.filter(pk=self.pk).first()
             if ranked_candidate:
-                candidate_rank = ranked_candidate.rank
+                return ranked_candidate.rank, league_candidates_qs.count()
 
-            total_league_candidates = league_candidates_qs.count()
+        return None, 0
 
-        # Use prefetched scores for the `exams` list
+    def _get_available_exams(self):
+        """Helper to get a list of available exams for the candidate."""
+        if not self.is_user_verified:
+            return []
+
+        all_relevant_exams = (
+            Exam.objects.filter(stage=self.role, is_active=True)
+            .annotate(question_count=Count("questions"))
+            .order_by("scheduled_date")[:5]
+        )
+
+        available_exams_list = []
+        for exam in all_relevant_exams:
+            if exam.is_currently_open:
+                available_exams_list.append(
+                    {
+                        "id": exam.id,
+                        "title": exam.title,
+                        "description": exam.description,
+                        "open_duration_hours": exam.open_duration_hours,
+                        "scheduled_date": exam.scheduled_date,
+                        "countdown_minutes": exam.countdown_minutes,
+                        "question_count": exam.question_count,
+                        "stage": exam.stage,
+                    }
+                )
+        return available_exams_list
+
+    def _get_exams_taken(self):
+        """Helper to get a list of exams taken by the candidate."""
         if (
             hasattr(self, "_prefetched_objects_cache")
             and "scores" in self._prefetched_objects_cache
@@ -946,7 +975,6 @@ class Candidate(models.Model):
         exams_taken_list = []
         for score in scores:
             answers = score.answers.all()
-
             submission_list = []
             for answer in answers:
                 submission_list.append(
@@ -979,32 +1007,7 @@ class Candidate(models.Model):
                     "submission": submission_list,
                 }
             )
-
-        records = {
-            "performance": {
-                "stats": {
-                    "total_score": float(score_stats["total_score"] or 0),
-                    "average_score": round(float(score_stats["average_score"] or 0), 2),
-                    "leaderboard_ranking": (
-                        {
-                            "current_rank": candidate_rank,
-                            "total_candidates": total_league_candidates,
-                        }
-                        if self.role == self.Roles.LEAGUE
-                        else None
-                    ),
-                    "latest_score": latest_score_data,
-                    "highest_score": float(score_stats["highest_score"] or 0),
-                    "total_exams_taken": score_stats["total_exams_taken"],
-                    "lowest_score": float(score_stats["lowest_score"] or 0),
-                    "highest_obtainable_score": 100.0,
-                },
-                "exams_taken": exams_taken_list,
-            },
-            "available_exams": available_exams_list,
-        }
-
-        return records
+        return exams_taken_list
 
     class Meta:
         """Meta options for the Candidate model."""
@@ -1070,9 +1073,9 @@ class CandidateAnswer(models.Model):
         if self.candidate_score and self.question:
             username = self.candidate_score.candidate.user.username
             return f"Answer by {username} for Q{self.question.id}"
-        elif self.candidate_score:
+        if self.candidate_score:
             return f"Answer by {self.candidate_score.candidate.user.username} (deleted question)"
-        elif self.question:
+        if self.question:
             return f"Answer for Q{self.question.id} (deleted score)"
         return f"Orphaned Answer #{self.id}"
 

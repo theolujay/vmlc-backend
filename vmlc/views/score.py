@@ -2,13 +2,11 @@ import logging
 
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
-from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from django.utils import timezone
-from django.utils.decorators import method_decorator
-from drf_yasg.utils import swagger_auto_schema
+
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,18 +19,16 @@ from ..permissions import (
     VerifiedAdminPermissions,
 )
 from ..serializers import (
-    CandidateScoreSerializer,
     SubmitScoreSerializer,
 )
 from ..utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    candidate_score_list_response_schema,
-    submit_score_request_body,
     error_response_400,
     error_response_401,
     error_response_403,
     error_response_404,
+    submit_score_request_body,
 )
 
 logger = logging.getLogger(__name__)

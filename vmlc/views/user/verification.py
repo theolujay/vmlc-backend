@@ -1,19 +1,20 @@
 import logging
 
-from django.core.cache import cache
 import boto3
 from botocore.exceptions import ClientError
+from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
-from drf_yasg.utils import swagger_auto_schema
+
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.generics import ListAPIView
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
 from vmlc.models import User, UserVerification
 from vmlc.permissions import (
@@ -23,29 +24,29 @@ from vmlc.permissions import (
 )
 from vmlc.serializers import (
     UserVerificationActionSerializer,
+    UserVerificationListSerializer,
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
-    UserVerificationListSerializer,
 )
-from vmlc.tasks import validate_user_verification_files_task, send_mail_task
+from vmlc.tasks import send_mail_task, validate_user_verification_files_task
+from vmlc.utils.exceptions import (
+    APIException,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
+from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    user_verification_status_response_schema,
-    user_verification_list_response_schema,
-    user_verification_action_request_body,
     error_response_400,
     error_response_401,
     error_response_403,
     error_response_404,
+    user_verification_action_request_body,
+    user_verification_list_response_schema,
+    user_verification_status_response_schema,
 )
-from vmlc.utils.exceptions import (
-    PermissionDenied,
-    NotFound,
-    ValidationError,
-    APIException,
-)
-from vmlc.utils.helpers import invalidate_all_staff_dashboards
 
 logger = logging.getLogger(__name__)
 
@@ -603,8 +604,6 @@ class UserVerificationActionView(APIView):
             if hasattr(target_user, "candidate_profile"):
                 cache.delete(f"candidate_dashboard_{target_user.candidate_profile.pk}")
             cache.delete(f"account_management_{target_user.id}")
-            from vmlc.utils.helpers import invalidate_all_staff_dashboards
-
             invalidate_all_staff_dashboards()
 
             user = verification.user

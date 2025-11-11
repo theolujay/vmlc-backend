@@ -1,9 +1,9 @@
-from django.db.models import Q, QuerySet
-
-import django_filters
 from typing import Any, List
 
-from vmlc.models import Exam, Candidate, Staff, Question, User
+import django_filters
+from django.db.models import Q, QuerySet
+
+from vmlc.models import Candidate, Exam, Question, Staff, User
 
 
 def filter_candidates(
@@ -163,7 +163,7 @@ class ExamFilter(django_filters.FilterSet):
         fields: List[str] = ("search", "created_at")
 
     def filter_search(
-        self, queryset: QuerySet[Exam], name: str, value: str
+        self, queryset: QuerySet[Exam], _name: str, value: str
     ) -> QuerySet[Exam]:
         """Custom filter method for search functionality"""
         if value:

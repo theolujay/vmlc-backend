@@ -1,22 +1,25 @@
-import boto3
-import responses
-from moto import mock_aws
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase
-from django.contrib.auth import get_user_model
 from unittest.mock import patch
 
-from vmlc.models import Staff, UserVerification
-from vmlc.models import Candidate, Exam, Question, Staff, UserVerification
-
-User = get_user_model()
-
+import boto3
+from moto import mock_aws
+from rest_framework import status
+from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
 
-from vmlc.models import FeatureFlag
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
+
+from vmlc.models import (
+    Candidate,
+    Exam,
+    Question,
+    Staff,
+    UserVerification,
+    FeatureFlag,
+)
+
+User = get_user_model()
 
 
 class HealthCheckTest(APITestCase):
@@ -331,7 +334,7 @@ class InviteStaffTest(APITestCase):
         )
 
     @patch("vmlc.tasks.revoke_user_invite_task.apply_async")
-    def test_invite_staff_success(self, mock_task):
+    def test_invite_staff_success(self, _mock_task):
         self.client.force_authenticate(user=self.staff_user)
         url = reverse("vmlc:staff-invite")
 
