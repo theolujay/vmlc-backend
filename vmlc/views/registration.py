@@ -36,7 +36,7 @@ class BaseRegistrationView(CreateAPIView):
     """Base registration view with common logic"""
 
     permission_classes = [HasXAPIKey]
-    feature_flag_key = None  # Subclasses must define this
+    feature_flag_key = None
 
     def create(self, request, *args, **kwargs):
         from vmlc.utils.auth import generate_password

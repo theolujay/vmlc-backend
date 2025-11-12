@@ -50,7 +50,6 @@ from .registration import (
     ToggleCandidateRegistrationView,
     ToggleStaffRegistrationView,
 )
-from .root import root
 from .score import (
     SubmitScoreView,
     PublishScoresView,
@@ -60,7 +59,11 @@ from .staff import (
     AssignStaffRoleView,
     StaffMeView,
 )
-from .stats import stats_overview
+from .status import (
+    health_check,
+    stats_overview,
+    registration_status,
+)
 from .user import (
     AccountManagementView,
     UserVerificationStatusView,
@@ -73,7 +76,6 @@ from .user import (
     UserListView,
     UserDetailView,
 )
-from .health import health_check
 
 __all__ = [
     # answer
@@ -119,10 +121,10 @@ __all__ = [
     "StaffRegistrationView",
     "ToggleCandidateRegistrationView",
     "ToggleStaffRegistrationView",
-    # root
-    "root",
-    # health
+    # status
     "health_check",
+    "stats_overview",
+    "registration_status",    
     # score
     # "CandidateScoreListView",
     "SubmitScoreView",
@@ -130,9 +132,7 @@ __all__ = [
     # staff
     "StaffMeView",
     "StaffListView",
-    "AssignStaffRoleView",
-    # stats
-    "stats_overview",
+    "AssignStaffRoleView",    
     # user
     "UserVerificationStatusView",
     "UserVerificationUploadView",

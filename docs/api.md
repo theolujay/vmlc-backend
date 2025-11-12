@@ -9,7 +9,7 @@
   - [Feature Walkthroughs and User Stories](#feature-walkthroughs-and-user-stories)
   - [Endpoint Mapping](#endpoint-mapping)
 - [API Endpoints](#api-endpoints)
-  - [Health & Root](#health--root)
+  - [Health & Status](#health--status)
   - [Authentication](#authentication-endpoints)
   - [Registration](#registration)
   - [Email & Password](#email--password)
@@ -50,7 +50,7 @@ The VMLC API provides an integrated backend service for the Verboheit Mathematic
 `https://api.verboheit.org/v1/` ~ production
 `https://staging-api.verboheit.org/v1/`~ staging
 
-All endpoints are relative to this base URL. A discoverable list of endpoints is available at the [root](#root-endpoint) endpoint.
+All endpoints are relative to this base URL.
 
 ---
 
@@ -131,7 +131,7 @@ Content-Type: application/json
 
 ---
 
-## Health & Root
+## Health & Status
 
 ### Health Check
 The health check endpoint provides a simple way to verify the API's operational status.
@@ -147,26 +147,18 @@ The health check endpoint provides a simple way to verify the API's operational 
 }
 ```
 
-### Root Endpoint
-The root endpoint provides a discoverable list of all available API endpoints, categorized for easy navigation.
+### Registration Status
+This endpoint provides a public status check for candidate and staff registrations. It indicates whether new registrations are currently open or closed, which can be controlled by feature flags.
 
-**Endpoint:** `GET /root/`
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** None (Public, but requires API Key)
+**Endpoint:** `GET /registration/`
+**Required Role:** None (Public)
 
 **Response:** `200 OK`
 ```json
 {
-  "root": "https://api.verboheit.org/v1/root/",
-  "authentication": {
-    "login": "https://api.verboheit.org/v1/auth/login/",
-    "logout": "https://api.verboheit.org/v1/auth/logout/",
-    "token_refresh": "https://api.verboheit.org/v1/auth/token/refresh/"
-  },
-  // ... other endpoints ...
+  "is_candidate_reg_open": true,
+  "is_staff_reg_open": false,
+  "support_email": "verboheitmlc@gmail.com"
 }
 ```
 
@@ -2882,6 +2874,10 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-11-12**:
+  - **New Endpoint**: Added `GET /registration/` to provide public status on whether candidate and staff registrations are open.
+  - **Removed Endpoint**: Removed the `GET /root/` endpoint as part of the URL refactoring.
 
 - **2025-11-10**:
   - **User Management**: Updated `GET /user/list/` endpoint with more granular role-based access.
