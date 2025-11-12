@@ -1970,27 +1970,6 @@ X-Api-Key: <your_api_key>
 }
 ```
 *Note: Similar to the candidate dashboard, a `202 Accepted` response may be returned if data is being generated asynchronously.*
-<!-- 
-### Scoring & Submissions
-
-#### Publish Scores
-
-This endpoint works in hand with the scores displayed in candidates' dashboards. Candidates only see last "published scores" and only see the latest (i.e. exams they recently took) after it's **published** via this endpoint.
-
-**Endpoint:** `POST /publish-scores/`  
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-**Required Role:** `admin` or higher  
-**Request Body:** empty (just a POST signal is required)
-**Response:** `200 OK`
-```json
-{
-  "message": "Scores snapshot generation has been started and will be available shortly.
-}
-```
-*Note: This endpoint will trigger an asynchronous task to publish the scores (to candidates' dashboards).* -->
 
 ---
 
@@ -2063,20 +2042,15 @@ X-Api-Key: <your_api_key>
 ---
 
 ### Leaderboard
-The leaderboard system provides detailed performance rankings across different competition stages and levels. It consists of two main views:
-<!-- - `LoadLeaderboardView`: For fetching a summary of all available leaderboards or a detailed, paginated view of a specific leaderboard.
-- `LoadLeaderboardDetailView`: For fetching the complete performance record of a single candidate in a specific exam. -->
+The leaderboard provides access to performance rankings for exams. It is accessible to all verified staff and candidates with a role of `league` or higher. `screening` candidates can only view screening leaderboards.
 
-#### 1. Publish Leaderboard
-Triggers an asynchronous task to generate and publish a new leaderboard snapshot. This should be done after an exam concludes and all scores are finalized.
+#### Publish Leaderboard
+Triggers an asynchronous task to refresh and publish the latest leaderboard snapshot. This is a global action that regenerates snapshots for all applicable exams.
 
 **Endpoint:** `POST /leaderboard/publish/`
 **Required Role:** `admin` or higher
-**Request Body:**
-This endpoint does not require a request body. It automatically finds all concluded, active exams and generates leaderboards for them.
-```json
-{}
-```
+**Request Body:** None
+
 **Response:** `202 Accepted`
 ```json
 {
@@ -2086,212 +2060,138 @@ This endpoint does not require a request body. It automatically finds all conclu
 
 ---
 
-#### 2. Load Leaderboard (`LoadLeaderboardView`)
-This is the primary endpoint for all frontend leaderboard functionality. It has two modes:
+#### Load Leaderboard Data
+This endpoint has two modes: summary and detail.
 
-**A. Summary Mode (No Query Parameters)**
-Returns a list of all available leaderboards that the current user is permitted to see. Ideal for dynamically populating UI tabs.
+**1. Summary Mode: List Available Leaderboards**
+
+When called without query parameters, it returns a summary of all published leaderboards accessible to the user.
 
 **Endpoint:** `GET /leaderboard/`
-**Required Role:** Any verified user (`candidate` or `staff`)
+**Required Role:** Any verified `candidate` or `staff`.
 
-**Response (200 OK):**
+**Response:** `200 OK`
 ```json
 {
-  "snapshot_id": 45,
-  "published_at": "2024-10-30T14:30:00Z",
-  "available_leaderboards": [
-    {
-      "stage": "screening",
-      "level": 1,
-      "stage_display": "screening_1",
-      "exam_title": "Screening Exam 2024 - Basic Mathematics",
-      "total_candidates": 150,
-      "average_score": 78.5
-```
-
-### Statistics
-The statistics endpoint provides an overview of user activity and status within the system. Data is cached for performance and generated asynchronously.
-
-#### Get Statistics Overview
-**Endpoint:** `GET /stats/overview/`
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-Authorization: Bearer <access-token>
-```
-**Required Role:** `moderator` or higher
-
-**Response (200 OK):**
-```json
-{
-  "candidates": {
-    "registered": 100,
-    "active": 50,
-    "inactive": 50,
-    "pending_verification": 10,
-    "deactivated": 5
-  },
-  "staff": {
-    "registered": 20,
-    "active": 15,
-    "inactive": 5,
-    "pending_verification": 2,
-    "deactivated": 1
-  }
+    "snapshot_id": 1,
+    "published_at": "2025-11-12T12:00:00Z",
+    "available_leaderboards": [
+        {
+            "stage": "screening",
+            "level": 1,
+            "stage_display": "screening_1",
+            "exam_title": "Screening Exam - Level 1",
+            "total_candidates": 50,
+            "average_score": 75.5
+        },
+        {
+            "stage": "league",
+            "level": 1,
+            "stage_display": "league_1",
+            "exam_title": "League Competition - Level 1",
+            "total_candidates": 25,
+            "average_score": 88.0
+        }
+    ]
 }
 ```
-*Note: If statistics data is not immediately available (e.g., first load or cache invalidation), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously. The client should retry the request after a short delay.*
-    },
-    {
-      "stage": "league",
-      "level": 1,
-      "stage_display": "league_1",
-      "exam_title": "League Round 1 - General Knowledge",
-      "total_candidates": 50,
-      "average_score": 85.2
-    }
-  ]
-}
-```
-*Note: A `screening` candidate would only see leaderboards for the `screening` stage.*
+*Note: `screening` candidates will only see leaderboards for the `screening` stage.*
 
-**B. Detail Mode (With Query Parameters)**
-Returns the detailed, paginated rankings for a specific leaderboard, identified by `stage` and `level`.
+**2. Detail Mode: Get Specific Leaderboard**
+
+When `stage` and `level` query parameters are provided, it returns the detailed, paginated rankings for that specific leaderboard.
 
 **Endpoint:** `GET /leaderboard/?stage=<stage>&level=<level>`
-**Required Role:** Any verified user (`candidate` or `staff`)
+**Required Role:** Any verified `candidate` or `staff`.
 
 **Query Parameters:**
 - `stage` (string, required): The stage of the leaderboard (e.g., `screening`, `league`).
 - `level` (integer, required): The level within the stage (e.g., `1`, `2`).
 - `page` (integer, optional): The page number for the `remaining_candidates` list.
-- `page_size` (integer, optional): The number of candidates to show per page.
 
-**Response (200 OK):**
-This response always includes the `top_three` performers separately and a paginated list of `remaining_candidates`.
+**Response:** `200 OK`
 ```json
 {
-  "exam_details": {
-    "id": 123,
-    "title": "Screening Exam 2024 - Basic Mathematics",
-    "stage": "screening",
-    "level": 1,
-    "stage_display": "screening_1",
-    "total_candidates": 150,
-    "average_score": 78.5
-  },
-  "top_three": [
-    { "rank": 1, "candidate": { "...": "..." }, "score": 100.0, "percentage": 100.0 },
-    { "rank": 2, "candidate": { "...": "..." }, "score": 99.5, "percentage": 99.5 },
-    { "rank": 3, "candidate": { "...": "..." }, "score": 99.0, "percentage": 99.0 }
-  ],
-  "remaining_candidates": [
-    { "rank": 4, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 },
-    { "rank": 5, "candidate": { "...": "..." }, "score": 98.0, "percentage": 98.0 }
-  ],
-  "pagination": {
-    "count": 147,
-    "page": 1,
-    "page_size": 20,
-    "total_pages": 8,
-    "has_next": true,
-    "has_previous": false,
-    "next": "http://localhost:8000/api/v1/leaderboard/?stage=screening&level=1&page=2&page_size=5",
-    "previous": null
-  }
+    "exam_details": {
+        "id": 1,
+        "title": "League Competition - Level 1",
+        "stage": "league",
+        "level": 1,
+        "scheduled_date": "2025-11-01T10:00:00Z",
+        "concluded_at": "2025-11-01T12:00:00Z",
+        "total_questions": 50,
+        "total_candidates": 25,
+        "average_score": 88.0
+    },
+    "top_three": [
+        { "rank": 1, "candidate": { "...details..." }, "score": 99.0 },
+        { "rank": 2, "candidate": { "...details..." }, "score": 98.5 },
+        { "rank": 3, "candidate": { "...details..." }, "score": 98.0 }
+    ],
+    "remaining_candidates": [
+        { "rank": 4, "candidate": { "...details..." }, "score": 97.0 }
+    ],
+    "pagination": {
+        "count": 22,
+        "page": 1,
+        "page_size": 20,
+        "total_pages": 2,
+        "has_next": true,
+        "has_previous": false,
+        "next": "/leaderboard/?stage=league&level=1&page=2",
+        "previous": null
+    }
 }
 ```
-*Note: The `submissions` field is removed from candidate objects in this view for brevity.*
-```
-
-**Common Error Responses**:
-- **404 Not Found:** If no published leaderboard exists at all, or if the requested `stage` and `level` do not exist.
-  ```json
-  { "detail": "No published leaderboard found." }
-  // or
-  { "detail": "No leaderboard found for league level 99" }
-  ```
-- **403 Forbidden:** If a user attempts to access a leaderboard they are not permitted to see.
-  ```json
-  { "detail": "You can only view screening leaderboards." }
-  // or
-  { "detail": "Candidate must be verified to view the leaderboard." }
-  ```
 
 ---
 
-#### 3. Load Candidate Detail (`LoadLeaderboardDetailView`)
-Retrieves the complete and detailed performance of a single candidate for a specific exam. This is the view used when a user clicks on a candidate's name in the leaderboard.
+#### Load Candidate Performance Detail
+Retrieves the detailed performance of a single candidate for a specific exam leaderboard.
 
 **Endpoint:** `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/`
 **Required Role:**
-- `staff` and `league` candidates can view any candidate's detail.
+- `staff` and `league` (or higher) candidates can view any candidate's detail.
 - `screening` candidates can only view their own detail.
 
 **URL Parameters:**
 - `stage` (string): The stage of the leaderboard (e.g., `screening`).
 - `level` (integer): The level of the leaderboard (e.g., `1`).
-- `candidate_id` (uuid): The ID of the candidate whose performance is being requested.
+- `candidate_id` (integer): The ID of the candidate.
 
-**Response (200 OK):**
-This response includes exam information and a detailed breakdown of the candidate's submissions, including every question, their selected answer, the correct answer, and whether they were correct.
+**Response:** `200 OK`
 ```json
 {
-  "exam_info": {
-    "exam_id": 123,
-    "exam_title": "Screening Exam 2024 - Basic Mathematics",
-    "stage": "screening",
-    "level": 1,
-    "total_questions": 50
-  },
-  "candidate_performance": {
-    "rank": 4,
-    "candidate": {
-      "id": 792,
-      "user_id": 1004,
-      "first_name": "Simon",
-      "last_name": "Kawu",
-      "email": "simonkawu@yandex.com",
-      "school": "University of Ibadan",
-      "role": "screening"
+    "exam_details": {
+        "id": 1,
+        "title": "League Competition - Level 1",
+        "stage": "league",
+        "level": 1,
+        "scheduled_date": "2025-11-01T10:00:00Z",
+        "concluded_at": "2025-11-01T12:00:00Z",
+        "total_questions": 50,
+        "total_candidates": 25,
+        "average_score": 88.0
     },
-    "score": 98.0,
-    "percentage": 98.0,
-    "submissions": [
-      {
-        "question_id": 1,
-        "question_text": "What is the value of π (pi)?",
-        "correct_answer": "d",
-        "selected_option": "d",
-        "is_correct": true,
-        "answered_at": "2024-10-30T09:00:15Z"
-      },
-      {
-        "question_id": 3,
-        "question_text": "What is the formula for the area of a rectangle?",
-        "correct_answer": "a",
-        "selected_option": "b",
-        "is_correct": false,
-        "answered_at": "2024-10-30T09:00:45Z"
-      }
-    ]
-  }
+    "candidate_performance": {
+        "rank": 1,
+        "candidate": {
+            "id": 101,
+            "full_name": "John Doe",
+            "school": "Innovation High"
+        },
+        "score": 99.0,
+        "submissions": [
+            {
+                "question_id": 1,
+                "question_text": "What is 2+2?",
+                "selected_option": "C",
+                "answered_at": "2025-11-01T10:15:30Z"
+            }
+        ]
+    }
 }
 ```
-
-**Common Error Responses for `LoadLeaderboardDetailView`:**
-- **404 Not Found:** If the candidate is not found in the specified leaderboard.
-  ```json
-  { "detail": "Candidate not found in this leaderboard" }
-  ```
-- **403 Forbidden:** If a `screening` candidate tries to view another candidate's details.
-  ```json
-  { "detail": "You can only view your own performance." }
-  ```
-
-
----
 
 ### User Verification
 User verification is a multi-step process involving email verification, document submission, and admin approval.
