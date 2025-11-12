@@ -10,6 +10,7 @@ from .management import (
     CandidateInviteView,
     AccountManagementView,
     UserListView,
+    UserDetailView,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "StaffInviteView",
     "CandidateInviteView",
     "UserListView",
+    "UserDetailView",
 ]

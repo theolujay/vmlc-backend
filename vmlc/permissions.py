@@ -188,6 +188,26 @@ class IsVerifiedStaff(BasePermission):
         return staff_profile is not None and staff_profile.is_user_verified
 
 
+class IsManagerForStaffDetail(BasePermission):
+    """
+    Allows access only to managers or superadmins when the view is accessing
+    a staff detail endpoint (identified by 'staff_id' in the URL).
+    """
+    message = "Only 'superadmin' or 'manager' has permission to manage staff members."
+
+    def has_permission(self, request, view):
+        # If we are not accessing a staff detail page, this permission does not apply.
+        if 'staff_id' not in view.kwargs:
+            return True
+
+        # If we are on a staff detail page, check the user's role.
+        staff_profile = _get_staff_profile(request)
+        if not staff_profile:
+            return False
+
+        return staff_profile.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
+
+
 class IsObjectOwnerOrManagerRole(BasePermission):
     """
     Object-level permission that grants access if the user is either:

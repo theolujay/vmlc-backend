@@ -28,11 +28,9 @@ from .views import (
     VerifyEmailOTPView,
     SendEmailOTPView,
     CandidateListView,
-    CandidateDetailView,
     AssignCandidateRoleView,
     ExamHistoryView,
     StaffListView,
-    StaffDetailView,
     AssignStaffRoleView,
     ExamListView,
     ExamDetailView,
@@ -64,6 +62,7 @@ from .views import (
     StaffMeView,
     StaffInviteView,
     stats_overview,
+    UserDetailView,
 )
 
 app_name = "vmlc"
@@ -133,7 +132,7 @@ urlpatterns = [
     path("candidates/", CandidateListView.as_view(), name="candidate-list"),
     path(
         "candidates/<uuid:candidate_id>/",
-        CandidateDetailView.as_view(),
+        UserDetailView.as_view(),
         name="candidate-detail",
     ),
     path(
@@ -153,7 +152,7 @@ urlpatterns = [
     path("staff/", StaffListView.as_view(), name="staff-list"),
     path(
         "staff/<uuid:staff_id>/",
-        StaffDetailView.as_view(),
+        UserDetailView.as_view(),
         name="staff-detail",
     ),
     path(
