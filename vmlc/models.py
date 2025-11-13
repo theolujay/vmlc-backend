@@ -25,7 +25,7 @@ class FeatureFlag(models.Model):
     value = models.BooleanField(default=True)
 
     @classmethod
-    def get_bool(cls, key, default=True):
+    def get_bool(cls, key, default=False):
         """Get the boolean value of a feature flag."""
         cache_key = f"feature_flag_{key}"
         cached_value = cache.get(cache_key)

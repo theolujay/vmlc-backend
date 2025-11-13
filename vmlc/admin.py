@@ -690,3 +690,16 @@ class FeatureFlagAdmin(admin.ModelAdmin):
     list_display = ("key", "value")
     search_fields = ("key",)
     list_editable = ("value",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        cache.delete(f"feature_flag_{obj.key}")
+
+    def delete_model(self, request, obj):
+        cache.delete(f"feature_flag_{obj.key}")
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            cache.delete(f"feature_flag_{obj.key}")
+        super().delete_queryset(request, queryset)

@@ -17,7 +17,6 @@ from .auth import (
 )
 from .candidate import (
     CandidateListView,
-    CandidateDetailView,
     AssignCandidateRoleView,
     CandidateMeView,
 )
@@ -51,19 +50,20 @@ from .registration import (
     ToggleCandidateRegistrationView,
     ToggleStaffRegistrationView,
 )
-from .root import root
 from .score import (
-    # CandidateScoreListView,
     SubmitScoreView,
     PublishScoresView,
 )
 from .staff import (
     StaffListView,
-    StaffDetailView,
     AssignStaffRoleView,
     StaffMeView,
 )
-from .stats import stats_overview
+from .status import (
+    health_check,
+    stats_overview,
+    registration_status,
+)
 from .user import (
     AccountManagementView,
     UserVerificationStatusView,
@@ -74,8 +74,8 @@ from .user import (
     CandidateInviteView,
     StaffInviteView,
     UserListView,
+    UserDetailView,
 )
-from .health import health_check
 
 __all__ = [
     # answer
@@ -94,7 +94,6 @@ __all__ = [
     # candidate
     "CandidateMeView",
     "CandidateListView",
-    "CandidateDetailView",
     "AssignCandidateRoleView",
     # dashboard
     "CandidateDashboardView",
@@ -122,10 +121,10 @@ __all__ = [
     "StaffRegistrationView",
     "ToggleCandidateRegistrationView",
     "ToggleStaffRegistrationView",
-    # root
-    "root",
-    # health
+    # status
     "health_check",
+    "stats_overview",
+    "registration_status",    
     # score
     # "CandidateScoreListView",
     "SubmitScoreView",
@@ -133,10 +132,7 @@ __all__ = [
     # staff
     "StaffMeView",
     "StaffListView",
-    "StaffDetailView",
-    "AssignStaffRoleView",
-    # stats
-    "stats_overview",
+    "AssignStaffRoleView",    
     # user
     "UserVerificationStatusView",
     "UserVerificationUploadView",
@@ -146,4 +142,5 @@ __all__ = [
     "StaffInviteView",
     "CandidateInviteView",
     "UserListView",
+    "UserDetailView",
 ]

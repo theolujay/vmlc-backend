@@ -10,7 +10,11 @@ from django.conf import settings
 from django.utils.decorators import method_decorator
 
 from rest_framework.settings import api_settings
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    ListAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -38,7 +42,9 @@ from vmlc.utils.swagger_schemas import (
 )
 from vmlc.permissions import (
     AuthenticatedUser,
+    IsManagerForStaffDetail,
     IsObjectOwnerOrManagerRole,
+    VerifiedAdminPermissions,
     VerifiedManagerPermissions,
     VerifiedModeratorPermissions,
 )
@@ -520,3 +526,92 @@ class UserListView(ListAPIView):
             "staff_profile", "candidate_profile"
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
+
+class UserDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or deactivate a specific staff or candidate member.
+
+    - GET: Retrieve profile details.
+    - PATCH: Update profile.
+    - DELETE: Soft delete the profile (marks as inactive).
+
+    Access to staff profiles is restricted to Managers and Superadmins.
+    """
+
+    permission_classes = VerifiedAdminPermissions + [IsManagerForStaffDetail]
+    http_method_names = ["get", "patch", "delete"]
+    profile = ""
+
+    def initial(self, request, *args, **kwargs):
+        """
+        Dynamically set lookup_url_kwarg and profile based on URL.
+        """
+        super().initial(request, *args, **kwargs)
+        if "staff_id" in self.kwargs:
+            self.lookup_url_kwarg = "staff_id"
+            self.profile = "staff"
+        elif "candidate_id" in self.kwargs:
+            self.lookup_url_kwarg = "candidate_id"
+            self.profile = "candidate"
+
+    def retrieve(self, request, *args, **kwargs):
+        """Get candidate/staff profile detail"""
+        profile_id = self.kwargs.get(self.lookup_url_kwarg)
+        cache_key = f"{self.profile}_profile_{profile_id}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        cache.set(cache_key, data, 86400)  # Cache for 24 hours
+        return Response(data)
+
+    def perform_update(self, serializer):
+        """Save updates to candidate/staff"""
+        target_profile = serializer.instance
+        request_user = self.request.user
+        logger.info(
+            "%s profile %s update request by user %s",
+            self.profile.title(),
+            target_profile.pk,
+            request_user.id,
+        )
+        serializer.save()
+        cache.delete(f"{self.profile}_profile_{target_profile.pk}")
+        cache.delete(f"{self.profile}_dashboard_data_{target_profile.pk}")
+
+    def perform_destroy(self, instance):
+        """Deactivates a candidate/staff profile (soft delete)"""
+        target_profile = instance
+        request_user = self.request.user
+        logger.info(
+            "%s profile %s soft-delete request by user %s",
+            self.profile.title(),
+            target_profile.pk,
+            request_user.id,
+        )
+        instance.is_active = False
+        instance.save()
+        cache.delete(f"{self.profile}_profile_{target_profile.pk}")
+        cache.delete(f"{self.profile}_dashboard_data_{target_profile.pk}")
+
+    def get_serializer_class(self):
+        if self.profile == "candidate":
+            return CandidateDetailSerializer
+        if self.profile == "staff":
+            return StaffDetailSerializer
+        return None
+
+    def get_queryset(self):
+        if self.profile == "candidate":
+            return (
+                Candidate.objects.select_related("user", "user__verification")
+                .prefetch_related("scores__exam", "scores__score_submitted_by__user")
+                .all()
+            )
+        if self.profile == "staff":
+            return Staff.objects.select_related("user", "user__verification").all()
+        
