@@ -67,6 +67,11 @@ class PublishLeaderboardView(APIView):
         logger.info(
             f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
+
+        # Invalidate leaderboard cache before triggering regeneration
+        cache.delete_pattern("leaderboard_*")
+        logger.info("Leaderboard cache invalidated.")
+
         invalidate_all_candidate_records()
         generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)

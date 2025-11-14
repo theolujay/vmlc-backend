@@ -1,17 +1,12 @@
 import logging
-from datetime import timedelta
 
-from django.db.models import F, Avg, ExpressionWrapper, DateTimeField, Sum, Window, Q
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
-from django.utils import timezone
 from celery import shared_task
 from celery.exceptions import Retry
-from PIL import Image
-import magic
 
-from .utils import generate_stats_overview_data
+from vmlc.utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
 
@@ -77,49 +72,9 @@ def calculate_and_save_auto_score_task(candidate_score_id):
     """
     Celery task to calculate and save the auto score for a candidate's exam submission.
     """
-    from .models import CandidateScore, CandidateAnswer
+    from vmlc.utils.functions import calculate_and_save_auto_score
 
-    try:
-        candidate_score = CandidateScore.objects.get(pk=candidate_score_id)
-        submitted_answers = CandidateAnswer.objects.filter(
-            candidate_score=candidate_score
-        )
-
-        total_questions = candidate_score.exam.questions.filter(
-            is_archived=False
-        ).count()
-        if not total_questions:
-            candidate_score.score = 0
-        else:
-            correct_count = sum(
-                1
-                for answer in submitted_answers
-                if answer.selected_option == answer.question.correct_answer
-            )
-            score = (correct_count / total_questions) * 100
-            candidate_score.score = round(score, 2)
-
-        candidate_score.auto_score = True
-        candidate_score.score_submitted_by = None
-        candidate_score.recorded_at = timezone.now()
-        candidate_score.save()
-        cache.delete(f"candidate_dashboard_{candidate_score.candidate.pk}")
-        logger.info(
-            f"Successfully calculated score for CandidateScore {candidate_score_id}"
-        )
-    except CandidateScore.DoesNotExist:
-        logger.error(f"CandidateScore with id {candidate_score_id} does not exist.")
-    except Exception as e:
-        logger.error(
-            f"Failed to calculate score for CandidateScore {candidate_score_id}: {e}"
-        )
-
-
-@shared_task(name="update_exam_statuses_task")
-def update_exam_statuses_task():
-    """This task is deprecated since Exam.status is now a property."""
-    logger.info("update_exam_statuses_task is deprecated and does nothing.")
-    return "Task is deprecated."
+    calculate_and_save_auto_score(candidate_score_id)
 
 
 @shared_task(name="generate_leaderboard_snapshot_task")
@@ -127,123 +82,9 @@ def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
     """
-    from .models import LeaderboardSnapshot, Staff
+    from vmlc.utils.functions import generate_leaderboard_snapshot
 
-    now = timezone.now()
-    concluded_exams = _get_concluded_exams(now)
-
-    if not concluded_exams.exists():
-        logger.info(
-            f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
-        )
-        return
-
-    staff = Staff.objects.get(pk=staff_id) if staff_id else None
-    all_leaderboards = {}
-
-    for exam in concluded_exams:
-        leaderboard_key = f"{exam.stage}_{exam.level}"
-        leaderboard_entries = _build_leaderboard_entries(exam)
-        all_leaderboards[leaderboard_key] = _create_exam_leaderboard_data(
-            exam, leaderboard_entries, leaderboard_key
-        )
-
-    snapshot = LeaderboardSnapshot.objects.create(
-        data=all_leaderboards,
-        published_by=staff,
-        is_published=True,
-    )
-
-    logger.info(
-        f"Leaderboard snapshot created by staff {staff.pk if staff else 'system'}. "
-        f"Snapshot ID: {snapshot.pk}. "
-        f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
-    )
-
-
-def _get_concluded_exams(now):
-    """Helper to get all concluded exams."""
-    from .models import Exam
-
-    return (
-        Exam.objects.annotate(
-            conclusion_time=ExpressionWrapper(
-                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
-                output_field=DateTimeField(),
-            )
-        )
-        .filter(is_active=True, conclusion_time__lte=now)
-        .annotate(average_score=Avg("scores__score"))
-        .order_by("stage", "level")
-    )
-
-
-def _build_leaderboard_entries(exam):
-    """Helper to build leaderboard entries for a given exam."""
-    from .models import CandidateScore
-    from .serializers import CandidateLeaderboardPerfSerializer
-
-    scores = (
-        CandidateScore.objects.filter(exam=exam)
-        .select_related("candidate__user")
-        .prefetch_related("answers__question")
-        .order_by("-score")
-    )
-
-    leaderboard_entries = []
-    for index, score in enumerate(scores):
-        candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
-        answers = score.answers.all()
-        submission_list = []
-        for answer in answers:
-            submission_list.append(
-                {
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "correct_answer": answer.question.correct_answer,
-                    "selected_option": answer.selected_option,
-                    "is_correct": answer.selected_option
-                    == answer.question.correct_answer,
-                    "answered_at": answer.answered_at.isoformat(),
-                }
-            )
-        candidate_data["submissions"] = submission_list
-        leaderboard_entries.append(
-            {
-                "rank": index + 1,
-                "candidate": candidate_data,
-                "score": float(score.score),
-                "percentage": (
-                    round((float(score.score) / exam.questions.count() * 100), 2)
-                    if exam.questions.count() > 0
-                    else 0
-                ),
-            }
-        )
-    return leaderboard_entries
-
-
-def _create_exam_leaderboard_data(exam, leaderboard_entries, leaderboard_key):
-    """Helper to create the final data structure for an exam's leaderboard."""
-    return {
-        "exam_id": exam.id,
-        "exam_title": exam.title,
-        "exam_description": exam.description,
-        "stage": exam.stage,
-        "level": exam.level,
-        "stage_display": leaderboard_key,
-        "scheduled_date": exam.scheduled_date.isoformat(),
-        "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
-        "status": exam.status,
-        "total_questions": exam.questions.count(),
-        "average_score": float(exam.average_score) if exam.average_score else 0.0,
-        "total_candidates": len(leaderboard_entries),
-        "entries": leaderboard_entries,
-    }
+    return generate_leaderboard_snapshot(staff_id)
 
 
 @shared_task(name="generate_scores_snapshot_task")
@@ -251,84 +92,9 @@ def generate_scores_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the scores snapshot.
     """
-    from .models import Candidate, CandidateScoreSnapshot, Staff, User
-    from .serializers import MinimalCandidateSerializer
+    from vmlc.utils.functions import generate_scores_snapshot
 
-    try:
-        if staff_id:
-            staff = Staff.objects.get(pk=staff_id)
-        else:
-            # If no staff_id is provided, use the first superadmin
-            superadmin_user = User.objects.filter(is_superuser=True).first()
-            if not superadmin_user:
-                logger.error("No superadmin user found to publish the scores snapshot.")
-                return
-            staff = superadmin_user.staff_profile
-        candidates = Candidate.objects.with_scores().filter(user__is_active=True)
-
-        scores_data = []
-        for candidate in candidates:
-            scores_data.append(
-                {
-                    "candidate": MinimalCandidateSerializer(candidate).data,
-                    "total_score": float(candidate.total_score or 0.0),
-                    "average_score": float(candidate.average_score or 0.0),
-                    "exams_taken": candidate.exams_taken or 0,
-                }
-            )
-
-        snapshot = CandidateScoreSnapshot.objects.create(
-            data=scores_data,
-            published_by=staff,
-            published_at=timezone.now(),
-        )
-
-        logger.info(f"Scores published by staff {staff.pk}. Snapshot ID: {snapshot.pk}")
-    except Staff.DoesNotExist:
-        logger.error(f"Staff with id {staff_id} does not exist.")
-    except Exception as e:
-        logger.error(f"Failed to generate scores snapshot: {e}")
-
-
-def _validate_file_size(value, max_size_mb, field_name):
-    """Helper method to validate file size"""
-    if value and value.size > max_size_mb * 1024 * 1024:
-        raise ValueError(f"{field_name} must be less than {max_size_mb}MB.")
-
-
-def _validate_image_file(value, field_name):
-    """Helper method to validate image files"""
-    if not value:
-        return
-
-    try:
-        # Use PIL to verify it's a real image
-        img = Image.open(value)
-        img.verify()
-        # Reset file pointer after verification
-        value.seek(0)
-    except Exception:
-        raise ValueError(f"Invalid {field_name} image file.")
-
-
-def _validate_file_type(value, allowed_types, field_name):
-    """Helper method to validate file type using python-magic"""
-    if not value:
-        return
-
-    try:
-        # Get actual file type using magic
-        file_type = magic.from_buffer(value.read(1024), mime=True)
-        value.seek(0)  # Reset file pointer
-
-        if file_type not in allowed_types:
-            allowed_str = ", ".join(allowed_types)
-            raise ValueError(f"{field_name} must be one of: {allowed_str}")
-    except (OSError, magic.MagicException):
-        # Fallback to content_type if magic fails
-        if hasattr(value, "content_type") and value.content_type not in allowed_types:
-            allowed_str = ", ".join(allowed_types)
-            raise ValueError(f"{field_name} must be one of: {allowed_str}")
+    generate_scores_snapshot(staff_id)
 
 
 @shared_task(name="validate_user_verification_files_task")
@@ -336,85 +102,9 @@ def validate_user_verification_files_task(user_verification_id):
     """
     Celery task to validate user verification files.
     """
-    from .models import UserVerification
+    from vmlc.utils.functions import validate_user_verification_files
 
-    try:
-        verification = UserVerification.objects.get(pk=user_verification_id)
-
-        # Validate face ID
-        if verification.face_id:
-            _validate_file_size(verification.face_id, 2, "face ID")
-            allowed_types = ["image/jpg", "image/jpeg", "image/png"]
-            _validate_file_type(verification.face_id, allowed_types, "face ID")
-            _validate_image_file(verification.face_id, "face ID")
-
-        # Validate ID card
-        if verification.id_card:
-            _validate_file_size(verification.id_card, 2, "ID card")
-            allowed_types = ["image/jpg", "image/jpeg", "image/png", "application/pdf"]
-            _validate_file_type(verification.id_card, allowed_types, "ID card")
-            if (
-                verification.id_card.file.content_type
-                and verification.id_card.file.content_type.startswith("image/")
-            ):
-                _validate_image_file(verification.id_card, "ID card")
-
-        # Validate verification document
-        if verification.verification_document:
-            _validate_file_size(
-                verification.verification_document, 2, "Verification document"
-            )
-            allowed_types = ["image/jpg", "image/jpeg", "image/png", "application/pdf"]
-            _validate_file_type(
-                verification.verification_document,
-                allowed_types,
-                "Verification document",
-            )
-            if (
-                verification.verification_document.file.content_type
-                and verification.verification_document.file.content_type.startswith(
-                    "image/"
-                )
-            ):
-                _validate_image_file(
-                    verification.verification_document, "verification document"
-                )
-
-        # If all validations pass
-        verification.is_pending = True
-        verification.save()
-        logger.info(
-            f"Successfully validated files for UserVerification {user_verification_id}"
-        )
-
-    except UserVerification.DoesNotExist:
-        logger.error(f"UserVerification with id {user_verification_id} does not exist.")
-    except ValueError as e:
-        # Handle validation errors
-        verification.is_rejected = True
-        verification.is_pending = False
-        verification.save()
-        send_mail_task.delay(
-            subject="User Verification Rejected",
-            message=f"Your account verification has been rejected due to the following error: {e}. Please upload valid documents.",
-            recipient_list=[verification.user.email],
-        )
-        logger.error(
-            f"File validation failed for UserVerification {user_verification_id}: {e}"
-        )
-    except Exception as e:
-        logger.error(
-            f"An unexpected error occurred during file validation for UserVerification {user_verification_id}: {e}"
-        )
-
-
-# def user_profile_cache_task(user_id):
-#     """Celery task to cache user's profile data."""
-#     from .models import User, Candidate, Staff
-#     from .serializers import MinimalCandidateSerializer, MinimalStaffSerializer
-
-
-#     pass
+    validate_user_verification_files(user_verification_id)
 
 
 @shared_task(name="update_staff_dashboard_cache_task")
@@ -424,28 +114,9 @@ def update_staff_dashboard_cache_task(staff_id=None):
     If a staff_id is provided, it updates the cache for that specific staff member.
     Otherwise, it updates the cache for all staff members.
     """
-    from .models import Staff
-    from .utils.dashboard_utils import get_staff_dashboard_data
+    from vmlc.utils.functions import update_staff_dashboard_cache
 
-    try:
-        if staff_id:
-            staff_members = Staff.objects.filter(pk=staff_id)
-            if not staff_members.exists():
-                logger.error(f"Staff with id {staff_id} does not exist.")
-        else:
-            staff_members = Staff.objects.all()
-
-        for staff in staff_members:
-            dashboard_data = get_staff_dashboard_data(staff)
-            cache.set(
-                f"staff_dashboard_data_{staff.user_id}", dashboard_data, timeout=3600
-            )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for staff {staff.user_id}")
-
-    except Exception as e:
-        logger.error(
-            f"Failed to update staff dashboard cache for staff {staff_id}: {e}"
-        )
+    update_staff_dashboard_cache(staff_id)
 
 
 @shared_task(name="update_candidate_dashboard_cache_task")
@@ -453,26 +124,9 @@ def update_candidate_dashboard_cache_task(candidate_id=None):
     """
     Celery task to update the candidate dashboard cache.
     """
-    from .models import Candidate
-    from .utils.dashboard_utils import get_candidate_dashboard_data
+    from vmlc.utils.functions import update_candidate_dashboard_cache
 
-    try:
-        if candidate_id:
-            candidates = Candidate.objects.filter(pk=candidate_id)
-            if not candidates.exists():
-                logger.error(f"Candidate with id {candidate_id} does not exist.")
-        else:
-            candidates = Candidate.objects.all()
-        for candidate in candidates:
-            dashboard_data = get_candidate_dashboard_data(candidate)
-            cache.set(
-                f"candidate_dashboard_{candidate.user_id}", dashboard_data, timeout=3600
-            )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for candidate {candidate.user_id}")
-    except Exception as e:
-        logger.error(
-            f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
-        )
+    update_candidate_dashboard_cache(candidate_id)
 
 
 @shared_task(name="update_candidate_ranking_cache_task")
@@ -480,39 +134,9 @@ def update_candidate_ranking_cache_task():
     """
     Celery task to update the candidate ranking cache for all league candidates.
     """
-    from .models import Candidate
-    from django.db.models.functions import Rank
-    from vmlc.models import CandidateScoreSnapshot
+    from vmlc.utils.functions import update_candidate_ranking_cache
 
-    try:
-        league_candidates = Candidate.objects.filter(role=Candidate.Roles.LEAGUE)
-        latest_snapshot = (
-            CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
-            .order_by("-published_at")
-            .first()
-        )
-
-        if latest_snapshot:
-            ranked_candidates = league_candidates.annotate(
-                total_score=Sum(
-                    "scores__score",
-                    filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
-                    default=0.0,
-                ),
-                rank=Window(
-                    expression=Rank(),
-                    order_by=F("total_score").desc(nulls_last=True),
-                ),
-            )
-
-            for candidate in ranked_candidates:
-                cache.set(
-                    f"candidate_rank_{candidate.pk}", candidate.rank, timeout=3600
-                )  # Cache for 1 hour
-
-            logger.info("Successfully updated candidate ranking cache.")
-    except Exception as e:
-        logger.error(f"Failed to update candidate ranking cache: {e}")
+    update_candidate_ranking_cache()
 
 
 @shared_task(name="revoke_user_invite_task")
@@ -525,7 +149,6 @@ def revoke_user_invite_task(user_id):
     try:
         user = User.objects.get(pk=user_id)
         if user.last_login is None:
-            # user.is_active = False
             user.delete()
             send_mail_task.delay(
                 subject="Your account has been revoked",
@@ -539,88 +162,6 @@ def revoke_user_invite_task(user_id):
             logger.info(f"User {user.email} has logged in. No action taken.")
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
-
-
-# @shared_task(bind=True, name="revoke_staff_registration_task", max_retries=20)
-# def revoke_staff_registration_task(self, user_id):
-#     """
-#     Delete staff registration if not email_verified
-#     """
-#     from datetime import timedelta
-#     from .models import User, EmailOTP
-
-#     try:
-#         user = User.objects.get(pk=user_id)
-
-#         if not hasattr(user, "staff_profile"):
-#             logger.info(f"User {user.id} is not a staff member. Skipping revocation.")
-#             return
-
-#         if user.is_email_verified:
-#             logger.info(f"User {user.id} has already verified their email. Skipping revocation.")
-#             return
-
-#         latest_otp = (
-#             EmailOTP.objects.filter(user=user).order_by("-created_at").first()
-#         )
-#         if not latest_otp:
-#             if self.request.retries >= 5:
-#                 logger.warning(
-#                     f"No OTP found for user {user.id} after {self.request.retries} retries. "
-#                     "Deleting user as precaution."
-#                 )
-#                 user.delete()
-#                 return
-
-#             logger.debug(
-#                 f"No OTP found for user {user.id} (attempt {self.request.retries + 1}). Retrying..."
-#             )
-#             raise self.retry(countdown=60)
-
-#         time_since_last: timedelta = timezone.now() - latest_otp.created_at
-#         grace_period: timedelta = timedelta(minutes=5)
-
-#         if latest_otp.is_expired() and time_since_last >= grace_period:
-#             logger.debug(
-#                 f"Registration grace period elapsed. Revoking user registration for {user.id}."
-#             )
-
-#             user.delete()
-#             logger.info(f"Revoked staff registration for user {user.email}")
-
-#         elif latest_otp.is_expired() and time_since_last < grace_period:
-#             logger.debug(f"OTP expired, but within grace period for user {user.id}. Retrying...")
-#             # Retry the task after the grace period has passed
-#             raise self.retry(countdown=(grace_period - time_since_last).total_seconds())
-
-#         else:
-#             logger.info(f"OTP for user {user.id} is still valid. No action taken.")
-
-#     except User.DoesNotExist:
-#         logger.warning(f"User with id {user_id} not found for registration revocation.")
-#         # Don't retry - user is gone
-#         return
-
-#     except OperationalError as e:
-#         # Database temporarily unavailable - retry makes sense
-#         logger.error(f"Database error during revocation for user {user_id}: {e}")
-#         raise self.retry(exc=e, countdown=60)
-
-#     except Retry:
-#         raise
-
-#     except Exception as e:
-#         # Unexpected error - log and decide if we should retry
-#         logger.error(
-#             f"Unexpected error during revocation for user {user_id}: {e}",
-#             exc_info=True
-#         )
-
-#         if self.request.retries >= 3:
-#             logger.error(f"Max retries reached for user {user_id}. Giving up.")
-#             return
-
-#         raise self.retry(exc=e, countdown=60)
 
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
