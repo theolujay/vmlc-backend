@@ -37,6 +37,6 @@ class CandidateLeaderboardPerfSerializer(serializers.Serializer):
     Serializer for candidate performance data on the leaderboard.
     """
 
-    id = serializers.IntegerField(source="pk")
+    id = serializers.UUIDField(source="user.id")
     full_name = serializers.CharField(source="user.get_full_name")
     school = serializers.CharField()

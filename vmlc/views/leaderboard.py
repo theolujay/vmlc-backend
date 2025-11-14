@@ -67,6 +67,11 @@ class PublishLeaderboardView(APIView):
         logger.info(
             f"PublishLeaderboardView: request from user {request.user.id} (staff_id: {staff_id})"
         )
+
+        # Invalidate leaderboard cache before triggering regeneration
+        cache.delete_pattern("leaderboard_*")
+        logger.info("Leaderboard cache invalidated.")
+
         invalidate_all_candidate_records()
         generate_scores_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
@@ -275,7 +280,7 @@ class LoadLeaderboardDetailView(APIView):
 
     permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
 
-    def get(self, request: Request, stage: str, level: int, candidate_id: int):
+    def get(self, request: Request, stage: str, level: int, candidate_id):
         user = request.user
         user_role_key = self._get_user_role_key(user)
 
@@ -359,7 +364,7 @@ class LoadLeaderboardDetailView(APIView):
         entries = leaderboard.get("entries", [])
 
         candidate_entry = next(
-            (entry for entry in entries if entry["candidate"]["id"] == candidate_id),
+            (entry for entry in entries if entry["candidate"]["id"] == str(candidate_id)),
             None,
         )
         return candidate_entry, leaderboard

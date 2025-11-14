@@ -614,12 +614,9 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        # Invalidate all leaderboard caches as they are dynamic
-        # A targeted approach is complex, so we clear all
-        # This could be improved with a more specific key pattern
         cache.delete_pattern("leaderboard_*")
-
+        super().save_model(request, obj, form, change)
+        
     def delete_model(self, request, obj):
         cache.delete_pattern("leaderboard_*")
         super().delete_model(request, obj)
@@ -633,19 +630,31 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     @admin.display(description="Data Summary")
     def data_summary(self, obj):
         import json
+        
+        screening_leaderboard_data = {}
+        league_leaderboard_data = {}
+        
+        if isinstance(obj.data, list):
+            for item in obj.data:
+                if isinstance(item, dict):
+                    if item.get("stage") == "screening":
+                        screening_leaderboard_data = item
+                    elif item.get("stage") == "league":
+                        league_leaderboard_data = item
 
-        screening_leaderboard = str(json.dumps(obj.data["screening_leaderboard"]))
-        league_leaderboard = str(json.dumps(obj.data["league_leaderboard"]))
+        screening_leaderboard_str = str(json.dumps(screening_leaderboard_data))
+        league_leaderboard_str = str(json.dumps(league_leaderboard_data))
+
         summary = {
             "screening_leaderboard": (
-                (screening_leaderboard[:75] + "...")
-                if len(screening_leaderboard) > 75
-                else screening_leaderboard
+                (screening_leaderboard_str[:75] + "...")
+                if len(screening_leaderboard_str) > 75
+                else screening_leaderboard_str
             ),
             "league_leaderboard": (
-                (league_leaderboard[:75] + "...")
-                if len(league_leaderboard) > 75
-                else league_leaderboard
+                (league_leaderboard_str[:75] + "...")
+                if len(league_leaderboard_str) > 75
+                else league_leaderboard_str
             ),
         }
         return summary

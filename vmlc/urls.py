@@ -255,7 +255,7 @@ urlpatterns = [
         name="publish-leaderboard",
     ),
     path(
-        "leaderboard/<str:stage>/<int:level>/candidate/<int:candidate_id>/",
+        "leaderboard/<str:stage>/<int:level>/candidate/<uuid:candidate_id>/",
         LoadLeaderboardDetailView.as_view(),
         name="load-leaderboard-detail",
     ),
