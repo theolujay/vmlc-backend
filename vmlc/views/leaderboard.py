@@ -280,7 +280,7 @@ class LoadLeaderboardDetailView(APIView):
 
     permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
 
-    def get(self, request: Request, stage: str, level: int, candidate_id: int):
+    def get(self, request: Request, stage: str, level: int, candidate_id):
         user = request.user
         user_role_key = self._get_user_role_key(user)
 
@@ -364,7 +364,7 @@ class LoadLeaderboardDetailView(APIView):
         entries = leaderboard.get("entries", [])
 
         candidate_entry = next(
-            (entry for entry in entries if entry["candidate"]["id"] == candidate_id),
+            (entry for entry in entries if entry["candidate"]["id"] == str(candidate_id)),
             None,
         )
         return candidate_entry, leaderboard
