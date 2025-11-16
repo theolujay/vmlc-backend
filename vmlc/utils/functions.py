@@ -120,20 +120,21 @@ def _build_leaderboard_entries(exam):
                     "selected_option": answer.selected_option,
                     "is_correct": answer.selected_option
                     == answer.question.correct_answer,
-                    "answered_at": answer.answered_at.isoformat(),
+                    # "answered_at": answer.answered_at.isoformat(),
                 }
             )
         candidate_data["submissions"] = submission_list
         leaderboard_entries.append(
             {
                 "rank": index + 1,
-                "candidate": candidate_data,
                 "score": float(score.score),
                 "percentage": (
                     round((float(score.score) / exam.questions.count() * 100), 2)
                     if exam.questions.count() > 0
                     else 0
                 ),
+                "participated_at": str(score.recorded_at),
+                "candidate": candidate_data
             }
         )
     return leaderboard_entries
