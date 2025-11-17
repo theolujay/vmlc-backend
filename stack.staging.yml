@@ -61,7 +61,7 @@ x-vmlc-common: &vmlc-common
     - database-url
     - django-admin-url
     - gmail-host-password
-    - mailtrap-host-password
+    # - mailtrap-host-password
     - django-secret-key
     - su-password
   labels:
@@ -494,8 +494,8 @@ secrets:
     external: true
   gmail-host-password:
     external: true
-  mailtrap-host-password:
-    external: true
+  # mailtrap-host-password:
+  #   external: true
   db-password:
     external: true
   django-secret-key:
