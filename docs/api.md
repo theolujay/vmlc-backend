@@ -2177,10 +2177,16 @@ Retrieves the detailed performance of a single candidate for a specific exam lea
             {
                 "question_id": 1,
                 "question_text": "What is 2+2?",
+                "option_a": "A",
+                "option_b": "B",
+                "option_c": "D",
+                "option_d": "C",
+                "correct_answer": "C",
                 "selected_option": "C",
-                "answered_at": "2025-11-01T10:15:30Z"
+                "is_correct": true,
             }
-        ]
+        ],
+        "participated_at": "2025-11-01T10:15:30Z"
     }
 }
 ```
@@ -2874,6 +2880,9 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-11-16**:
+  - **Leaderboard**: Added `"participated_at"` field in Candidte
 
 - **2025-11-12**:
   - **New Endpoint**: Added `GET /registration/` to provide public status on whether candidate and staff registrations are open.
