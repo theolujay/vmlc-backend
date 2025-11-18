@@ -53,8 +53,8 @@ x-vmlc-env: &vmlc-env
 x-vmlc-common: &vmlc-common
   image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-staging}
   volumes:
-    - staging_media:/home/verboheit/web/media
-    - staging_static:/home/verboheit/web/staticfiles
+    - media:/home/verboheit/web/media
+    - static:/home/verboheit/web/staticfiles
   secrets:
     - aws-access-key-id
     - aws-secret-access-key
@@ -114,7 +114,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - staging_letsencrypt:/letsencrypt
+      - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - staging
@@ -151,7 +151,7 @@ services:
       - POSTGRES_USER=verboheit_staging
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
     volumes:
-      - staging_db:/var/lib/postgresql/data
+      - db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 30s
@@ -181,7 +181,7 @@ services:
       --save 900 1
       --save 300 10
     volumes:
-      - staging_redis:/data
+      - redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -384,7 +384,7 @@ services:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
     volumes:
-      - staging_prometheus:/prometheus
+      - prometheus:/prometheus
     ports:
       - "9090:9090"
     networks:
@@ -402,7 +402,7 @@ services:
       - source: loki_config
         target: /etc/loki/local-config.yaml
     volumes:
-      - staging_loki:/loki
+      - loki:/loki
     ports:
       - "3100:3100"
     networks:
@@ -420,7 +420,7 @@ services:
       - source: tempo_config
         target: /etc/tempo/tempo-local.yaml
     volumes:
-      - staging_tempo:/tmp/tempo
+      - tempo:/tmp/tempo
     ports:
       - "3200:3200"
     networks:
@@ -459,7 +459,7 @@ services:
       # - source: grafana_dashboards
       #   target: /etc/grafana/provisioning/dashboards/dashboards.yml
     volumes:
-      - staging_grafana:/var/lib/grafana
+      - grafana:/var/lib/grafana
     networks:
       - staging
     deploy:
@@ -473,15 +473,15 @@ networks:
     external: true
     
 volumes:
-  staging_db:
-  staging_redis:
-  staging_media:
-  staging_static:
-  staging_loki:
-  staging_tempo:
-  staging_grafana:
-  staging_prometheus:
-  staging_letsencrypt:
+  db:
+  redis:
+  media:
+  static:
+  loki:
+  tempo:
+  grafana:
+  prometheus:
+  letsencrypt:
 
 secrets:
   aws-access-key-id:
