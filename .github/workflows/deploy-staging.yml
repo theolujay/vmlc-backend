@@ -159,6 +159,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          port: 22
           env_file: ./envfile
 
       - name: Wait for deployment health check
