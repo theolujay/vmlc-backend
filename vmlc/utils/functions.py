@@ -31,7 +31,7 @@ from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,
     MinimalCandidateSerializer,
 )
-from vmlc.utils.dashboard_utils import (
+from vmlc.utils.dashboard import (
     get_staff_dashboard_data,
     get_candidate_dashboard_data,
 )

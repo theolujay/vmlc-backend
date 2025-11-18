@@ -3,7 +3,7 @@ This package contains all the utility functions for the API.
 """
 
 from . import auth
-from .dashboard_utils import (
+from .dashboard import (
     get_candidate_dashboard_data,
     get_staff_dashboard_data,
 )
@@ -14,7 +14,7 @@ from .query_filters import (
     filter_questions,
     ExamFilter,
 )
-from .stats_utils import generate_stats_overview_data
+from .stats import generate_stats_overview_data
 
 __all__ = [
     # auth
