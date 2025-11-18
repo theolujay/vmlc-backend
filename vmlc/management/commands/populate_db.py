@@ -75,6 +75,8 @@ class Command(BaseCommand):
         self.stdout.write("Creating staff users...")
         staff_list = []
         for i in range(20):
+            if User.objects.filter(email=f"staff{i+1}@mail.com").exists():
+                continue
             user = User.objects.create_user(
                 email=f"staff{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
@@ -100,6 +102,8 @@ class Command(BaseCommand):
         self.stdout.write("Creating candidate users...")
         candidate_list = []
         for i in range(100):
+            if User.objects.filter(email=f"candidate{i+1}@mail.com").exists():
+                continue
             user = User.objects.create_user(
                 email=f"candidate{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
@@ -143,12 +147,15 @@ class Command(BaseCommand):
         for i in range(10):
             exam = Exam.objects.create(
                 stage=random.choice(["screening", "league"]),
+                level=random.choice(["easy", "medium", "hard"]),
                 title=fake.catch_phrase(),
                 description=fake.text(),
                 created_by=random.choice(staff_list),
                 is_active=True,
                 scheduled_date=timezone.now()
                 - timezone.timedelta(days=random.randint(1, 30)),
+                open_duration_hours=random.randint(1, 24),
+                countdown_minutes=random.randint(30, 120),
             )
             # Add a random number of questions to each exam
             exam.questions.set(random.sample(question_list, k=random.randint(5, 20)))
