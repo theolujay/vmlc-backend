@@ -1,39 +1,52 @@
 import os
-import django
 import random
-from django.utils import timezone
 from typing import Any
-from faker import Faker
+
+import django
+from django.core.management.base import BaseCommand
+from django.db.models import Avg, Count, Sum
+from django.utils import timezone
+
 from dotenv import load_dotenv
-from django.db.models import Sum, Avg, Count
+from faker import Faker
+
+from vmlc.models import (
+    Candidate,
+    CandidateAnswer,
+    CandidateScore,
+    CandidateScoreSnapshot,
+    Exam,
+    FeatureFlag,
+    LeaderboardSnapshot,
+    Question,
+    Staff,
+    User,
+    UserVerification,
+)
+from vmlc.serializers.candidate import MinimalCandidateSerializer
 
 load_dotenv(".env")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
 django.setup()
 
-from vmlc.models import (
-    User,
-    Candidate,
-    Staff,
-    Question,
-    Exam,
-    CandidateScore,
-    CandidateAnswer,
-    FeatureFlag,
-    UserVerification,
-    LeaderboardSnapshot,
-    CandidateScoreSnapshot,
-)
-from django.core.management.base import BaseCommand
-from vmlc.serializers.candidate import MinimalCandidateSerializer
-
 
 class Command(BaseCommand):
     help = "Populates the database with initial data."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=random.randint(0, 1000000),
+            help="Seed for random data generation to ensure reproducibility.",
+        )
+
     def handle(self, *args: Any, **options: Any) -> None:
+        seed = options["seed"]
+        random.seed(seed)
         fake = Faker()
+        Faker.seed(seed)
 
         def generate_nigerian_phone_number():
             # Helper to generate a valid Nigerian phone number
@@ -41,25 +54,20 @@ class Command(BaseCommand):
             return f"{prefix}{random.randint(10000000, 99999999)}"
 
         # Clear existing data
-        # self.stdout.write("Clearing existing data...")
-        # CandidateAnswer.objects.all().delete()
-        # CandidateScore.objects.all().delete()
-        # Exam.objects.all().delete()
-        # Question.objects.all().delete()
-        # Staff.objects.all().delete()
-        # Candidate.objects.all().delete()
-        # UserVerification.objects.all().delete()
-        # FeatureFlag.objects.all().delete()
-        # LeaderboardSnapshot.objects.all().delete()
-        # CandidateScoreSnapshot.objects.all().delete()
-        # User.objects.filter(is_superuser=False).delete()
+        self.stdout.write("Clearing existing data...")
+        CandidateAnswer.objects.all().delete()
+        CandidateScore.objects.all().delete()
+        Exam.objects.all().delete()
+        Question.objects.all().delete()
+        LeaderboardSnapshot.objects.all().delete()
+        CandidateScoreSnapshot.objects.all().delete()
 
-        # Create FeatureFlags
+
         self.stdout.write("Creating feature flags...")
-        candidate_registration, _ = FeatureFlag.objects.get_or_create(
+        FeatureFlag.objects.get_or_create(
             key="candidate_registration", value=True
         )
-        staff_registratio, _ = FeatureFlag.objects.get_or_create(
+        FeatureFlag.objects.get_or_create(
             key="staff_registration", value=True
         )
 
