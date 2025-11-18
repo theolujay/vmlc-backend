@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -159,27 +160,10 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
         is_approved = validated_data.get("is_approved")
         is_rejected = validated_data.get("is_rejected")
 
-        if is_approved is True:
-            # Approve
-            instance.is_approved = True
-            instance.is_pending = False
-            instance.is_rejected = False
-            send_mail_task.delay(
-                subject="User Verification Successful",
-                message="Your account is now verified.",
-                recipient_list=[instance.user.email],
-            )
-
-        elif is_rejected is True:
-            # Reject
-            instance.is_approved = False
-            instance.is_pending = False
-            instance.is_rejected = True
-            send_mail_task.delay(
-                subject="User Verification Rejected",
-                message="Your account verification has been rejected. Please contact a staf member for enquires.",
-                recipient_list=[instance.user.email],
-            )
-
+        # The model's clean() method will ensure only one is true.
+        instance.is_approved = is_approved
+        instance.is_rejected = is_rejected
+        instance.is_pending = not (is_approved or is_rejected)
         instance.save()
+        
         return instance

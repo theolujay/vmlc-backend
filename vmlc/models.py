@@ -16,6 +16,7 @@ from django.db.models.functions import Rank
 from django.utils import timezone
 
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
+from .utils.user import get_last_concluded_exam
 
 
 class FeatureFlag(models.Model):
@@ -218,6 +219,31 @@ class UserVerification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def clean(self):
+        """Validate that only one status flag is True."""
+        true_count = sum([self.is_pending, self.is_approved, self.is_rejected])
+        
+        if true_count > 1:
+            raise ValidationError(
+                "Only one of is_pending, is_approved, or is_rejected can be True"
+            )
+
+    def save(self, *args, **kwargs):
+        """Call clean before saving."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def status(self):
+        """Get current verification status as a string."""
+        if self.is_approved:
+            return 'approved'
+        elif self.is_rejected:
+            return 'rejected'
+        elif self.is_pending:
+            return 'pending'
+        return 'not_started'
+    
     def __str__(self):
         """Return a string representation of the user verification."""
         return f"Verification for {self.user.get_full_name()}"
@@ -356,10 +382,10 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         if not self.user.is_active:
             return "deactivated"
         try:
-            if self.user.verification.is_pending:
+            if self.user.verification and self.user.verification.is_pending:
                 return "pending"
-        except User.verification.RelatedObjectDoesNotExist:
-            pass
+        except (AttributeError, UserVerification.DoesNotExist):
+            return "inactive"  # A user without a verification record is inactive
 
         seven_days_ago = timezone.now() - timedelta(days=7)
         if self.user.last_login and self.user.last_login >= seven_days_ago:
@@ -769,24 +795,14 @@ class Candidate(models.Model):
         if not self.user.is_active:
             return "deactivated"
         try:
-            if self.user.verification.is_pending:
+            if self.user.verification and self.user.verification.is_pending:
                 return "pending"
-        except User.verification.RelatedObjectDoesNotExist:
-            pass
+        except (AttributeError, UserVerification.DoesNotExist):
+            return "inactive" # A user without a verification record is inactive
 
         seven_days_ago = timezone.now() - timedelta(days=7)
 
-        all_exams = Exam.objects.filter(is_active=True, scheduled_date__isnull=False)
-        concluded_exams = [
-            exam for exam in all_exams if exam.status == Exam.Status.CONCLUDED
-        ]
-        last_concluded_exam = None
-        if concluded_exams:
-            last_concluded_exam = max(
-                concluded_exams,
-                key=lambda e: e.scheduled_date + timedelta(hours=e.open_duration_hours),
-            )
-
+        last_concluded_exam = get_last_concluded_exam()
         if last_concluded_exam:
             is_active_based_on_exam = (
                 self.__class__.objects.filter(
