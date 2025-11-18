@@ -3,7 +3,7 @@ import random
 from typing import Any
 
 import django
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Avg, Count, Sum
 from django.utils import timezone
 
@@ -98,6 +98,18 @@ class Command(BaseCommand):
             )
             staff_list.append(staff)
 
+        if not staff_list:
+            self.stdout.write(
+                "No new staff users created, fetching existing ones from the database."
+            )
+            staff_list = list(Staff.objects.all())
+
+        if not staff_list:
+            raise CommandError(
+                "No staff users found or created. "
+                "Please create at least one staff user before running this command."
+            )
+
         # Create candidate users
         self.stdout.write("Creating candidate users...")
         candidate_list = []
@@ -147,7 +159,7 @@ class Command(BaseCommand):
         for i in range(10):
             exam = Exam.objects.create(
                 stage=random.choice(["screening", "league"]),
-                level=random.choice(["easy", "medium", "hard"]),
+                level=random.randint(1, 6),
                 title=fake.catch_phrase(),
                 description=fake.text(),
                 created_by=random.choice(staff_list),
