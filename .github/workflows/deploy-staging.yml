@@ -154,7 +154,7 @@ jobs:
         id: deploy
         uses: cssnr/stack-deploy-action@v1
         with:
-          name: vmlc-backend
+          name: vmlc-staging
           file: stack.staging.yml
           host: ${{ secrets.VPS_HOST }}
           user: deploy
@@ -173,7 +173,7 @@ jobs:
             # Wait up to 5 minutes for services to stabilize
             for i in {1..30}; do
               # Check if all services are running
-              REPLICAS=$(docker service ls --filter name=vmlc-backend --format "{{.Replicas}}" | grep -v "0/")
+              REPLICAS=$(docker service ls --filter name=vmlc-staging --format "{{.Replicas}}" | grep -v "0/")
               
               if echo "$REPLICAS" | grep -qv "/"; then
                 echo "All services are up!"
