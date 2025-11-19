@@ -16,7 +16,7 @@ from django.db.models.functions import Rank
 from django.utils import timezone
 
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
-from .utils.user import get_last_concluded_exam
+
 
 
 class FeatureFlag(models.Model):
@@ -788,10 +788,11 @@ class Candidate(models.Model):
                 "average_score": float(self.average_score or 0),
             }
         return None
-
+    
     @property
     def get_status(self):
         """Get the user status"""
+        from .utils.user import get_last_concluded_exam
         if not self.user.is_active:
             return "deactivated"
         try:

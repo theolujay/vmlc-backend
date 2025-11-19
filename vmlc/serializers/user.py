@@ -79,6 +79,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
     has_face_id = serializers.SerializerMethodField()
     has_id_card = serializers.SerializerMethodField()
     has_verification_document = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = UserVerification
@@ -86,14 +87,15 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "user_id",
             "full_name",
             "email",
-            "is_pending",
-            "is_approved",
-            "is_rejected",
+            "status",
             "has_face_id",
             "has_id_card",
             "has_verification_document",
             "created_at",
         ]
+        
+    def get_status(self, obj):
+        return obj.status
 
     def get_has_face_id(self, obj):
         return bool(obj.face_id)
@@ -112,15 +114,14 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
     """
 
     documents_uploaded = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = UserVerification
         fields = [
-            "is_pending",
-            "is_approved",
-            "is_rejected",
+            "status",
             "created_at",
-            "recorded_at",
+            "updated_at",
             "documents_uploaded",
         ]
 
@@ -130,6 +131,9 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "id_card": bool(obj.id_card),
             "verification_document": bool(obj.verification_document),
         }
+    
+    def get_status(self, obj):
+        return obj.status
 
 
 class UserVerificationUploadSerializer(serializers.ModelSerializer):
