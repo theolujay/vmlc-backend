@@ -79,7 +79,7 @@ Tips:
 	- OTEL is enabled in compose via `OTEL_EXPORTER_OTLP_ENDPOINT` and related env vars. Instrumentation packages are listed in `requirements.txt` and `pyproject.toml`. Avoid duplicate instrumentation in both middleware and app startup.
 
 - Deployment & CI:
-	- Render manifests are in `render.yaml`. GitHub Actions workflows are in `.github/workflows/` (`deploy-staging.yml`, `deploy-prod.yml`) — coordinate infra changes with ops.
+	- Deployment manifests live in `stack.*.yml` GitHub Actions workflows are in `.github/workflows/` (`deploy-staging.yml`, `deploy-prod.yml`) — coordinate infra changes with ops.
 
 ## Examples
 
