@@ -24,6 +24,8 @@ from vmlc.models import (
     UserVerification,
 )
 from vmlc.serializers.candidate import MinimalCandidateSerializer
+from vmlc.utils.functions import generate_leaderboard_snapshot
+
 
 load_dotenv(".env")
 
@@ -137,6 +139,12 @@ class Command(BaseCommand):
             )
             candidate_list.append(candidate)
 
+        if not candidate_list:
+            self.stdout.write(
+                "No new candidate users created, fetching existing ones from the database."
+            )
+            candidate_list = list(Candidate.objects.all())
+
         # Create questions
         self.stdout.write("Creating questions...")
         question_list = []
@@ -155,11 +163,29 @@ class Command(BaseCommand):
 
         # Create exams
         self.stdout.write("Creating exams...")
-        exam_list = []
+        league_exams = []
+        screening_exams = []
+        screening_exam = Exam.objects.create(
+            stage="screening",
+            level=1,
+            title=fake.catch_phrase(),
+            description=fake.text(),
+            created_by=random.choice(staff_list),
+            is_active=True,
+            scheduled_date=timezone.now()
+            - timezone.timedelta(days=random.randint(1, 30)),
+            open_duration_hours=12,
+            countdown_minutes=60,
+        )
+        screening_exam.questions.set(
+            random.sample(question_list, k=random.randint(5, 20))
+        )
+        screening_exams.append(screening_exam)
+
         for i in range(10):
             exam = Exam.objects.create(
-                stage=random.choice(["screening", "league"]),
-                level=random.randint(1, 6),
+                stage="league",
+                level=random.randint(1, 5),
                 title=fake.catch_phrase(),
                 description=fake.text(),
                 created_by=random.choice(staff_list),
@@ -171,13 +197,21 @@ class Command(BaseCommand):
             )
             # Add a random number of questions to each exam
             exam.questions.set(random.sample(question_list, k=random.randint(5, 20)))
-            exam_list.append(exam)
+            league_exams.append(exam)
 
         # Create Candidate scores and answers
         self.stdout.write("Creating candidate scores and answers...")
         for candidate in candidate_list:
-            # Have each candidate take a random number of exams
-            exams_to_take = random.sample(exam_list, k=random.randint(1, 5))
+            exams_to_take = []
+            if candidate.role == "screening" and screening_exams:
+                exams_to_take = random.sample(
+                    screening_exams, k=random.randint(1, len(screening_exams))
+                )
+            elif candidate.role == "league" and league_exams:
+                exams_to_take = random.sample(
+                    league_exams, k=random.randint(1, min(5, len(league_exams)))
+                )
+
             for exam in exams_to_take:
                 score = CandidateScore.objects.create(
                     candidate=candidate,
@@ -200,21 +234,6 @@ class Command(BaseCommand):
             .order_by("-total_score")
         )
 
-        leaderboard_data = [
-            {
-                "rank": index + 1,
-                "candidate": MinimalCandidateSerializer(candidate).data,
-                "total_score": float(candidate.total_score or 0.0),
-            }
-            for index, candidate in enumerate(league_candidates)
-        ]
-
-        if staff_list:
-            LeaderboardSnapshot.objects.create(
-                data=leaderboard_data,
-                published_by=random.choice(staff_list),
-            )
-
         # Generate Candidate Score Snapshot
         self.stdout.write("Generating candidate score snapshot...")
         all_candidates = Candidate.objects.annotate(
@@ -234,12 +253,12 @@ class Command(BaseCommand):
                 }
             )
 
-        if staff_list:
-            CandidateScoreSnapshot.objects.create(
-                data=scores_data,
-                published_by=random.choice(staff_list),
-                published_at=timezone.now(),
-            )
+        CandidateScoreSnapshot.objects.create(
+            data=scores_data,
+            published_by=random.choice(staff_list),
+            published_at=timezone.now(),
+        )
+        generate_leaderboard_snapshot(random.choice(staff_list).pk)
 
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with more data!")
