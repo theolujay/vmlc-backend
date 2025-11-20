@@ -846,6 +846,7 @@ Authorization: Bearer <access-token>
         "phone": "08112463722",
         "date_joined": "2025-10-15T11:39:50.742597+01:00"
     },
+    "profile_type": "candidate",
     "school": "Porter Ltd High",
     "face_id": null,
     "role": "league",
@@ -1072,6 +1073,7 @@ X-Api-Key: <your_api_key>
     "phone": "+23490xxxxxxxx",
     "date_joined": "2024-01-01T08:00:00Z"
   },
+  "profile_type": "staff",
   "occupation": "Mathematics Teacher",
   "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",

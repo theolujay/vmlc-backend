@@ -58,11 +58,13 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     face_id = serializers.SerializerMethodField()
     id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
+    profile_type = serializers.SerializerMethodField()
 
     class Meta:
         model: Candidate = Candidate
         fields = [
             "user",
+            "profile_type",
             "school",
             "face_id",
             "role",
@@ -115,5 +117,5 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             return obj.id_card.url
         return None
     
-    def get_profile_type():
+    def get_profile_type(self, obj: Candidate):
         return "candidate"

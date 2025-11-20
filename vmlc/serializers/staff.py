@@ -96,5 +96,5 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             return obj.id_card.url
         return None
 
-    def get_profile_type():
+    def get_profile_type(self, obj: Staff):
         return "staff"
