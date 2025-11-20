@@ -221,7 +221,7 @@ class UserVerification(models.Model):
 
     def clean(self):
         """Validate that only one status flag is True."""
-        true_count = sum([self.is_pending, self.is_approved, self.is_rejected])
+        true_count = sum([int(self.is_pending), int(self.is_approved), int(self.is_rejected)])
         
         if true_count > 1:
             raise ValidationError(
