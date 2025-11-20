@@ -161,8 +161,8 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """
         Handle verification status updates."""
-        is_approved = validated_data.get("is_approved")
-        is_rejected = validated_data.get("is_rejected")
+        is_approved = validated_data.get("is_approved", False)
+        is_rejected = validated_data.get("is_rejected", False)
 
         # The model's clean() method will ensure only one is true.
         instance.is_approved = is_approved
