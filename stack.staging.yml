@@ -204,7 +204,6 @@ services:
     command: ["./scripts/runmigrations.sh"]
     depends_on:
       - db
-      - redis
     environment:
       <<: [*vmlc-env, *staging-otel-env]
     deploy:
@@ -251,11 +250,6 @@ services:
       timeout: 15s
       retries: 5
       start_period: 90s
-    depends_on:
-      - db
-      - redis
-      - db-migrate
-      - otel-collector
     deploy:
       update_config:
         order: start-first
@@ -306,12 +300,9 @@ services:
       interval: 120s
       timeout: 20s
       retries: 3
-      start_period: 30s
+      start_period: 120s
     depends_on:
-      - db
       - redis
-      - db-migrate
-      - otel-collector
     deploy:
       update_config:
         order: start-first
@@ -338,10 +329,7 @@ services:
     environment:
       <<: [*vmlc-env, *staging-otel-env]
     depends_on:
-      - db
       - redis
-      - db-migrate
-      - otel-collector
     deploy:
       update_config:
         order: start-first

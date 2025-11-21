@@ -24,7 +24,7 @@ WORKDIR /home/verboheit/build
 ENV UV_CACHE_DIR=/tmp/uv-cache
 RUN pip install --no-cache-dir uv==${UV_VERSION}
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-cache --compile-bytecode --group dev && \
+RUN uv sync --frozen --no-cache --compile-bytecode --no-dev && \
     rm -rf /tmp/uv-cache
 
 # ==========================================================================
