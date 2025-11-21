@@ -285,7 +285,7 @@ services:
       - worker
       - -l
       - warning
-      - --concurrency=2
+      - --concurrency=1
       # - --max-tasks-per-child=100
       - --time-limit=300
       - -Q
@@ -308,10 +308,10 @@ services:
         order: start-first
       resources:
         limits:
-          memory: 512M
+          memory: 768M
           cpus: '0.15'
         reservations:
-          memory: 256M
+          memory: 384M
           cpus: '0.075'
 
   celery_beat:
