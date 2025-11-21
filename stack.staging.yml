@@ -288,7 +288,6 @@ services:
     environment:
       <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
-      # Add explicit worker timeout to prevent hangs
       CELERY_WORKER_SEND_TASK_EVENTS: "true"
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
