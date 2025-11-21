@@ -12,7 +12,7 @@ x-staging-otel-env: &staging-otel-env
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
-  OTEL_TRACES_SAMPLER_ARG: "0.01"  # Sample 10% of traces to reduce overhead
+  OTEL_TRACES_SAMPLER_ARG: "0.01"
 
 x-vmlc-env: &vmlc-env
   AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
@@ -20,7 +20,6 @@ x-vmlc-env: &vmlc-env
   DATABASE_URL_FILE: /run/secrets/database-url
   DJANGO_ADMIN_URL_FILE: /run/secrets/django-admin-url
   EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
-  # EMAIL_HOST_PASSWORD_FILE: /run/secrets/mailtrap-host-password
   SECRET_KEY_FILE: /run/secrets/django-secret-key
   SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
   ALLOWED_HOSTS: api.verboheit.org,staging-api.verboheit.org,localhost
@@ -36,9 +35,7 @@ x-vmlc-env: &vmlc-env
   DEFAULT_FROM_EMAIL: "Verboheit MLC <staging-mlc@verboheit.org>"
   DJANGO_SETTINGS_MODULE: config.settings.staging
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
-  # EMAIL_HOST: live.smtp.mailtrap.io
   EMAIL_HOST: smtp.gmail.com
-  # EMAIL_HOST_USER: api
   EMAIL_HOST_USER: olujay.dev.testing@gmail.com
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
@@ -61,7 +58,6 @@ x-vmlc-common: &vmlc-common
     - database-url
     - django-admin-url
     - gmail-host-password
-    # - mailtrap-host-password
     - django-secret-key
     - su-password
   labels:
@@ -118,15 +114,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - staging
-    
     deploy:
       resources:
         limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
           memory: 128M
           cpus: '0.1'
-        reservations:
-          memory: 50M
-          cpus: '0.05'
 
   db:
     image: postgres:17.2-bookworm
@@ -136,14 +131,14 @@ services:
       -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
       -c log_min_duration_statement=5000
-      -c max_connections=30
-      -c shared_buffers=128MB
-      -c effective_cache_size=384MB
-      -c work_mem=2MB
-      -c maintenance_work_mem=32MB
+      -c max_connections=50
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=5MB
+      -c maintenance_work_mem=64MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
-      -c wal_buffers=4MB
+      -c wal_buffers=8MB
     secrets:
       - db-password
     environment:
@@ -161,11 +156,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.25'
+          memory: 1024M
+          cpus: '0.5'
         reservations:
-          memory: 128M
-          cpus: '0.15'
+          memory: 512M
+          cpus: '0.25'
     networks:
       - staging
 
@@ -173,10 +168,10 @@ services:
     image: redis:7.2.4-alpine
     command: >
       redis-server
-      --maxmemory 128mb
+      --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --loglevel warning
-      --tcp-backlog 64
+      --tcp-backlog 128
       --timeout 300
       --save 900 1
       --save 300 10
@@ -190,11 +185,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 96M
-          cpus: '0.1'
+          memory: 384M
+          cpus: '0.25'
         reservations:
-          memory: 48M
-          cpus: '0.05'
+          memory: 256M
+          cpus: '0.1'
     networks:
       - staging
 
@@ -216,11 +211,11 @@ services:
         window: 300s
       resources:
         limits:
+          memory: 384M
+          cpus: '0.25'
+        reservations:
           memory: 256M
           cpus: '0.15'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
 
   django:
     <<: *vmlc-common
@@ -249,7 +244,7 @@ services:
       interval: 60s
       timeout: 15s
       retries: 5
-      start_period: 90s
+      start_period: 120s
     deploy:
       update_config:
         order: start-first
@@ -257,11 +252,11 @@ services:
       replicas: 2
       resources:
         limits:
-          memory: 768M
-          cpus: '0.25'
+          memory: 1024M
+          cpus: '0.75'
         reservations:
-          memory: 256M
-          cpus: '0.2'
+          memory: 768M
+          cpus: '0.5'
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -285,34 +280,38 @@ services:
       - worker
       - -l
       - warning
-      - --concurrency=1
-      # - --max-tasks-per-child=100
+      - --concurrency=2
+      - --max-tasks-per-child=50
       - --time-limit=300
       - -Q
       - default,emails,comms,scoring,files,reports,cache
     environment:
       <<: [*vmlc-env, *staging-otel-env]
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging,service.instance.id=celery_worker
+      # Add explicit worker timeout to prevent hangs
+      CELERY_WORKER_SEND_TASK_EVENTS: "true"
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-t", "10"]
       interval: 120s
-      timeout: 20s
+      timeout: 30s
       retries: 3
-      start_period: 120s
+      start_period: 180s
     depends_on:
       - redis
+      - db
     deploy:
       update_config:
         order: start-first
+        failure_action: rollback
       resources:
         limits:
-          memory: 768M
-          cpus: '0.15'
+          memory: 1024M
+          cpus: '0.5'
         reservations:
-          memory: 384M
-          cpus: '0.075'
+          memory: 768M
+          cpus: '0.25'
 
   celery_beat:
     <<: *vmlc-common
@@ -330,16 +329,17 @@ services:
       <<: [*vmlc-env, *staging-otel-env]
     depends_on:
       - redis
+      - db
     deploy:
       update_config:
         order: start-first
       resources:
         limits:
+          memory: 512M
+          cpus: '0.15'
+        reservations:
           memory: 384M
           cpus: '0.05'
-        reservations:
-          memory: 50M
-          cpus: '0.03'
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -354,8 +354,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.2'
 
   prometheus:
     image: prom/prometheus:v3.7.2
@@ -380,8 +380,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
-          cpus: '0.1'
+          memory: 384M
+          cpus: '0.25'
 
   loki:
     image: grafana/loki:3.5
@@ -398,8 +398,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.2'
 
   tempo:
     image: grafana/tempo:main-a3e0bf4
@@ -417,7 +417,7 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: '0.1'
+          cpus: '0.2'
 
   grafana:
     image: grafana/grafana:12.2
@@ -444,8 +444,6 @@ services:
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
-      # - source: grafana_dashboards
-      #   target: /etc/grafana/provisioning/dashboards/dashboards.yml
     volumes:
       - grafana:/var/lib/grafana
     networks:
@@ -453,8 +451,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.2'
 
 networks:
   staging:
@@ -482,8 +480,6 @@ secrets:
     external: true
   gmail-host-password:
     external: true
-  # mailtrap-host-password:
-  #   external: true
   db-password:
     external: true
   django-secret-key:
