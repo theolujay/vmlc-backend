@@ -527,6 +527,7 @@ class UserListView(ListAPIView):
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
 
+
 class UserDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff or candidate member.
@@ -614,4 +615,3 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
             )
         if self.profile == "staff":
             return Staff.objects.select_related("user", "user__verification").all()
-        

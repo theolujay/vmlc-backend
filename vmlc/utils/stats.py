@@ -14,12 +14,14 @@ def generate_stats_overview_data():
         "staff": staff_stats,
     }
     return data
- 
+
+
 def _get_candidate_stats() -> dict:
     """Helper to get candidate statistics."""
     registered_candidates_qs = Candidate.objects.filter(user__is_email_verified=True)
     return get_user_status_counts(registered_candidates_qs, "candidate")
- 
+
+
 def _get_staff_stats() -> dict:
     """Helper to get staff statistics."""
     registered_staff_qs = Staff.objects.filter(user__is_email_verified=True)

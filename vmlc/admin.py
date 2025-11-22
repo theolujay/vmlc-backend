@@ -616,7 +616,7 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         cache.delete_pattern("leaderboard_*")
         super().save_model(request, obj, form, change)
-        
+
     def delete_model(self, request, obj):
         cache.delete_pattern("leaderboard_*")
         super().delete_model(request, obj)
@@ -630,10 +630,10 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     @admin.display(description="Data Summary")
     def data_summary(self, obj):
         import json
-        
+
         screening_leaderboard_data = {}
         league_leaderboard_data = {}
-        
+
         if isinstance(obj.data, list):
             for item in obj.data:
                 if isinstance(item, dict):

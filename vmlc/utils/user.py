@@ -6,9 +6,7 @@ from django.utils import timezone
 from ..models import Exam
 
 
-def get_user_status_counts(
-    base_queryset: QuerySet, user_type: str
-) -> dict:
+def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
     """
     Calculates the counts of users by status (active, inactive, pending, deactivated).
 
@@ -25,9 +23,7 @@ def get_user_status_counts(
     deactivated = base_queryset.filter(user__is_active=False).count()
     pending = base_queryset.filter(user__verification__is_pending=True).count()
 
-    active_filter = Q(user__is_active=True) & Q(
-        user__last_login__gte=seven_days_ago
-    )
+    active_filter = Q(user__is_active=True) & Q(user__last_login__gte=seven_days_ago)
 
     if user_type == "candidate":
         # Candidates are active if they participated in the last concluded exam

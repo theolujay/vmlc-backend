@@ -190,10 +190,7 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "celery.redirected": {
-            "level": "ERROR",
-            "handlers": ["console"]
-        },
+        "celery.redirected": {"level": "ERROR", "handlers": ["console"]},
         "django": {
             "level": "WARNING",
             "handlers": ["console"],

@@ -64,14 +64,9 @@ class Command(BaseCommand):
         LeaderboardSnapshot.objects.all().delete()
         CandidateScoreSnapshot.objects.all().delete()
 
-
         self.stdout.write("Creating feature flags...")
-        FeatureFlag.objects.get_or_create(
-            key="candidate_registration", value=True
-        )
-        FeatureFlag.objects.get_or_create(
-            key="staff_registration", value=True
-        )
+        FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
+        FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
 
         # Create staff users
         self.stdout.write("Creating staff users...")

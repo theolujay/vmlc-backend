@@ -364,7 +364,11 @@ class LoadLeaderboardDetailView(APIView):
         entries = leaderboard.get("entries", [])
 
         candidate_entry = next(
-            (entry for entry in entries if entry["candidate"]["id"] == str(candidate_id)),
+            (
+                entry
+                for entry in entries
+                if entry["candidate"]["id"] == str(candidate_id)
+            ),
             None,
         )
         return candidate_entry, leaderboard

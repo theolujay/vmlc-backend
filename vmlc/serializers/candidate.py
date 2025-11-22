@@ -116,6 +116,6 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         if obj.id_card and hasattr(obj.id_card, "url"):
             return obj.id_card.url
         return None
-    
+
     def get_profile_type(self, obj: Candidate):
         return "candidate"

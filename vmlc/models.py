@@ -18,7 +18,6 @@ from django.utils import timezone
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 
-
 class FeatureFlag(models.Model):
     """Feature flag model."""
 
@@ -221,8 +220,10 @@ class UserVerification(models.Model):
 
     def clean(self):
         """Validate that only one status flag is True."""
-        true_count = sum([int(self.is_pending), int(self.is_approved), int(self.is_rejected)])
-        
+        true_count = sum(
+            [int(self.is_pending), int(self.is_approved), int(self.is_rejected)]
+        )
+
         if true_count > 1:
             raise ValidationError(
                 "Only one of is_pending, is_approved, or is_rejected can be True"
@@ -237,13 +238,13 @@ class UserVerification(models.Model):
     def status(self):
         """Get current verification status as a string."""
         if self.is_approved:
-            return 'approved'
+            return "approved"
         elif self.is_rejected:
-            return 'rejected'
+            return "rejected"
         elif self.is_pending:
-            return 'pending'
-        return 'not_started'
-    
+            return "pending"
+        return "not_started"
+
     def __str__(self):
         """Return a string representation of the user verification."""
         return f"Verification for {self.user.get_full_name()}"
@@ -788,18 +789,19 @@ class Candidate(models.Model):
                 "average_score": float(self.average_score or 0),
             }
         return None
-    
+
     @property
     def get_status(self):
         """Get the user status"""
         from .utils.user import get_last_concluded_exam
+
         if not self.user.is_active:
             return "deactivated"
         try:
             if self.user.verification and self.user.verification.is_pending:
                 return "pending"
         except (AttributeError, UserVerification.DoesNotExist):
-            return "inactive" # A user without a verification record is inactive
+            return "inactive"  # A user without a verification record is inactive
 
         seven_days_ago = timezone.now() - timedelta(days=7)
 

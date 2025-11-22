@@ -93,7 +93,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "has_verification_document",
             "created_at",
         ]
-        
+
     def get_status(self, obj):
         return obj.status
 
@@ -131,7 +131,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "id_card": bool(obj.id_card),
             "verification_document": bool(obj.verification_document),
         }
-    
+
     def get_status(self, obj):
         return obj.status
 
@@ -169,5 +169,5 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
         instance.is_rejected = is_rejected
         instance.is_pending = not (is_approved or is_rejected)
         instance.save()
-        
+
         return instance
