@@ -64,9 +64,9 @@ x-vmlc-common: &vmlc-common
     - "traefik.enable=true"
   networks:
     - staging
-  # dns:
-  #   - 8.8.8.8
-  #   - 8.8.4.4
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
   <<: *staging-security
 
 
