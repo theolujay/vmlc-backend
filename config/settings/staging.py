@@ -203,7 +203,24 @@ LOGGING = {
         },
     },
 }
-
+# === OPENTELEMETRY LOGGING INSTRUMENTATION ===
+if os.getenv('OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED') == 'true':
+    try:
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor
+        
+        # Instrument Python logging to send logs to OTEL
+        LoggingInstrumentor().instrument(set_logging_format=True)
+        
+        # Log a confirmation message
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("🚀 OpenTelemetry logging instrumentation initialized successfully")
+        logger.info(f"OTEL Endpoint: {os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT')}")
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ Failed to initialize OpenTelemetry logging: {e}")
 # === CORS CONFIGURATION ===
 cors_origins = read_secret("CORS_ALLOWED_ORIGINS", "")
 if cors_origins:
