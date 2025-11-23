@@ -7,7 +7,7 @@ x-staging-security: &staging-security
     - SETUID
   
 x-staging-otel-env: &staging-otel-env
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
