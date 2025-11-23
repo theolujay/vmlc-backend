@@ -149,10 +149,10 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
-        # "json": {
-        #     "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-        #     "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
-        # },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
+        },
         "access": {
             "format": "%(message)s",
         },
@@ -161,7 +161,7 @@ LOGGING = {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
         },
         "access_console": {
             "level": "INFO",

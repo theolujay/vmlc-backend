@@ -7,12 +7,14 @@ x-staging-security: &staging-security
     - SETUID
   
 x-staging-otel-env: &staging-otel-env
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
   OTEL_TRACES_SAMPLER: parentbased_traceidratio
   OTEL_TRACES_SAMPLER_ARG: "0.01"
+  OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+  OTEL_LOGS_EXPORTER: otlp
 
 x-vmlc-env: &vmlc-env
   AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
@@ -40,8 +42,6 @@ x-vmlc-env: &vmlc-env
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
   INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
-  OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
-  OTEL_LOGS_EXPORTER: otlp
   REDIS_URL: redis://redis:6379/0
   POSTGRES_DB: vmlc_staging
   POSTGRES_USER: verboheit_staging
@@ -428,18 +428,30 @@ services:
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     secrets:
       - su-password
+      - gmail-host-password
     environment:
       - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
-      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/su-password
+      # - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
+      # - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=
       - GF_PLUGINS_DISABLE_INSTALLATION=true
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_UPDATE_CHECK_FOR_UPDATES=false
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_PLUGINS_PREINSTALL=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=olujay.dev.testing@gmail.com
+      - GF_SMTP_PASSWORD__FILE=/run/secrets/gmail-host-password
+      - GF_SMTP_FROM_ADDRESS=staging-mlc@verboheit.org
+      - GF_SMTP_FROM_NAME=Verboheit Grafana
+      - GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
@@ -488,14 +500,14 @@ secrets:
 
 configs:
   otel_config_v2:
-    file: ./otel.yml
+    file: ./ops/otel.yml
   prometheus_config:
-    file: ./prometheus.yml
+    file: ./ops/prometheus.yml
   loki_config:
-    file: ./loki.yml
+    file: ./ops/loki.yml
   tempo_config:
-    file: ./tempo.yml
+    file: ./ops/tempo.yml
   grafana_datasources:
-    file: ./grafana/datasources.yml
+    file: ./ops/grafana/datasources.yml
   grafana_dashboards:
-    file: ./grafana/dashboards.yml
+    file: ./ops/grafana/dashboards.yml
