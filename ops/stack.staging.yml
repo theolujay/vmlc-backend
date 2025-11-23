@@ -500,14 +500,14 @@ secrets:
 
 configs:
   otel_config_v2:
-    file: ./ops/otel.yml
+    file: ./otel.yml
   prometheus_config:
-    file: ./ops/prometheus.yml
+    file: ./prometheus.yml
   loki_config:
-    file: ./ops/loki.yml
+    file: ./loki.yml
   tempo_config:
-    file: ./ops/tempo.yml
+    file: ./tempo.yml
   grafana_datasources:
-    file: ./ops/grafana/datasources.yml
+    file: ./grafana/datasources.yml
   grafana_dashboards:
-    file: ./ops/grafana/dashboards.yml
+    file: ./grafana/dashboards.yml
