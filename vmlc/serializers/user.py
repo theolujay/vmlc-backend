@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -78,6 +79,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
     has_face_id = serializers.SerializerMethodField()
     has_id_card = serializers.SerializerMethodField()
     has_verification_document = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = UserVerification
@@ -85,14 +87,15 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "user_id",
             "full_name",
             "email",
-            "is_pending",
-            "is_approved",
-            "is_rejected",
+            "status",
             "has_face_id",
             "has_id_card",
             "has_verification_document",
             "created_at",
         ]
+
+    def get_status(self, obj):
+        return obj.status
 
     def get_has_face_id(self, obj):
         return bool(obj.face_id)
@@ -111,15 +114,14 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
     """
 
     documents_uploaded = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = UserVerification
         fields = [
-            "is_pending",
-            "is_approved",
-            "is_rejected",
+            "status",
             "created_at",
-            "recorded_at",
+            "updated_at",
             "documents_uploaded",
         ]
 
@@ -129,6 +131,9 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "id_card": bool(obj.id_card),
             "verification_document": bool(obj.verification_document),
         }
+
+    def get_status(self, obj):
+        return obj.status
 
 
 class UserVerificationUploadSerializer(serializers.ModelSerializer):
@@ -156,30 +161,13 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """
         Handle verification status updates."""
-        is_approved = validated_data.get("is_approved")
-        is_rejected = validated_data.get("is_rejected")
+        is_approved = validated_data.get("is_approved", False)
+        is_rejected = validated_data.get("is_rejected", False)
 
-        if is_approved is True:
-            # Approve
-            instance.is_approved = True
-            instance.is_pending = False
-            instance.is_rejected = False
-            send_mail_task.delay(
-                subject="User Verification Successful",
-                message="Your account is now verified.",
-                recipient_list=[instance.user.email],
-            )
-
-        elif is_rejected is True:
-            # Reject
-            instance.is_approved = False
-            instance.is_pending = False
-            instance.is_rejected = True
-            send_mail_task.delay(
-                subject="User Verification Rejected",
-                message="Your account verification has been rejected. Please contact a staf member for enquires.",
-                recipient_list=[instance.user.email],
-            )
-
+        # The model's clean() method will ensure only one is true.
+        instance.is_approved = is_approved
+        instance.is_rejected = is_rejected
+        instance.is_pending = not (is_approved or is_rejected)
         instance.save()
+
         return instance

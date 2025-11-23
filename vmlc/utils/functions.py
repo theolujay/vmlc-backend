@@ -10,7 +10,7 @@ from django.db.models import (
     Window,
     ExpressionWrapper,
     DateTimeField,
-    functions
+    functions,
 )
 from django.utils import timezone
 from PIL import Image
@@ -31,7 +31,7 @@ from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,
     MinimalCandidateSerializer,
 )
-from vmlc.utils.dashboard_utils import (
+from vmlc.utils.dashboard import (
     get_staff_dashboard_data,
     get_candidate_dashboard_data,
 )
@@ -134,7 +134,7 @@ def _build_leaderboard_entries(exam):
                     else 0
                 ),
                 "participated_at": str(score.recorded_at),
-                "candidate": candidate_data
+                "candidate": candidate_data,
             }
         )
     return leaderboard_entries

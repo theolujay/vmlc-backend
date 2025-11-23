@@ -124,7 +124,7 @@ __all__ = [
     # status
     "health_check",
     "stats_overview",
-    "registration_status",    
+    "registration_status",
     # score
     # "CandidateScoreListView",
     "SubmitScoreView",
@@ -132,7 +132,7 @@ __all__ = [
     # staff
     "StaffMeView",
     "StaffListView",
-    "AssignStaffRoleView",    
+    "AssignStaffRoleView",
     # user
     "UserVerificationStatusView",
     "UserVerificationUploadView",

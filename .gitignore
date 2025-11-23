@@ -142,3 +142,4 @@ docker-compose.override.local.yml
 
 
 backup_*
+copilot*

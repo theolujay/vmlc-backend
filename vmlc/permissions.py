@@ -193,11 +193,12 @@ class IsManagerForStaffDetail(BasePermission):
     Allows access only to managers or superadmins when the view is accessing
     a staff detail endpoint (identified by 'staff_id' in the URL).
     """
+
     message = "Only 'superadmin' or 'manager' has permission to manage staff members."
 
     def has_permission(self, request, view):
         # If we are not accessing a staff detail page, this permission does not apply.
-        if 'staff_id' not in view.kwargs:
+        if "staff_id" not in view.kwargs:
             return True
 
         # If we are on a staff detail page, check the user's role.

@@ -50,11 +50,13 @@ class StaffDetailSerializer(serializers.ModelSerializer):
     face_id = serializers.SerializerMethodField()
     id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
+    profile_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
         fields = [
             "user",
+            "profile_type",
             "occupation",
             "face_id",
             "role",
@@ -93,3 +95,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         if obj.id_card and hasattr(obj.id_card, "url"):
             return obj.id_card.url
         return None
+
+    def get_profile_type(self, obj: Staff):
+        return "staff"

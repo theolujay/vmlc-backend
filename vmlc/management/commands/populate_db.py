@@ -1,39 +1,54 @@
 import os
-import django
 import random
-from django.utils import timezone
 from typing import Any
-from faker import Faker
+
+import django
+from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Avg, Count, Sum
+from django.utils import timezone
+
 from dotenv import load_dotenv
-from django.db.models import Sum, Avg, Count
+from faker import Faker
+
+from vmlc.models import (
+    Candidate,
+    CandidateAnswer,
+    CandidateScore,
+    CandidateScoreSnapshot,
+    Exam,
+    FeatureFlag,
+    LeaderboardSnapshot,
+    Question,
+    Staff,
+    User,
+    UserVerification,
+)
+from vmlc.serializers.candidate import MinimalCandidateSerializer
+from vmlc.utils.functions import generate_leaderboard_snapshot
+
 
 load_dotenv(".env")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
 django.setup()
 
-from vmlc.models import (
-    User,
-    Candidate,
-    Staff,
-    Question,
-    Exam,
-    CandidateScore,
-    CandidateAnswer,
-    FeatureFlag,
-    UserVerification,
-    LeaderboardSnapshot,
-    CandidateScoreSnapshot,
-)
-from django.core.management.base import BaseCommand
-from vmlc.serializers.candidate import MinimalCandidateSerializer
-
 
 class Command(BaseCommand):
     help = "Populates the database with initial data."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=random.randint(0, 1000000),
+            help="Seed for random data generation to ensure reproducibility.",
+        )
+
     def handle(self, *args: Any, **options: Any) -> None:
+        seed = options["seed"]
+        random.seed(seed)
         fake = Faker()
+        Faker.seed(seed)
 
         def generate_nigerian_phone_number():
             # Helper to generate a valid Nigerian phone number
@@ -41,32 +56,24 @@ class Command(BaseCommand):
             return f"{prefix}{random.randint(10000000, 99999999)}"
 
         # Clear existing data
-        # self.stdout.write("Clearing existing data...")
-        # CandidateAnswer.objects.all().delete()
-        # CandidateScore.objects.all().delete()
-        # Exam.objects.all().delete()
-        # Question.objects.all().delete()
-        # Staff.objects.all().delete()
-        # Candidate.objects.all().delete()
-        # UserVerification.objects.all().delete()
-        # FeatureFlag.objects.all().delete()
-        # LeaderboardSnapshot.objects.all().delete()
-        # CandidateScoreSnapshot.objects.all().delete()
-        # User.objects.filter(is_superuser=False).delete()
+        self.stdout.write("Clearing existing data...")
+        CandidateAnswer.objects.all().delete()
+        CandidateScore.objects.all().delete()
+        Exam.objects.all().delete()
+        Question.objects.all().delete()
+        LeaderboardSnapshot.objects.all().delete()
+        CandidateScoreSnapshot.objects.all().delete()
 
-        # Create FeatureFlags
         self.stdout.write("Creating feature flags...")
-        candidate_registration, _ = FeatureFlag.objects.get_or_create(
-            key="candidate_registration", value=True
-        )
-        staff_registratio, _ = FeatureFlag.objects.get_or_create(
-            key="staff_registration", value=True
-        )
+        FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
+        FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
 
         # Create staff users
         self.stdout.write("Creating staff users...")
         staff_list = []
         for i in range(20):
+            if User.objects.filter(email=f"staff{i+1}@mail.com").exists():
+                continue
             user = User.objects.create_user(
                 email=f"staff{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
@@ -88,10 +95,24 @@ class Command(BaseCommand):
             )
             staff_list.append(staff)
 
+        if not staff_list:
+            self.stdout.write(
+                "No new staff users created, fetching existing ones from the database."
+            )
+            staff_list = list(Staff.objects.all())
+
+        if not staff_list:
+            raise CommandError(
+                "No staff users found or created. "
+                "Please create at least one staff user before running this command."
+            )
+
         # Create candidate users
         self.stdout.write("Creating candidate users...")
         candidate_list = []
         for i in range(100):
+            if User.objects.filter(email=f"candidate{i+1}@mail.com").exists():
+                continue
             user = User.objects.create_user(
                 email=f"candidate{i+1}@mail.com",
                 password=os.getenv("ANON_PASSWORD"),
@@ -113,6 +134,12 @@ class Command(BaseCommand):
             )
             candidate_list.append(candidate)
 
+        if not candidate_list:
+            self.stdout.write(
+                "No new candidate users created, fetching existing ones from the database."
+            )
+            candidate_list = list(Candidate.objects.all())
+
         # Create questions
         self.stdout.write("Creating questions...")
         question_list = []
@@ -131,26 +158,55 @@ class Command(BaseCommand):
 
         # Create exams
         self.stdout.write("Creating exams...")
-        exam_list = []
+        league_exams = []
+        screening_exams = []
+        screening_exam = Exam.objects.create(
+            stage="screening",
+            level=1,
+            title=fake.catch_phrase(),
+            description=fake.text(),
+            created_by=random.choice(staff_list),
+            is_active=True,
+            scheduled_date=timezone.now()
+            - timezone.timedelta(days=random.randint(1, 30)),
+            open_duration_hours=12,
+            countdown_minutes=60,
+        )
+        screening_exam.questions.set(
+            random.sample(question_list, k=random.randint(5, 20))
+        )
+        screening_exams.append(screening_exam)
+
         for i in range(10):
             exam = Exam.objects.create(
-                stage=random.choice(["screening", "league"]),
+                stage="league",
+                level=random.randint(1, 5),
                 title=fake.catch_phrase(),
                 description=fake.text(),
                 created_by=random.choice(staff_list),
                 is_active=True,
                 scheduled_date=timezone.now()
                 - timezone.timedelta(days=random.randint(1, 30)),
+                open_duration_hours=random.randint(1, 24),
+                countdown_minutes=random.randint(30, 120),
             )
             # Add a random number of questions to each exam
             exam.questions.set(random.sample(question_list, k=random.randint(5, 20)))
-            exam_list.append(exam)
+            league_exams.append(exam)
 
         # Create Candidate scores and answers
         self.stdout.write("Creating candidate scores and answers...")
         for candidate in candidate_list:
-            # Have each candidate take a random number of exams
-            exams_to_take = random.sample(exam_list, k=random.randint(1, 5))
+            exams_to_take = []
+            if candidate.role == "screening" and screening_exams:
+                exams_to_take = random.sample(
+                    screening_exams, k=random.randint(1, len(screening_exams))
+                )
+            elif candidate.role == "league" and league_exams:
+                exams_to_take = random.sample(
+                    league_exams, k=random.randint(1, min(5, len(league_exams)))
+                )
+
             for exam in exams_to_take:
                 score = CandidateScore.objects.create(
                     candidate=candidate,
@@ -173,21 +229,6 @@ class Command(BaseCommand):
             .order_by("-total_score")
         )
 
-        leaderboard_data = [
-            {
-                "rank": index + 1,
-                "candidate": MinimalCandidateSerializer(candidate).data,
-                "total_score": float(candidate.total_score or 0.0),
-            }
-            for index, candidate in enumerate(league_candidates)
-        ]
-
-        if staff_list:
-            LeaderboardSnapshot.objects.create(
-                data=leaderboard_data,
-                published_by=random.choice(staff_list),
-            )
-
         # Generate Candidate Score Snapshot
         self.stdout.write("Generating candidate score snapshot...")
         all_candidates = Candidate.objects.annotate(
@@ -207,12 +248,12 @@ class Command(BaseCommand):
                 }
             )
 
-        if staff_list:
-            CandidateScoreSnapshot.objects.create(
-                data=scores_data,
-                published_by=random.choice(staff_list),
-                published_at=timezone.now(),
-            )
+        CandidateScoreSnapshot.objects.create(
+            data=scores_data,
+            published_by=random.choice(staff_list),
+            published_at=timezone.now(),
+        )
+        generate_leaderboard_snapshot(random.choice(staff_list).pk)
 
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with more data!")

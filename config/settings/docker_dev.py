@@ -194,6 +194,7 @@ CACHES = {
 }
 
 USE_S3 = read_secret("USE_S3", "false").lower() == "true"
+AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "dev")
 
 if USE_S3:
 

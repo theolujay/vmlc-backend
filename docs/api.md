@@ -846,6 +846,7 @@ Authorization: Bearer <access-token>
         "phone": "08112463722",
         "date_joined": "2025-10-15T11:39:50.742597+01:00"
     },
+    "profile_type": "candidate",
     "school": "Porter Ltd High",
     "face_id": null,
     "role": "league",
@@ -1072,6 +1073,7 @@ X-Api-Key: <your_api_key>
     "phone": "+23490xxxxxxxx",
     "date_joined": "2024-01-01T08:00:00Z"
   },
+  "profile_type": "staff",
   "occupation": "Mathematics Teacher",
   "face_id": "https://vmlc.s3.amazonaws.com/face_ids/jane_smith.jpg",
   "role": "moderator",
@@ -2235,9 +2237,7 @@ The API returns a consistent JSON object with a `status` field that indicates th
       "status": "pending",
       "detail": "Verification request is pending review.",
       "verification_data": {
-          "is_pending": true,
-          "is_approved": false,
-          "is_rejected": false,
+          "status": "not_started",
           "created_at": "2025-09-01T10:00:00Z",
           "updated_at": "2025-09-01T10:00:00Z",
           "documents_uploaded": {
@@ -2350,9 +2350,7 @@ X-Api-Key: <your_api_key>
         "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
         "full_name": "John Doe",
         "email": "john@example.com",
-        "is_pending": true,
-        "is_approved": false,
-        "is_rejected": false,
+        "status": "pending",
         "has_face_id": true,
         "has_id_card": true,
         "has_verification_document": false,
@@ -2881,6 +2879,11 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-11-19**:
+  - **User Verification**: 
+    - The `GET /user/verification/status/` endpoint now returns a more granular, string-based status: `email_not_verified`, `verified`, `pending`, `rejected`, or `not_submitted`.
+    - The response for a `pending` status now includes a `verification_data` object with more details.
+    - The `POST /user/verification/action/{user_id}/` endpoint now accepts either `{"is_approved": true}` or `{"is_rejected": true}` to action a verification request.
 - **2025-11-16**:
   - **Leaderboard**: Added `"participated_at"` field in Candidte
 

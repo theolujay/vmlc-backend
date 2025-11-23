@@ -145,14 +145,14 @@ LOGGING = {
         }
     },
     "formatters": {
-        # "verbose": {
-        #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-        #     "style": "{",
-        # },
-        "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
+        # "json": {
+        #     "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+        #     "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
+        # },
         "access": {
             "format": "%(message)s",
         },
@@ -161,7 +161,7 @@ LOGGING = {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "json",
+            "formatter": "verbose",
         },
         "access_console": {
             "level": "INFO",
@@ -176,20 +176,21 @@ LOGGING = {
     },
     "loggers": {
         "vmlc": {
-            "level": "INFO",
+            "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
         "comms": {
-            "level": "INFO",
+            "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
         "celery": {
-            "level": "INFO",
+            "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
         },
+        "celery.redirected": {"level": "ERROR", "handlers": ["console"]},
         "django": {
             "level": "WARNING",
             "handlers": ["console"],
