@@ -167,7 +167,7 @@ jobs:
         uses: cssnr/stack-deploy-action@v1
         with:
           name: vmlc-prod
-          file: stack.prod.yml
+          file: ops/stack.prod.yml
           host: ${{ secrets.VPS_HOST }}
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
