@@ -86,7 +86,19 @@ class PublishLeaderboardView(APIView):
         )
 
 
-class LoadLeaderboardView(APIView):
+class LeaderboardViewMixin:
+    """Shared functionality for leaderboard views."""
+
+    def _get_latest_leaderboard_snapshot(self):
+        """Helper to fetch the latest published leaderboard snapshot."""
+        return (
+            LeaderboardSnapshot.objects.filter(is_published=True)
+            .order_by("-created_at")
+            .first()
+        )
+
+
+class LoadLeaderboardView(APIView, LeaderboardViewMixin):
     """
     Returns published leaderboard snapshots.
     Filters leaderboards based on the user's role.
@@ -95,6 +107,41 @@ class LoadLeaderboardView(APIView):
     permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
+    @swagger_auto_schema(
+        operation_summary="Get Published Leaderboards",
+        operation_description=(
+            "Returns published leaderboard snapshots, filtered by user role. "
+            "Provide 'stage' and 'level' query parameters to view a specific leaderboard. "
+            "Without them, it returns a summary of all accessible leaderboards."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                description="The stage of the exam (e.g., 'screening', 'league')",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "level",
+                openapi.IN_QUERY,
+                description="The level of the exam.",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+            api_key,
+            bearer_auth,
+        ],
+        responses={
+            200: openapi.Response(
+                description="Successfully retrieved leaderboard data. The response structure varies based on query parameters."
+            ),
+            401: error_response_401,
+            403: error_response_403,
+            404: openapi.Response(description="No published leaderboard found."),
+        },
+        tags=["Leaderboard"],
+    )
     def get(self, request: Request):
         logger.info(f"LoadLeaderboardView: request from user {request.user.id}")
         user = request.user
@@ -143,14 +190,6 @@ class LoadLeaderboardView(APIView):
 
         cache.set(cache_key, response_data, timeout=21600)  # cache for 6 hours
         return Response(response_data)
-
-    def _get_latest_leaderboard_snapshot(self):
-        """Helper to fetch the latest published leaderboard snapshot."""
-        return (
-            LeaderboardSnapshot.objects.filter(is_published=True)
-            .order_by("-created_at")
-            .first()
-        )
 
     def _get_cached_leaderboard_response(self, cache_key):
         """Helper to check and return cached leaderboard data."""
@@ -270,7 +309,7 @@ class LoadLeaderboardView(APIView):
         }
 
 
-class LoadLeaderboardDetailView(APIView):
+class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
     """
     Returns detailed performance for a specific candidate in a specific exam.
 
@@ -280,6 +319,22 @@ class LoadLeaderboardDetailView(APIView):
 
     permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
 
+    @swagger_auto_schema(
+        operation_summary="Get Candidate Leaderboard Details",
+        operation_description="Returns detailed performance for a specific candidate in a specific exam leaderboard.",
+        manual_parameters=[api_key, bearer_auth],
+        responses={
+            200: openapi.Response(
+                description="Detailed performance data for the candidate."
+            ),
+            401: error_response_401,
+            403: error_response_403,
+            404: openapi.Response(
+                description="Not Found. E.g., leaderboard or candidate not found."
+            ),
+        },
+        tags=["Leaderboard"],
+    )
     def get(self, request: Request, stage: str, level: int, candidate_id):
         user = request.user
         user_role_key = self._get_user_role_key(user)
@@ -331,14 +386,6 @@ class LoadLeaderboardDetailView(APIView):
         }
         cache.set(cache_key, response_data, timeout=21600)  # cache for 6 hours
         return Response(response_data)
-
-    def _get_latest_leaderboard_snapshot(self):
-        """Helper to fetch the latest published leaderboard snapshot."""
-        return (
-            LeaderboardSnapshot.objects.filter(is_published=True)
-            .order_by("-created_at")
-            .first()
-        )
 
     def _get_cached_leaderboard_detail_response(self, cache_key):
         """Helper to check and return cached leaderboard detail data."""

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
     method="get",
     operation_summary="Health Check",
     operation_description="Health check endpoint.",
-    tags=["Health"],
+    tags=["Status"],
 )
 @api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
@@ -37,7 +37,12 @@ def health_check(request):
         status=status.HTTP_200_OK,
     )
 
-
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Registration Status",
+    operation_description="Check registration status.",
+    tags=["Status"],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def registration_status(request):
@@ -57,6 +62,12 @@ def registration_status(request):
     return Response(reg_status, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Statistics Overview",
+    operation_description="Retrieve user statistics.",
+    tags=["Status"],
+)
 @api_view(["GET"])
 @permission_classes(VerifiedModeratorPermissions)
 def stats_overview(request):
