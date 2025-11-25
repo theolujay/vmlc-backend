@@ -51,6 +51,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
     id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
@@ -62,6 +63,7 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "role",
             "is_active",
             "is_user_verified",
+            "status",
             "id_card",
             "verification_document",
             "created_at",
@@ -98,3 +100,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
 
     def get_profile_type(self, obj: Staff):
         return "staff"
+
+    def get_status(self, obj: Staff):
+        return obj.get_status

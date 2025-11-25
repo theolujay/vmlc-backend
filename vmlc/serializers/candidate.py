@@ -59,6 +59,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model: Candidate = Candidate
@@ -70,6 +71,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "role",
             "is_active",
             "is_user_verified",
+            "status",
             "id_card",
             "verification_document",
             "created_at",
@@ -119,3 +121,6 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
 
     def get_profile_type(self, obj: Candidate):
         return "candidate"
+
+    def get_status(self, obj: Candidate):
+        return obj.get_status
