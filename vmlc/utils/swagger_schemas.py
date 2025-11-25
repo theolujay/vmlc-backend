@@ -292,6 +292,20 @@ candidate_me_response_schema = openapi.Schema(
     },
 )
 
+candidate_invite_response_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "message": openapi.Schema(type=openapi.TYPE_STRING)
+    }
+)
+
+staff_invite_response_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "message": openapi.Schema(type=openapi.TYPE_STRING)
+    }
+)
+
 candidate_list_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
@@ -767,5 +781,22 @@ broadcast_detail_response_schema = openapi.Schema(
         "logs": openapi.Schema(
             type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)
         ),
+    },
+)
+
+candidate_registration_request_body = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "email": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL),
+        "first_name": openapi.Schema(type=openapi.TYPE_STRING),
+        "last_name": openapi.Schema(type=openapi.TYPE_STRING),
+        "phone": openapi.Schema(type=openapi.TYPE_STRING),
+        "password": openapi.Schema(
+            type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
+        ),
+        "password2": openapi.Schema(
+            type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
+        ),
+        "school": openapi.Schema(type=openapi.TYPE_STRING),
     },
 )

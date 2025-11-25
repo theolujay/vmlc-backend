@@ -34,6 +34,8 @@ from vmlc.utils.swagger_schemas import (
     bearer_auth,
     staff_registration_request_body,
     candidate_registration_request_body,
+    candidate_invite_response_schema,
+    staff_invite_response_schema,
     account_management_response_schema,
     error_response_401,
     error_response_403,
@@ -54,6 +56,7 @@ from vmlc.serializers import (
     StaffInviteSerializer,
     CandidateInviteSerializer,
     UserSerializer,
+    UserProfileDetailSerializer,
 )
 from vmlc.tasks import (
     generate_stats_overview_task,
@@ -67,6 +70,7 @@ from vmlc.utils.query_filters import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 
 class AccountManagementView(APIView):
@@ -408,6 +412,20 @@ class BaseInviteView(CreateAPIView):
         )
 
 
+# @method_decorator(
+#     name="post",
+#     decorator=swagger_auto_schema(
+#         operation_summary="Staff Invite",
+#         operation_description="Create a staff profile and send the user an invite.",
+#         responses={
+#             200: staff_invite_response_schema,
+#             401: error_response_401,
+#             403: error_response_403,
+#         },
+#         tags=["Staff"],
+#         manual_parameters=[api_key, bearer_auth],
+#     ),
+# )
 class StaffInviteView(BaseInviteView):
     """
     API view to create a new staff member.
@@ -417,7 +435,20 @@ class StaffInviteView(BaseInviteView):
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
 
-
+# @method_decorator(
+#     name="post",
+#     decorator=swagger_auto_schema(
+#         operation_summary="Candidate Invite",
+#         operation_description="Create a candidate profile and send the user an invite.",
+#         responses={
+#             200: candidate_invite_response_schema,
+#             401: error_response_401,
+#             403: error_response_403,
+#         },
+#         tags=["Candidate"],
+#         manual_parameters=[api_key, bearer_auth],
+#     ),
+# )
 class CandidateInviteView(BaseInviteView):
     """
     API view to create a new candidate.
@@ -527,7 +558,76 @@ class UserListView(ListAPIView):
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
 
-
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="Get User Profile",
+        operation_description="Retrieve details for a specific staff or candidate profile.",
+        responses={
+            200: openapi.Response(
+                "Profile details for a staff or candidate member. The schema depends on the user profile.",
+                schema=UserProfileDetailSerializer,
+            ),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Management"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="patch",
+    decorator=swagger_auto_schema(
+        operation_summary="Update User Profile",
+        operation_description="Partially update a staff or candidate profile. The available fields depend on the profile type.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "school": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Candidate's school. (Candidate only)",
+                ),
+                "occupation": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Staff's occupation. (Staff only)",
+                ),
+                "role": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="User role within the system."
+                ),
+                "is_active": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN, description="Set profile active status."
+                ),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                "Profile updated successfully.", schema=UserProfileDetailSerializer
+            ),
+            400: error_response_400,
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Management"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
+@method_decorator(
+    name="delete",
+    decorator=swagger_auto_schema(
+        operation_summary="Deactivate User Profile",
+        operation_description="Deactivates a staff or candidate profile by setting `is_active` to false (soft delete).",
+        responses={
+            204: openapi.Response("Profile deactivated successfully."),
+            401: error_response_401,
+            403: error_response_403,
+            404: error_response_404,
+        },
+        tags=["User Management"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class UserDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff or candidate member.
@@ -539,6 +639,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     Access to staff profiles is restricted to Managers and Superadmins.
     """
 
+    serializer_class = UserProfileDetailSerializer
     permission_classes = VerifiedAdminPermissions + [IsManagerForStaffDetail]
     http_method_names = ["get", "patch", "delete"]
     profile = ""
@@ -599,12 +700,12 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         cache.delete(f"{self.profile}_profile_{target_profile.pk}")
         cache.delete(f"{self.profile}_dashboard_data_{target_profile.pk}")
 
-    def get_serializer_class(self):
-        if self.profile == "candidate":
-            return CandidateDetailSerializer
-        if self.profile == "staff":
-            return StaffDetailSerializer
-        return None
+    # def get_serializer_class(self):
+    #     if self.profile == "candidate":
+    #         return CandidateDetailSerializer
+    #     if self.profile == "staff":
+    #         return StaffDetailSerializer
+    #     return None
 
     def get_queryset(self):
         if self.profile == "candidate":

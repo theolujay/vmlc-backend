@@ -136,7 +136,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
-    list_filter = ["is_pending", "is_approved", "created_at"]
+    list_filter = ["is_pending", "is_approved", "is_rejected", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     readonly_fields = ["created_at", "updated_at"]
     list_select_related = ("user",)
@@ -145,7 +145,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {"fields": ("user", "is_pending", "is_approved")}),
+        (None, {"fields": ("user", "is_pending", "is_approved", "is_rejected")}),
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",

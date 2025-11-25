@@ -59,7 +59,7 @@ dependencies = [
     "prometheus-client==0.22.1",
     # OpenTelemetry Core
     "opentelemetry-api==1.37.0",
-    "opentelemetry-distro==0.58b0",
+    "opentelemetry-distro[otlp]==0.58b0",
     "opentelemetry-exporter-otlp==1.37.0",
     "opentelemetry-exporter-otlp-proto-common==1.37.0",
     "opentelemetry-exporter-otlp-proto-grpc==1.37.0",

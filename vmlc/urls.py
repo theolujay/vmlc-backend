@@ -240,11 +240,11 @@ urlpatterns = [
         SubmitAnswersView.as_view(),
         name="submit-exam-answers",
     ),
-    path(
-        "exams/<int:exam_id>/submit-exam-score/",
-        SubmitScoreView.as_view(),
-        name="submit-exam-score",
-    ),
+    # path(
+    #     "exams/<int:exam_id>/submit-exam-score/",
+    #     SubmitScoreView.as_view(),
+    #     name="submit-exam-score",
+    # ),
     # =============================================================================
     # LEADERBOARD
     # =============================================================================

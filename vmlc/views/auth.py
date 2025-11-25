@@ -5,6 +5,7 @@ Authentication-related API views for login, logout, and registration.
 from asyncio import sleep
 import logging
 
+from django.utils.decorators import method_decorator
 from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
 from django.db import transaction
@@ -40,6 +41,7 @@ from ..utils.exceptions import (
 )
 from ..utils.swagger_schemas import (
     api_key,
+    bearer_auth,
     error_response_400,
     error_response_401,
     error_response_404,
@@ -52,26 +54,28 @@ from ..utils.swagger_schemas import (
     resend_email_otp_request_body,
     resend_password_change_otp_request_body,
     verify_email_otp_request_body,
+    token_refresh_response_schema,
+    token_refresh_request_body,
 )
 
 logger = logging.getLogger(__name__)
 
 
-# @method_decorator(
-#     name="post",
-#     decorator=swagger_auto_schema(
-#         operation_summary="Refresh Access Token",
-#         operation_description="Takes a refresh token and returns an access token.",
-#         request_body=token_refresh_request_body,
-#         responses={
-#             200: token_refresh_response_schema,
-#             400: error_response_400,
-#             401: error_response_401,
-#         },
-#         tags=["Authentication"],
-#         manual_parameters=[api_key, bearer_auth],
-#     ),
-# )
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Refresh Access Token",
+        operation_description="Takes a refresh token and returns an access token.",
+        request_body=token_refresh_request_body,
+        responses={
+            200: token_refresh_response_schema,
+            400: error_response_400,
+            401: error_response_401,
+        },
+        tags=["Authentication"],
+        manual_parameters=[api_key, bearer_auth],
+    ),
+)
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [HasXAPIKey]
 

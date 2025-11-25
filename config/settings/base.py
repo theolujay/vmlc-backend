@@ -212,3 +212,7 @@ CELERY_TASK_TIME_LIMIT = 600  # 10 minutes hard limit
 # Result Settings
 CELERY_RESULT_EXPIRES = 3600  # Results expire after 1 hour
 CELERY_TASK_IGNORE_RESULT = False  # Keep results for debugging
+
+if os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT'):
+    from config.otel import configure_opentelemetry
+    configure_opentelemetry()
