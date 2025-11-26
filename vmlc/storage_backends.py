@@ -8,7 +8,7 @@ class PublicMediaStorage(S3Boto3Storage):
     These files get public URLs that don't expire
     """
 
-    location = f"{settings.AWS_S3_LOCATION_PREFIX}/media/public"
+    location = "media/public"
     default_acl = "public-read"
     file_overwrite = False
 
@@ -19,7 +19,6 @@ class PublicMediaStorage(S3Boto3Storage):
                 "secret_key": settings.AWS_SECRET_ACCESS_KEY,
                 "bucket_name": settings.AWS_STORAGE_BUCKET_NAME,
                 "region_name": settings.AWS_S3_REGION_NAME,
-                # 'signature_version': settings.AWS_S3_SIGNATURE_VERSION,
                 "custom_domain": settings.AWS_S3_CUSTOM_DOMAIN,
             }
         )
@@ -32,7 +31,7 @@ class PrivateMediaStorage(S3Boto3Storage):
     These files generate signed URLs that expire
     """
 
-    location = f"{settings.AWS_S3_LOCATION_PREFIX}/media/private"
+    location = "media/private"
     default_acl = "private"
     file_overwrite = False
     querystring_auth = True  # Generate signed URLs
@@ -45,7 +44,6 @@ class PrivateMediaStorage(S3Boto3Storage):
                 "secret_key": settings.AWS_SECRET_ACCESS_KEY,
                 "bucket_name": settings.AWS_STORAGE_BUCKET_NAME,
                 "region_name": settings.AWS_S3_REGION_NAME,
-                # 'signature_version': settings.AWS_S3_SIGNATURE_VERSION,
                 "custom_domain": False,  # Don't use custom domain for signed URLs
             }
         )
