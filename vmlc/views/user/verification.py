@@ -240,6 +240,12 @@ class UserVerificationUploadView(APIView):
     permission_classes = AuthenticatedUser
     parser_classes = [MultiPartParser, FormParser]
 
+    def post(self, request):
+        return self._upload_verification_documents(request)
+    
+    def patch(self, request):
+        return self._update_verification_documents(request)
+    
     def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
@@ -281,6 +287,8 @@ class UserVerificationUploadView(APIView):
 
             # Invalidate caches
             cache.delete(f"user_verification_status_{request.user.id}")
+            cache.delete(f"account_management_{request.user.id}")
+            cache.delete("stats_overview")
             if hasattr(request.user, "candidate_profile"):
                 cache.delete(f"candidate_dashboard_{request.user.candidate_profile.pk}")
 
@@ -307,8 +315,7 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request):
-        return self._upload_verification_documents(request)
+
 
     def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
@@ -369,10 +376,6 @@ class UserVerificationUploadView(APIView):
             f"UserVerificationUploadView (patch): validation failed: {serializer.errors}"
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request):
-        return self._update_verification_documents(request)
-
 
 class UserVerificationDocumentView(APIView):
     """
