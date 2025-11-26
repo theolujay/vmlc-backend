@@ -40,7 +40,7 @@ x-vmlc-env: &vmlc-env
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
   FRONTEND_BASE_URL: "portal.verboheit.org"
-  GUNICORN_WORKERS: 2
+  GUNICORN_WORKERS: 3
   INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
   OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
   OTEL_LOGS_EXPORTER: otlp
@@ -120,11 +120,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 96M
-          cpus: '0.15'
+          memory: 128M
+          cpus: '0.25'
         reservations:
-          memory: 48M
-          cpus: '0.05'
+          memory: 64M
+          cpus: '0.1'
 
   db:
     image: postgres:17.2-bookworm
@@ -134,18 +134,21 @@ services:
       -c pg_stat_statements.max=10000
       -c pg_stat_statements.track=top
       -c log_min_duration_statement=3000
-      -c max_connections=100
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c work_mem=4MB
-      -c maintenance_work_mem=128MB
+      -c max_connections=150
+      -c shared_buffers=512MB
+      -c effective_cache_size=3GB
+      -c work_mem=8MB
+      -c maintenance_work_mem=256MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
-      -c wal_buffers=8MB
-      # -c min_wal_size=1GB
-      # -c max_wal_size=4GB
-      # -c checkpoint_completion_target=0.9
-      # -c default_statistics_target=100
+      -c wal_buffers=16MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c checkpoint_completion_target=0.9
+      -c default_statistics_target=100
+      -c max_worker_processes=6
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=6
     secrets:
       - db-password
     environment:
@@ -163,11 +166,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-          cpus: '1.0'
+          memory: 2048M
+          cpus: '1.5'
         reservations:
-          memory: 512M
-          cpus: '0.5'
+          memory: 1536M
+          cpus: '1.0'
     networks:
       - prod
 
@@ -175,16 +178,18 @@ services:
     image: redis:7.2.4-alpine
     command: >
       redis-server
-      --maxmemory 256mb
+      --maxmemory 512mb
       --maxmemory-policy allkeys-lru
       --loglevel warning
-      --tcp-backlog 128
+      --tcp-backlog 511
       --timeout 300
       --save 900 1
       --save 300 10
-      # --save 60 10000
-      # --appendonly yes
-      # --appendfsync everysec
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
     volumes:
       - prod_redis:/data
     healthcheck:
@@ -195,11 +200,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 320M
-          cpus: '0.25'
+          memory: 640M
+          cpus: '0.5'
         reservations:
-          memory: 256M
-          cpus: '0.1'
+          memory: 512M
+          cpus: '0.25'
     networks:
       - prod
 
@@ -222,11 +227,11 @@ services:
         window: 300s
       resources:
         limits:
+          memory: 384M
+          cpus: '0.5'
+        reservations:
           memory: 256M
           cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
 
   django:
     <<: *vmlc-common
@@ -263,14 +268,14 @@ services:
       update_config:
         order: start-first
       mode: replicated
-      replicas: 3
+      replicas: 2
       resources:
         limits:
-          memory: 1024M
-          cpus: '0.75'
+          memory: 1536M
+          cpus: '1.0'
         reservations:
-          memory: 512M
-          cpus: '0.3'
+          memory: 1024M
+          cpus: '0.5'
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -294,10 +299,10 @@ services:
       - worker
       - -l
       - warning
-      - --concurrency=4
-      # - --max-tasks-per-child=1000
-      - --time-limit=600
-      # - --soft-time-limit=540
+      - --concurrency=6
+      - --max-tasks-per-child=1000
+      - --time-limit=900
+      - --soft-time-limit=840
       - -Q
       - default,emails,comms,scoring,files,reports,cache
     environment:
@@ -319,11 +324,11 @@ services:
         order: start-first
       resources:
         limits:
+          memory: 1536M
+          cpus: '1.5'
+        reservations:
           memory: 1024M
           cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
 
   celery_beat:
     <<: *vmlc-common
@@ -348,7 +353,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: '0.1'
+          cpus: '0.15'
         reservations:
           memory: 128M
           cpus: '0.05'
@@ -366,11 +371,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.2'
+          memory: 384M
+          cpus: '0.3'
         reservations:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.15'
 
   prometheus:
     image: prom/prometheus:v3.7.2
@@ -378,7 +383,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
-      - '--storage.tsdb.retention.size=8GB'
+      - '--storage.tsdb.retention.size=10GB'
       - '--enable-feature=exemplar-storage'
       - '--enable-feature=native-histograms'
       - '--web.enable-remote-write-receiver'
@@ -396,11 +401,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.3'
+          memory: 768M
+          cpus: '0.4'
         reservations:
-          memory: 256M
-          cpus: '0.1'
+          memory: 512M
+          cpus: '0.2'
 
   loki:
     image: grafana/loki:3.5
@@ -417,11 +422,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.2'
+          memory: 512M
+          cpus: '0.3'
         reservations:
-          memory: 192M
-          cpus: '0.1'
+          memory: 384M
+          cpus: '0.15'
 
   tempo:
     image: grafana/tempo:main-a3e0bf4
@@ -439,10 +444,10 @@ services:
       resources:
         limits:
           memory: 768M
-          cpus: '0.3'
+          cpus: '0.4'
         reservations:
-          memory: 384M
-          cpus: '0.15'
+          memory: 512M
+          cpus: '0.2'
 
   grafana:
     image: grafana/grafana:12.2
@@ -476,11 +481,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.2'
+          memory: 384M
+          cpus: '0.25'
         reservations:
-          memory: 128M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.15'
 
 networks:
   prod:
