@@ -240,6 +240,12 @@ class UserVerificationUploadView(APIView):
     permission_classes = AuthenticatedUser
     parser_classes = [MultiPartParser, FormParser]
 
+    def post(self, request):
+        return self._upload_verification_documents(request)
+    
+    def patch(self, request):
+        return self._update_verification_documents(request)
+    
     def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
@@ -279,8 +285,26 @@ class UserVerificationUploadView(APIView):
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
 
+            # Send confirmation email
+            user = request.user
+            email_subject = "Your Verification Documents Have Been Received"
+            email_message = (
+                f"Dear {user.get_full_name()},\n\n"
+                "This is to confirm that we have received your verification documents. "
+                "Our team will review them shortly.\n\n"
+                "You will receive another email once the review process is complete.\n\n"
+                "Best Regards,\nManagement."
+            )
+            send_mail_task.delay(
+                subject=email_subject,
+                message=email_message,
+                recipient_list=[user.email],
+            )
+
             # Invalidate caches
             cache.delete(f"user_verification_status_{request.user.id}")
+            cache.delete(f"account_management_{request.user.id}")
+            cache.delete("stats_overview")
             if hasattr(request.user, "candidate_profile"):
                 cache.delete(f"candidate_dashboard_{request.user.candidate_profile.pk}")
 
@@ -307,8 +331,7 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request):
-        return self._upload_verification_documents(request)
+
 
     def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
@@ -341,6 +364,22 @@ class UserVerificationUploadView(APIView):
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
 
+            # Send confirmation email
+            user = request.user
+            email_subject = "Your Verification Documents Have Been Updated"
+            email_message = (
+                f"Dear {user.get_full_name()},\n\n"
+                "This is to confirm that we have received your updated verification documents. "
+                "Our team will review them shortly.\n\n"
+                "You will receive another email once the review process is complete.\n\n"
+                "Best Regards,\nManagement."
+            )
+            send_mail_task.delay(
+                subject=email_subject,
+                message=email_message,
+                recipient_list=[user.email],
+            )
+
             # Invalidate caches
             cache.delete(f"user_verification_status_{request.user.id}")
             if hasattr(request.user, "candidate_profile"):
@@ -369,10 +408,6 @@ class UserVerificationUploadView(APIView):
             f"UserVerificationUploadView (patch): validation failed: {serializer.errors}"
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request):
-        return self._update_verification_documents(request)
-
 
 class UserVerificationDocumentView(APIView):
     """

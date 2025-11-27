@@ -22,7 +22,7 @@ from .models import (
 )
 
 from .utils.email import create_email_html
-from .utils.helpers import invalidate_all_dashboard_caches
+from .utils.helpers import invalidate_all_dashboard_caches, invalidate_all_staff_dashboards
 
 
 class EmailForm(forms.Form):
@@ -162,7 +162,8 @@ class UserVerificationAdmin(admin.ModelAdmin):
         cache.delete(f"user_verification_status_{user.id}")
         cache.delete(f"account_management_{user.id}")
         if hasattr(user, "candidate_profile"):
-            cache.delete(f"candidate_dashboard_{user.id}")
+            cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
+        invalidate_all_staff_dashboards()
 
     def _invalidate_queryset_cache(self, queryset):
         for verification in queryset:
@@ -195,14 +196,48 @@ class UserVerificationAdmin(admin.ModelAdmin):
     def approve_selected(self, request, queryset):
         """Approve selected verification requests."""
         self._invalidate_queryset_cache(queryset)
-        count = queryset.update(is_approved=True, is_pending=False)
+
+        users_to_notify = [v.user for v in queryset]
+        count = queryset.update(is_approved=True, is_pending=False, is_rejected=False)
+
+        for user in users_to_notify:
+            base_message = "Your verification details have been approved.\n\n"
+            action_content = (
+                'Kindly proceed to take the "Tour" of Verboheit MLC Portal.\n\n'
+            )
+            footer = "Best Regards,\nManagement."
+            email_message = base_message + action_content + footer
+
+            send_mail_task.delay(
+                subject="Your User Verification Status",
+                message=email_message,
+                recipient_list=[user.email],
+            )
+
         self.message_user(request, f"{count} verification(s) approved.")
 
     @admin.action(description="Reject selected verifications")
     def reject_selected(self, request, queryset):
         """Reject selected verification requests."""
         self._invalidate_queryset_cache(queryset)
-        count = queryset.update(is_approved=False, is_pending=False)
+
+        users_to_notify = [v.user for v in queryset]
+        count = queryset.update(is_approved=False, is_pending=False, is_rejected=True)
+
+        for user in users_to_notify:
+            base_message = "Your verification details have been rejected.\n\n"
+            action_content = (
+                "If you have any questions, please contact support.\n\n"
+            )
+            footer = "Best Regards,\nManagement."
+            email_message = base_message + action_content + footer
+
+            send_mail_task.delay(
+                subject="Your User Verification Status",
+                message=email_message,
+                recipient_list=[user.email],
+            )
+
         self.message_user(request, f"{count} verification(s) rejected.")
 
 
