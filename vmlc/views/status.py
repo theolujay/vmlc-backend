@@ -1,11 +1,14 @@
 import logging
 from datetime import datetime, timezone
 
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+
 from django.conf import settings
 from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
@@ -17,7 +20,9 @@ from ..tasks import generate_stats_overview_task
 
 logger = logging.getLogger(__name__)
 
-
+class RegistrationStatusThrottle(AnonRateThrottle):
+    rate = '10000/hour'
+    
 @swagger_auto_schema(
     method="get",
     operation_summary="Health Check",
@@ -45,11 +50,17 @@ def health_check(request):
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([RegistrationStatusThrottle])
 def registration_status(request):
     """
     Returns information of if registration is open/closed for staff and candidate
     """
     logger.info("Registration status request by %s", request.user)
+    cache_key = "registration_status"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        return Response(cached_data, status=status.HTTP_200_OK)
     is_candidate_reg_open: bool = FeatureFlag.get_bool("candidate_registration")
     is_staff_reg_open: bool = FeatureFlag.get_bool("staff_registration")
 
@@ -58,7 +69,8 @@ def registration_status(request):
         "is_staff_reg_open": is_staff_reg_open,
         "support_email": settings.SUPPORT_EMAIL,
     }
-
+    cache.set(cache_key, reg_status, 300)
+    
     return Response(reg_status, status=status.HTTP_200_OK)
 
 
