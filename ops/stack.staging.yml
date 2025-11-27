@@ -503,7 +503,7 @@ configs:
     file: ./otel.yml
   prometheus_config:
     file: ./prometheus.yml
-  loki_config:
+  loki_config_v2:
     file: ./loki.yml
   tempo_config:
     file: ./tempo.yml
