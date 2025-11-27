@@ -285,6 +285,22 @@ class UserVerificationUploadView(APIView):
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
 
+            # Send confirmation email
+            user = request.user
+            email_subject = "Your Verification Documents Have Been Received"
+            email_message = (
+                f"Dear {user.get_full_name()},\n\n"
+                "This is to confirm that we have received your verification documents. "
+                "Our team will review them shortly.\n\n"
+                "You will receive another email once the review process is complete.\n\n"
+                "Best Regards,\nManagement."
+            )
+            send_mail_task.delay(
+                subject=email_subject,
+                message=email_message,
+                recipient_list=[user.email],
+            )
+
             # Invalidate caches
             cache.delete(f"user_verification_status_{request.user.id}")
             cache.delete(f"account_management_{request.user.id}")
@@ -347,6 +363,22 @@ class UserVerificationUploadView(APIView):
 
             # Asynchronously validate the files
             validate_user_verification_files_task.delay(verification.id)
+
+            # Send confirmation email
+            user = request.user
+            email_subject = "Your Verification Documents Have Been Updated"
+            email_message = (
+                f"Dear {user.get_full_name()},\n\n"
+                "This is to confirm that we have received your updated verification documents. "
+                "Our team will review them shortly.\n\n"
+                "You will receive another email once the review process is complete.\n\n"
+                "Best Regards,\nManagement."
+            )
+            send_mail_task.delay(
+                subject=email_subject,
+                message=email_message,
+                recipient_list=[user.email],
+            )
 
             # Invalidate caches
             cache.delete(f"user_verification_status_{request.user.id}")
