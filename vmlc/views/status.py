@@ -21,7 +21,7 @@ from ..tasks import generate_stats_overview_task
 logger = logging.getLogger(__name__)
 
 class RegistrationStatusThrottle(AnonRateThrottle):
-    rate = '10000/hour'
+    rate = '1000/hour'
     
 @swagger_auto_schema(
     method="get",
