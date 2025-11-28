@@ -2637,15 +2637,15 @@ If the action is unknown or the payload is invalid, the server will send back an
 ---
 
 ### Broadcast Management
-The broadcast system allows authorized staff to send targeted communications to candidates. Broadcasts are sent asynchronously, and their status can be tracked.
+The broadcast system allows authorized staff to send targeted communications to users (candidates and/or staff). Broadcasts are sent asynchronously, and their status can be tracked.
 
 #### List Broadcasts
-**Endpoint:** `GET /broadcasts/`  
+**Endpoint:** `GET /broadcasts/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `manager` or higher  
+**Required Role:** `manager` or higher
 
 **Response:** `200 OK`
 ```json
@@ -2665,28 +2665,38 @@ X-Api-Key: <your_api_key>
       },
       "created_at": "2025-09-20T10:00:00Z",
       "mediums": ["email", "platform"],
-      "target_roles": ["league", "final"]
+      "target_roles": {
+          "candidate": ["league", "final"],
+          "staff": ["moderator", "volunteer"]
+      }
     }
   ]
 }
 ```
 
 #### Create Broadcast
-**Endpoint:** `POST /broadcasts/`  
+**Endpoint:** `POST /broadcasts/`
 **Headers:**
 ```text
 X-Api-Key: <your_api_key>
 ```
-**Required Role:** `manager` or higher  
+**Required Role:** `manager` or higher
 **Request Body:**
 ```json
 {
   "subject": "New Exam Available",
   "message": "The final stage exam is now open. Good luck!",
   "mediums": ["email", "platform"],
-  "target_roles": ["final"]
+  "target_roles": {
+    "staff": ["volunteer", "moderator"],
+    "candidate": ["final"]
+  }
 }
 ```
+*Note: The `target_roles` object must contain either a `staff` key, a `candidate` key, or both. The values should be arrays of valid roles.*
+- *Valid `staff` roles: `volunteer`, `moderator`, `admin`, `manager`*
+- *Valid `candidate` roles: `screening`, `league`, `final`, `winner`*
+
 **Response:** `201 Created`
 ```json
 {
@@ -2698,7 +2708,10 @@ X-Api-Key: <your_api_key>
     "created_at": "2025-09-21T12:00:00Z",
     "status": "pending",
     "mediums": ["email", "platform"],
-    "target_roles": ["final"],
+    "target_roles": {
+        "staff": ["volunteer", "moderator"],
+        "candidate": ["final"]
+    },
     "logs": []
 }
 ```
@@ -2879,6 +2892,12 @@ For technical support, API key requests, or questions:
 
 ## Changelog
 
+- **2025-11-28**:
+  - **Breaking Change**: Updated the broadcast functionality to allow targeting both `staff` and `candidate` roles.
+    - The `target_roles` field on the `POST /broadcasts/` endpoint has been changed from an array of strings to a JSON object.
+    - The new structure is `{ "staff": ["role1", "role2"], "candidate": ["role3", "role4"] }`.
+    - This allows for more flexible and targeted communication.
+  - **Broadcast Logs**: The `GET /broadcasts/{id}/` endpoint response now includes a `role_type` field in the logs, which will be either `staff` or `candidate`.
 - **2025-11-19**:
   - **User Verification**: 
     - The `GET /user/verification/status/` endpoint now returns a more granular, string-based status: `email_not_verified`, `verified`, `pending`, `rejected`, or `not_submitted`.
