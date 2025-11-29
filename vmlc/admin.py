@@ -157,6 +157,10 @@ class UserVerificationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         self._invalidate_verification_cache(obj)
 
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        self._invalidate_verification_cache(obj)
+
     def _invalidate_verification_cache(self, verification):
         user = verification.user
         cache.delete(f"user_verification_status_{user.id}")
