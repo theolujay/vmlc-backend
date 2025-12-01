@@ -1,14 +1,16 @@
 import logging
+from smtplib import SMTPException
+
+from django.db import DatabaseError
+from django.conf import settings
+from django.core.cache import cache
+from django.core.mail import send_mass_mail
+from django.utils import timezone
+
 from celery import shared_task
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from django.conf import settings
-from django.core.cache import cache
-from django.core.mail import send_mail, send_mass_mail
-from django.core.mail.backends.smtp import EmailBackend
-from django.utils import timezone
-from smtplib import SMTPException
-from django.db import DatabaseError
+
 from vmlc.utils.exceptions import (
     ServerError,
     ValidationError,
@@ -130,23 +132,9 @@ def _send_platform_broadcast(broadcast, recipients):
 def send_broadcast_task(self, broadcast_id):
     """
     Send a broadcast to multiple recipients across different mediums.
-
-    This task:
-    1. Updates broadcast status to IN_PROGRESS
-    2. Iterates through each medium and target role combination
-    3. Creates logs for each attempt
-    4. Updates final broadcast status based on results
-
-    Args:
-        broadcast_id (int): The ID of the broadcast to send
-        self: The Celery task instance (automatically passed due to bind=True)
-
-    Returns:
-        dict: Summary of the broadcast attempt
     """
-    from vmlc.models import Candidate
-    from comms.models import Broadcast, BroadcastLog, Notification
-    from comms.signals import notifications_created
+    from vmlc.models import Candidate, Staff
+    from comms.models import Broadcast, BroadcastLog
 
     try:
         broadcast = Broadcast.objects.select_related("created_by__user").get(
@@ -167,117 +155,148 @@ def send_broadcast_task(self, broadcast_id):
     total_attempts = 0
     successful_attempts = 0
 
-    recipients_by_role = {}
-    for role in broadcast.target_roles:
+    # Build recipients dictionary
+    recipients_by_type_and_role = {}
+
+    for user_type, roles in broadcast.target_roles.items():
         try:
-            recipients_by_role[role] = list(
-                Candidate.objects.select_related("user")
-                .filter(role=role, user__is_active=True)
-                .values("user__id", "user__email")
-            )
-            logger.info(
-                "Found %d active candidates for role '%s'",
-                len(recipients_by_role[role]),
-                role,
-            )
+            if user_type == "staff":
+                for role in roles:
+                    key = f"staff_{role}"
+                    recipients_by_type_and_role[key] = list(
+                        Staff.objects.select_related("user")
+                        .filter(role=role, user__is_active=True)
+                        .values("user__id", "user__email")
+                    )
+                    logger.info(
+                        "Found %d active staff users for role '%s'",
+                        len(recipients_by_type_and_role[key]),
+                        role,
+                    )
+
+            elif user_type == "candidate":
+                for role in roles:
+                    key = f"candidate_{role}"
+                    recipients_by_type_and_role[key] = list(
+                        Candidate.objects.select_related("user")
+                        .filter(role=role, user__is_active=True)
+                        .values("user__id", "user__email")
+                    )
+                    logger.info(
+                        "Found %d active candidate users for role '%s'",
+                        len(recipients_by_type_and_role[key]),
+                        role,
+                    )
+
         except (DatabaseError, ServerError) as e:
             logger.error(
-                "Database error fetching candidates for role '%s': %s", role, str(e)
+                "Database error fetching %s users for role '%s': %s",
+                user_type,
+                role,
+                str(e),
             )
             raise self.retry(exc=e, countdown=60)
 
     for medium in broadcast.mediums:
-        for role in broadcast.target_roles:
-            total_attempts += 1
+        for user_type, roles in broadcast.target_roles.items():
+            for role in roles:
+                total_attempts += 1
+                key = f"{user_type}_{role}"
 
-            log = BroadcastLog.objects.create(
-                broadcast=broadcast,
-                medium=medium,
-                target_role=role,
-                status=BroadcastLog.MediumStatus.PENDING,
-            )
+                log = BroadcastLog.objects.create(
+                    broadcast=broadcast,
+                    medium=medium,
+                    target_role=role,
+                    role_type=user_type,
+                    status=BroadcastLog.MediumStatus.PENDING,
+                )
 
-            try:
-                recipients = recipients_by_role[role]
+                try:
+                    recipients = recipients_by_type_and_role.get(key, [])
 
-                if not recipients:
-                    raise NoRecipientsFoundError(
-                        f"No active candidates found for role '{role}'"
+                    if not recipients:
+                        raise NoRecipientsFoundError(
+                            f"No active {user_type} found for role '{role}'"
+                        )
+
+                    # --- Delegate sending to helper functions ---
+                    if medium == Broadcast.Mediums.EMAIL:
+                        _send_email_broadcast(broadcast, recipients)
+                    elif medium == Broadcast.Mediums.PLATFORM:
+                        _send_platform_broadcast(broadcast, recipients)
+                    elif medium == Broadcast.Mediums.SMS:
+                        raise NotImplementedError("SMS medium is not implemented.")
+                    elif medium == Broadcast.Mediums.WHATSAPP:
+                        raise NotImplementedError("WhatsApp medium is not implemented.")
+                    else:
+                        raise InvalidMediumError(f"Unknown medium specified: {medium}")
+
+                    # If we get here, the sending was successful
+                    log.status = BroadcastLog.MediumStatus.SENT
+                    log.message = f"Successfully sent to {len(recipients)} recipients"
+                    log.save(update_fields=["status", "message"])
+                    successful_attempts += 1
+
+                except SMTPException as e:
+                    overall_success = False
+                    partial_success = True
+                    log.status = BroadcastLog.MediumStatus.FAILED
+                    log.message = f"SMTP Error: {str(e)}"
+                    log.save(update_fields=["status", "message"])
+                    logger.error(
+                        "SMTP error for broadcast %s (%s -> %s:%s): %s",
+                        broadcast_id,
+                        medium,
+                        user_type,
+                        role,
+                        str(e),
                     )
 
-                # --- Delegate sending to helper functions ---
-                if medium == Broadcast.Mediums.EMAIL:
-                    _send_email_broadcast(broadcast, recipients)
-                elif medium == Broadcast.Mediums.PLATFORM:
-                    _send_platform_broadcast(broadcast, recipients)
-                elif medium == Broadcast.Mediums.SMS:
-                    raise NotImplementedError("SMS medium is not implemented.")
-                elif medium == Broadcast.Mediums.WHATSAPP:
-                    raise NotImplementedError("WhatsApp medium is not implemented.")
-                else:
-                    raise InvalidMediumError(f"Unknown medium specified: {medium}")
+                except ValidationError as e:
+                    overall_success = False
+                    partial_success = True
+                    log.status = BroadcastLog.MediumStatus.FAILED
+                    log.message = f"Validation Error: {str(e)}"
+                    log.save(update_fields=["status", "message"])
+                    logger.warning(
+                        "Validation error for broadcast %s (%s -> %s:%s): %s",
+                        broadcast_id,
+                        medium,
+                        user_type,
+                        role,
+                        str(e),
+                    )
 
-                # If we get here, the sending was successful
-                log.status = BroadcastLog.MediumStatus.SENT
-                log.message = f"Successfully sent to {len(recipients)} recipients"
-                log.save(update_fields=["status", "message"])
-                successful_attempts += 1
+                except NotImplementedError as e:
+                    overall_success = False
+                    partial_success = True
+                    log.status = BroadcastLog.MediumStatus.FAILED
+                    log.message = f"Not Implemented: {str(e)}"
+                    log.save(update_fields=["status", "message"])
+                    logger.warning(
+                        "Not implemented for broadcast %s (%s -> %s:%s): %s",
+                        broadcast_id,
+                        medium,
+                        user_type,
+                        role,
+                        str(e),
+                    )
 
-            except SMTPException as e:
-                overall_success = False
-                partial_success = True
-                log.status = BroadcastLog.MediumStatus.FAILED
-                log.message = f"SMTP Error: {str(e)}"
-                log.save(update_fields=["status", "message"])
-                logger.error(
-                    "SMTP error for broadcast %s (%s -> %s): %s",
-                    broadcast_id,
-                    medium,
-                    role,
-                    str(e),
-                )
+                except Exception as e:
+                    overall_success = False
+                    partial_success = True
+                    log.status = BroadcastLog.MediumStatus.FAILED
+                    log.message = f"Unexpected Error: {str(e)}"
+                    log.save(update_fields=["status", "message"])
+                    logger.error(
+                        "Unexpected error for broadcast %s (%s -> %s:%s): %s",
+                        broadcast_id,
+                        medium,
+                        user_type,
+                        role,
+                        str(e),
+                    )
 
-            except ValidationError as e:  # Catch specific validation errors
-                overall_success = False
-                partial_success = True
-                log.status = BroadcastLog.MediumStatus.FAILED
-                log.message = f"Validation Error: {str(e)}"
-                log.save(update_fields=["status", "message"])
-                logger.warning(
-                    "Validation error for broadcast %s (%s -> %s): %s",
-                    broadcast_id,
-                    medium,
-                    role,
-                    str(e),
-                )
-
-            except NotImplementedError as e:
-                overall_success = False
-                partial_success = True
-                log.status = BroadcastLog.MediumStatus.FAILED
-                log.message = f"Not Implemented: {str(e)}"
-                log.save(update_fields=["status", "message"])
-                logger.warning(
-                    "Not implemented for broadcast %s (%s -> %s): %s",
-                    broadcast_id,
-                    medium,
-                    role,
-                    str(e),
-                )
-
-            except Exception as e:
-                overall_success = False
-                partial_success = True
-                log.status = BroadcastLog.MediumStatus.FAILED
-                log.message = f"Unexpected Error: {str(e)}"
-                log.save(update_fields=["status", "message"])
-                logger.error(
-                    "Unexpected error for broadcast %s (%s -> %s): %s",
-                    broadcast_id,
-                    medium,
-                    role,
-                    str(e),
-                )
     if overall_success:
         broadcast.status = Broadcast.Status.SENT
         logger.info("Broadcast %s completed successfully", broadcast_id)

@@ -29,7 +29,15 @@ class BroadcastListSerializer(serializers.ModelSerializer):
 class BroadcastLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = BroadcastLog
-        fields = ["id", "medium", "target_role", "status", "message", "attempted_at"]
+        fields = [
+            "id",
+            "medium",
+            "target_role",
+            "role_type",
+            "status",
+            "message",
+            "attempted_at"
+        ]
 
 
 class BroadcastDetailSerializer(serializers.ModelSerializer):
