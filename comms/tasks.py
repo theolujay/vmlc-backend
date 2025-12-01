@@ -21,7 +21,7 @@ def send_broadcast_task(self, broadcast_id):
     """
     Send a broadcast to multiple recipients across different mediums.
     """
-    from comms.utils import send_broadcast
+    from comms.functions import send_broadcast
 
     try:
         result = send_broadcast(broadcast_id)

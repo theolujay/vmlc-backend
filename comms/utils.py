@@ -1,319 +1,77 @@
 import logging
-from smtplib import SMTPException
-
-from django.db import DatabaseError
+from typing import List, Dict
 from django.conf import settings
-from django.core.cache import cache
-from django.core.mail import send_mass_mail
-from django.utils import timezone
-
-from celery import shared_task
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-
-from vmlc.utils.exceptions import (
-    ServerError,
-    ValidationError,
-    NoRecipientsFoundError,
-    InvalidMediumError,
-)
+from twilio.rest import Client as TwilioClient
+from twilio.base.exceptions import TwilioRestException
 
 logger = logging.getLogger(__name__)
 
+twilio_account_sid = settings.TWILIO_ACCOUNT_SID
+twilio_auth_token = settings.TWILIO_AUTH_TOKEN
+twilio_from_phone = settings.TWILIO_FROM_PHONE
 
-def send_broadcast(broadcast_id):
+twilio_client = TwilioClient(twilio_account_sid, twilio_auth_token)
+
+
+def send_sms(body: str, recipient: str) -> Dict[str, any]:
     """
-    Send a broadcast to multiple recipients across different mediums.
+    Send a single SMS message.
+
+    Returns:
+        dict: {"success": bool, "recipient": str, "error": str|None}
     """
-    from vmlc.models import Candidate, Staff
-    from comms.models import Broadcast, BroadcastLog
-
     try:
-        broadcast = Broadcast.objects.select_related("created_by__user").get(
-            id=broadcast_id
+        message = twilio_client.messages.create(
+            body=body,
+            from_=twilio_from_phone,
+            to=recipient,
         )
-    except Broadcast.DoesNotExist:
-        logger.error("Broadcast not found (id=%s)", broadcast_id)
-        return {"error": "Broadcast not found", "broadcast_id": broadcast_id}
+        logger.info("Sent SMS to %s", recipient[:8] + "***")
+        return {"success": True, "recipient": recipient, "error": None}
 
-    broadcast.status = Broadcast.Status.IN_PROGRESS
-    broadcast.last_attempt = timezone.now()
-    broadcast.save(update_fields=["status", "last_attempt"])
-
-    logger.info("Starting broadcast %s: '%s'", broadcast_id, broadcast.subject)
-
-    overall_success = True
-    partial_success = False
-    total_attempts = 0
-    successful_attempts = 0
-
-    # Build recipients dictionary
-    recipients_by_type_and_role = {}
-
-    for user_type, roles in broadcast.target_roles.items():
-        try:
-            if user_type == "staff":
-                for role in roles:
-                    key = f"staff_{role}"
-                    recipients_by_type_and_role[key] = list(
-                        Staff.objects.select_related("user")
-                        .filter(role=role, user__is_active=True)
-                        .values("user__id", "user__email")
-                    )
-                    logger.info(
-                        "Found %d active staff users for role '%s'",
-                        len(recipients_by_type_and_role[key]),
-                        role,
-                    )
-
-            elif user_type == "candidate":
-                for role in roles:
-                    key = f"candidate_{role}"
-                    recipients_by_type_and_role[key] = list(
-                        Candidate.objects.select_related("user")
-                        .filter(role=role, user__is_active=True)
-                        .values("user__id", "user__email")
-                    )
-                    logger.info(
-                        "Found %d active candidate users for role '%s'",
-                        len(recipients_by_type_and_role[key]),
-                        role,
-                    )
-
-        except (Staff.DoesNotExist, Candidate.DoesNotExist) as e:
-            logger.error(
-                "User not found during broadcast",
-                str(e),
-            )
-            raise
-
-    for medium in broadcast.mediums:
-        for user_type, roles in broadcast.target_roles.items():
-            for role in roles:
-                total_attempts += 1
-                key = f"{user_type}_{role}"
-
-                log = BroadcastLog.objects.create(
-                    broadcast=broadcast,
-                    medium=medium,
-                    target_role=role,
-                    role_type=user_type,
-                    status=BroadcastLog.MediumStatus.PENDING,
-                )
-
-                try:
-                    recipients = recipients_by_type_and_role.get(key, [])
-
-                    if not recipients:
-                        raise NoRecipientsFoundError(
-                            f"No active {user_type} found for role '{role}'"
-                        )
-
-                    # --- Delegate sending to helper functions ---
-                    if medium == Broadcast.Mediums.EMAIL:
-                        _send_email_broadcast(broadcast, recipients)
-                    elif medium == Broadcast.Mediums.PLATFORM:
-                        _send_platform_broadcast(broadcast, recipients)
-                    elif medium == Broadcast.Mediums.SMS:
-                        raise NotImplementedError("SMS medium is not implemented.")
-                    elif medium == Broadcast.Mediums.WHATSAPP:
-                        raise NotImplementedError("WhatsApp medium is not implemented.")
-                    else:
-                        raise InvalidMediumError(f"Unknown medium specified: {medium}")
-
-                    # If we get here, the sending was successful
-                    log.status = BroadcastLog.MediumStatus.SENT
-                    log.message = f"Successfully sent to {len(recipients)} recipients"
-                    log.save(update_fields=["status", "message"])
-                    successful_attempts += 1
-
-                except SMTPException as e:
-                    overall_success = False
-                    partial_success = True
-                    log.status = BroadcastLog.MediumStatus.FAILED
-                    log.message = f"SMTP Error: {str(e)}"
-                    log.save(update_fields=["status", "message"])
-                    logger.error(
-                        "SMTP error for broadcast %s (%s -> %s:%s): %s",
-                        broadcast_id,
-                        medium,
-                        user_type,
-                        role,
-                        str(e),
-                    )
-
-                except ValidationError as e:
-                    overall_success = False
-                    partial_success = True
-                    log.status = BroadcastLog.MediumStatus.FAILED
-                    log.message = f"Validation Error: {str(e)}"
-                    log.save(update_fields=["status", "message"])
-                    logger.warning(
-                        "Validation error for broadcast %s (%s -> %s:%s): %s",
-                        broadcast_id,
-                        medium,
-                        user_type,
-                        role,
-                        str(e),
-                    )
-
-                except NotImplementedError as e:
-                    overall_success = False
-                    partial_success = True
-                    log.status = BroadcastLog.MediumStatus.FAILED
-                    log.message = f"Not Implemented: {str(e)}"
-                    log.save(update_fields=["status", "message"])
-                    logger.warning(
-                        "Not implemented for broadcast %s (%s -> %s:%s): %s",
-                        broadcast_id,
-                        medium,
-                        user_type,
-                        role,
-                        str(e),
-                    )
-
-                except Exception as e:
-                    overall_success = False
-                    partial_success = True
-                    log.status = BroadcastLog.MediumStatus.FAILED
-                    log.message = f"Unexpected Error: {str(e)}"
-                    log.save(update_fields=["status", "message"])
-                    logger.error(
-                        "Unexpected error for broadcast %s (%s -> %s:%s): %s",
-                        broadcast_id,
-                        medium,
-                        user_type,
-                        role,
-                        str(e),
-                    )
-
-    if overall_success:
-        broadcast.status = Broadcast.Status.SENT
-        logger.info("Broadcast %s completed successfully", broadcast_id)
-    elif partial_success:
-        broadcast.status = Broadcast.Status.PARTIAL
-        logger.warning(
-            "Broadcast %s completed with partial success (%d/%d attempts successful)",
-            broadcast_id,
-            successful_attempts,
-            total_attempts,
-        )
-    else:
-        broadcast.status = Broadcast.Status.FAILED
-        logger.error("Broadcast %s failed completely", broadcast_id)
-
-    broadcast.save(update_fields=["status"])
-
-    # Invalidate the cache for this broadcast's detail view
-    cache.delete(f"broadcast_detail_{broadcast_id}")
-
-    # Return summary for monitoring/debugging
-    return {
-        "broadcast_id": broadcast_id,
-        "status": broadcast.status,
-        "total_attempts": total_attempts,
-        "successful_attempts": successful_attempts,
-        "subject": broadcast.subject,
-        "completed_at": timezone.now().isoformat(),
-    }
-
-
-def _send_email_broadcast(broadcast, recipients):
-    """Helper function to handle email sending logic."""
-    valid_emails = [r["user__email"] for r in recipients if r.get("user__email")]
-    if not valid_emails:
-        raise NoRecipientsFoundError(
-            f"No valid email addresses found for role '{broadcast.target_roles}'"
-        )
-
-    mail_details = (
-        broadcast.subject,
-        broadcast.message,
-        settings.DEFAULT_FROM_EMAIL,
-        valid_emails,
-    )
-    # This can raise SMTPException, which will be caught by the main task loop
-    send_mass_mail((mail_details,), fail_silently=False)
-
-    logger.info(
-        "Email queued successfully for broadcast %s to %d recipients (roles: %s)",
-        broadcast.id,
-        len(valid_emails),
-        ", ".join(broadcast.target_roles),
-    )
-
-
-def _send_platform_broadcast(broadcast, recipients):
-    """Helper function to handle platform notification logic."""
-    from comms.models import Notification
-    from comms.signals import notifications_created
-
-    user_ids = [r["user__id"] for r in recipients if r.get("user__id")]
-    if not user_ids:
-        raise NoRecipientsFoundError(
-            f"No user IDs found for role '{broadcast.target_roles}'"
-        )
-
-    notifications_to_create = [
-        Notification(
-            recipient_id=user_id, subject=broadcast.subject, message=broadcast.message
-        )
-        for user_id in user_ids
-    ]
-
-    try:
-        created_notifications = Notification.objects.bulk_create(
-            notifications_to_create
-        )
-    except DatabaseError as e:
+    except TwilioRestException as e:
         logger.error(
-            "Database error during notification bulk_create for broadcast %s: %s",
-            broadcast.id,
-            e,
+            "Failed to send SMS to %s: [%s] %s",
+            recipient[:8] + "***",
+            e.code,
+            e.msg,
         )
-        # Re-raise as a ServerError to be handled by the main loop
-        raise ServerError("Failed to save notifications to the database.") from e
+        return {"success": False, "recipient": recipient, "error": str(e)}
 
-    # Manually send messages to the channel layer
-    channel_layer = get_channel_layer()
-    if not channel_layer:
-        logger.error(
-            "Could not get channel layer. Real-time notifications will not be sent for broadcast %s.",
-            broadcast.id,
-        )
-        # This is a critical configuration error, but we don't want to fail the whole task.
-        # The notifications are saved, but not pushed in real-time.
-        return
 
-    for notification in created_notifications:
-        group_name = f"user__{notification.recipient_id}"
-        message_payload = {
-            "type": "notification_activity",
-            "message": {
-                "id": notification.id,
-                "subject": notification.subject,
-                "message": notification.message,
-                "read": notification.read,
-                "created_at": notification.created_at.isoformat(),
-            },
+def send_bulk_sms(body: str, recipients: List[str]) -> Dict[str, any]:
+    """
+    Send SMS to multiple recipients.
+
+    Returns:
+        dict: {
+            "success_count": int,
+            "failure_count": int,
+            "failed_recipients": List[str],
+            "total": int
         }
-        try:
-            async_to_sync(channel_layer.group_send)(group_name, message_payload)
-        except Exception as e:
-            # Log if a single group_send fails, but don't stop the others
-            logger.error(
-                "Failed to send notification to group %s for broadcast %s: %s",
-                group_name,
-                broadcast.id,
-                e,
-            )
+    """
+    logger.info("Sending bulk SMS to %d recipients", len(recipients))
 
-    # Send our custom signal for other potential listeners
-    notifications_created.send(
-        sender=send_broadcast, notifications=created_notifications
-    )
+    results = []
+    for recipient in recipients:
+        result = send_sms(body=body, recipient=recipient)
+        results.append(result)
+
+    success_count = sum(1 for r in results if r["success"])
+    failure_count = len(results) - success_count
+    failed_recipients = [r["recipient"] for r in results if not r["success"]]
+
     logger.info(
-        "Platform notifications created and pushed for %d users (roles: %s)",
-        len(user_ids),
-        ", ".join(broadcast.target_roles),
+        "Bulk SMS complete: %d succeeded, %d failed out of %d total",
+        success_count,
+        failure_count,
+        len(recipients),
     )
+
+    return {
+        "success_count": success_count,
+        "failure_count": failure_count,
+        "failed_recipients": failed_recipients,
+        "total": len(recipients),
+    }
