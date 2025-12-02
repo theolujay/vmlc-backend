@@ -215,6 +215,7 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
+    rejection_reason = models.CharField(max_length=150, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1998,6 +1998,118 @@
 					}
 				},
 				{
+					"name": "User Verification",
+					"item": [
+						{
+							"name": "Get Verification Status (For Other User)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
+									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
+									"host": [ "{{baseUrl}}" ],
+									"path": [ "v1", "user", "verification", "status", "{{user_id}}", "" ]
+								},
+								"description": "Get the verification status for a specific user (requires manager+ role)."
+							},
+							"response": []
+						},
+						{
+							"name": "List All Verification Requests",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
+									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/v1/user/verification/list/",
+									"host": [ "{{baseUrl}}" ],
+									"path": [ "v1", "user", "verification", "list", "" ]
+								},
+								"description": "Lists all user verification requests for administrative review (requires manager+ role)."
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Verification Request",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
+									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" },
+									{ "key": "Content-Type", "value": "application/json", "type": "text" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"is_approved\": true\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+									"host": [ "{{baseUrl}}" ],
+									"path": [ "v1", "user", "verification", "action", "{{user_id}}", "" ]
+								},
+								"description": "Approves a user's verification request (requires manager+ role)."
+							},
+							"response": []
+						},
+						{
+							"name": "Reject Verification Request",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
+									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" },
+									{ "key": "Content-Type", "value": "application/json", "type": "text" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"is_rejected\": true,\n    \"rejection_reason\": \"The submitted ID card was blurry and unreadable. Please resubmit with a clearer image.\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+									"host": [ "{{baseUrl}}" ],
+									"path": [ "v1", "user", "verification", "action", "{{user_id}}", "" ]
+								},
+								"description": "Rejects a user's verification request with an optional reason (requires manager+ role)."
+							},
+							"response": []
+						},
+						{
+							"name": "Download Verification Document (For Other User)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
+									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
+									"host": [ "{{baseUrl}}" ],
+									"path": [ "v1", "user", "verification", "documents", "{{file_type}}", "{{user_id}}", "" ]
+								},
+								"description": "Downloads a specific verification document for a given user (requires manager+ role)."
+							},
+							"response": []
+						}
+					],
+					"auth": {
+						"type": "bearer",
+						"bearer": [
+							{
+								"key": "token",
+								"value": "{{staffAccessToken}}",
+								"type": "string"
+							}
+						]
+					}
+				},
+				{
 					"name": "Question Management",
 					"item": [
 						{

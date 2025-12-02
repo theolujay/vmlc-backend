@@ -154,20 +154,66 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
 class UserVerificationActionSerializer(serializers.ModelSerializer):
     """Serializer for verifying a user."""
 
+    rejection_reason = serializers.CharField(
+        max_length=150, required=False, allow_blank=True
+    )
+
     class Meta:
         model = UserVerification
-        fields = ["is_approved", "is_rejected"]
+        fields = ["is_approved", "is_rejected", "rejection_reason"]
+
+    def validate(self, data):
+        """
+        Validate the verification action data.
+        - `rejection_reason` is only allowed when `is_rejected` is true.
+        - Either `is_approved` or `is_rejected` must be provided.
+        """
+        is_approved = data.get("is_approved", False)
+        is_rejected = data.get("is_rejected", False)
+        rejection_reason = data.get("rejection_reason")
+
+        if rejection_reason and not is_rejected:
+            raise serializers.ValidationError(
+                {"rejection_reason": "A rejection reason can only be provided when rejecting an application."}
+            )
+        
+        if is_rejected and not rejection_reason:
+            raise serializers.ValidationError(
+                {"rejection_reason": "A rejection reason is required when rejecting an application."}
+            )
+
+        if not is_approved and not is_rejected:
+            raise serializers.ValidationError(
+                "Either 'is_approved' or 'is_rejected' must be true."
+            )
+            
+        if is_approved and is_rejected:
+            raise serializers.ValidationError(
+                "A verification can either be approved or rejected, not both."
+            )
+
+        return data
 
     def update(self, instance, validated_data):
         """
-        Handle verification status updates."""
+        Handle verification status updates.
+        - If approved, clear any previous rejection reason.
+        - If rejected, save the rejection reason.
+        """
         is_approved = validated_data.get("is_approved", False)
         is_rejected = validated_data.get("is_rejected", False)
+        rejection_reason = validated_data.get("rejection_reason")
 
-        # The model's clean() method will ensure only one is true.
-        instance.is_approved = is_approved
-        instance.is_rejected = is_rejected
-        instance.is_pending = not (is_approved or is_rejected)
+        if is_approved:
+            instance.is_approved = True
+            instance.is_rejected = False
+            instance.is_pending = False
+            instance.rejection_reason = ""
+        elif is_rejected:
+            instance.is_approved = False
+            instance.is_rejected = True
+            instance.is_pending = False
+            instance.rejection_reason = rejection_reason
+
         instance.save()
-
         return instance

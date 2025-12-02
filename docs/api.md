@@ -2194,214 +2194,87 @@ Retrieves the detailed performance of a single candidate for a specific exam lea
 ```
 
 ### User Verification
-User verification is a multi-step process involving email verification, document submission, and admin approval.
+The user verification endpoints allow staff members to manage the verification process for all users.
 
-#### 1. Get Verification Status
-Retrieve the verification status for the authenticated user or for a specific user if you are a superadmin.
-
-**Endpoints:**
-- `GET /user/verification/status/` (for self)
-- `GET /user/verification/status/{user_id}/` (for managers or higher)
-
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-
-**Required Role:**
-- Any authenticated user for their own status.
-- `manager` or higher to check another user's status.
-
-**Responses:**
-The API returns a consistent JSON object with a `status` field that indicates the current state of the user's verification.
-
-- **Status: `email_not_verified`**
-  ```json
-  {
-      "status": "email_not_verified",
-      "detail": "Email not verified. Verify email for user verification."
-  }
-  ```
-
-- **Status: `verified`**
-  ```json
-  {
-      "status": "verified",
-      "detail": "User is verified."
-  }
-  ```
-
-- **Status: `pending`**
-  ```json
-  {
-      "status": "pending",
-      "detail": "Verification request is pending review.",
-      "verification_data": {
-          "status": "not_started",
-          "created_at": "2025-09-01T10:00:00Z",
-          "updated_at": "2025-09-01T10:00:00Z",
-          "documents_uploaded": {
-              "face_id": true,
-              "id_card": true,
-              "verification_document": true
-          }
-      }
-  }
-  ```
-
-- **Status: `rejected`**
-  ```json
-  {
-      "status": "rejected",
-      "detail": "Verification request was rejected. You may resubmit with updated documents."
-  }
-  ```
-
-- **Status: `not_submitted`**
-  ```json
-  {
-      "status": "not_submitted",
-      "detail": "No verification request submitted."
-  }
-  ```
-
-#### 2. Submit or Update Verification Documents
-This endpoint allows users to submit their documents for the first time (`POST`) or update an existing submission (`PATCH`). Resubmitting documents will clear any previous rejection and set the status back to pending.
-
-**Endpoint:** `POST /user/verification/upload/`, `PATCH /user/verification/upload/`
+#### Get User's Verification Status
+**Endpoint:** `GET /user/verification/status/`
 **Required Role:** Any authenticated user
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-Content-Type: multipart/form-data
-```
-
-**Form Data:**
-- `face_id` (file): Your profile picture (max 2MB, JPG/JPEG/PNG).
-- `id_card` (file): A valid identification document (max 2MB, JPG/JPEG/PNG/PDF).
-- `verification_document` (file): Additional verification document (max 2MB, PDF/DOC/DOCX/JPG/JPEG/PNG).
-
-**Success Response (`202 Accepted`):**
-```json
-{
-    "detail": "Documents uploaded successfully. Validation is in progress.",
-    "verification_data": {
-        "status": "pending_validation",
-        "has_face_id": true,
-        "has_id_card": true,
-        "has_verification_document": true
-    }
-}
-```
-*Note: Document validation is performed asynchronously. The initial response indicates successful upload and pending validation.*
-
-**Error Responses:**
-- `403 Forbidden`: If the user's email is not verified.
-- `400 Bad Request`: If the user is already verified or has a pending request (for `POST`), or if file validation fails (e.g., invalid file type, size).
-
-#### 3. Access Verification Documents
-Access uploaded documents. The API serves the file content directly from secure storage (AWS S3). Private documents (`id_card`, `verification_document`) are served via signed URLs, ensuring temporary and secure access.
-
-**Endpoints:**
-- `GET /user/verification/documents/{file_type}/` (for self)
-- `GET /user/verification/documents/{file_type}/{user_id}/` (for managers or higher)
-
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-
-**Required Role:**
-- Any authenticated user for their own documents.
-- `manager` or higher to access another user's documents.
-
-**URL Parameters:**
-- `file_type` (string): `id_card`, `verification_document`, or `face_id`.
-- `user_id` (uuid, optional): The ID of the user whose document to access (required for managers or higher accessing other users' documents).
-
-**Successful Response:**
-- The raw file content (e.g., an image or PDF) with the correct `Content-Type` header.
-
-**Error Responses:**
-- `404 Not Found`: If the file does not exist or has not been uploaded.
-- `403 Forbidden`: If you do not have permission to access the document.
-- `502 Bad Gateway`: If there is an issue retrieving the file from storage (e.g., S3 error).
-
-#### 4. List All Verification Requests (Admin)
-Retrieve a paginated list of all user verification submissions for administrative review.
-
-**Endpoint:** `GET /user/verification/list/`
-**Headers:**
-```text
-X-Api-Key: <your_api_key>
-```
-
-**Required Role:** `manager` or higher
-
+**Description:** Retrieves the verification status of the currently authenticated user.
 **Response:** `200 OK`
 ```json
 {
-  "count": 10,
-  "total_pages": 1,
-  "next": null,
-  "previous": null,
-  "results": [
-    {
-        "user_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-        "full_name": "John Doe",
-        "email": "john@example.com",
-        "status": "pending",
-        "has_face_id": true,
-        "has_id_card": true,
-        "has_verification_document": false,
-        "created_at": "2025-08-30T16:33:19Z"
-    }
-  ]
+  "is_approved": true,
+  "is_rejected": false,
+  "is_pending": false,
+  "rejection_reason": null
 }
 ```
 
-#### 5. Approve or Reject a Verification Request (Admin)
-Allows a `manager` or higher to approve or reject a user's verification submission. This action is final and notifies the user via email.
+#### Get Another User's Verification Status
+**Endpoint:** `GET /user/verification/status/{user_id}/`
+**Required Role:** `manager` or `superadmin`, or the user themselves
+**Description:** Retrieves the verification status for a specific user.
+**Response:** `200 OK` (Same as above)
 
-**Endpoint:** `POST /user/verification/action/{user_id}/`
-**Headers:**
-```text
-Content-Type: application/json
-X-Api-Key: <your_api_key>
-```
-
-**Required Role:** `manager` or higher
-
-**URL Parameters:**
-- `user_id` (uuid): The ID of the user whose verification is being actioned.
-
+#### Upload/Resubmit Verification Documents
+**Endpoint:** `POST /user/verification/upload/` or `PATCH /user/verification/upload/`
+**Required Role:** Any authenticated user
+**Description:** Allows a user to submit or resubmit their verification documents. This is a `multipart/form-data` request.
 **Request Body:**
-To approve a user:
+- `face_id`: Image file
+- `id_card`: Image or PDF file
+- `verification_document`: Image or PDF file
+**Response:** `200 OK` or `201 Created`
+
+#### List Verification Requests
+**Endpoint:** `GET /user/verification/list/`
+**Required Role:** `manager` or `superadmin`
+**Description:** Retrieves a list of verification requests, with filters for status.
+**Query Parameters:**
+- `is_pending` (boolean)
+- `is_approved` (boolean)
+- `is_rejected` (boolean)
+**Response:** `200 OK` (Paginated list of user verification objects)
+
+#### Approve or Reject a Verification Request
+**Endpoint:** `POST /user/verification/action/{id}/`
+**Required Role:** `manager` or `superadmin`
+**Description:** Allows a staff member to approve or reject a user's verification application.
+**Request Body:**
+To approve:
 ```json
 {
-    "is_approved": true
+  "is_approved": true
 }
 ```
-To reject a user:
+To reject:
 ```json
 {
-    "is_rejected": true
+  "is_rejected": true,
+  "rejection_reason": "The provided ID card was not clear."
+}
+```
+*Note: `rejection_reason` is optional when rejecting.*
+**Response:** `200 OK`
+```json
+{
+    "message": "User verification has been updated successfully"
 }
 ```
 
-**Success Response (`200 OK`):**
+#### Download Verification Documents
+**Endpoint:** `GET /user/verification/documents/{type}/{id}/`
+**Required Role:** `manager` or `superadmin`, or the user themselves
+**Description:** Provides a secure, temporary URL to download a user's verification document.
+**Path Parameters:**
+- `type`: One of `face_id`, `id_card`, `verification_document`
+- `id`: The User ID
+**Response:** `200 OK`
 ```json
 {
-    "detail": "User verified successfully."
+  "url": "https://<s3_bucket_url>/.../file.jpg?AWSAccessKeyId=..."
 }
 ```
-*or*
-```json
-{
-    "detail": "User verification rejected."
-}
-```
-*Note: An email notification is sent to the user upon approval or rejection.*
 
 ---
 
@@ -2891,6 +2764,9 @@ For technical support, API key requests, or questions:
 - **Response Time:** Within 48 hours for support requests.
 
 ## Changelog
+
+- **2025-12-02**:
+  - **User Verification**: Added `rejection_reason` to the `POST /user/verification/action/{user_id}/` endpoint. When rejecting a user's verification, a reason for the rejection can be provided in the request body.
 
 - **2025-11-28**:
   - **Breaking Change**: Updated the broadcast functionality to allow targeting both `staff` and `candidate` roles.

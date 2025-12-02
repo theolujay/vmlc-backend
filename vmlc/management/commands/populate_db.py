@@ -67,7 +67,11 @@ class Command(BaseCommand):
         self.stdout.write("Creating feature flags...")
         FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
         FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
-
+        statuses = [
+            {'is_pending': True, 'is_approved': False, 'is_rejected': False},
+            {'is_pending': False, 'is_approved': True, 'is_rejected': False},
+            {'is_pending': False, 'is_approved': False, 'is_rejected': True},
+        ]
         # Create staff users
         self.stdout.write("Creating staff users...")
         staff_list = []
@@ -89,10 +93,12 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_approved=random.choice([True, False]),
-                is_pending=random.choice([True, False]),
-                is_rejected=random.choice([True, False]),
+                **random.choice(statuses)
             )
+            user_verification = UserVerification.objects.get(user=user)
+            if not user_verification.is_approved:
+                random.choice([user_verification.is_pending, user_verification.is_rejected])
+                user_verification.save()
             staff_list.append(staff)
 
         if not staff_list:
@@ -128,10 +134,12 @@ class Command(BaseCommand):
             )
             UserVerification.objects.create(
                 user=user,
-                is_approved=random.choice([True, False]),
-                is_pending=random.choice([True, False]),
-                is_rejected=random.choice([True, False]),
+                **random.choice(statuses)
             )
+            user_verification = UserVerification.objects.get(user=user)
+            if not user_verification.is_approved:
+                random.choice([user_verification.is_pending, user_verification.is_rejected])
+                user_verification.save()
             candidate_list.append(candidate)
 
         if not candidate_list:
