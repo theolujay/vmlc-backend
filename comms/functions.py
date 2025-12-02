@@ -18,7 +18,7 @@ from vmlc.utils.exceptions import (
     NoRecipientsFoundError,
     InvalidMediumError,
 )
-from comms.utils import send_bulk_sms
+from comms.utils import send_bulk_phone_msg
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ def _send_sms_broadcast(broadcast, recipients):
         )
 
     try:
-        result = send_bulk_sms(body=broadcast.message, recipients=valid_phones)
+        result = send_bulk_phone_msg(body=broadcast.message, recipients=valid_phones)
 
         logger.info(
             "SMS broadcast %s: Sent to %d/%d recipients (%d failed)",
