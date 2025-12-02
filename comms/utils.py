@@ -30,10 +30,12 @@ def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
     Returns:
         dict: {"success": bool, "recipient": str, "error": str|None, "sid": str|None}
     """
-    
+
     if medium not in ["sms", "whatsapp"]:
-        raise InvalidMediumError(f"Invalid medium: {medium}. Must be 'sms' or 'whatsapp'")
-    
+        raise InvalidMediumError(
+            f"Invalid medium: {medium}. Must be 'sms' or 'whatsapp'"
+        )
+
     try:
         if medium == "sms":
             message = twilio_client.messages.create(
@@ -52,7 +54,7 @@ def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
                 "error": None,
                 "sid": message.sid,
             }
-            
+
         elif medium == "whatsapp":
             # TODO: WhatsApp requires approved templates
             # For now, send as freeform message (sandbox only)
@@ -72,7 +74,7 @@ def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
                 "error": None,
                 "sid": message.sid,
             }
-            
+
     except TwilioRestException as e:
         logger.error(
             "Failed to send %s to %s: [%s] %s",
@@ -120,14 +122,14 @@ def send_bulk_phone_msg(
             "failed_recipients": [],
             "total": 0,
         }
-    
+
     logger.info("Sending bulk %s to %d recipients", medium.upper(), len(recipients))
 
     results = []
     for i, recipient in enumerate(recipients, 1):
         result = send_phone_msg(body=body, recipient=recipient, medium=medium)
         results.append(result)
-        
+
         # Rate limiting: don't delay after the last message
         if i < len(recipients) and delay > 0:
             sleep(delay)
