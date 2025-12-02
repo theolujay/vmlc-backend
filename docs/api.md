@@ -501,17 +501,185 @@ Password-change:
 ---
 </details>
 
-<details>
-<summary>Broadcasts & notifications</summary>
+### Broadcast Management
+The broadcast system allows authorized staff to send targeted communications to users (candidates and/or staff). Broadcasts are sent asynchronously, and their status can be tracked.
 
-- `GET /broadcasts/`, `POST /broadcasts/` — list/create broadcasts. Role: `manager`+. `200/201 OK`.
-    
-- `GET /broadcasts/{id}/` — view broadcast. `200 OK`.
-    
-- Note: WebSocket notifications require both `X-Api-Key` and `Authorization` according to changelog.
-    
+#### List Broadcasts
+**Endpoint:** `GET /broadcasts/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+**Required Role:** `manager` or higher
+**Response:** `200 OK`
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "subject": "Important Announcement",
+      "message": "Please review the new exam schedule.",
+      "created_by": {
+        "user": { "email": "manager@example.com", "first_name": "Manager", "last_name": "User" }
+      },
+      "created_at": "2025-09-20T10:00:00Z",
+      "mediums": ["email", "platform"],
+      "target_roles": {
+          "candidate": ["league", "final"],
+          "staff": ["moderator", "volunteer"]
+      }
+    }
+  ]
+}
+```
 
----
+#### Create Broadcast
+**Endpoint:** `POST /broadcasts/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+**Required Role:** `manager` or higher
+**Request Body:**
+```json
+{
+  "subject": "New Exam Available",
+  "message": "The final stage exam is now open. Good luck!",
+  "mediums": ["email", "platform"],
+  "target_roles": {
+    "staff": ["volunteer", "moderator"],
+    "candidate": ["final"]
+  }
+}
+```
+*Note: The `target_roles` object must contain either a `staff` key, a `candidate` key, or both. The values should be arrays of valid roles.*
+- *Valid `staff` roles: `volunteer`, `moderator`, `admin`, `manager`, `superadmin`*
+- *Valid `candidate` roles: `screening`, `league`, `final`, `winner`*
+
+**Response:** `201 Created`
+```json
+{
+    "id": 2,
+    "subject": "New Exam Available",
+    "message": "The final stage exam is now open. Good luck!",
+    "created_by": { "...": "..." },
+    "created_at": "2025-09-21T12:00:00Z",
+    "status": "pending",
+    "mediums": ["email", "platform"],
+    "target_roles": {
+        "staff": ["volunteer", "moderator"],
+        "candidate": ["final"]
+    },
+    "logs": []
+}
+```
+*Note: Creating a broadcast triggers an asynchronous task. The response includes the task_id for tracking. If platform is a medium, a real-time notification will be pushed to connected clients via WebSockets.*
+
+#### Get Broadcast Details
+**Endpoint:** `GET /broadcasts/{id}/`
+**Headers:**
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+**Required Role:** `manager` or higher
+**Response:** `200 OK`
+```json
+{
+    "id": 1,
+    "subject": "Important Announcement",
+    "message": "Please review the new exam schedule.",
+    "created_by": {
+        "user": {
+            "email": "manager@example.com",
+            "first_name": "Manager",
+            "last_name": "User"
+        }
+    },
+    "created_at": "2025-09-20T10:00:00Z",
+    "mediums": ["email", "platform"],
+    "target_roles": {
+        "candidate": ["league", "final"],
+        "staff": ["moderator", "volunteer"]
+    },
+    "status": "sent",
+    "last_attempt": "2025-09-20T10:00:15Z",
+    "logs": [
+        {
+            "id": 1,
+            "medium": "email",
+            "target_role": "league",
+            "role_type": "candidate",
+            "status": "sent",
+            "message": "Successfully sent to 50 recipients",
+            "attempted_at": "2025-09-20T10:00:10Z"
+        }
+    ]
+}
+```
+*Note: The response for this endpoint is cached for performance. The cache is invalidated when the broadcast sending task completes.*
+
+### Notifications with WebSockets
+
+Clients receive notifications using WebSockets. For example, [broadcasts](#create-broadcast) made via the `platform` medium at target users (or roles) will come through the notifications endpoint, allowing clients to receive instant updates without needing to poll the server.
+
+#### Real-time Notifications
+Connect to this endpoint to receive `platform` notifications in real-time.
+
+**Endpoint:** `ws://<host>/v1/ws/notifications/` (preferrably `wss://` for secure connections in production)
+
+**Authentication:**
+This endpoint requires dual authentication:
+- `X-Api-Key`: In the headers, to authenticate the client application.
+- `Authorization: Bearer <access_token>`: In the headers, to identify the user.
+
+**Required Role:** Any authenticated user.
+
+**Receiving Messages (Server-to-Client):**
+When a new notification is generated for the authenticated user (e.g., via a broadcast), the server will push a JSON message with the following structure:
+
+```json
+{
+    "type": "notification_activity",
+    "message": {
+        "id": 123,
+        "subject": "New Exam Available",
+        "message": "The final stage exam is now open. Good luck!",
+        "read": false,
+        "created_at": "2025-09-21T12:00:00.123456Z"
+    }
+}
+```
+
+**Sending Messages (Client-to-Server):**
+Clients can send messages to the server to perform actions, like `mark_as_read`. The message must be a JSON object with an `action` and a `data` payload.
+
+**Action: `mark_as_read`**
+Marks a specific notification as read.
+
+**Request Payload:**
+```json
+{
+    "action": "mark_as_read",
+    "data": {
+        "notification_id": 123
+    }
+}
+```
+
+**Server Response:**
+If the action is unknown or the payload is invalid, the server will send back an error message:
+```json
+{
+    "type": "error",
+    "message": "Unknown action: <action_name>"
+}
+```
 
 #### Account management & misc
 
