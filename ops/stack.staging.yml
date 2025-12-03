@@ -21,6 +21,7 @@ x-vmlc-env: &vmlc-env
   AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
   DATABASE_URL_FILE: /run/secrets/database-url
   DJANGO_ADMIN_URL_FILE: /run/secrets/django-admin-url
+  EMAIL_HOST_USER_FILE: /run/secrets/gmail-host-user
   EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
   SECRET_KEY_FILE: /run/secrets/django-secret-key
   SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
@@ -38,14 +39,13 @@ x-vmlc-env: &vmlc-env
   DJANGO_SETTINGS_MODULE: config.settings.staging
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
   EMAIL_HOST: smtp.gmail.com
-  EMAIL_HOST_USER: olujay.dev.testing@gmail.com
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
   INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
   REDIS_URL: redis://redis:6379/0
   POSTGRES_DB: vmlc_staging
   POSTGRES_USER: verboheit_staging
-  SUPERUSER_EMAIL: olujay.dev@gmail.com
+  SUPERUSER_EMAIL_FILE: /run/secrets/su-email
   # TWILIO_ACCOUNT_SID: /run/secrets/twilio-account-sid
   # TWILIO_AUTH_TOKEN: /run/secrets/twilio-auth-token
   # TWILIO_FROM_PHONE: /run/secrets/twilio-from-phone
@@ -60,8 +60,10 @@ x-vmlc-common: &vmlc-common
     - aws-secret-access-key
     - database-url
     - django-admin-url
+    - gmail-host-user
     - gmail-host-password
     - django-secret-key
+    - su-email
     - su-password
     # - twilio-account-sid
     # - twilio-auth-token
@@ -463,17 +465,17 @@ services:
       - "traefik.http.routers.grafana.tls=true" 
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     secrets:
+      - su-email
       - su-password
+      - gmail-host-user
       - gmail-host-password
     environment:
       - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_SERVER_HTTP_PORT=3000
-      # - GF_SECURITY_ADMIN_USER=olujay.dev@gmail.com
-      # - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
+      - GF_SECURITY_ADMIN_USER__FILE=/run/secrets/su-email
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
       - GF_AUTH_DISABLE_LOGIN_FORM=false
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=
       - GF_PLUGINS_DISABLE_INSTALLATION=true
       - GF_ANALYTICS_REPORTING_ENABLED=false
@@ -483,10 +485,10 @@ services:
       - GF_PLUGINS_PREINSTALL=grafana-clock-panel,grafana-simple-json-datasource
       - GF_SMTP_ENABLED=true
       - GF_SMTP_HOST=smtp.gmail.com:587
-      - GF_SMTP_USER=olujay.dev.testing@gmail.com
+      - GF_SMTP_USER__FILE=gmail-host-user
       - GF_SMTP_PASSWORD__FILE=/run/secrets/gmail-host-password
       - GF_SMTP_FROM_ADDRESS=staging-mlc@verboheit.org
-      - GF_SMTP_FROM_NAME=Verboheit Grafana
+      - GF_SMTP_FROM_NAME=Verboheit MLC - Ops
       - GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
     configs:
       - source: grafana_datasources
@@ -529,11 +531,15 @@ secrets:
     external: true
   django-admin-url:
     external: true
+  gmail-host-user:
+    external: true
   gmail-host-password:
     external: true
   db-password:
     external: true
   django-secret-key:
+    external: true
+  su-email:
     external: true
   su-password:
     external: true
