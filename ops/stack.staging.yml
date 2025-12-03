@@ -473,8 +473,8 @@ services:
       GF_SERVER_ROOT_URL: https://staging-ops.verboheit.org
       GF_SERVER_SERVE_FROM_SUB_PATH: "false"
       GF_SERVER_HTTP_PORT: "3000"
-      GF_SECURITY_ADMIN_USER__FILE: /run/secrets/su-email
-      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/su-password
+      GF_SECURITY_ADMIN_USER: "olujay.dev@gmail.com"
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/su-password
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_INSTALL_PLUGINS:
       GF_PLUGINS_DISABLE_INSTALLATION: "true"
@@ -485,7 +485,7 @@ services:
       GF_PLUGINS_PREINSTALL: grafana-clock-panel,grafana-simple-json-datasource
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: "smtp.gmail.com:587"
-      GF_SMTP_USER__FILE: /run/secrets/gmail-host-user
+      GF_SMTP_USER: "olujay.dev.testing@gmail.com"
       GF_SMTP_PASSWORD__FILE: /run/secrets/gmail-host-password
       GF_SMTP_FROM_ADDRESS: staging-mlc@verboheit.org
       GF_SMTP_FROM_NAME: "Verboheit MLC - Ops"
