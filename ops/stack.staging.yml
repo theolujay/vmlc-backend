@@ -485,7 +485,7 @@ services:
       - GF_PLUGINS_PREINSTALL=grafana-clock-panel,grafana-simple-json-datasource
       - GF_SMTP_ENABLED=true
       - GF_SMTP_HOST=smtp.gmail.com:587
-      - GF_SMTP_USER__FILE=gmail-host-user
+      - GF_SMTP_USER__FILE=/run/secrets/gmail-host-user
       - GF_SMTP_PASSWORD__FILE=/run/secrets/gmail-host-password
       - GF_SMTP_FROM_ADDRESS=staging-mlc@verboheit.org
       - GF_SMTP_FROM_NAME=Verboheit MLC - Ops
