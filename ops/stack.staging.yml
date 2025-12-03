@@ -460,6 +460,7 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.routers.grafana.tls=true" 
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     secrets:
       - su-password
