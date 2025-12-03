@@ -63,9 +63,9 @@ x-vmlc-common: &vmlc-common
     - gmail-host-password
     - django-secret-key
     - su-password
-    - twilio-account-sid
-    - twilio-auth-token
-    - twilio-from-phone
+    # - twilio-account-sid
+    # - twilio-auth-token
+    # - twilio-from-phone
   labels:
     - "traefik.enable=true"
   networks:
