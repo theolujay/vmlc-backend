@@ -456,7 +456,7 @@ services:
             cpus: '0.1'
 
   grafana:
-    image: grafana/grafana:12.2
+    image: grafana/grafana:12.4.0-19877932531
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
@@ -473,8 +473,10 @@ services:
       - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_EMAIL__FILE=/run/secrets/su-email
-      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
+      # - GF_SECURITY_ADMIN_EMAIL__FILE=/run/secrets/su-email
+      # - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
+      - GF_SECURITY_ADMIN_USER=olujay.dev
+      - GF_SECURITY_PASSWORD=admin
       - GF_AUTH_DISABLE_LOGIN_FORM=false
       - GF_INSTALL_PLUGINS=
       - GF_PLUGINS_DISABLE_INSTALLATION=true
