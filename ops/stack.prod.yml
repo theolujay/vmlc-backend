@@ -76,6 +76,9 @@ x-vmlc-common: &vmlc-common
 
 
 services:
+# ======================================================
+# Infrastructure
+# ======================================================
   traefik:
     image: traefik:v3.5.3
     command:
@@ -209,7 +212,9 @@ services:
           cpus: '0.15'
     networks:
       - prod
-
+# ======================================================
+# VMLC apps
+# ======================================================
   db-migrate:
     <<: *vmlc-common
     entrypoint: ""
@@ -352,7 +357,9 @@ services:
         reservations:
           memory: 128M
           cpus: '0.05'
-
+# ======================================================
+# Observability
+# ======================================================
   alloy:
     image: grafana/alloy:v1.12.0
     command:
@@ -458,6 +465,7 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.routers.grafana.tls=true" 
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     secrets:
       - su-email
@@ -538,6 +546,13 @@ secrets:
     external: true
   su-password:
     external: true
+  # twilio-account-sid:
+  #   external: true
+  # twilio-auth-token:
+  #   external: true
+  # twilio-from-phone:
+  #   external: true
+
 
 configs:
   prometheus_config:
