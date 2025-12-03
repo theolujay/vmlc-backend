@@ -18,22 +18,22 @@ loki.source.docker "containers" {
   refresh_interval = "30s"
   
   // Relabel to add useful metadata
-  relabel_rules = rule {
+  relabel_rules {
     source_labels = ["__meta_docker_container_name"]
     target_label  = "container"
   }
   
-  relabel_rules = rule {
+  relabel_rules {
     source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
     target_label  = "service"
   }
   
-  relabel_rules = rule {
+  relabel_rules {
     source_labels = ["__meta_docker_container_label_com_docker_stack_namespace"]
     target_label  = "stack"
   }
   
-  relabel_rules = rule {
+  relabel_rules {
     source_labels = ["__meta_docker_container_log_stream"]
     target_label  = "stream"
   }
