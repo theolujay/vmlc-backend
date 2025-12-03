@@ -364,7 +364,7 @@ services:
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy/data
     configs:
-      - source: alloy_config_v2
+      - source: alloy_config
         target: /etc/alloy/config.alloy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -419,7 +419,7 @@ services:
     image: grafana/loki:3.5
     command: -config.file=/etc/loki/local-config.yaml
     configs:
-      - source: loki_config_v3
+      - source: loki_config
         target: /etc/loki/local-config.yaml
     volumes:
       - loki:/loki
@@ -548,7 +548,7 @@ secrets:
 configs:
   prometheus_config:
     file: ./prometheus.yml
-  loki_config_v3:
+  loki_config:
     file: ./loki.yml
   tempo_config:
     file: ./tempo.yml
@@ -556,5 +556,5 @@ configs:
     file: ./grafana/datasources.yml
   grafana_dashboards:
     file: ./grafana/dashboards.yml
-  alloy_config_v2:
+  alloy_config:
     file: ./alloy.alloy

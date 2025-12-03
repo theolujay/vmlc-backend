@@ -1,159 +1,221 @@
-# Git
+# =============================================================================
+# Git & Version Control
+# =============================================================================
 .git/
 .gitignore
 .gitattributes
 .github/
 
-# Docker
+# =============================================================================
+# Docker & Container Files
+# =============================================================================
 Dockerfile*
-Dockerfile
 .dockerignore
 compose*.yml
+docker/
 
-# Python
-.venv
+# =============================================================================
+# Python Environment & Cache
+# =============================================================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 .Python
-.venv/
-venv*/
-env*/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# =============================================================================
 # Python Packaging
+# =============================================================================
 build/
+develop-eggs/
 dist/
-*.egg-info/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
 share/python-wheels/
-*.manifest
-*.spec
+*.egg-info/
+.installed.cfg
+*.egg
 MANIFEST
-# Environment
-.env
-.env.*
 
-# Test / Coverage
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
 .tox/
 .nox/
-.coverage*
-.pytest_cache/
-.hypothesis/
-.cover/
-htmlcov/
-*.cover
+.coverage
+.coverage.*
 .cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
 
-# Django
+# =============================================================================
+# Django Specific
+# =============================================================================
 local_settings.py
 db.sqlite3
-db.sqlite3-*
+db.sqlite3-journal
 
-# Env & Secrets
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
 *.env
+.env.*
 !.env.example
 secrets/
-# Logs
-# Local data
-dev_data/
-media/
-staticfiles/
-*.log
+credentials.txt
 
-# IDE / Editor
+# =============================================================================
+# Application Data (Development/Runtime)
+# =============================================================================
+# Local development data
+dev_data/
+
+# Media files (uploaded by users - shouldn't be in image)
+media/
+
+# Static files (collected during build or deployment)
+staticfiles/
+
+# Database dumps and backups
+*.dump
+*.sql
+*.sqlite
+*.db
+backup_*.dump
+
+# Logs
+*.log
+logs/
+
+# =============================================================================
+# IDE & Editor Files
+# =============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
 *.sublime-*
 .project
 .pydevproject
 
-# Docs
+# =============================================================================
+# OS Specific
+# =============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =============================================================================
+# Documentation & Artifacts
+# =============================================================================
 docs/_build/
 docs/_static/
 docs/_templates/
 site/
 *.rst.txt
+*.dot
+*.png
+*.svg
+# Keep essential docs
+!README.md
+!docs/verboheit_logo.png
 
-# Typing
+# =============================================================================
+# Type Checking & Linting
+# =============================================================================
 .mypy_cache/
 .pyre/
 .pytype/
 .dmypy.json
 dmypy.json
+pyrightconfig.json
 
-# Jupyter
+# =============================================================================
+# Jupyter Notebooks
+# =============================================================================
 .ipynb_checkpoints/
 profile_default/
 ipython_config.py
 *.ipynb
 
-# Project Specific - Development Data
-dev_data/
-grafana/
-logs/
-requirements.txt
-data/
-.python-version
-models_erd.*
-fly.toml
-credentials.txt
-*.yml
-*.yaml
-prod_*/
-
+# =============================================================================
 # CI/CD
+# =============================================================================
 azure-pipelines.yml
 Jenkinsfile
+.gitlab-ci.yml
 
-# Monitoring & Observability (if not needed in image)
-compose.observability.yml
+# =============================================================================
+# Operations & Monitoring (Not needed in app container)
+# =============================================================================
+ops/
+grafana/
 
-# Node (if any frontend assets)
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Temp & Backup
+# =============================================================================
+# Temporary & Backup Files
+# =============================================================================
 *.tmp
 *.temp
 *.bak
 *.swp
 *~
 
-# OS specific
-.DS_Store
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Desktop.ini
-
-# Lock files (already copied explicitly)
-# Keep these commented - we need them
-# uv.lock
-# pyproject.toml
-
-# Documentation artifacts
-*.dot
-*.png
-*.svg
-# Keep README
-!README.md
-
-# Database dumps
-*.dump
-*.sql
-*.sqlite
-*.db
-
+# =============================================================================
 # Redis
+# =============================================================================
 *.rdb
+dump.rdb
 
-# Postman collections (optional - useful for testing)
+# =============================================================================
+# API Testing
+# =============================================================================
 *.postman_collection.json
+*.postman_environment.json
+
+# =============================================================================
+# Misc Development Files
+# =============================================================================
+.python-version
+models_erd.*
+fly.toml
+prod_*/
+data/
+
+# =============================================================================
+# IMPORTANT: Files to KEEP (uncomment if accidentally excluded)
+# =============================================================================
+# These should NOT be ignored - they're needed in the image
+# !pyproject.toml
+# !uv.lock
+# !requirements.txt
+# !manage.py
+# !scripts/entrypoint.sh
+# !scripts/runserver.sh
+# !scripts/runmigrations.sh
