@@ -411,7 +411,7 @@ services:
     image: grafana/loki:3.5
     command: -config.file=/etc/loki/local-config.yaml
     configs:
-      - source: loki_config_v2
+      - source: loki_config_v3
         target: /etc/loki/local-config.yaml
     volumes:
       - prod_loki:/loki
@@ -525,7 +525,7 @@ configs:
     file: ./otel.yml
   prometheus_config:
     file: ./prometheus.yml
-  loki_config_v2:
+  loki_config_v3:
     file: ./loki.yml
   tempo_config:
     file: ./tempo.yml

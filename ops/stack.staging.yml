@@ -7,7 +7,7 @@ x-staging-security: &staging-security
     - SETUID
   
 x-staging-otel-env: &staging-otel-env
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
@@ -46,6 +46,9 @@ x-vmlc-env: &vmlc-env
   POSTGRES_DB: vmlc_staging
   POSTGRES_USER: verboheit_staging
   SUPERUSER_EMAIL: olujay.dev@gmail.com
+  # TWILIO_ACCOUNT_SID: /run/secrets/twilio-account-sid
+  # TWILIO_AUTH_TOKEN: /run/secrets/twilio-auth-token
+  # TWILIO_FROM_PHONE: /run/secrets/twilio-from-phone
 
 x-vmlc-common: &vmlc-common
   image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-staging}
@@ -60,6 +63,9 @@ x-vmlc-common: &vmlc-common
     - gmail-host-password
     - django-secret-key
     - su-password
+    - twilio-account-sid
+    - twilio-auth-token
+    - twilio-from-phone
   labels:
     - "traefik.enable=true"
   networks:
@@ -71,6 +77,9 @@ x-vmlc-common: &vmlc-common
 
 
 services:
+# ======================================================
+# Infrastructure
+# ======================================================
   traefik:
     image: traefik:v3.5.3
     command:
@@ -92,7 +101,7 @@ services:
       - "--metrics.otlp=true"
       - "--metrics.otlp.http=true"
       - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://otel-collector:4318/v1/metrics"
+      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
       - "--metrics.otlp.serviceName=traefik"
       - "--metrics.otlp.addEntryPointsLabels=true"
       - "--metrics.otlp.addRoutersLabels=true"
@@ -102,7 +111,7 @@ services:
       - "--tracing.sampleRate=0.05"
       - "--tracing.otlp.grpc=false"
       - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://otel-collector:4318/v1/traces"
+      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
       - "--log.level=INFO"
       - "--log.format=json"
       - "--accesslog=true"
@@ -117,8 +126,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.25'
+          memory: 192M
+          cpus: '0.2'
         reservations:
           memory: 128M
           cpus: '0.1'
@@ -185,13 +194,17 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.25'
-        reservations:
           memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 192M
           cpus: '0.1'
     networks:
       - staging
+
+# ======================================================
+# VMLC apps
+# ======================================================
 
   db-migrate:
     <<: *vmlc-common
@@ -252,11 +265,11 @@ services:
       replicas: 2
       resources:
         limits:
-          memory: 1024M
-          cpus: '0.75'
-        reservations:
           memory: 768M
           cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.3'
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -306,11 +319,11 @@ services:
         failure_action: rollback
       resources:
         limits:
-          memory: 1024M
-          cpus: '0.5'
-        reservations:
           memory: 768M
-          cpus: '0.25'
+          cpus: '0.4'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
 
   celery_beat:
     <<: *vmlc-common
@@ -334,27 +347,46 @@ services:
         order: start-first
       resources:
         limits:
-          memory: 512M
-          cpus: '0.15'
+          memory: 256M
+          cpus: '0.1'
         reservations:
-          memory: 384M
+          memory: 123M
           cpus: '0.05'
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel/config.yml"]
+# ======================================================
+# Observability
+# ======================================================
+  alloy:
+    image: grafana/alloy:v1.12.0
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
     configs:
-      - source: otel_config_v2
-        target: /etc/otel/config.yml
-    ports:
-      - "4318:4318"
+      - source: alloy_config
+        target: /etc/alloy/config.alloy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy:/var/lib/alloy/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alloy.rule=Host(`staging-ops.verboheit.org`) && PathPrefix(`/alloy`)"
+      - "traefik.http.routers.alloy.entrypoints=websecure"
+      - "traefik.http.routers.alloy.tls=true"
+      - "traefik.http.services.alloy.loadbalancer.server.port=12345"
     networks:
       - staging
     deploy:
+      mode: global
       resources:
         limits:
+          memory: 384M
+          cpus: '0.3'
+        reservations:
           memory: 256M
-          cpus: '0.2'
+          cpus: '0.15'
 
   prometheus:
     image: prom/prometheus:v3.7.2
@@ -372,8 +404,25 @@ services:
         target: /etc/prometheus/prometheus.yml
     volumes:
       - prometheus:/prometheus
-    ports:
-      - "9090:9090"
+    networks:
+      - staging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.3'
+        reservations:
+          memory: 384M
+          cpus: '0.15'
+
+  loki:
+    image: grafana/loki:3.5
+    command: -config.file=/etc/loki/local-config.yaml
+    configs:
+      - source: loki_config_v3
+        target: /etc/loki/local-config.yaml
+    volumes:
+      - loki:/loki
     networks:
       - staging
     deploy:
@@ -381,24 +430,9 @@ services:
         limits:
           memory: 384M
           cpus: '0.25'
-
-  loki:
-    image: grafana/loki:3.5
-    command: -config.file=/etc/loki/local-config.yaml
-    configs:
-      - source: loki_config_v2
-        target: /etc/loki/local-config.yaml
-    volumes:
-      - loki:/loki
-    ports:
-      - "3100:3100"
-    networks:
-      - staging
-    deploy:
-      resources:
-        limits:
+        reservations:
           memory: 256M
-          cpus: '0.2'
+          cpus: '0.1'
 
   tempo:
     image: grafana/tempo:main-a3e0bf4
@@ -408,8 +442,6 @@ services:
         target: /etc/tempo/tempo-local.yaml
     volumes:
       - tempo:/tmp/tempo
-    ports:
-      - "3200:3200"
     networks:
       - staging
     deploy:
@@ -417,6 +449,9 @@ services:
         limits:
           memory: 512M
           cpus: '0.2'
+      reservations:
+          memory: 384M
+          cpus: '0.1'
 
   grafana:
     image: grafana/grafana:12.2
@@ -464,6 +499,9 @@ services:
         limits:
           memory: 256M
           cpus: '0.2'
+        reservations:
+          memory: 192M
+          cpus: '0.1'
 
 networks:
   staging:
@@ -497,13 +535,19 @@ secrets:
     external: true
   su-password:
     external: true
+  # twilio-account-sid:
+  #   external: true
+  # twilio-auth-token:
+  #   external: true
+  # twilio-from-phone:
+  #   external: true
+
+
 
 configs:
-  otel_config_v2:
-    file: ./otel.yml
   prometheus_config:
     file: ./prometheus.yml
-  loki_config_v2:
+  loki_config_v3:
     file: ./loki.yml
   tempo_config:
     file: ./tempo.yml
@@ -511,3 +555,5 @@ configs:
     file: ./grafana/datasources.yml
   grafana_dashboards:
     file: ./grafana/dashboards.yml
+  alloy_config:
+    file: ./alloy.alloy
