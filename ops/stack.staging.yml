@@ -512,6 +512,7 @@ volumes:
   redis:
   media:
   static:
+  alloy:
   loki:
   tempo:
   grafana:
