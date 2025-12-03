@@ -473,7 +473,7 @@ services:
       - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_USER=theolujay
+      - GF_SECURITY_ADMIN_EMAIL__FILE=/run/secrets/su-email
       - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
       - GF_AUTH_DISABLE_LOGIN_FORM=false
       - GF_INSTALL_PLUGINS=
