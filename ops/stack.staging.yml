@@ -470,26 +470,26 @@ services:
       - gmail-host-user
       - gmail-host-password
     environment:
-      GF_SERVER_ROOT_URL: https://staging-ops.verboheit.org
-      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
-      GF_SERVER_HTTP_PORT: "3000"
-      GF_SECURITY_ADMIN_USER: "olujay.dev@gmail.com"
-      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/su-password
-      GF_AUTH_DISABLE_LOGIN_FORM: "false"
-      GF_INSTALL_PLUGINS:
-      GF_PLUGINS_DISABLE_INSTALLATION: "true"
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_UPDATE_CHECK_FOR_UPDATES: "false"
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_PLUGINS_PREINSTALL: grafana-clock-panel,grafana-simple-json-datasource
-      GF_SMTP_ENABLED: "true"
-      GF_SMTP_HOST: "smtp.gmail.com:587"
-      GF_SMTP_USER: "olujay.dev.testing@gmail.com"
-      GF_SMTP_PASSWORD__FILE: /run/secrets/gmail-host-password
-      GF_SMTP_FROM_ADDRESS: staging-mlc@verboheit.org
-      GF_SMTP_FROM_NAME: "Verboheit MLC - Ops"
-      GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
+      - GF_SERVER_ROOT_URL=https://staging-ops.verboheit.org
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_SECURITY_ADMIN_USER=theolujay
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_INSTALL_PLUGINS=
+      - GF_PLUGINS_DISABLE_INSTALLATION=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_UPDATE_CHECK_FOR_UPDATES=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_PLUGINS_PREINSTALL=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=olujay.dev.testing@gmail.com
+      - GF_SMTP_PASSWORD__FILE=/run/secrets/gmail-host-password
+      - GF_SMTP_FROM_ADDRESS=staging-mlc@verboheit.org
+      - GF_SMTP_FROM_NAME="Verboheit MLC - Ops"
+      - GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
