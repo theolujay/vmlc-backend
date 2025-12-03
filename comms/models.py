@@ -113,6 +113,7 @@ class BroadcastLog(models.Model):
     target_role = models.CharField(max_length=20, choices=COMBINED_ROLE_CHOICES)
     role_type = models.CharField(
         max_length=10,
+        default="candidate",
         choices=[("staff", "Staff"), ("candidate", "Candidate")],
         help_text="Whether this is a staff or candidate role",
     )

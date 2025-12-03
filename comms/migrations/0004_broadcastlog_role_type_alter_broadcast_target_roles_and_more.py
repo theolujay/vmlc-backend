@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             name="role_type",
             field=models.CharField(
                 choices=[("staff", "Staff"), ("candidate", "Candidate")],
-                default=None,
+                default="candidate",
                 help_text="Whether this is a staff or candidate role",
                 max_length=10,
             ),

@@ -214,13 +214,13 @@ if os.getenv('OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED') == 'true':
         # Log a confirmation message
         import logging
         logger = logging.getLogger(__name__)
-        logger.info("🚀 OpenTelemetry logging instrumentation initialized successfully")
+        logger.info("OpenTelemetry logging instrumentation initialized successfully")
         logger.info(f"OTEL Endpoint: {os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT')}")
         
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"❌ Failed to initialize OpenTelemetry logging: {e}")
+        logger.error(f"Failed to initialize OpenTelemetry logging: {e}")
 # === CORS CONFIGURATION ===
 cors_origins = read_secret("CORS_ALLOWED_ORIGINS", "")
 if cors_origins:
@@ -375,3 +375,6 @@ FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
 FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
 FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")
+TWILIO_ACCOUNT_SID = read_secret("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = read_secret("TWILIO_AUTH_TOKEN")
+TWILIO_FROM_PHONE = read_secret("TWILIO_FROM_PHONE")

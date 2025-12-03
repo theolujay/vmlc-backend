@@ -15,6 +15,7 @@ from django.db.models import (
 from django.utils import timezone
 from PIL import Image
 import magic
+import mimetypes
 
 from vmlc.models import (
     Candidate,
@@ -267,19 +268,26 @@ def _validate_file_type(value, allowed_types, field_name):
     if not value:
         return
 
+    file_type = None
     try:
         # Get actual file type using magic
         file_type = magic.from_buffer(value.read(1024), mime=True)
         value.seek(0)  # Reset file pointer
-
-        if file_type not in allowed_types:
-            allowed_str = ", ".join(allowed_types)
-            raise ValueError(f"{field_name} must be one of: {allowed_str}")
     except (OSError, magic.MagicException):
-        # Fallback to content_type if magic fails
-        if hasattr(value, "content_type") and value.content_type not in allowed_types:
-            allowed_str = ", ".join(allowed_types)
-            raise ValueError(f"{field_name} must be one of: {allowed_str}")
+        # Fallback to guessing from filename if magic fails
+        logger.warning(
+            f"Magic could not determine file type for {field_name}. Guessing from filename."
+        )
+        if hasattr(value, "name"):
+            file_type, _ = mimetypes.guess_type(value.name)
+
+    # Final fallback for in-memory files without a name
+    if not file_type and hasattr(value, "content_type"):
+        file_type = value.content_type
+
+    if file_type not in allowed_types:
+        allowed_str = ", ".join(allowed_types)
+        raise ValueError(f"{field_name} must be one of: {allowed_str}")
 
 
 def validate_user_verification_files(user_verification_id):
@@ -303,10 +311,9 @@ def validate_user_verification_files(user_verification_id):
             _validate_file_size(verification.id_card, 2, "ID card")
             allowed_types = ["image/jpg", "image/jpeg", "image/png", "application/pdf"]
             _validate_file_type(verification.id_card, allowed_types, "ID card")
-            if (
-                verification.id_card.file.content_type
-                and verification.id_card.file.content_type.startswith("image/")
-            ):
+
+            content_type, _ = mimetypes.guess_type(verification.id_card.name)
+            if content_type and content_type.startswith("image/"):
                 _validate_image_file(verification.id_card, "ID card")
 
         # Validate verification document
@@ -320,12 +327,10 @@ def validate_user_verification_files(user_verification_id):
                 allowed_types,
                 "Verification document",
             )
-            if (
-                verification.verification_document.file.content_type
-                and verification.verification_document.file.content_type.startswith(
-                    "image/"
-                )
-            ):
+            content_type, _ = mimetypes.guess_type(
+                verification.verification_document.name
+            )
+            if content_type and content_type.startswith("image/"):
                 _validate_image_file(
                     verification.verification_document, "verification document"
                 )

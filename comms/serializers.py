@@ -36,7 +36,7 @@ class BroadcastLogSerializer(serializers.ModelSerializer):
             "role_type",
             "status",
             "message",
-            "attempted_at"
+            "attempted_at",
         ]
 
 

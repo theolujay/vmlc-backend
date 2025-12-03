@@ -1,0 +1,199 @@
+// ============================================================================
+// LOGGING: Collect logs from Docker containers
+// ============================================================================
+
+// Discover all Docker containers running in the swarm
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+// Define relabeling rules
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+  
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    target_label  = "service"
+  }
+  
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_stack_namespace"]
+    target_label  = "stack"
+  }
+  
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+// Scrape logs from discovered containers
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.containers.output
+  forward_to       = [loki.process.parse_logs.receiver]
+  relabel_rules    = discovery.relabel.containers.rules
+  refresh_interval = "30s"
+}
+
+// Process and parse logs
+loki.process "parse_logs" {
+  forward_to = [loki.write.local.receiver]
+  
+  // Parse JSON logs from Django/Celery (if they output JSON)
+  stage.json {
+    expressions = {
+      level   = "level",
+      message = "message",
+      logger  = "logger",
+    }
+  }
+  
+  // Extract log level from common patterns
+  stage.regex {
+    expression = "(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
+  }
+  
+  // Add extracted level as a label
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+  
+  // Drop noisy healthcheck logs to save space
+  stage.match {
+    selector = "{service=~\"django|celery_worker\"} |~ \"GET /v1/health/\""
+    action   = "drop"
+  }
+  
+  // Drop Redis ping logs
+  stage.match {
+    selector = "{service=\"redis\"} |~ \"PING\""
+    action   = "drop"
+  }
+}
+
+// Write logs to Loki
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+    
+    // Batch configuration for efficiency
+    batch_size  = "1MB"
+    batch_wait  = "1s"
+  }
+  
+  external_labels = {
+    cluster     = "vmlc-backend",
+    environment = "staging",
+  }
+}
+
+// ============================================================================
+// TRACES: Receive and forward OpenTelemetry traces
+// ============================================================================
+
+otelcol.receiver.otlp "default" {
+  // Accept OTLP over HTTP (from your Django/Celery apps)
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  
+  // Also accept OTLP over gRPC if needed
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Batch telemetry for efficiency
+otelcol.processor.batch "default" {
+  timeout          = "10s"
+  send_batch_size  = 1024
+  
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.otlphttp.loki.input]
+    traces  = [otelcol.exporter.otlphttp.tempo.input]
+  }
+}
+
+// Export metrics to Prometheus
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.local.receiver]
+}
+
+// Export logs to Loki via OTLP
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// Export traces to Tempo
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = "http://tempo:4318"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ============================================================================
+// METRICS: Scrape Prometheus metrics and send to Prometheus
+// ============================================================================
+
+// Scrape Prometheus itself
+prometheus.scrape "prometheus" {
+  targets = [{
+    __address__ = "prometheus:9090",
+  }]
+  
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "60s"
+  scrape_timeout  = "10s"
+}
+
+// Scrape Alloy's own metrics
+prometheus.scrape "alloy" {
+  targets = [{
+    __address__ = "localhost:12345",
+  }]
+  
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "60s"
+}
+
+// Remote write to Prometheus
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+    
+    queue_config {
+      capacity          = 10000
+      max_shards        = 10
+      max_samples_per_send = 2000
+    }
+  }
+  
+  external_labels = {
+    cluster     = "vmlc-backend",
+    environment = "staging",
+  }
+}

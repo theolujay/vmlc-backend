@@ -123,10 +123,38 @@ class UserAdmin(admin.ModelAdmin):
         return "—"
 
 
+class UserVerificationAdminForm(forms.ModelForm):
+    class Meta:
+        model = UserVerification
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_approved = cleaned_data.get("is_approved")
+        is_rejected = cleaned_data.get("is_rejected")
+        rejection_reason = cleaned_data.get("rejection_reason")
+
+        if rejection_reason and not is_rejected:
+            raise forms.ValidationError(
+                {"rejection_reason": "A rejection reason can only be provided when rejecting an application."}
+            )
+
+        if is_approved and is_rejected:
+            raise forms.ValidationError(
+                "A verification can either be approved or rejected, not both."
+            )
+        
+        if is_approved:
+            cleaned_data['rejection_reason'] = ""
+
+        return cleaned_data
+
+
 @admin.register(UserVerification)
 class UserVerificationAdmin(admin.ModelAdmin):
     """Simplified admin interface for UserVerification model."""
 
+    form = UserVerificationAdminForm
     list_display = [
         "user",
         "verification_status",
@@ -145,7 +173,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {"fields": ("user", "is_pending", "is_approved", "is_rejected")}),
+        (None, {"fields": ("user", "is_pending", "is_approved", "is_rejected", "rejection_reason")}),
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
@@ -155,6 +183,10 @@ class UserVerificationAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
+        self._invalidate_verification_cache(obj)
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
         self._invalidate_verification_cache(obj)
 
     def _invalidate_verification_cache(self, verification):
@@ -198,7 +230,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
         self._invalidate_queryset_cache(queryset)
 
         users_to_notify = [v.user for v in queryset]
-        count = queryset.update(is_approved=True, is_pending=False, is_rejected=False)
+        count = queryset.update(is_approved=True, is_pending=False, is_rejected=False, rejection_reason="")
 
         for user in users_to_notify:
             base_message = "Your verification details have been approved.\n\n"
