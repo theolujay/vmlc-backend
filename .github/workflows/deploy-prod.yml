@@ -169,9 +169,16 @@ jobs:
           name: vmlc-prod
           file: ops/stack.prod.yml
           host: ${{ secrets.VPS_HOST }}
+          port: 22
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          registry_auth: true
+          registry_host: ghcr.io
+          registry_user: verboheit
+          registry_pass: ${{ secrets.GHCR_REGISTRY_PASS }}
+          resolve_image: always         
           env_file: ./envfile
+          summary: true
 
       - name: Wait for deployment health check
         uses: appleboy/ssh-action@v1.2.0
