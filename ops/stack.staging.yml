@@ -364,7 +364,7 @@ services:
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy/data
     configs:
-      - source: alloy_config
+      - source: alloy_config_v2
         target: /etc/alloy/config.alloy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -556,5 +556,5 @@ configs:
     file: ./grafana/datasources.yml
   grafana_dashboards:
     file: ./grafana/dashboards.yml
-  alloy_config:
+  alloy_config_v2:
     file: ./alloy.alloy
