@@ -62,7 +62,7 @@ from .user import (
     UserVerificationActionSerializer,
     UserVerificationListSerializer,
 )
-from .user_profile import UserProfileDetailSerializer
+from .user_profile import UserProfileDetailSerializer, UserProfileListSerializer
 
 
 __all__ = [
@@ -117,4 +117,5 @@ __all__ = [
     "UserVerificationActionSerializer",
     "UserVerificationListSerializer",
     "UserProfileDetailSerializer",
+    "UserProfileListSerializer",
 ]
