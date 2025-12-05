@@ -287,8 +287,20 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
         elif hasattr(user, "staff_profile"):
             accessible_leaderboards = all_leaderboards
 
+        def sort_key_func(key):
+            try:
+                stage, level_str = key.split("_", 1)
+                level = int(level_str)
+                # Prioritize 'league' (0) over 'screening' (1)
+                stage_priority = 1 if stage == "screening" else 0
+                # Sort by level in descending order
+                return (stage_priority, -level)
+            except (ValueError, IndexError):
+                # Fallback for unexpected key formats
+                return (2, key)
+
         leaderboards_summary = []
-        for key in sorted(accessible_leaderboards.keys()):
+        for key in sorted(accessible_leaderboards.keys(), key=sort_key_func):
             lb = accessible_leaderboards[key]
             if isinstance(lb, dict):
                 leaderboards_summary.append(
