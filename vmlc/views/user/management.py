@@ -26,6 +26,7 @@ from drf_yasg import openapi
 from vmlc.serializers import (
     StaffListSerializer,
     CandidateListSerializer,
+    UserProfileListSerializer,
 )
 from vmlc.models import User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
@@ -537,7 +538,7 @@ class UserListView(ListAPIView):
             return CandidateListSerializer
         if requested_profile == "staff":
             return StaffListSerializer
-        return UserSerializer
+        return UserProfileListSerializer
 
     def get_queryset(self):
         """Returns a filtered queryset of users"""
@@ -554,7 +555,7 @@ class UserListView(ListAPIView):
             return filter_staffs(queryset, self.request.query_params)
 
         queryset = User.objects.prefetch_related(
-            "staff_profile", "candidate_profile"
+            "staff_profile", "candidate_profile", "verification"
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
 
