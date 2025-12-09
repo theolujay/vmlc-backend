@@ -161,7 +161,7 @@ SWAGGER_USE_COMPAT_RENDERERS = False
 # ============================================================================
 
 # Celery Core Settings
-CELERY_TIMEZONE = "Europe/London"
+CELERY_TIMEZONE = "Africa/Lagos"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
