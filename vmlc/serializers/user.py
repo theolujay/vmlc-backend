@@ -173,19 +173,23 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
 
         if rejection_reason and not is_rejected:
             raise serializers.ValidationError(
-                {"rejection_reason": "A rejection reason can only be provided when rejecting an application."}
+                {
+                    "rejection_reason": "A rejection reason can only be provided when rejecting an application."
+                }
             )
-        
+
         if is_rejected and not rejection_reason:
             raise serializers.ValidationError(
-                {"rejection_reason": "A rejection reason is required when rejecting an application."}
+                {
+                    "rejection_reason": "A rejection reason is required when rejecting an application."
+                }
             )
 
         if not is_approved and not is_rejected:
             raise serializers.ValidationError(
                 "Either 'is_approved' or 'is_rejected' must be true."
             )
-            
+
         if is_approved and is_rejected:
             raise serializers.ValidationError(
                 "A verification can either be approved or rejected, not both."
