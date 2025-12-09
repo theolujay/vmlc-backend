@@ -616,7 +616,7 @@ class UserVerificationActionView(APIView):
             raise ValidationError("This user is already verified.")
 
         serializer = UserVerificationActionSerializer(
-            verification, data=request.data, partial=True
+            verification, data=request.data, partial=True, context={'request': request}
         )
 
         if serializer.is_valid():
