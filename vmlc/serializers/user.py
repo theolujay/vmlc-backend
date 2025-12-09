@@ -1,11 +1,10 @@
+from datetime import timezone
 import logging
 
-from django.conf import settings
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from ..models import User, UserVerification
-from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
 
@@ -209,11 +208,13 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
             instance.is_rejected = False
             instance.is_pending = False
             instance.rejection_reason = ""
+
         elif is_rejected:
             instance.is_approved = False
             instance.is_rejected = True
             instance.is_pending = False
             instance.rejection_reason = rejection_reason
-
+        instance.action_by = self.context["request"].user.staff_profile
+        instance.updated_at = timezone.now()
         instance.save()
         return instance
