@@ -786,12 +786,15 @@ class FeatureFlagAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         cache.delete(f"feature_flag_{obj.key}")
+        cache.delete("registration_status")
 
     def delete_model(self, request, obj):
         cache.delete(f"feature_flag_{obj.key}")
         super().delete_model(request, obj)
-
+        cache.delete("registration_status")
+        
     def delete_queryset(self, request, queryset):
         for obj in queryset:
             cache.delete(f"feature_flag_{obj.key}")
+            cache.delete("registration_status")
         super().delete_queryset(request, queryset)
