@@ -72,7 +72,7 @@ def registration_status(request):
         "is_staff_reg_open": is_staff_reg_open,
         "support_email": settings.SUPPORT_EMAIL,
     }
-    cache.set(cache_key, reg_status, 300)
+    cache.set(cache_key, reg_status, 10000)
 
     return Response(reg_status, status=status.HTTP_200_OK)
 
