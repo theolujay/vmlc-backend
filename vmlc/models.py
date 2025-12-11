@@ -387,20 +387,26 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     @property
-    def get_status(self):
+    def status(self):
         """Get the user status"""
         if not self.user.is_active:
             return "deactivated"
+        
         try:
-            if self.user.verification and self.user.verification.is_pending:
+            verification = self.user.verification
+            if verification.is_pending:
                 return "pending"
+            
+            seven_days_ago = timezone.now() - timedelta(days=7)
+            if (
+                self.user.last_login
+                and self.user.last_login >= seven_days_ago
+                and not verification.is_rejected
+            ):
+                return "active"
         except (AttributeError, UserVerification.DoesNotExist):
-            return "inactive"  # A user without a verification record is inactive
-
-        seven_days_ago = timezone.now() - timedelta(days=7)
-        if self.user.last_login and self.user.last_login >= seven_days_ago:
-            return "active"
-
+            pass  # User without verification record falls through to inactive
+        
         return "inactive"
 
     def set_verification_override(self, value):
@@ -800,7 +806,7 @@ class Candidate(models.Model):
         return None
 
     @property
-    def get_status(self):
+    def status(self):
         """Get the user status"""
         from .utils.user import get_last_concluded_exam
 

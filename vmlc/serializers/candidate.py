@@ -40,7 +40,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
         ]
 
     def get_status(self, obj: Candidate):
-        return obj.get_status
+        return obj.status
 
 
 class CandidateDetailSerializer(serializers.ModelSerializer):
@@ -123,4 +123,4 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         return "candidate"
 
     def get_status(self, obj: Candidate):
-        return obj.get_status
+        return obj.status
