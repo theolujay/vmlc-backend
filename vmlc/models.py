@@ -215,6 +215,14 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
+    action_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="verified_users",
+    )
     rejection_reason = models.CharField(max_length=150, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

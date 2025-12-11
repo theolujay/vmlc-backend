@@ -73,7 +73,6 @@ from vmlc.utils.query_filters import (
 logger = logging.getLogger(__name__)
 
 
-
 class AccountManagementView(APIView):
     """
     Retrieve or update user account and profile information.
@@ -436,6 +435,7 @@ class StaffInviteView(BaseInviteView):
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
 
+
 # @method_decorator(
 #     name="post",
 #     decorator=swagger_auto_schema(
@@ -558,6 +558,7 @@ class UserListView(ListAPIView):
             "staff_profile", "candidate_profile", "verification"
         ).order_by("-date_joined")
         return filter_users(queryset, self.request.query_params)
+
 
 @method_decorator(
     name="get",

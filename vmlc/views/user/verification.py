@@ -242,10 +242,10 @@ class UserVerificationUploadView(APIView):
 
     def post(self, request):
         return self._upload_verification_documents(request)
-    
+
     def patch(self, request):
         return self._update_verification_documents(request)
-    
+
     def _upload_verification_documents(self, request):
         logger.info(f"UserVerificationUploadView: request from user {request.user.id}")
         verification, created = UserVerification.objects.get_or_create(
@@ -331,8 +331,6 @@ class UserVerificationUploadView(APIView):
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-
     def _update_verification_documents(self, request):
         """Update existing verification data (partial update)."""
         logger.info(
@@ -408,6 +406,7 @@ class UserVerificationUploadView(APIView):
             f"UserVerificationUploadView (patch): validation failed: {serializer.errors}"
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class UserVerificationDocumentView(APIView):
     """
@@ -616,7 +615,7 @@ class UserVerificationActionView(APIView):
             raise ValidationError("This user is already verified.")
 
         serializer = UserVerificationActionSerializer(
-            verification, data=request.data, partial=True
+            verification, data=request.data, partial=True, context={"request": request}
         )
 
         if serializer.is_valid():

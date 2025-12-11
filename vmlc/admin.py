@@ -22,7 +22,10 @@ from .models import (
 )
 
 from .utils.email import create_email_html
-from .utils.helpers import invalidate_all_dashboard_caches, invalidate_all_staff_dashboards
+from .utils.helpers import (
+    invalidate_all_dashboard_caches,
+    invalidate_all_staff_dashboards,
+)
 
 
 class EmailForm(forms.Form):
@@ -126,7 +129,7 @@ class UserAdmin(admin.ModelAdmin):
 class UserVerificationAdminForm(forms.ModelForm):
     class Meta:
         model = UserVerification
-        fields = '__all__'
+        fields = "__all__"
 
     def clean(self):
         cleaned_data = super().clean()
@@ -136,16 +139,18 @@ class UserVerificationAdminForm(forms.ModelForm):
 
         if rejection_reason and not is_rejected:
             raise forms.ValidationError(
-                {"rejection_reason": "A rejection reason can only be provided when rejecting an application."}
+                {
+                    "rejection_reason": "A rejection reason can only be provided when rejecting an application."
+                }
             )
 
         if is_approved and is_rejected:
             raise forms.ValidationError(
                 "A verification can either be approved or rejected, not both."
             )
-        
+
         if is_approved:
-            cleaned_data['rejection_reason'] = ""
+            cleaned_data["rejection_reason"] = ""
 
         return cleaned_data
 
@@ -173,7 +178,18 @@ class UserVerificationAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected"]
 
     fieldsets = (
-        (None, {"fields": ("user", "is_pending", "is_approved", "is_rejected", "rejection_reason")}),
+        (
+            None,
+            {
+                "fields": (
+                    "user",
+                    "is_pending",
+                    "is_approved",
+                    "is_rejected",
+                    "rejection_reason",
+                )
+            },
+        ),
         ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
         (
             "Timestamps",
@@ -230,7 +246,9 @@ class UserVerificationAdmin(admin.ModelAdmin):
         self._invalidate_queryset_cache(queryset)
 
         users_to_notify = [v.user for v in queryset]
-        count = queryset.update(is_approved=True, is_pending=False, is_rejected=False, rejection_reason="")
+        count = queryset.update(
+            is_approved=True, is_pending=False, is_rejected=False, rejection_reason=""
+        )
 
         for user in users_to_notify:
             base_message = "Your verification details have been approved.\n\n"
@@ -258,9 +276,7 @@ class UserVerificationAdmin(admin.ModelAdmin):
 
         for user in users_to_notify:
             base_message = "Your verification details have been rejected.\n\n"
-            action_content = (
-                "If you have any questions, please contact support.\n\n"
-            )
+            action_content = "If you have any questions, please contact support.\n\n"
             footer = "Best Regards,\nManagement."
             email_message = base_message + action_content + footer
 

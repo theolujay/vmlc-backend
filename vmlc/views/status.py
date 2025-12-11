@@ -20,9 +20,11 @@ from ..tasks import generate_stats_overview_task
 
 logger = logging.getLogger(__name__)
 
+
 class RegistrationStatusThrottle(AnonRateThrottle):
-    rate = '1000/hour'
-    
+    rate = "1000/hour"
+
+
 @swagger_auto_schema(
     method="get",
     operation_summary="Health Check",
@@ -42,6 +44,7 @@ def health_check(request):
         status=status.HTTP_200_OK,
     )
 
+
 @swagger_auto_schema(
     method="get",
     operation_summary="Registration Status",
@@ -58,7 +61,7 @@ def registration_status(request):
     logger.info("Registration status request by %s", request.user)
     cache_key = "registration_status"
     cached_data = cache.get(cache_key)
-    
+
     if cached_data:
         return Response(cached_data, status=status.HTTP_200_OK)
     is_candidate_reg_open: bool = FeatureFlag.get_bool("candidate_registration")
@@ -70,7 +73,7 @@ def registration_status(request):
         "support_email": settings.SUPPORT_EMAIL,
     }
     cache.set(cache_key, reg_status, 300)
-    
+
     return Response(reg_status, status=status.HTTP_200_OK)
 
 

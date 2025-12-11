@@ -1,11 +1,10 @@
+from django.utils import timezone
 import logging
 
-from django.conf import settings
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from ..models import User, UserVerification
-from ..tasks import send_mail_task
 
 logger = logging.getLogger(__name__)
 
@@ -174,19 +173,23 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
 
         if rejection_reason and not is_rejected:
             raise serializers.ValidationError(
-                {"rejection_reason": "A rejection reason can only be provided when rejecting an application."}
+                {
+                    "rejection_reason": "A rejection reason can only be provided when rejecting an application."
+                }
             )
-        
+
         if is_rejected and not rejection_reason:
             raise serializers.ValidationError(
-                {"rejection_reason": "A rejection reason is required when rejecting an application."}
+                {
+                    "rejection_reason": "A rejection reason is required when rejecting an application."
+                }
             )
 
         if not is_approved and not is_rejected:
             raise serializers.ValidationError(
                 "Either 'is_approved' or 'is_rejected' must be true."
             )
-            
+
         if is_approved and is_rejected:
             raise serializers.ValidationError(
                 "A verification can either be approved or rejected, not both."
@@ -209,11 +212,13 @@ class UserVerificationActionSerializer(serializers.ModelSerializer):
             instance.is_rejected = False
             instance.is_pending = False
             instance.rejection_reason = ""
+
         elif is_rejected:
             instance.is_approved = False
             instance.is_rejected = True
             instance.is_pending = False
             instance.rejection_reason = rejection_reason
-
+        instance.action_by = self.context["request"].user.staff_profile
+        instance.updated_at = timezone.now()
         instance.save()
         return instance

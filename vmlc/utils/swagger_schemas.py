@@ -294,16 +294,12 @@ candidate_me_response_schema = openapi.Schema(
 
 candidate_invite_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
-    properties={
-        "message": openapi.Schema(type=openapi.TYPE_STRING)
-    }
+    properties={"message": openapi.Schema(type=openapi.TYPE_STRING)},
 )
 
 staff_invite_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
-    properties={
-        "message": openapi.Schema(type=openapi.TYPE_STRING)
-    }
+    properties={"message": openapi.Schema(type=openapi.TYPE_STRING)},
 )
 
 candidate_list_response_schema = openapi.Schema(
