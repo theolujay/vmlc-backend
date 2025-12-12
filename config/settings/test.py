@@ -158,8 +158,8 @@ FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
 FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = "verboheitmlc@gmail.com"
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
-    }
-}
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+#     }
+# }
