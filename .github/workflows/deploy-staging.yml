@@ -100,7 +100,7 @@ jobs:
       - name: Cleanup test containers
         if: always()
         run: |
-          docker stop db 2>/dev/null || true
+          docker stop db redis 2>/dev/null || true
           docker network rm test-network 2>/dev/null || true
       
       - name: Move cache

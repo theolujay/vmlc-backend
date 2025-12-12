@@ -62,6 +62,7 @@ jobs:
         run: |
           docker network create test-network
 
+          # postgres
           docker run -d --rm \
             -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
             -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
@@ -74,6 +75,17 @@ jobs:
             --health-retries=5 \
             postgres:17.2-bookworm
 
+          # redis
+          docker run -d --rm \
+            --network test-network \
+            --name redis \
+            --health-cmd="redis-cli ping" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            redis:7.2.4-alpine
+
+          # vmlc
           echo "Waiting for database to be ready..."
           timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
           echo "Database is ready!"
@@ -92,7 +104,7 @@ jobs:
       - name: Cleanup test containers
         if: always()
         run: |
-          docker stop db 2>/dev/null || true
+          docker stop db redis 2>/dev/null || true
           docker network rm test-network 2>/dev/null || true
       
       - name: Move cache
