@@ -18,6 +18,12 @@ from django.utils import timezone
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 
+
+
+
+
+
+
 class FeatureFlag(models.Model):
     """Feature flag model."""
 
@@ -401,7 +407,7 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             if (
                 self.user.last_login
                 and self.user.last_login >= seven_days_ago
-                and not verification.is_rejected
+                and verification.status != "not_started"
             ):
                 return "active"
         except (AttributeError, UserVerification.DoesNotExist):
