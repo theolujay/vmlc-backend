@@ -403,17 +403,19 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
             if verification.is_pending:
                 return "pending"
             
+            if verification.status == "not_started":
+                return "inactive"
+            
             seven_days_ago = timezone.now() - timedelta(days=7)
-            if (
-                self.user.last_login
-                and self.user.last_login >= seven_days_ago
-                and verification.status != "not_started"
-            ):
+            if self.user.last_login and self.user.last_login >= seven_days_ago:
                 return "active"
-        except (AttributeError, UserVerification.DoesNotExist):
-            pass  # User without verification record falls through to inactive
+            
+            return "inactive"
         
-        return "inactive"
+        except (AttributeError, UserVerification.DoesNotExist):
+            return "inactive"
+        
+        
 
     def set_verification_override(self, value):
         """Manually override verification status"""
