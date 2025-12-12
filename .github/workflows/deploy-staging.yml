@@ -57,6 +57,7 @@ jobs:
         run: |
           docker network create test-network
 
+          # postgres
           docker run -d --rm \
             -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
             -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
@@ -69,10 +70,21 @@ jobs:
             --health-retries=5 \
             postgres:17.2-bookworm
 
+          # redis
+          docker run -d --rm \
+            --network test-network \
+            --name redis \
+            --health-cmd="redis-cli ping" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            redis:7.2.4-alpine
+
           echo "Waiting for database to be ready..."
           timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
           echo "Database is ready!"
 
+          # vmlc
           docker run --rm \
             -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \

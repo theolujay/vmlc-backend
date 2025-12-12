@@ -68,9 +68,9 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_status(self, obj: User):
         if hasattr(obj, "staff_profile"):
-            return obj.staff_profile.get_status
+            return obj.staff_profile.status
         if hasattr(obj, "candidate_profile"):
-            return obj.candidate_profile.get_status
+            return obj.candidate_profile.status
         return "inactive"
 
     def get_occupation(self, obj: User):

@@ -8,12 +8,9 @@ import dj_database_url
 from .base import *
 
 SECRET_KEY = "this-is-a-test-secret-key--do-not-use-in-production"
-if not SECRET_KEY:
-    raise ValueError("The SECRET_KEY environment variable is not set.")
-
-from .base import *
 
 DEBUG = False
+TESTING = True
 INTERNAL_IPS = ["localhost"]
 ALLOWED_HOSTS = ["localhost"]
 ADMIN_URL = "admin/"
@@ -35,10 +32,33 @@ STORAGES = {
     },
 }
 
+
+
+# ============================================================================
+# CELERY CONFIGURATION - Docker Development Environment
+# ============================================================================
+
+# Docker service names for Redis broker
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
-CELERY_BROKER_URL = "memory://"  # Use in-memory broker for tests
-CELERY_RESULT_BACKEND = "cache+memory://"  # Use in-memory results
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "vmlc_test_sync",
+        "TIMEOUT": 300,
+    },
+}
 
 AWS_S3_LOCATION_PREFIX = os.getenv("AWS_S3_LOCATION_PREFIX", "test")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -137,3 +157,9 @@ FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
 FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
 FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = "verboheitmlc@gmail.com"
+
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+#     }
+# }

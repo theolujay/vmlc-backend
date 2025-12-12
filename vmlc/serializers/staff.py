@@ -38,7 +38,7 @@ class StaffListSerializer(serializers.ModelSerializer):
         ]
 
     def get_status(self, obj: Staff):
-        return obj.get_status
+        return obj.status
 
 
 class StaffDetailSerializer(serializers.ModelSerializer):
@@ -102,4 +102,4 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         return "staff"
 
     def get_status(self, obj: Staff):
-        return obj.get_status
+        return obj.status

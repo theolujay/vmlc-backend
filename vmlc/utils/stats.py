@@ -6,12 +6,10 @@ def generate_stats_overview_data():
     """
     Generates and returns a dictionary containing the full stats overview.
     """
-    candidate_stats = _get_candidate_stats()
-    staff_stats = _get_staff_stats()
 
     data = {
-        "candidates": candidate_stats,
-        "staff": staff_stats,
+        "candidates": _get_candidate_stats(),
+        "staff": _get_staff_stats(),
     }
     return data
 
