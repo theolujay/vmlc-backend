@@ -53,8 +53,11 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
             active = 0
     else:  # staff
         # Staff just need to have logged in recently
-        # But they should NOT be pending
-        active = base_queryset.filter(active_filter).count()
+        # But they should NOT be pending, and NOT 'not_started' verification
+        staff_active_filter = active_filter & (
+            Q(user__verification__is_approved=True) | Q(user__verification__is_rejected=True)
+        )
+        active = base_queryset.filter(staff_active_filter).count()
     
     # 4. Inactive: everyone who isn't deactivated, pending, or active
     inactive = total_registered - (active + deactivated + pending)
