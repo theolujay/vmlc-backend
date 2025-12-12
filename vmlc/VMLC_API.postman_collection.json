@@ -1,3033 +1,3368 @@
 {
-	"info": {
-		"_postman_id": "a1b2c3d4-e5f6-4a9b-8c7d-6e5f4a3b2c1d",
-		"name": "Verboheit MLC API",
-		"description": "A comprehensive Postman collection for testing the Verboheit Math League Competition (VMLC) API, separated by user roles (Candidate and Staff).",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "Health & Root",
-			"item": [
-				{
-					"name": "Health Check",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/v1/health/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"health",
-								""
-							]
-						},
-						"description": "Checks if the API service is up and running. Should return a 200 OK with `{\"status\": \"healthy\"}`."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Registration",
-			"item": [
-				{
-					"name": "Register Candidate",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"08012345678\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"school\": \"Example High School\",\n    \"generate_password\": false\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/register/candidate/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"register",
-								"candidate",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Register Staff",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"staff@example.com\",\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Smith\",\n    \"phone\": \"08087654321\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"occupation\": \"Teacher\",\n    \"generate_password\": false\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/register/staff/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"register",
-								"staff",
-								""
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Authentication",
-			"item": [
-				{
-					"name": "Login (Candidate)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.access) {",
-									"    pm.collectionVariables.set(\"candidateAccessToken\", jsonData.access);",
-									"}",
-									"if (jsonData.refresh) {",
-									"    pm.collectionVariables.set(\"candidateRefreshToken\", jsonData.refresh);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"password\": \"strongpassword123\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/login/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"login",
-								""
-							]
-						},
-						"description": "Authenticate as a candidate and receive access and refresh tokens. The `candidateAccessToken` and `candidateRefreshToken` will be automatically saved to collection variables."
-					},
-					"response": []
-				},
-				{
-					"name": "Login (Staff)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.access) {",
-									"    pm.collectionVariables.set(\"staffAccessToken\", jsonData.access);",
-									"}",
-									"if (jsonData.refresh) {",
-									"    pm.collectionVariables.set(\"staffRefreshToken\", jsonData.refresh);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"staff@example.com\",\n    \"password\": \"strongpassword123\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/login/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"login",
-								""
-							]
-						},
-						"description": "Authenticate as a staff member and receive access and refresh tokens. The `staffAccessToken` and `staffRefreshToken` will be automatically saved to collection variables."
-					},
-					"response": []
-				},
-				{
-					"name": "Logout",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"refresh\": \"{{candidateRefreshToken}}\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/logout/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"logout",
-								""
-							]
-						},
-						"description": "Blacklists the user's refresh token to log them out."
-					},
-					"response": []
-				},
-				{
-					"name": "Refresh Token",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"refresh\": \"{{candidateRefreshToken}}\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/token/refresh/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"token",
-								"refresh",
-								""
-							]
-						},
-						"description": "Obtain a new access token using a valid refresh token."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Email & Password",
-			"item": [
-				{
-					"name": "Verify Email OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"otp\": \"123456\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/verify-email-otp/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"verify-email-otp",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Send/Resend Email OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"candidate@example.com\",\n    \"resend\": false\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/send-email-otp/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"send-email-otp",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Password Change > Request OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@example.com\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/password-change/request/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"password-change",
-								"request",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Password Change > Confirm OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/password-change/confirm-otp/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"password-change",
-								"confirm-otp",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Password Change > Set New Password",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newstrongpassword123\",\n    \"confirm_password\": \"newstrongpassword123\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/password-change/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"password-change",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Password Change > Resend OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Api-Key",
-								"value": "{{apiKey}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@example.com\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/v1/auth/password-change/resend-otp/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"v1",
-								"auth",
-								"password-change",
-								"resend-otp",
-								""
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Candidate",
-			"item": [
-				{
-					"name": "Profile",
-					"item": [
-						{
-							"name": "Get My Profile",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/me/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"me",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Exams",
-					"item": [
-						{
-							"name": "Take Exam",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/take-exam/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										"take-exam",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Submit Answers",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"answers\": [\n        {\n            \"question\": {{question_id_1}},\n            \"selected_option\": \"A\"\n        },\n        {\n            \"question\": {{question_id_2}},\n            \"selected_option\": \"C\"\n        }\n    ]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/submit-exam-answers/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										"submit-exam-answers",
-										""
-									]
-								}
-							},
-							"response": [],
-							"description": "Submits answers for an exam."
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Dashboard",
-					"item": [
-						{
-							"name": "Get Dashboard",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/dashboard/candidate/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"dashboard",
-										"candidate",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Account Management",
-					"item": [
-						{
-							"name": "Get Own Account Info",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Own Account Info",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "User Verification",
-					"item": [
-						{
-							"name": "Get Verification Status",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/status/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"status",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Upload Verification Documents",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "face_id",
-											"type": "file",
-											"src": []
-										},
-										{
-											"key": "id_card",
-											"type": "file",
-											"src": []
-										},
-										{
-											"key": "verification_document",
-											"type": "file",
-											"src": []
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/upload/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"upload",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Verification Documents",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "face_id",
-											"type": "file",
-											"src": []
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/upload/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"upload",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Own Verification Document",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"documents",
-										"{{file_type}}",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				}
-			]
-		},
-		{
-			"name": "Staff",
-			"item": [
-				{
-					"name": "Profile",
-					"item": [
-						{
-							"name": "Get My Profile",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/me/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										"me",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Candidate Management",
-					"item": [
-						{
-							"name": "List Candidates",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Detail",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Assign Candidate Role",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"role\": \"league\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/roles/assign/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"roles",
-										"assign",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Scores",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/scores/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"scores",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Exam History",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"exam-history",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Dashboard",
-					"item": [
-						{
-							"name": "Get Dashboard",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/dashboard/candidate/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"dashboard",
-										"candidate",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Account Management",
-					"item": [
-						{
-							"name": "Get Own Account Info",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Own Account Info",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "User Verification",
-					"item": [
-						{
-							"name": "Get Verification Status",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/status/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"status",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Upload Verification Documents",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "face_id",
-											"type": "file",
-											"src": []
-										},
-										{
-											"key": "id_card",
-											"type": "file",
-											"src": []
-										},
-										{
-											"key": "verification_document",
-											"type": "file",
-											"src": []
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/upload/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"upload",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Verification Documents",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "face_id",
-											"type": "file",
-											"src": []
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/upload/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"upload",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Own Verification Document",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"documents",
-										"{{file_type}}",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{candidateAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				}
-			]
-		},
-		{
-			"name": "Staff",
-			"item": [
-				{
-					"name": "Profile",
-					"item": [
-						{
-							"name": "Get My Profile",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/me/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										"me",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Candidate Management",
-					"item": [
-						{
-							"name": "List Candidates",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Detail",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Assign Candidate Role",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"role\": \"league\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/roles/assign/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"roles",
-										"assign",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Scores",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/scores/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"scores",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Candidate Exam History",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"candidates",
-										"{{candidate_id}}",
-										"exam-history",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Staff Management",
-					"item": [
-						{
-							"name": "List Staff",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Invite Staff Member",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"email\": \"new.staff@example.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Staff\",\n    \"phone\": \"+2349012345678\",\n    \"password\": \"a_strong_temporary_password\",\n    \"password2\": \"a_strong_temporary_password\",\n    \"role\": \"moderator\",\n    \"occupation\": \"Content Reviewer\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/invite/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										"invite",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Staff Detail",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										"{{staff_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Assign Staff Role",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"role\": \"admin\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/staff/{{staff_id}}/roles/assign/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"staff",
-										"{{staff_id}}",
-										"roles",
-										"assign",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Exam Management",
-					"item": [
-						{
-							"name": "List Exams",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Create Exam",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"scheduled_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Exam Detail",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Exam (PUT)",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"An updated challenging exam for league participants.\",\n    \"scheduled_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Exam (PATCH)",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"is_active\": false\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Exam",
-							"request": {
-								"method": "DELETE",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Exam Questions",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/questions/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										"questions",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Exam Results",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/results/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										"results",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Submit Manual Score",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"candidate_id\": \"{{candidate_id}}\",\n    \"score\": \"85.50\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/exams/{{exam_id}}/submit-exam-score/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"exams",
-										"{{exam_id}}",
-										"submit-exam-score",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "User Verification",
-					"item": [
-						{
-							"name": "Get Verification Status (For Other User)",
-							"request": {
-								"method": "GET",
-								"header": [
-									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
-									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
-									"host": [ "{{baseUrl}}" ],
-									"path": [ "v1", "user", "verification", "status", "{{user_id}}", "" ]
-								},
-								"description": "Get the verification status for a specific user (requires manager+ role)."
-							},
-							"response": []
-						},
-						{
-							"name": "List All Verification Requests",
-							"request": {
-								"method": "GET",
-								"header": [
-									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
-									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/list/",
-									"host": [ "{{baseUrl}}" ],
-									"path": [ "v1", "user", "verification", "list", "" ]
-								},
-								"description": "Lists all user verification requests for administrative review (requires manager+ role)."
-							},
-							"response": []
-						},
-						{
-							"name": "Approve Verification Request",
-							"request": {
-								"method": "POST",
-								"header": [
-									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
-									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" },
-									{ "key": "Content-Type", "value": "application/json", "type": "text" }
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"is_approved\": true\n}",
-									"options": { "raw": { "language": "json" } }
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
-									"host": [ "{{baseUrl}}" ],
-									"path": [ "v1", "user", "verification", "action", "{{user_id}}", "" ]
-								},
-								"description": "Approves a user's verification request (requires manager+ role)."
-							},
-							"response": []
-						},
-						{
-							"name": "Reject Verification Request",
-							"request": {
-								"method": "POST",
-								"header": [
-									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
-									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" },
-									{ "key": "Content-Type", "value": "application/json", "type": "text" }
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"is_rejected\": true,\n    \"rejection_reason\": \"The submitted ID card was blurry and unreadable. Please resubmit with a clearer image.\"\n}",
-									"options": { "raw": { "language": "json" } }
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
-									"host": [ "{{baseUrl}}" ],
-									"path": [ "v1", "user", "verification", "action", "{{user_id}}", "" ]
-								},
-								"description": "Rejects a user's verification request with an optional reason (requires manager+ role)."
-							},
-							"response": []
-						},
-						{
-							"name": "Download Verification Document (For Other User)",
-							"request": {
-								"method": "GET",
-								"header": [
-									{ "key": "X-Api-Key", "value": "{{apiKey}}", "type": "text" },
-									{ "key": "Authorization", "value": "Bearer {{staffAccessToken}}", "type": "text" }
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
-									"host": [ "{{baseUrl}}" ],
-									"path": [ "v1", "user", "verification", "documents", "{{file_type}}", "{{user_id}}", "" ]
-								},
-								"description": "Downloads a specific verification document for a given user (requires manager+ role)."
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Question Management",
-					"item": [
-						{
-							"name": "List Questions",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Create Question",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Question Detail",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"{{question_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Question (PUT)",
-							"request": {
-								"method": "PUT",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"{{question_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Question (PATCH)",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"difficulty\": \"moderate\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"{{question_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Question",
-							"request": {
-								"method": "DELETE",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"{{question_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add/Remove Question from Exams",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"add_to_exams\": [1, 3, 5],\n    \"remove_from_exams\": [2, 4]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/{{question_id}}/exams/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"{{question_id}}",
-										"exams",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Bulk Add Questions to Exams",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"question_ids\": [1, 2, 3, 4, 5],\n    \"exam_ids\": [10, 11]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/bulk-add-to-exams/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"bulk-add-to-exams",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Bulk Archive Questions",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"question_ids\": [1, 2, 3]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/questions/bulk-archive/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"questions",
-										"bulk-archive",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Leaderboard",
-					"item": [
-						{
-							"name": "Publish Leaderboard",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/leaderboard/publish/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"leaderboard",
-										"publish",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Load Leaderboard",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/leaderboard/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"leaderboard",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Dashboards",
-					"item": [
-						{
-							"name": "Get Staff Dashboard",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/dashboard/staff/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"dashboard",
-										"staff",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Account Management",
-					"item": [
-						{
-							"name": "Get Own Account Info",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Own Account Info",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"profile\": {\n        \"occupation\": \"Senior Teacher\"\n    },\n    \"user\": {\n        \"first_name\": \"Janet\"\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Manager: Get User Account Info",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										"{{user_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Manager: Update User Account Info",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"profile\": {\n        \"school\": \"Admin Updated School Name\"\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"account-management",
-										"{{user_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "User Verification",
-					"item": [
-						{
-							"name": "Manager: Get User Verification Status",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"status",
-										"{{user_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Manager: Get User Verification Document",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"documents",
-										"{{file_type}}",
-										"{{user_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Manager: List Verification Requests",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/list/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"list",
-										""
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Manager: Action on Verification Request",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"is_approved\": true\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"user",
-										"verification",
-										"action",
-										"{{user_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					}
-				},
-				{
-					"name": "Broadcast Management",
-					"item": [
-						{
-							"name": "List Broadcasts",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/broadcasts/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"broadcasts",
-										""
-									]
-								}
-							},
-							"response": [
-								{
-									"name": "Successful List Broadcasts Response",
-									"originalRequest": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "X-Api-Key",
-												"value": "{{apiKey}}"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/v1/broadcasts/",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"v1",
-												"broadcasts",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										}
-									],
-									"cookie": [],
-									"body": "{\n  \"count\": 1,\n  \"total_pages\": 1,\n  \"next\": null,\n  \"previous\": null,\n  \"results\": [\n    {\n      \"id\": 1,\n      \"subject\": \"Important Announcement\",\n      \"message\": \"Please review the new exam schedule.\",\n      \"created_by\": {\n        \"user\": { \"email\": \"manager@example.com\", \"first_name\": \"Manager\", \"last_name\": \"User\" },\n        \"occupation\": \"System Manager\", \"role\": \"manager\"\n      },\n      \"created_at\": \"2025-09-20T10:00:00Z\",\n      \"mediums\": [\"email\", \"platform\"],\n      \"target_roles\": {\n          \"candidate\": [\"league\", \"final\"],\n          \"staff\": [\"moderator\", \"volunteer\"]\n      }\n    }\n  ]\n}"
-								}
-							]
-						},
-						{
-							"name": "Create Broadcast",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"subject\": \"Important Update\",\n    \"message\": \"Please check the portal for important news.\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"manager\", \"moderator\"],\n        \"candidate\": [\"league\", \"final\"]\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/v1/broadcasts/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"broadcasts",
-										""
-									]
-								},
-								"description": "Requires `manager` or higher role. Creates a new broadcast and queues it for sending. This will trigger a real-time notification for connected clients."
-						},
-							"response": [
-								{
-									"name": "Successful Create Broadcast Response",
-									"originalRequest": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "X-Api-Key",
-												"value": "{{apiKey}}"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"subject\": \"Important Update for League Candidates\",\n    \"message\": \"Please check the portal for a new practice exam.\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"manager\", \"moderator\"],\n        \"candidate\": [\"league\", \"final\"]\n    }\n}"
-										},
-										"url": {
-											"raw": "{{baseUrl}}/v1/broadcasts/",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"v1",
-												"broadcasts",
-												""
-											]
-										}
-									},
-									"status": "Created",
-									"code": 201,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										}
-									],
-									"cookie": [],
-									"body": "{\n    \"id\": 2,\n    \"task_id\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\",\n    \"subject\": \"New Exam Available\",\n    \"message\": \"The final stage exam is now open. Good luck!\",\n    \"created_by\": { \"...\": \"...\" },\n    \"created_at\": \"2025-09-21T12:00:00Z\",\n    \"status\": \"pending\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"volunteer\", \"moderator\"],\n        \"candidate\": [\"final\"]\n    },\n    \"logs\": []\n}"
-								}
-							]
-						},
-						{
-							"name": "Get Broadcast Details",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "X-Api-Key",
-										"value": "{{apiKey}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/broadcasts/{{broadcast_id}}/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"broadcasts",
-										"{{broadcast_id}}",
-										""
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"auth": {
-						"type": "bearer",
-						"bearer": [
-							{
-								"key": "token",
-								"value": "{{staffAccessToken}}",
-								"type": "string"
-							}
-						]
-					},
-					"description": "Endpoints for creating and managing broadcasts to users."
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "http://dev-api.localhost"
-		},
-		{
-			"key": "apiKey",
-			"value": ""
-		},
-		{
-			"key": "candidateAccessToken",
-			"value": ""
-		},
-		{
-			"key": "candidateRefreshToken",
-			"value": ""
-		},
-		{
-			"key": "staffAccessToken",
-			"value": ""
-		},
-		{
-			"key": "staffRefreshToken",
-			"value": ""
-		},
-		{
-			"key": "exam_id",
-			"value": "1"
-		},
-		{
-			"key": "question_id",
-			"value": "1"
-		},
-		{
-			"key": "question_id_1",
-			"value": "1"
-		},
-		{
-			"key": "question_id_2",
-			"value": "2"
-		},
-		{
-			"key": "candidate_id",
-			"value": ""
-		},
-		{
-			"key": "staff_id",
-			"value": ""
-		},
-		{
-			"key": "user_id",
-			"value": ""
-		},
-		{
-			"key": "file_type",
-			"value": "id_card"
-		},
-		{
-			"key": "broadcast_id",
-			"value": "1"
-		}
-	]
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4a9b-8c7d-6e5f4a3b2c1d",
+    "name": "Verboheit MLC API",
+    "description": "A comprehensive Postman collection for testing the Verboheit Math League Competition (VMLC) API, separated by user roles (Candidate and Staff).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": {
+    "info": {
+      "_postman_id": "a1b2c3d4-e5f6-4a9b-8c7d-6e5f4a3b2c1d",
+      "name": "Verboheit MLC API",
+      "description": "A comprehensive Postman collection for testing the Verboheit Math League Competition (VMLC) API, separated by user roles (Candidate and Staff).",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Health & Root",
+        "item": [
+          {
+            "name": "Health Check",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/v1/health/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "health",
+                  ""
+                ]
+              },
+              "description": "Checks if the API service is up and running. Should return a 200 OK with `{\"status\": \"healthy\"}`."
+            },
+            "response": []
+          },
+          {
+            "name": "Registration Status",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/v1/registration/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "registration",
+                  ""
+                ]
+              },
+              "description": "Gets the registration status of the platform."
+            },
+            "response": []
+          }
+        ]
+      },
+      {
+        "name": "Registration",
+        "item": [
+          {
+            "name": "Register Candidate",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"08012345678\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"school\": \"Example High School\",\n    \"generate_password\": false\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/register/candidate/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "register",
+                  "candidate",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Register Staff",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"staff@example.com\",\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Smith\",\n    \"phone\": \"08087654321\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"occupation\": \"Teacher\",\n    \"generate_password\": false\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/register/staff/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "register",
+                  "staff",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          }
+        ]
+      },
+      {
+        "name": "Authentication",
+        "item": [
+          {
+            "name": "Login (Candidate)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = pm.response.json();",
+                    "if (jsonData.access) {",
+                    "    pm.collectionVariables.set(\"candidateAccessToken\", jsonData.access);",
+                    "}",
+                    "if (jsonData.refresh) {",
+                    "    pm.collectionVariables.set(\"candidateRefreshToken\", jsonData.refresh);",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"password\": \"strongpassword123\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/login/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "login",
+                  ""
+                ]
+              },
+              "description": "Authenticate as a candidate and receive access and refresh tokens. The `candidateAccessToken` and `candidateRefreshToken` will be automatically saved to collection variables."
+            },
+            "response": []
+          },
+          {
+            "name": "Login (Staff)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var jsonData = pm.response.json();",
+                    "if (jsonData.access) {",
+                    "    pm.collectionVariables.set(\"staffAccessToken\", jsonData.access);",
+                    "}",
+                    "if (jsonData.refresh) {",
+                    "    pm.collectionVariables.set(\"staffRefreshToken\", jsonData.refresh);",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"staff@example.com\",\n    \"password\": \"strongpassword123\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/login/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "login",
+                  ""
+                ]
+              },
+              "description": "Authenticate as a staff member and receive access and refresh tokens. The `staffAccessToken` and `staffRefreshToken` will be automatically saved to collection variables."
+            },
+            "response": []
+          },
+          {
+            "name": "Logout",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"refresh\": \"{{candidateRefreshToken}}\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/logout/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "logout",
+                  ""
+                ]
+              },
+              "description": "Blacklists the user's refresh token to log them out."
+            },
+            "response": []
+          },
+          {
+            "name": "Refresh Token",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"refresh\": \"{{candidateRefreshToken}}\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/token/refresh/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "token",
+                  "refresh",
+                  ""
+                ]
+              },
+              "description": "Obtain a new access token using a valid refresh token."
+            },
+            "response": []
+          }
+        ]
+      },
+      {
+        "name": "Email & Password",
+        "item": [
+          {
+            "name": "Verify Email OTP",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"otp\": \"123456\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/verify-email-otp/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "verify-email-otp",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Send/Resend Email OTP",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"resend\": false\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/send-email-otp/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "send-email-otp",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Password Change > Request OTP",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"user@example.com\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/password-change/request/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "password-change",
+                  "request",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Password Change > Confirm OTP",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/password-change/confirm-otp/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "password-change",
+                  "confirm-otp",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Password Change > Set New Password",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"user@example.com\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newstrongpassword123\",\n    \"confirm_password\": \"newstrongpassword123\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/password-change/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "password-change",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          },
+          {
+            "name": "Password Change > Resend OTP",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"email\": \"user@example.com\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "{{baseUrl}}/v1/auth/password-change/resend-otp/",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "auth",
+                  "password-change",
+                  "resend-otp",
+                  ""
+                ]
+              }
+            },
+            "response": []
+          }
+        ]
+      },
+      {
+        "name": "Candidate",
+        "item": [
+          {
+            "name": "Profile",
+            "item": [
+              {
+                "name": "Get My Profile",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/me/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "me",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Exams",
+            "item": [
+              {
+                "name": "Take Exam",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/take-exam/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      "take-exam",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Submit Answers",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"answers\": [\n        {\n            \"question\": {{question_id_1}},\n            \"selected_option\": \"A\"\n        },\n        {\n            \"question\": {{question_id_2}},\n            \"selected_option\": \"C\"\n        }\n    ]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/submit-exam-answers/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      "submit-exam-answers",
+                      ""
+                    ]
+                  }
+                },
+                "response": [],
+                "description": "Submits answers for an exam."
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Dashboard",
+            "item": [
+              {
+                "name": "Get Dashboard",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/dashboard/candidate/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "dashboard",
+                      "candidate",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Account Management",
+            "item": [
+              {
+                "name": "Get Own Account Info",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Own Account Info",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "User Verification",
+            "item": [
+              {
+                "name": "Get Verification Status",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/status/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "status",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Upload Verification Documents",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                      {
+                        "key": "face_id",
+                        "type": "file",
+                        "src": []
+                      },
+                      {
+                        "key": "id_card",
+                        "type": "file",
+                        "src": []
+                      },
+                      {
+                        "key": "verification_document",
+                        "type": "file",
+                        "src": []
+                      }
+                    ]
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/upload/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "upload",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Verification Documents",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                      {
+                        "key": "face_id",
+                        "type": "file",
+                        "src": []
+                      }
+                    ]
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/upload/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "upload",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Own Verification Document",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "documents",
+                      "{{file_type}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Staff",
+        "item": [
+          {
+            "name": "Profile",
+            "item": [
+              {
+                "name": "Get My Profile",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/me/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      "me",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Candidate Management",
+            "item": [
+              {
+                "name": "List Candidates",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Candidate Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Assign Candidate Role",
+                "request": {
+                  "method": "PUT",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"role\": \"league\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/roles/assign/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      "roles",
+                      "assign",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Candidate Exam History",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      "exam-history",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Invite Candidate",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"new-candidate@example.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Candidate\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidate/invite/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidate",
+                      "invite",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Dashboard",
+            "item": [
+              {
+                "name": "Get Dashboard",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/dashboard/candidate/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "dashboard",
+                      "staff",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Account Management",
+            "item": [
+              {
+                "name": "Get Own Account Info",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Own Account Info",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "User Verification",
+            "item": [
+              {
+                "name": "Get Verification Status",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/status/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "status",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Upload Verification Documents",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                      {
+                        "key": "face_id",
+                        "type": "file",
+                        "src": []
+                      },
+                      {
+                        "key": "id_card",
+                        "type": "file",
+                        "src": []
+                      },
+                      {
+                        "key": "verification_document",
+                        "type": "file",
+                        "src": []
+                      }
+                    ]
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/upload/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "upload",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Verification Documents",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                      {
+                        "key": "face_id",
+                        "type": "file",
+                        "src": []
+                      }
+                    ]
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/upload/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "upload",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Own Verification Document",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "documents",
+                      "{{file_type}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{candidateAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "User Management",
+            "item": [
+              {
+                "name": "List Users",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/list/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "list",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Stats",
+            "item": [
+              {
+                "name": "Get Stats Overview",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/stats/overview/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "stats",
+                      "overview",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Staff",
+        "item": [
+          {
+            "name": "Profile",
+            "item": [
+              {
+                "name": "Get My Profile",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/me/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      "me",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Candidate Management",
+            "item": [
+              {
+                "name": "List Candidates",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Candidate Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Assign Candidate Role",
+                "request": {
+                  "method": "PUT",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"role\": \"league\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/roles/assign/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      "roles",
+                      "assign",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Candidate Exam History",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidates/{{candidate_id}}/exam-history/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidates",
+                      "{{candidate_id}}",
+                      "exam-history",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Invite Candidate",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"new-candidate@example.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Candidate\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/candidate/invite/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "candidate",
+                      "invite",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Staff Management",
+            "item": [
+              {
+                "name": "List Staff",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Invite Staff Member",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"new.staff@example.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Staff\",\n    \"phone\": \"+2349012345678\",\n    \"password\": \"a_strong_temporary_password\",\n    \"password2\": \"a_strong_temporary_password\",\n    \"role\": \"moderator\",\n    \"occupation\": \"Content Reviewer\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/invite/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      "invite",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Staff Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/{{staff_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      "{{staff_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Assign Staff Role",
+                "request": {
+                  "method": "PUT",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"role\": \"admin\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/staff/{{staff_id}}/roles/assign/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "staff",
+                      "{{staff_id}}",
+                      "roles",
+                      "assign",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Exam Management",
+            "item": [
+              {
+                "name": "List Exams",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Create Exam",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"title\": \"Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"A challenging exam for league participants.\",\n    \"scheduled_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Exam Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Exam (PUT)",
+                "request": {
+                  "method": "PUT",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"stage\": \"league\",\n    \"description\": \"An updated challenging exam for league participants.\",\n    \"scheduled_date\": \"2024-09-15T10:00:00Z\",\n    \"countdown_minutes\": 60,\n    \"open_duration_hours\": 12,\n    \"is_active\": true,\n    \"questions\": [\n        {{question_id_1}},\n        {{question_id_2}}\n    ]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Exam (PATCH)",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"title\": \"Updated Mid-term League Exam\",\n    \"is_active\": false\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Delete Exam",
+                "request": {
+                  "method": "DELETE",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Exam Questions",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/questions/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      "questions",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Exam Results",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/exams/{{exam_id}}/results/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "exams",
+                      "{{exam_id}}",
+                      "results",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "User Verification",
+            "item": [
+              {
+                "name": "Get Verification Status (For Other User)",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Authorization",
+                      "value": "Bearer {{staffAccessToken}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "status",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  },
+                  "description": "Get the verification status for a specific user (requires manager+ role)."
+                },
+                "response": []
+              },
+              {
+                "name": "List All Verification Requests",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Authorization",
+                      "value": "Bearer {{staffAccessToken}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/list/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "list",
+                      ""
+                    ]
+                  },
+                  "description": "Lists all user verification requests for administrative review (requires manager+ role)."
+                },
+                "response": []
+              },
+              {
+                "name": "Approve Verification Request",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Authorization",
+                      "value": "Bearer {{staffAccessToken}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"is_approved\": true\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "action",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  },
+                  "description": "Approves a user's verification request (requires manager+ role)."
+                },
+                "response": []
+              },
+              {
+                "name": "Reject Verification Request",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Authorization",
+                      "value": "Bearer {{staffAccessToken}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"is_rejected\": true,\n    \"rejection_reason\": \"The submitted ID card was blurry and unreadable. Please resubmit with a clearer image.\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "action",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  },
+                  "description": "Rejects a user's verification request with an optional reason (requires manager+ role)."
+                },
+                "response": []
+              },
+              {
+                "name": "Download Verification Document (For Other User)",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Authorization",
+                      "value": "Bearer {{staffAccessToken}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "documents",
+                      "{{file_type}}",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  },
+                  "description": "Downloads a specific verification document for a given user (requires manager+ role)."
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Question Management",
+            "item": [
+              {
+                "name": "List Questions",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Create Question",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Get Question Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "{{question_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Question (PUT)",
+                "request": {
+                  "method": "PUT",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"text\": \"What is 2 + 2?\",\n    \"option_a\": \"3\",\n    \"option_b\": \"4\",\n    \"option_c\": \"5\",\n    \"option_d\": \"6\",\n    \"correct_answer\": \"B\",\n    \"difficulty\": \"easy\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "{{question_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Question (PATCH)",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"difficulty\": \"moderate\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "{{question_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Delete Question",
+                "request": {
+                  "method": "DELETE",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/{{question_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "{{question_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Add/Remove Question from Exams",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"add_to_exams\": [1, 3, 5],\n    \"remove_from_exams\": [2, 4]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/{{question_id}}/exams/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "{{question_id}}",
+                      "exams",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Bulk Add Questions to Exams",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"question_ids\": [1, 2, 3, 4, 5],\n    \"exam_ids\": [10, 11]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/bulk-add-to-exams/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "bulk-add-to-exams",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Bulk Archive Questions",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"question_ids\": [1, 2, 3]\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/questions/bulk-archive/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "questions",
+                      "bulk-archive",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Leaderboard",
+            "item": [
+              {
+                "name": "Publish Leaderboard",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/leaderboard/publish/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "leaderboard",
+                      "publish",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Load Leaderboard",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/leaderboard/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "leaderboard",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Dashboards",
+            "item": [
+              {
+                "name": "Get Staff Dashboard",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/dashboard/staff/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "dashboard",
+                      "staff",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Account Management",
+            "item": [
+              {
+                "name": "Get Own Account Info",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Update Own Account Info",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"profile\": {\n        \"occupation\": \"Senior Teacher\"\n    },\n    \"user\": {\n        \"first_name\": \"Janet\"\n    }\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Manager: Get User Account Info",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Manager: Update User Account Info",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"profile\": {\n        \"school\": \"Admin Updated School Name\"\n    }\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/account-management/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "account-management",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "User Verification",
+            "item": [
+              {
+                "name": "Manager: Get User Verification Status",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/status/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "status",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Manager: Get User Verification Document",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/documents/{{file_type}}/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "documents",
+                      "{{file_type}}",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Manager: List Verification Requests",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/list/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "list",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Manager: Action on Verification Request",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"is_approved\": true\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/verification/action/{{user_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "verification",
+                      "action",
+                      "{{user_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Broadcast Management",
+            "item": [
+              {
+                "name": "List Broadcasts",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/broadcasts/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "broadcasts",
+                      ""
+                    ]
+                  }
+                },
+                "response": [
+                  {
+                    "name": "Successful List Broadcasts Response",
+                    "originalRequest": {
+                      "method": "GET",
+                      "header": [
+                        {
+                          "key": "X-Api-Key",
+                          "value": "{{apiKey}}"
+                        }
+                      ],
+                      "url": {
+                        "raw": "{{baseUrl}}/v1/broadcasts/",
+                        "host": [
+                          "{{baseUrl}}"
+                        ],
+                        "path": [
+                          "v1",
+                          "broadcasts",
+                          ""
+                        ]
+                      }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "_postman_previewlanguage": "json",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "cookie": [],
+                    "body": "{\n  \"count\": 1,\n  \"total_pages\": 1,\n  \"next\": null,\n  \"previous\": null,\n  \"results\": [\n    {\n      \"id\": 1,\n      \"subject\": \"Important Announcement\",\n      \"message\": \"Please review the new exam schedule.\",\n      \"created_by\": {\n        \"user\": { \"email\": \"manager@example.com\", \"first_name\": \"Manager\", \"last_name\": \"User\" },\n        \"occupation\": \"System Manager\", \"role\": \"manager\"\n      },\n      \"created_at\": \"2025-09-20T10:00:00Z\",\n      \"mediums\": [\"email\", \"platform\"],\n      \"target_roles\": {\n          \"candidate\": [\"league\", \"final\"],\n          \"staff\": [\"moderator\", \"volunteer\"]\n      }\n    }\n  ]\n}"
+                  }
+                ]
+              },
+              {
+                "name": "Create Broadcast",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"subject\": \"Important Update\",\n    \"message\": \"Please check the portal for important news.\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"manager\", \"moderator\"],\n        \"candidate\": [\"league\", \"final\"]\n    }\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/broadcasts/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "broadcasts",
+                      ""
+                    ]
+                  },
+                  "description": "Requires `manager` or higher role. Creates a new broadcast and queues it for sending. This will trigger a real-time notification for connected clients."
+                },
+                "response": [
+                  {
+                    "name": "Successful Create Broadcast Response",
+                    "originalRequest": {
+                      "method": "POST",
+                      "header": [
+                        {
+                          "key": "X-Api-Key",
+                          "value": "{{apiKey}}"
+                        }
+                      ],
+                      "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"subject\": \"Important Update for League Candidates\",\n    \"message\": \"Please check the portal for a new practice exam.\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"manager\", \"moderator\"],\n        \"candidate\": [\"league\", \"final\"]\n    }\n}"
+                      },
+                      "url": {
+                        "raw": "{{baseUrl}}/v1/broadcasts/",
+                        "host": [
+                          "{{baseUrl}}"
+                        ],
+                        "path": [
+                          "v1",
+                          "broadcasts",
+                          ""
+                        ]
+                      }
+                    },
+                    "status": "Created",
+                    "code": 201,
+                    "_postman_previewlanguage": "json",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "cookie": [],
+                    "body": "{\n    \"id\": 2,\n    \"task_id\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\",\n    \"subject\": \"New Exam Available\",\n    \"message\": \"The final stage exam is now open. Good luck!\",\n    \"created_by\": { \"...\": \"...\" },\n    \"created_at\": \"2025-09-21T12:00:00Z\",\n    \"status\": \"pending\",\n    \"mediums\": [\"email\", \"platform\"],\n    \"target_roles\": {\n        \"staff\": [\"volunteer\", \"moderator\"],\n        \"candidate\": [\"final\"]\n    },\n    \"logs\": []\n}"
+                  }
+                ]
+              },
+              {
+                "name": "Get Broadcast Details",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/broadcasts/{{broadcast_id}}/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "broadcasts",
+                      "{{broadcast_id}}",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Endpoints for creating and managing broadcasts to users."
+          },
+          {
+            "name": "User Management",
+            "item": [
+              {
+                "name": "List Users",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/user/list/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "user",
+                      "list",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Stats",
+            "item": [
+              {
+                "name": "Get Stats Overview",
+                "request": {
+                  "method": "GET",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "url": {
+                    "raw": "{{baseUrl}}/v1/stats/overview/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v1",
+                      "stats",
+                      "overview",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{staffAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "variable": [
+      {
+        "key": "baseUrl",
+        "value": "http://dev-api.localhost"
+      },
+      {
+        "key": "apiKey",
+        "value": ""
+      },
+      {
+        "key": "candidateAccessToken",
+        "value": ""
+      },
+      {
+        "key": "candidateRefreshToken",
+        "value": ""
+      },
+      {
+        "key": "staffAccessToken",
+        "value": ""
+      },
+      {
+        "key": "staffRefreshToken",
+        "value": ""
+      },
+      {
+        "key": "exam_id",
+        "value": "1"
+      },
+      {
+        "key": "question_id",
+        "value": "1"
+      },
+      {
+        "key": "question_id_1",
+        "value": "1"
+      },
+      {
+        "key": "question_id_2",
+        "value": "2"
+      },
+      {
+        "key": "candidate_id",
+        "value": ""
+      },
+      {
+        "key": "staff_id",
+        "value": ""
+      },
+      {
+        "key": "user_id",
+        "value": ""
+      },
+      {
+        "key": "file_type",
+        "value": "id_card"
+      },
+      {
+        "key": "broadcast_id",
+        "value": "1"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://dev-api.localhost"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "candidateAccessToken",
+      "value": ""
+    },
+    {
+      "key": "candidateRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "staffAccessToken",
+      "value": ""
+    },
+    {
+      "key": "staffRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "exam_id",
+      "value": "1"
+    },
+    {
+      "key": "question_id",
+      "value": "1"
+    },
+    {
+      "key": "question_id_1",
+      "value": "1"
+    },
+    {
+      "key": "question_id_2",
+      "value": "2"
+    },
+    {
+      "key": "candidate_id",
+      "value": ""
+    },
+    {
+      "key": "staff_id",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "file_type",
+      "value": "id_card"
+    },
+    {
+      "key": "broadcast_id",
+      "value": "1"
+    }
+  ]
 }

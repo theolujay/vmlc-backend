@@ -496,9 +496,18 @@ class UserListView(ListAPIView):
     def list(self, request, *args, **kwargs):
         user = request.user
         staff = Staff.objects.get(user=user)
-        requested_profile = request.query_params.get("profile")
 
-        stats_overview = self._get_stats_overview(staff.role, requested_profile)
+        # Get cache version
+        version = cache.get("user_list_version", 1)
+        # Create a stable cache key based on role, query parameters and version
+        query_params_str = str(sorted(request.query_params.items()))
+        cache_key = f"user_list_view_{version}_{staff.role}_{query_params_str}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        stats_overview = self._get_stats_overview(staff.role)
 
         queryset = self.filter_queryset(self.get_queryset())
 
@@ -508,28 +517,25 @@ class UserListView(ListAPIView):
             response = self.get_paginated_response(serializer.data)
             response.data["stats_overview"] = stats_overview
             response.data["results"] = response.data.pop("results")
+            cache.set(cache_key, response.data, 43200)  # Cache for 12 hours
             return response
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response({"stats_overview": stats_overview, "results": serializer.data})
+        response_data = {"stats_overview": stats_overview, "results": serializer.data}
+        cache.set(cache_key, response_data, 43200)  # Cache for 12 hour
+        return Response(response_data)
 
-    def _get_stats_overview(self, staff_role, requested_profile):
-        """Helper to get or trigger generation of stats overview."""
+    def _get_stats_overview(self, staff_role):
+        """Helper to get the stats overview from cache."""
         stats_overview = cache.get("stats_overview")
 
-        if staff_role in [Staff.Roles.MODERATOR, Staff.Roles.ADMIN]:
-            if stats_overview is not None:
-                _ = stats_overview.pop("staff")
-            if stats_overview is None:
-                generate_stats_overview_task.delay()
-                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
-            if requested_profile is None or requested_profile == "staff":
-                raise PermissionDenied("manager or superadmin role required")
-
-        if staff_role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
-            if stats_overview is None:
-                generate_stats_overview_task.delay()
-                stats_overview = "Statistics overview is being generated. Please check back in a few moments."
+        if stats_overview is not None:
+            # Make a copy to avoid modifying the cached object.
+            stats_overview = stats_overview.copy()
+            if staff_role not in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
+                stats_overview.pop("staff", None)
+        # If stats_overview is None, it is returned as is.
+        # The regeneration is handled by signals.
         return stats_overview
 
     def get_serializer_class(self):
@@ -701,13 +707,6 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         instance.save()
         cache.delete(f"{self.profile}_profile_{target_profile.pk}")
         cache.delete(f"{self.profile}_dashboard_data_{target_profile.pk}")
-
-    # def get_serializer_class(self):
-    #     if self.profile == "candidate":
-    #         return CandidateDetailSerializer
-    #     if self.profile == "staff":
-    #         return StaffDetailSerializer
-    #     return None
 
     def get_queryset(self):
         if self.profile == "candidate":

@@ -12,14 +12,29 @@ from .models import (
     Exam,
 )
 from .tasks import (
+    generate_stats_overview_task,
     update_candidate_dashboard_cache_task,
     update_staff_dashboard_cache_task,
 )
 
 
-def invalidate_stats_overview_cache(sender=None, _instance=None, **kwargs):
-    """Invalidates the cache for the stats overview."""
+def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
+    """
+    Invalidates the cache for the stats overview and triggers regeneration.
+    """
     cache.delete("stats_overview")
+    cache.delete_pattern("user_list_view_*")
+    generate_stats_overview_task.delay()
+
+
+def invalidate_user_list_cache(sender=None, _instance=None, **kwargs):
+    """Invalidates the user list view cache by incrementing the version."""
+    # It's possible the key doesn't exist, so we handle the ValueError.
+    try:
+        cache.incr("user_list_version")
+    except ValueError:
+        # If the key is missing, we set it. The next request will generate a new cache.
+        cache.set("user_list_version", 2)
 
 
 @receiver(user_logged_in, sender=User)
@@ -30,7 +45,7 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     - Updates dashboard caches for verified users.
     - Sets email as verified on first login for invited users.
     """
-    invalidate_stats_overview_cache()
+    refresh_stats_overview_cache()
 
     if (
         hasattr(user, "staff_profile")
@@ -60,5 +75,10 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 # This is a broad approach, but ensures data freshness for the overview.
 models_to_watch = [User, Candidate, Staff, UserVerification, CandidateScore, Exam]
 for model in models_to_watch:
-    post_save.connect(invalidate_stats_overview_cache, sender=model)
-    post_delete.connect(invalidate_stats_overview_cache, sender=model)
+    post_save.connect(refresh_stats_overview_cache, sender=model)
+    post_delete.connect(refresh_stats_overview_cache, sender=model)
+
+    # Connect user list invalidation for relevant models
+    if model in [User, Staff, Candidate, UserVerification, Exam]:
+        post_save.connect(invalidate_user_list_cache, sender=model)
+        post_delete.connect(invalidate_user_list_cache, sender=model)
