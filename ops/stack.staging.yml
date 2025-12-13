@@ -46,6 +46,7 @@ x-vmlc-env: &vmlc-env
   POSTGRES_DB: vmlc_staging
   POSTGRES_USER: verboheit_staging
   SUPERUSER_EMAIL_FILE: /run/secrets/su-email
+  SLACK_WEBHOOK_URL_FILE: /run/secrets/slack-webhook-url
   # TWILIO_ACCOUNT_SID: /run/secrets/twilio-account-sid
   # TWILIO_AUTH_TOKEN: /run/secrets/twilio-auth-token
   # TWILIO_FROM_PHONE: /run/secrets/twilio-from-phone
@@ -65,6 +66,7 @@ x-vmlc-common: &vmlc-common
     - django-secret-key
     - su-email
     - su-password
+    - slack-webhook-url
     # - twilio-account-sid
     # - twilio-auth-token
     # - twilio-from-phone
@@ -547,6 +549,8 @@ secrets:
   su-email:
     external: true
   su-password:
+    external: true
+  slack-webhook-url:
     external: true
   # twilio-account-sid:
   #   external: true
