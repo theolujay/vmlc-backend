@@ -1,3 +1,5 @@
+"""Leaderboard-related views"""
+
 import logging
 from collections import OrderedDict
 
