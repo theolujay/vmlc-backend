@@ -156,8 +156,13 @@ services:
       - POSTGRES_DB=vmlc_staging
       - POSTGRES_USER=verboheit_staging
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+      - AWS_ACCESS_KEY_ID_FILE=/run/secrets/aws-access-key-id
+      - AWS_SECRET_ACCESS_KEY_FILE=/run/secrets/aws-secret-access-key
+      - AWS_S3_REGION_NAME=eu-central-1
+      - AWS_STORAGE_BUCKET_NAME=vmlc-staging
     volumes:
       - db:/var/lib/postgresql/data
+      - /home/verboheit/.db_backups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 30s
