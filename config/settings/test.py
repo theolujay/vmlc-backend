@@ -9,9 +9,7 @@ from .base import *
 
 SECRET_KEY = "this-is-a-test-secret-key--do-not-use-in-production"
 
-INSTALLED_APPS += [
-    "daphne"
-]
+INSTALLED_APPS.insert(0, "daphne")
 DEBUG = False
 TESTING = True
 INTERNAL_IPS = ["localhost"]
