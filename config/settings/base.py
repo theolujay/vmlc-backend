@@ -12,7 +12,6 @@ AUTH_USER_MODEL = "vmlc.User"
 APPEND_SLASH = True
 # Grouping apps by origin (Django, third-party, local) improves clarity.
 INSTALLED_APPS = [
-    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
