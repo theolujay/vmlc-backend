@@ -1,30 +1,33 @@
 import logging
+from datetime import datetime
 
-from django.db import models, transaction
 from django.core.cache import cache
+from django.db import models, transaction
 from django.utils.decorators import method_decorator
-from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import mixins
-from rest_framework.settings import api_settings
-from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+from rest_framework.views import APIView
+from rest_framework_api_key.permissions import HasAPIKey
 
-from comms.models import Broadcast, BroadcastLog
+from comms.models import BackupLog, Broadcast, BroadcastLog
 from comms.serializers import (
-    BroadcastListSerializer,
     BroadcastDetailSerializer,
+    BroadcastListSerializer,
 )
 from comms.tasks import send_broadcast_task
+from comms.utils import send_backup_status_to_slack
 from vmlc.permissions import VerifiedManagerPermissions
-from vmlc.utils.exceptions import NotFound
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    broadcast_list_response_schema,
     broadcast_detail_request_body,
     broadcast_detail_response_schema,
+    broadcast_list_response_schema,
     error_response_400,
     error_response_401,
     error_response_403,
@@ -219,3 +222,60 @@ class BroadcastView(ListCreateRetrieveAPIView):
                 )
 
         transaction.on_commit(on_commit_hook)
+
+
+@method_decorator(
+    name="post",
+    decorator=swagger_auto_schema(
+        operation_summary="Webhook for Database Backups",
+        operation_description="Receives status updates from the database backup script. This endpoint is protected by an API Key.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "status": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Backup status (e.g., 'success', 'first_failure', 'final_failure')",
+                ),
+                "environment": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="Environment (e.g., 'prod', 'staging')"
+                ),
+                "timestamp": openapi.Schema(
+                    type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME
+                ),
+                "backup_filename": openapi.Schema(type=openapi.TYPE_STRING),
+                "error_message": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+            },
+            required=["status", "environment", "timestamp", "backup_filename"],
+        ),
+        responses={
+            200: openapi.Response("Webhook received successfully."),
+            400: error_response_400,
+            403: error_response_403,
+        },
+        tags=["Webhooks"],
+        manual_parameters=[api_key],
+    ),
+)
+class DatabaseBackupWebhookView(APIView):
+    permission_classes = [HasAPIKey]
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+
+        try:
+            backup_log = BackupLog.objects.create(
+                status=data.get("status"),
+                environment=data.get("environment"),
+                timestamp=datetime.fromisoformat(data.get("timestamp")),
+                backup_filename=data.get("backup_filename"),
+                error_message=data.get("error_message"),
+            )
+            logger.info(f"DB backup log created: {backup_log.id}")
+
+            send_backup_status_to_slack(backup_log)
+
+        except Exception as e:
+            logger.error(f"Error processing DB backup webhook: {e}")
+            return Response({"status": "error", "message": str(e)}, status=400)
+
+        return Response({"status": "received"}, status=200)
