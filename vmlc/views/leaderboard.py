@@ -221,7 +221,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
                 {
                     "detail": f"No leaderboard found for {requested_stage} level {requested_level}"
                 },
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_200_OK,
             )
 
         leaderboard_data = all_leaderboards[leaderboard_key]
