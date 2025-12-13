@@ -676,7 +676,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         data = serializer.data
-        cache.set(cache_key, data, 86400)  # Cache for 24 hours
+        cache.set(cache_key, data, 3600)  # Cache for 1 hour
         return Response(data)
 
     def perform_update(self, serializer):
