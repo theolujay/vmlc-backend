@@ -1,0 +1,9 @@
+# Production backup - daily at 2 AM
+0 2 * * * /home/verboheit/scripts/backup.sh prod >> /home/verboheit/.db_backup_logs/backup-prod.log 2>&1
+
+# Staging backup - Sundays at 2 AM
+0 2 * * 0 /home/verboheit/scripts/backup.sh staging >> /home/verboheit/.db_backup_logs/backup-staging.log 2>&1
+
+# Clean up old backup logs - runs daily at 3 AM
+0 3 * * * find /home/verboheit/.db_backup_logs -name "*.log" -mtime +30 -delete
+
