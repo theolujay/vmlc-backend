@@ -12,14 +12,14 @@ if [ "$ENV" == "prod" ]; then
     POSTGRES_USER="verboheit_prod"
     S3_BUCKET="vmlc-prod"
     S3_REGION="eu-central-1"
-    WEBHOOK_URL="https://api.verboheit.org/api/webhooks/db-backup/"
+    WEBHOOK_URL="https://api.verboheit.org/v1/webhooks/db-backup/"
 elif [ "$ENV" == "staging" ]; then
     STACK_NAME="vmlc-staging"
     POSTGRES_DB="vmlc_staging"
     POSTGRES_USER="verboheit_staging"
     S3_BUCKET="vmlc-staging"
     S3_REGION="eu-central-1"
-    WEBHOOK_URL="https://staging-api.verboheit.org/api/webhooks/db-backup/"
+    WEBHOOK_URL="https://staging-api.verboheit.org/v1/webhooks/db-backup/"
 else
     echo "Invalid environment. Use 'prod' or 'staging'"
     exit 1
@@ -53,7 +53,7 @@ EOF
 
     curl -X POST "$WEBHOOK_URL" \
         -H "Content-Type: application/json" \
-        -H "x-api-key: $BACKUP_API_KEY" \
+        -H "X-API-Key: $BACKUP_API_KEY" \
         -d "$payload" \
         --silent \
         --show-error \

@@ -11,7 +11,6 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
-from rest_framework_api_key.permissions import HasAPIKey
 
 from comms.models import BackupLog, Broadcast, BroadcastLog
 from comms.serializers import (
@@ -20,7 +19,7 @@ from comms.serializers import (
 )
 from comms.tasks import send_broadcast_task
 from comms.utils import send_backup_status_to_slack
-from vmlc.permissions import VerifiedManagerPermissions
+from vmlc.permissions import HasXAPIKey, VerifiedManagerPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -31,7 +30,6 @@ from vmlc.utils.swagger_schemas import (
     error_response_400,
     error_response_401,
     error_response_403,
-    error_response_404,
 )
 
 
@@ -257,7 +255,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
     ),
 )
 class DatabaseBackupWebhookView(APIView):
-    permission_classes = [HasAPIKey]
+    permission_classes = [HasXAPIKey]
 
     def post(self, request, *args, **kwargs):
         data = request.data
