@@ -3318,7 +3318,6 @@ dependencies = [
     { name = "colorlog" },
     { name = "cron-descriptor" },
     { name = "cryptography" },
-    { name = "daphne" },
     { name = "defusedxml" },
     { name = "dj-database-url" },
     { name = "django" },
@@ -3431,6 +3430,7 @@ docs = [
     { name = "sphinx-rtd-theme" },
 ]
 test = [
+    { name = "daphne" },
     { name = "faker" },
     { name = "moto" },
     { name = "pytest" },
@@ -3461,7 +3461,6 @@ requires-dist = [
     { name = "colorlog", specifier = "==6.9.0" },
     { name = "cron-descriptor", specifier = "==1.4.5" },
     { name = "cryptography", specifier = "==45.0.7" },
-    { name = "daphne", specifier = ">=4.2.1" },
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "dj-database-url", specifier = "==3.0.1" },
     { name = "django", specifier = "==5.2.6" },
@@ -3574,6 +3573,7 @@ docs = [
     { name = "sphinx-rtd-theme", specifier = "==3.0.2" },
 ]
 test = [
+    { name = "daphne", specifier = ">=4.2.1" },
     { name = "faker", specifier = "==37.8.0" },
     { name = "moto", specifier = "==5.1.12" },
     { name = "pytest", specifier = "==8.4.1" },
