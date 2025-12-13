@@ -158,7 +158,9 @@ FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
 FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
 FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
 SUPPORT_EMAIL = "verboheitmlc@gmail.com"
-
+TWILIO_ACCOUNT_SID = "test-twilio-account-sid"
+TWILIO_AUTH_TOKEN = "test-twilio-auth-token"
+TWILIO_FROM_PHONE = "test-twilio-from-phone"
 # CACHES = {
 #     "default": {
 #         "BACKEND": "django.core.cache.backends.dummy.DummyCache",

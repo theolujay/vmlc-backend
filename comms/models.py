@@ -147,3 +147,28 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.recipient.email}: {self.subject}"
+
+
+class BackupLog(models.Model):
+    class Status(models.TextChoices):
+        SUCCESS = "success", "Success"
+        FIRST_FAILURE = "first_failure", "First Failure"
+        FINAL_FAILURE = "final_failure", "Final Failure"
+        SUCCESS_AFTER_RETRY = "success_after_retry", "Success After Retry"
+
+    class Environment(models.TextChoices):
+        PRODUCTION = "prod", "Production"
+        STAGING = "staging", "Staging"
+
+    status = models.CharField(max_length=30, choices=Status.choices)
+    environment = models.CharField(max_length=10, choices=Environment.choices)
+    timestamp = models.DateTimeField()
+    backup_filename = models.CharField(max_length=255)
+    error_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"BackupLog for {self.environment} at {self.timestamp}: {self.status}"

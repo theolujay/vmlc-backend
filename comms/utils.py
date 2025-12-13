@@ -1,4 +1,5 @@
 import logging
+import requests
 from time import sleep
 from typing import List, Dict, Any
 
@@ -152,3 +153,58 @@ def send_bulk_phone_msg(
         "failed_recipients": failed_recipients,
         "total": len(recipients),
     }
+
+
+def send_backup_status_to_slack(backup_log):
+    """Sends a notification about the backup status to a Slack channel."""
+    slack_webhook_url = getattr(settings, "SLACK_WEBHOOK_URL", None)
+    if not slack_webhook_url:
+        logger.warning("SLACK_WEBHOOK_URL is not configured. Skipping Slack notification.")
+        return
+
+    status = backup_log.status
+    if status in [backup_log.Status.SUCCESS, backup_log.Status.SUCCESS_AFTER_RETRY]:
+        color = "good"
+        title_status = f"{backup_log.get_status_display()}"
+    else:
+        color = "danger"
+        title_status = f"{backup_log.get_status_display()}"
+
+    payload = {
+        "text": f"DB Backup for {backup_log.get_environment_display()}: {title_status}",
+        "attachments": [
+            {
+                "color": color,
+                "fields": [
+                    {
+                        "title": "Environment",
+                        "value": backup_log.get_environment_display(),
+                        "short": True,
+                    },
+                    {"title": "Status", "value": backup_log.get_status_display(), "short": True},
+                    {
+                        "title": "Backup File",
+                        "value": backup_log.backup_filename,
+                        "short": False,
+                    },
+                    {
+                        "title": "Timestamp",
+                        "value": backup_log.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                        "short": False,
+                    },
+                ],
+            }
+        ],
+    }
+
+    if backup_log.error_message:
+        payload["attachments"][0]["fields"].append(
+            {"title": "Error Message", "value": backup_log.error_message, "short": False}
+        )
+
+    try:
+        response = requests.post(slack_webhook_url, json=payload, timeout=5)
+        response.raise_for_status()
+        logger.info(f"Slack notification sent for backup log {backup_log.id}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send Slack notification for backup log {backup_log.id}: {e}")
