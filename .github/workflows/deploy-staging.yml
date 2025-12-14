@@ -173,15 +173,12 @@ jobs:
           port: 22
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          mode: swarm
-          prune: true
           registry_auth: true
           registry_host: ghcr.io
           registry_user: verboheit
           registry_pass: ${{ secrets.GHCR_REGISTRY_PASS }}
           resolve_image: always         
           env_file: ./envfile
-          # detach: false
           summary: true
 
       - name: Wait for deployment health check
