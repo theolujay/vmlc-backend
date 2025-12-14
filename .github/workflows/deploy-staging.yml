@@ -177,7 +177,9 @@ jobs:
           registry_host: ghcr.io
           registry_user: verboheit
           registry_pass: ${{ secrets.GHCR_REGISTRY_PASS }}
-          resolve_image: always         
+          resolve_image: changed
+          prune: true
+          mode: swarm         
           env_file: ./envfile
           summary: true
 
