@@ -165,7 +165,7 @@ jobs:
 
       - name: Deploy to Staging
         id: deploy
-        uses: cssnr/stack-deploy-action@v1.4.0
+        uses: theolujay/stack-deploy-action@fix/swarm-multiple-files
         with:
           name: vmlc-staging
           file: ops/stack.base.yml ops/stack.staging.yml
