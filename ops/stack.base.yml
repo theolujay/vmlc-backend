@@ -377,8 +377,6 @@ secrets:
     external: true
 
 configs:
-  traefik_config:
-    file: ./traefik.yml
   prometheus_config:
     file: ./prometheus.yml
   loki_config:
