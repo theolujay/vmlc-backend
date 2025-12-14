@@ -176,10 +176,10 @@ jobs:
       # Main deployment step
       - name: Deploy to Production
         id: deploy
-        uses: cssnr/stack-deploy-action@v1
+        uses: cssnr/stack-deploy-action@v1.4.0
         with:
           name: vmlc-prod
-          file: ops/stack.prod.yml
+          file: ops/stack.base.yml ops/stack.prod.yml
           mode: swarm
           host: ${{ secrets.VPS_HOST }}
           port: 22

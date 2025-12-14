@@ -1,7 +1,5 @@
 # Staging environment overrides
 # Deploy: docker stack deploy -c stack.base.yml -c stack.staging.yml vmlc-staging
-include:
-  - stack.base.yml
 
 x-vmlc-staging-env: &vmlc-staging-env
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging

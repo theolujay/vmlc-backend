@@ -165,10 +165,10 @@ jobs:
 
       - name: Deploy to Staging
         id: deploy
-        uses: cssnr/stack-deploy-action@v1
+        uses: cssnr/stack-deploy-action@v1.4.0
         with:
           name: vmlc-staging
-          file: ops/stack.staging.yml
+          file: ops/stack.base.yml ops/stack.staging.yml
           mode: swarm
           host: ${{ secrets.VPS_HOST }}
           port: 22
