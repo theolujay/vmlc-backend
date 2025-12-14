@@ -58,7 +58,6 @@ x-vmlc-base-env: &vmlc-base-env
   OTEL_LOGS_EXPORTER: otlp
 
 x-vmlc-service-base: &vmlc-service-base
-  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-latest}
   secrets: *vmlc-secrets
   volumes:
     - media:/home/verboheit/web/media
@@ -145,7 +144,8 @@ services:
       retries: 3
 
   db-migrate:
-    <<: *vmlc-service-base
+    <<:
+      - *vmlc-service-base
     entrypoint: ""
     command: ["./scripts/runmigrations.sh"]
     depends_on:
@@ -160,7 +160,8 @@ services:
         window: 300s
 
   django:
-    <<: *vmlc-service-base
+    <<:
+      - *vmlc-service-base
     entrypoint: ./scripts/entrypoint.sh
     command:
       - opentelemetry-instrument
@@ -197,7 +198,8 @@ services:
         window: 120s
 
   celery_worker:
-    <<: *vmlc-service-base
+    <<:
+      - *vmlc-service-base
     entrypoint: ./scripts/entrypoint.sh
     command:
       - opentelemetry-instrument
@@ -235,7 +237,8 @@ services:
         failure_action: rollback
 
   celery_beat:
-    <<: *vmlc-service-base
+    <<:
+      - *vmlc-service-base
     entrypoint: ./scripts/entrypoint.sh
     command:
       - celery
