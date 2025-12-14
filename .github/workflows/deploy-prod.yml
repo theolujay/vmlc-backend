@@ -180,6 +180,7 @@ jobs:
         with:
           name: vmlc-prod
           file: ops/stack.prod.yml
+          mode: swarm
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
