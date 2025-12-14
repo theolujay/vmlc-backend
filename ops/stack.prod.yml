@@ -53,6 +53,7 @@ services:
       - POSTGRES_USER=verboheit_prod
     volumes:
       - prod_db:/var/lib/postgresql/data
+      - /home/verboheit/.db_backups:/backups
     networks:
       - prod
     deploy:
