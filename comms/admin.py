@@ -69,8 +69,7 @@ class BroadcastAdmin(admin.ModelAdmin):
 
     task_result_display.short_description = "Task Result Details"
 
-# @admin.register(BroadcastLog)
-# class BroadcastLog(admin.ModelAdmin):
-#     pass
 
-admin.site.register(BroadcastLog, Notification, BackupLog)
+admin.site.register(BroadcastLog)
+admin.site.register(Notification)
+admin.site.register(BackupLog)
