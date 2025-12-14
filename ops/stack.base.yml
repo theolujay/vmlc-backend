@@ -268,7 +268,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - alloy:/var/lib/alloy/data
     labels:
-      - "traefik.enable=true"
+      - "traefik.enable=false"
       - "traefik.http.routers.alloy.entrypoints=websecure"
       - "traefik.http.routers.alloy.tls=true"
       - "traefik.http.services.alloy.loadbalancer.server.port=12345"
@@ -290,6 +290,8 @@ services:
         target: /etc/prometheus/prometheus.yml
     volumes:
       - prometheus:/prometheus
+    labels:
+      - "traefik.enable=false"
 
   loki:
     image: grafana/loki:3.5
@@ -299,6 +301,8 @@ services:
         target: /etc/loki/local-config.yaml
     volumes:
       - loki:/loki
+    labels:
+      - "traefik.enable=false"
 
   tempo:
     image: grafana/tempo:main-a3e0bf4
@@ -308,6 +312,8 @@ services:
         target: /etc/tempo/tempo-local.yaml
     volumes:
       - tempo:/tmp/tempo
+    labels:
+      - "traefik.enable=false"
 
   grafana:
     image: grafana/grafana:12.3.0-ubuntu
@@ -371,6 +377,8 @@ secrets:
     external: true
 
 configs:
+  traefik_config:
+    file: ./traefik.yml
   prometheus_config:
     file: ./prometheus.yml
   loki_config:
