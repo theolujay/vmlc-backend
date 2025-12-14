@@ -1,125 +1,26 @@
-x-security: &security
-  cap_drop:
-    - ALL
-  cap_add:
-    - CHOWN
-    - SETGID
-    - SETUID
-  
-x-otel-env: &otel-env
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
-  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+include:
+  - ops/stack.base.yml
+# Production environment overrides
+# Deploy: docker stack deploy -c stack.base.yml -c stack.prod.yml vmlc-prod
+
+x-vmlc-prod-env: &vmlc-prod-env
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_prod
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod
-  OTEL_TRACES_SAMPLER: parentbased_traceidratio
-  OTEL_TRACES_SAMPLER_ARG: "0.01"
-  OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
-  OTEL_LOGS_EXPORTER: otlp
-
-x-vmlc-env: &vmlc-env
-  AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
-  AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
-  DATABASE_URL_FILE: /run/secrets/database-url
-  DJANGO_ADMIN_URL_FILE: /run/secrets/django-admin-url
-  EMAIL_HOST_USER_FILE: /run/secrets/gmail-host-user
-  EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
-  SECRET_KEY_FILE: /run/secrets/django-secret-key
-  SUPERUSER_EMAIL_FILE: /run/secrets/su-email
-  SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
   ALLOWED_HOSTS: api.verboheit.org,localhost
-  AWS_S3_REGION_NAME: eu-central-1
   AWS_STORAGE_BUCKET_NAME: vmlc-prod
-  CACHE_REDIS_URL: redis://redis:6379/1
-  CELERY_BROKER_URL: redis://redis:6379/0
-  CELERY_RESULT_BACKEND: redis://redis:6379/0
   CORS_ALLOWED_ORIGINS: https://portal.verboheit.org
   CORS_ALLOW_ALL_ORIGINS: "false"
-  CORS_ALLOW_CREDENTIALS: "true"
-  DEBUG: "false"
-  DEFAULT_FROM_EMAIL: "Verboheit MLC <verboheitmlc@gmail.com>"
-  DJANGO_SETTINGS_MODULE: config.settings.prod
-  EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
-  EMAIL_HOST: smtp.gmail.com
-  EMAIL_PORT: 587
-  EMAIL_USE_TLS: "true"
+  DEFAULT_FROM_EMAIL: "Verboheit MLC <mlc@verboheit.org>"
+  DJANGO_SETTINGS_MODULE: config.settings.production
   FRONTEND_BASE_URL: "portal.verboheit.org"
-  GUNICORN_WORKERS: 3
-  INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
-  REDIS_URL: redis://redis:6379/0
-  PORT: 8000
-  POSTGRES_DB: vmlc_prod
-  POSTGRES_USER: verboheit_prod
-
-x-vmlc-common: &vmlc-common
-  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-prod}
-  volumes:
-    - prod_media:/home/verboheit/web/media
-    - prod_static:/home/verboheit/web/staticfiles
-  secrets:
-    - aws-access-key-id
-    - aws-secret-access-key
-    - database-url
-    - django-admin-url
-    - gmail-host-user
-    - gmail-host-password
-    - django-secret-key
-    - su-email
-    - su-password
-  labels:
-    - "traefik.enable=true"
-  networks:
-    - prod
-  dns:
-    - 8.8.8.8
-    - 8.8.4.4
-  <<: *security
-
+  GUNICORN_WORKERS: "3"
 
 services:
-# ======================================================
-# Infrastructure
-# ======================================================
   traefik:
-    image: traefik:v3.5.3
     command:
-      - "--api.insecure=false"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=prod"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
-      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-      - "--metrics.prometheus=false"
-      - "--metrics.otlp=true"
-      - "--metrics.otlp.http=true"
-      - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
-      - "--metrics.otlp.serviceName=traefik"
-      - "--metrics.otlp.addEntryPointsLabels=true"
-      - "--metrics.otlp.addRoutersLabels=true"
-      - "--metrics.otlp.addServicesLabels=true"
-      - "--tracing=true"
-      - "--tracing.serviceName=traefik"
-      - "--tracing.sampleRate=0.05"
-      - "--tracing.otlp.grpc=false"
-      - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
-      - "--log.level=INFO"
-      - "--log.format=json"
-      - "--accesslog=true"
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
-      - prod_letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "prod_letsencrypt:/letsencrypt"
     networks:
       - prod
     deploy:
@@ -132,7 +33,6 @@ services:
           cpus: '0.15'
 
   db:
-    image: postgres:17.2-bookworm
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
@@ -142,48 +42,32 @@ services:
       -c max_connections=120
       -c shared_buffers=512MB
       -c effective_cache_size=3GB
-      -c work_mem=6MB
+      -c work_mem=8MB
       -c maintenance_work_mem=192MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
       -c wal_buffers=16MB
-      -c min_wal_size=1GB
-      -c max_wal_size=2GB
       -c checkpoint_completion_target=0.9
-      -c default_statistics_target=100
-      -c max_worker_processes=6
-      -c max_parallel_workers_per_gather=2
-      -c max_parallel_workers=6
-    secrets:
-      - db-password
     environment:
       - POSTGRES_DB=vmlc_prod
       - POSTGRES_USER=verboheit_prod
-      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
     volumes:
       - prod_db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    networks:
+      - prod
     deploy:
       resources:
         limits:
           memory: 1792M
           cpus: '1.25'
         reservations:
-          memory: 1280M
-          cpus: '0.8'
-    networks:
-      - prod
+          memory: 1024M
+          cpus: '0.5'
 
   redis:
-    image: redis:7.2.4-alpine
     command: >
       redis-server
-      --maxmemory 512mb
+      --maxmemory 1024mb
       --maxmemory-policy allkeys-lru
       --loglevel warning
       --tcp-backlog 511
@@ -197,11 +81,8 @@ services:
       --auto-aof-rewrite-min-size 64mb
     volumes:
       - prod_redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    networks:
+      - prod
     deploy:
       resources:
         limits:
@@ -210,82 +91,47 @@ services:
         reservations:
           memory: 512M
           cpus: '0.15'
+
+  db-migrate:
+    environment: *vmlc-prod-env
+    volumes:
+      - prod_media:/home/verboheit/web/media
+      - prod_static:/home/verboheit/web/staticfiles
     networks:
       - prod
-# ======================================================
-# VMLC apps
-# ======================================================
-  db-migrate:
-    <<: *vmlc-common
-    entrypoint: ""
-    command: ["./scripts/runmigrations.sh"]
-    depends_on:
-      - db
-      - redis
-    environment:
-      <<: [*vmlc-env, *otel-env]
     deploy:
-      mode: replicated-job
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 15s
-        max_attempts: 5
-        window: 300s
       resources:
         limits:
-          memory: 320M
-          cpus: '0.4'
+          memory: 512M
+          cpus: '0.3'
         reservations:
-          memory: 256M
-          cpus: '0.25'
+          memory: 384M
+          cpus: '0.2'
 
   django:
-    <<: *vmlc-common
-    entrypoint: ./scripts/entrypoint.sh
-    command:
-      - opentelemetry-instrument
-      - --traces_exporter
-      - otlp
-      - --metrics_exporter
-      - otlp
-      - --logs_exporter
-      - otlp
-      - ./scripts/runserver.sh
-    environment:
-      <<: [*vmlc-env, *otel-env]
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=django
+    environment: *vmlc-prod-env
+    volumes:
+      - prod_media:/home/verboheit/web/media
+      - prod_static:/home/verboheit/web/staticfiles
     labels:
-      - "traefik.enable=true"
       - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
-      - "traefik.http.routers.django.entrypoints=websecure"
-      - "traefik.http.routers.django.tls.certresolver=le"
-      - "traefik.http.routers.django.tls=true"
-      - "traefik.http.services.django.loadbalancer.server.port=8000"
-    healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
-      interval: 60s
-      timeout: 15s
-      retries: 5
-      start_period: 90s
-    depends_on:
-      - db-migrate
+    networks:
+      - prod
     deploy:
-      update_config:
-        order: start-first
-      mode: replicated
-      replicas: 2
+      replicas: 3
       resources:
         limits:
-          memory: 1280M
-          cpus: '0.6'
+          memory: 1024M
+          cpus: '0.75'
         reservations:
-          memory: 896M
-          cpus: '0.35'
+          memory: 768M
+          cpus: '0.5'
 
   celery_worker:
-    <<: *vmlc-common
-    entrypoint: ./scripts/entrypoint.sh
+    environment: *vmlc-prod-env
+    volumes:
+      - prod_media:/home/verboheit/web/media
+      - prod_static:/home/verboheit/web/staticfiles
     command:
       - opentelemetry-instrument
       - --traces_exporter
@@ -300,113 +146,66 @@ services:
       - worker
       - -l
       - warning
-      - --concurrency=6
-      - --max-tasks-per-child=1000
-      - --time-limit=900
-      - --soft-time-limit=840
+      - --concurrency=4
+      - --max-tasks-per-child=100
+      - --time-limit=600
       - -Q
       - default,emails,comms,scoring,files,reports,cache
-    environment:
-      <<: [*vmlc-env, *otel-env]
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod,service.instance.id=celery_worker
-      CELERY_WORKER_SEND_TASK_EVENTS: "true"
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
-    healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-t", "10"]
-      interval: 120s
-      timeout: 20s
-      retries: 3
-      start_period: 30s
-    depends_on:
-      - db-migrate
-    deploy:
-      update_config:
-        order: start-first
-      resources:
-        limits:
-          memory: 1280M
-          cpus: '1.0'
-        reservations:
-          memory: 896M
-          cpus: '0.7'
-
-  celery_beat:
-    <<: *vmlc-common
-    entrypoint: ./scripts/entrypoint.sh
-    command:
-      - celery
-      - -A
-      - config
-      - beat
-      - -l
-      - warning
-      - --scheduler
-      - django_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      <<: [*vmlc-env, *otel-env]
-    depends_on:
-      - db-migrate
-    deploy:
-      update_config:
-        order: start-first
-      resources:
-        limits:
-          memory: 224M
-          cpus: '0.15'
-        reservations:
-          memory: 128M
-          cpus: '0.05'
-# ======================================================
-# Observability
-# ======================================================
-  alloy:
-    image: grafana/alloy:v1.12.0
-    command:
-      - run
-      - /etc/alloy/config.alloy
-      - --server.http.listen-addr=0.0.0.0:12345
-      - --storage.path=/var/lib/alloy/data
-    configs:
-      - source: alloy_config
-        target: /etc/alloy/config.alloy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - prod_alloy:/var/lib/alloy/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.alloy.rule=Host(`ops.verboheit.org`) && PathPrefix(`/alloy`)"
-      - "traefik.http.routers.alloy.entrypoints=websecure"
-      - "traefik.http.routers.alloy.tls=true"
-      - "traefik.http.services.alloy.loadbalancer.server.port=12345"
     networks:
       - prod
     deploy:
-      mode: global
+      replicas: 2
       resources:
         limits:
-          memory: 448M
-          cpus: '0.25'
+          memory: 1024M
+          cpus: '0.75'
         reservations:
-          memory: 320M
+          memory: 768M
+          cpus: '0.5'
+
+  celery_beat:
+    environment: *vmlc-prod-env
+    volumes:
+      - prod_media:/home/verboheit/web/media
+      - prod_static:/home/verboheit/web/staticfiles
+    networks:
+      - prod
+    deploy:
+      resources:
+        limits:
+          memory: 384M
           cpus: '0.15'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  alloy:
+    volumes:
+      - prod_alloy:/var/lib/alloy/data
+    labels:
+      - "traefik.http.routers.alloy.rule=Host(`ops.verboheit.org`) && PathPrefix(`/alloy`)"
+    networks:
+      - prod
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.4'
+        reservations:
+          memory: 384M
+          cpus: '0.2'
 
   prometheus:
-    image: prom/prometheus:v3.7.2
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-      - '--storage.tsdb.retention.size=8GB'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=20GB'
       - '--enable-feature=exemplar-storage'
       - '--enable-feature=native-histograms'
       - '--web.enable-remote-write-receiver'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    configs:
-      - source: prometheus_config
-        target: /etc/prometheus/prometheus.yml
     volumes:
       - prod_prometheus:/prometheus
     networks:
@@ -414,18 +213,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 896M
-          cpus: '0.25'
+          memory: 768M
+          cpus: '0.5'
         reservations:
-          memory: 640M
-          cpus: '0.15'
+          memory: 512M
+          cpus: '0.25'
 
   loki:
-    image: grafana/loki:3.5
-    command: -config.file=/etc/loki/local-config.yaml
-    configs:
-      - source: loki_config
-        target: /etc/loki/local-config.yaml
     volumes:
       - prod_loki:/loki
     networks:
@@ -433,18 +227,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 640M
-          cpus: '0.25'
+          memory: 512M
+          cpus: '0.3'
         reservations:
-          memory: 448M
+          memory: 384M
           cpus: '0.15'
 
   tempo:
-    image: grafana/tempo:main-a3e0bf4
-    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
-    configs:
-      - source: tempo_config
-        target: /etc/tempo/tempo-local.yaml
     volumes:
       - prod_tempo:/tmp/tempo
     networks:
@@ -452,67 +241,35 @@ services:
     deploy:
       resources:
         limits:
-          memory: 896M
-          cpus: '0.25'
+          memory: 768M
+          cpus: '0.3'
         reservations:
-          memory: 640M
+          memory: 512M
           cpus: '0.15'
 
   grafana:
-    image: grafana/grafana:12.3.0-ubuntu
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=le"
-      - "traefik.http.routers.grafana.tls=true" 
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    secrets:
-      - su-email
-      - su-password
-      - gmail-host-user
-      - gmail-host-password
     environment:
-      - GF_SERVER_ROOT_URL=https://ops.verboheit.org
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-      - GF_SERVER_HTTP_PORT=3000
-      - GF_SECURITY_ADMIN_EMAIL__FILE=/run/secrets/su-email
-      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/su-password
-      - GF_AUTH_DISABLE_LOGIN_FORM=false
-      - GF_INSTALL_PLUGINS=
-      - GF_PLUGINS_DISABLE_INSTALLATION=true
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_UPDATE_CHECK_FOR_UPDATES=false
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_PLUGINS_PREINSTALL=grafana-clock-panel,grafana-simple-json-datasource
-      - GF_SMTP_ENABLED=true
-      - GF_SMTP_HOST=smtp.gmail.com:587
-      - GF_SMTP_USER__FILE=/run/secrets/gmail-host-user
-      - GF_SMTP_PASSWORD__FILE=/run/secrets/gmail-host-password
-      - GF_SMTP_FROM_ADDRESS=verboheitmlc@gmail.com
-      - GF_SMTP_FROM_NAME="Verboheit MLC - Ops"
-      - GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
-    configs:
-      - source: grafana_datasources
-        target: /etc/grafana/provisioning/datasources/datasources.yml
+      GF_SERVER_ROOT_URL: https://ops.verboheit.org
+      GF_SMTP_FROM_ADDRESS: verboheitmlc@gmail.com
     volumes:
       - prod_grafana:/var/lib/grafana
+    labels:
+      - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
     networks:
       - prod
     deploy:
       resources:
         limits:
-          memory: 320M
-          cpus: '0.15'
+          memory: 384M
+          cpus: '0.3'
         reservations:
-          memory: 224M
-          cpus: '0.1'
+          memory: 256M
+          cpus: '0.15'
 
 networks:
   prod:
     external: true
-    
+
 volumes:
   prod_db:
   prod_redis:
@@ -524,44 +281,3 @@ volumes:
   prod_grafana:
   prod_prometheus:
   prod_letsencrypt:
-
-secrets:
-  aws-access-key-id:
-    external: true
-  aws-secret-access-key:
-    external: true
-  database-url:
-    external: true
-  django-admin-url:
-    external: true
-  gmail-host-user:
-    external: true
-  gmail-host-password:
-    external: true
-  db-password:
-    external: true
-  django-secret-key:
-    external: true
-  su-email:
-    external: true
-  su-password:
-    external: true
-  # twilio-account-sid:
-  #   external: true
-  # twilio-auth-token:
-  #   external: true
-  # twilio-from-phone:
-  #   external: true
-
-
-configs:
-  prometheus_config:
-    file: ./prometheus.yml
-  loki_config:
-    file: ./loki.yml
-  tempo_config:
-    file: ./tempo.yml
-  grafana_datasources:
-    file: ./grafana/datasources.yml
-  alloy_config:
-    file: ./alloy.alloy

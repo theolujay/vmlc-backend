@@ -169,6 +169,7 @@ jobs:
         with:
           name: vmlc-staging
           file: ops/stack.staging.yml
+          mode: swarm
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
@@ -179,6 +180,7 @@ jobs:
           registry_pass: ${{ secrets.GHCR_REGISTRY_PASS }}
           resolve_image: always         
           env_file: ./envfile
+          detach: false
           summary: true
 
       - name: Wait for deployment health check
