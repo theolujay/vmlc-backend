@@ -1,3 +1,5 @@
+include:
+  - ops/stack.base.yml
 # Production environment overrides
 # Deploy: docker stack deploy -c stack.base.yml -c stack.prod.yml vmlc-prod
 
