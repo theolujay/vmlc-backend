@@ -181,7 +181,7 @@ jobs:
           registry_pass: ${{ secrets.GHCR_REGISTRY_PASS }}
           resolve_image: always         
           env_file: ./envfile
-          detach: false
+          # detach: false
           summary: true
 
       - name: Wait for deployment health check
