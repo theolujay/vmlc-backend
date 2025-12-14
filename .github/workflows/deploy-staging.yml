@@ -169,11 +169,12 @@ jobs:
         with:
           name: vmlc-staging
           file: ops/stack.base.yml ops/stack.staging.yml
-          mode: swarm
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          mode: swarm
+          prune: true
           registry_auth: true
           registry_host: ghcr.io
           registry_user: verboheit
