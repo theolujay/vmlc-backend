@@ -1,0 +1,395 @@
+# Base stack configuration for staging and production
+# Used with: docker stack deploy -c stack.base.yml -c stack.{staging,prod}.yml
+
+x-security: &security
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
+
+x-dns: &dns
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+
+x-vmlc-secrets: &vmlc-secrets
+  - aws-access-key-id
+  - aws-secret-access-key
+  - database-url
+  - django-admin-url
+  - gmail-host-user
+  - gmail-host-password
+  - django-secret-key
+  - su-email
+  - su-password
+  - slack-webhook-url
+
+x-vmlc-base-env: &vmlc-base-env
+  AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws-access-key-id
+  AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws-secret-access-key
+  AWS_S3_REGION_NAME: eu-central-1
+  DATABASE_URL_FILE: /run/secrets/database-url
+  DJANGO_ADMIN_URL_FILE: /run/secrets/django-admin-url
+  EMAIL_HOST_USER_FILE: /run/secrets/gmail-host-user
+  EMAIL_HOST_PASSWORD_FILE: /run/secrets/gmail-host-password
+  EMAIL_HOST: smtp.gmail.com
+  EMAIL_PORT: 587
+  EMAIL_USE_TLS: "true"
+  EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+  SECRET_KEY_FILE: /run/secrets/django-secret-key
+  SUPERUSER_EMAIL_FILE: /run/secrets/su-email
+  SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
+  SLACK_WEBHOOK_URL_FILE: /run/secrets/slack-webhook-url
+  CACHE_REDIS_URL: redis://redis:6379/1
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  REDIS_URL: redis://redis:6379/0
+  CORS_ALLOW_CREDENTIALS: "true"
+  DEBUG: "false"
+  INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost
+  PORT: "8000"
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: "0.01"
+  OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+  OTEL_LOGS_EXPORTER: otlp
+
+x-vmlc-service-base: &vmlc-service-base
+  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-latest}
+  secrets: *vmlc-secrets
+  volumes:
+    - media:/home/verboheit/web/media
+    - static:/home/verboheit/web/staticfiles
+  environment:
+    <<: [*vmlc-base-env]
+  <<: [*dns, *security]
+
+services:
+  traefik:
+    image: traefik:v3.5.3
+    command:
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+      - "--metrics.prometheus=false"
+      - "--metrics.otlp=true"
+      - "--metrics.otlp.http=true"
+      - "--metrics.otlp.grpc=false"
+      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
+      - "--metrics.otlp.serviceName=traefik"
+      - "--metrics.otlp.addEntryPointsLabels=true"
+      - "--metrics.otlp.addRoutersLabels=true"
+      - "--metrics.otlp.addServicesLabels=true"
+      - "--tracing=true"
+      - "--tracing.serviceName=traefik"
+      - "--tracing.sampleRate=0.05"
+      - "--tracing.otlp.grpc=false"
+      - "--tracing.otlp.http=true"
+      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "80:80"
+      - "443:443"
+
+  db:
+    image: postgres:17.2-bookworm
+    secrets:
+      - db-password
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7.2.4-alpine
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --loglevel warning
+      --tcp-backlog 511
+      --timeout 300
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  db-migrate:
+    <<: *vmlc-service-base
+    entrypoint: ""
+    command: ["./scripts/runmigrations.sh"]
+    depends_on:
+      - db
+    deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 5
+        window: 300s
+
+  django:
+    <<: *vmlc-service-base
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - ./scripts/runserver.sh
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 5 --silent --show-error || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.django.entrypoints=websecure"
+      - "traefik.http.routers.django.tls.certresolver=le"
+      - "traefik.http.routers.django.tls=true"
+      - "traefik.http.services.django.loadbalancer.server.port=8000"
+    depends_on:
+      - db-migrate
+    deploy:
+      update_config:
+        order: start-first
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  celery_worker:
+    <<: *vmlc-service-base
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - opentelemetry-instrument
+      - --traces_exporter
+      - otlp
+      - --metrics_exporter
+      - otlp
+      - --logs_exporter
+      - otlp
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - warning
+      - --concurrency=2
+      - --max-tasks-per-child=50
+      - --time-limit=300
+      - -Q
+      - default,emails,comms,scoring,files,reports,cache
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-t", "10"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+      start_period: 180s
+    depends_on:
+      - db-migrate
+      - redis
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+
+  celery_beat:
+    <<: *vmlc-service-base
+    entrypoint: ./scripts/entrypoint.sh
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - -l
+      - warning
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      - redis
+      - db-migrate
+    deploy:
+      update_config:
+        order: start-first
+
+  alloy:
+    image: grafana/alloy:v1.12.0
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    configs:
+      - source: alloy_config
+        target: /etc/alloy/config.alloy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy:/var/lib/alloy/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alloy.entrypoints=websecure"
+      - "traefik.http.routers.alloy.tls=true"
+      - "traefik.http.services.alloy.loadbalancer.server.port=12345"
+    deploy:
+      mode: global
+
+  prometheus:
+    image: prom/prometheus:v3.7.2
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+      - '--web.enable-remote-write-receiver'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - prometheus:/prometheus
+
+  loki:
+    image: grafana/loki:3.5
+    command: -config.file=/etc/loki/local-config.yaml
+    configs:
+      - source: loki_config
+        target: /etc/loki/local-config.yaml
+    volumes:
+      - loki:/loki
+
+  tempo:
+    image: grafana/tempo:main-a3e0bf4
+    command: ["-config.file=/etc/tempo/tempo-local.yaml"]
+    configs:
+      - source: tempo_config
+        target: /etc/tempo/tempo-local.yaml
+    volumes:
+      - tempo:/tmp/tempo
+
+  grafana:
+    image: grafana/grafana:12.3.0-ubuntu
+    secrets:
+      - su-email
+      - su-password
+      - gmail-host-user
+      - gmail-host-password
+    environment:
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+      GF_SERVER_HTTP_PORT: "3000"
+      GF_SECURITY_ADMIN_EMAIL__FILE: /run/secrets/su-email
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/su-password
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_INSTALL_PLUGINS: ""
+      GF_PLUGINS_DISABLE_INSTALLATION: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_UPDATE_CHECK_FOR_UPDATES: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL: grafana-clock-panel,grafana-simple-json-datasource
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: smtp.gmail.com:587
+      GF_SMTP_USER__FILE: /run/secrets/gmail-host-user
+      GF_SMTP_PASSWORD__FILE: /run/secrets/gmail-host-password
+      GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+    volumes:
+      - grafana:/var/lib/grafana
+
+secrets:
+  aws-access-key-id:
+    external: true
+  aws-secret-access-key:
+    external: true
+  database-url:
+    external: true
+  django-admin-url:
+    external: true
+  gmail-host-user:
+    external: true
+  gmail-host-password:
+    external: true
+  db-password:
+    external: true
+  django-secret-key:
+    external: true
+  su-email:
+    external: true
+  su-password:
+    external: true
+  slack-webhook-url:
+    external: true
+
+configs:
+  prometheus_config:
+    file: ./prometheus.yml
+  loki_config:
+    file: ./loki.yml
+  tempo_config:
+    file: ./tempo.yml
+  grafana_datasources:
+    file: ./grafana/datasources.yml
+  alloy_config:
+    file: ./alloy.alloy
+
+volumes:
+  db:
+  redis:
+  media:
+  static:
+  alloy:
+  loki:
+  tempo:
+  grafana:
+  prometheus:
+  letsencrypt:
