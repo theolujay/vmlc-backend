@@ -174,7 +174,7 @@ jobs:
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           mode: swarm
-          prune: true
+          # prune: true
           registry_auth: true
           registry_host: ghcr.io
           registry_user: verboheit
