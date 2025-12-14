@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'release'
+      - 'preview'
 
 jobs:
   deploy-to-staging:

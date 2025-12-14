@@ -2,8 +2,12 @@ from django.contrib import admin
 from django.utils.html import format_html
 from celery.result import AsyncResult
 
-from comms.models import Broadcast
-
+from comms.models import (
+    Broadcast,
+    BroadcastLog,
+    Notification,
+    BackupLog,
+)
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):
@@ -64,3 +68,9 @@ class BroadcastAdmin(admin.ModelAdmin):
             return f"Task Status: {task_result.status}"
 
     task_result_display.short_description = "Task Result Details"
+
+# @admin.register(BroadcastLog)
+# class BroadcastLog(admin.ModelAdmin):
+#     pass
+
+admin.site.register(BroadcastLog, Notification, BackupLog)
