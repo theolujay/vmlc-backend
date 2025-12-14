@@ -13,6 +13,9 @@ x-vmlc-staging-env: &vmlc-staging-env
   FRONTEND_BASE_URL: "staging-portal.verboheit.org"
   GUNICORN_WORKERS: "1"
 
+x-vmlc-staging: &vmlc-staging
+  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-staging}
+
 services:
   traefik:
     command:
@@ -108,6 +111,8 @@ services:
           cpus: '0.1'
 
   db-migrate:
+    <<:
+      - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
       - staging_media:/home/verboheit/web/media
@@ -124,6 +129,8 @@ services:
           cpus: '0.15'
 
   django:
+    <<:
+      - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
       - staging_media:/home/verboheit/web/media
@@ -142,6 +149,8 @@ services:
           cpus: '0.3'
 
   celery_worker:
+    <<:
+      - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
       - staging_media:/home/verboheit/web/media
@@ -158,6 +167,8 @@ services:
           cpus: '0.2'
 
   celery_beat:
+    <<:
+      - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
       - staging_media:/home/verboheit/web/media

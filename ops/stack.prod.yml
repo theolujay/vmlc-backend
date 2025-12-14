@@ -13,6 +13,9 @@ x-vmlc-prod-env: &vmlc-prod-env
   FRONTEND_BASE_URL: "portal.verboheit.org"
   GUNICORN_WORKERS: "3"
 
+x-vmlc-prod: &vmlc-prod
+  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-prod}
+
 services:
   traefik:
     command:
@@ -123,6 +126,8 @@ services:
           cpus: '0.15'
 
   db-migrate:
+    <<:
+      - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/home/verboheit/web/media
@@ -139,6 +144,8 @@ services:
           cpus: '0.2'
 
   django:
+    <<:
+      - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/home/verboheit/web/media
@@ -158,6 +165,8 @@ services:
           cpus: '0.5'
 
   celery_worker:
+    <<:
+      - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/home/verboheit/web/media
@@ -194,6 +203,8 @@ services:
           cpus: '0.5'
 
   celery_beat:
+    <<:
+      - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/home/verboheit/web/media
