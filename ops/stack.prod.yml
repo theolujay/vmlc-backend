@@ -1,7 +1,5 @@
 # Production environment overrides
 # Deploy: docker stack deploy -c stack.base.yml -c stack.prod.yml vmlc-prod
-include:
-  - stack.base.yml
 
 x-vmlc-prod-env: &vmlc-prod-env
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_prod
