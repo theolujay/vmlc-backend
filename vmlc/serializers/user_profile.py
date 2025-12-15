@@ -19,12 +19,19 @@ class UserProfileDetailSerializer(serializers.Serializer):
         """
         Dynamically serialize the instance based on whether it's a Candidate or Staff.
         """
+        from vmlc.models import Candidate, Staff
+
+        if isinstance(instance, Candidate):
+            return CandidateDetailSerializer(instance).data
+        if isinstance(instance, Staff):
+            return StaffDetailSerializer(instance).data
+
         if hasattr(instance, "candidate_profile"):
             return CandidateDetailSerializer(instance.candidate_profile).data
         if hasattr(instance, "staff_profile"):
             return StaffDetailSerializer(instance.staff_profile).data
 
-        return super().to_representation(instance)
+        return {}
 
 
 class UserProfileListSerializer(serializers.Serializer):

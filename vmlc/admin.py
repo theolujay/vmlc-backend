@@ -102,9 +102,12 @@ class UserAdmin(BaseUserAdmin):
             "Personal info",
             {
                 "fields": (
+                    "id",
                     "first_name",
                     "last_name",
+                    # "is_active",
                     "phone",
+                    "date_joined",
                 )
             },
         ),
@@ -113,14 +116,11 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "is_active",
-                    "is_staff",
-                    "is_superuser",
-                    "groups",
-                    "user_permissions",
+                    "is_email_verified",
                 )
             },
         ),
-        ("Important dates", {"fields": ("last_login", "date_joined")}),
+        ("Important dates", {"fields": ("last_login",)}),
     )
 
     def save_model(self, request, obj, form, change):

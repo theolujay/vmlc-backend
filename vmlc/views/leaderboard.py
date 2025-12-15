@@ -152,7 +152,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
         if latest_snapshot is None:
             return Response(
                 {"detail": "No published leaderboard found."},
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_200_OK,
             )
 
         user_role_key = self._get_user_role_key(user)
@@ -357,7 +357,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
         if not latest_snapshot:
             return Response(
                 {"detail": "No published leaderboard found."},
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_200_OK,
             )
 
         cache_key = f"leaderboard_detail_{latest_snapshot.id}_{stage}_{level}_{candidate_id}_{user_role_key}"
