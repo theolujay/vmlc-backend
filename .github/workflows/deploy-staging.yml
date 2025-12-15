@@ -6,17 +6,44 @@ on:
       - 'release'
       - 'preview'
 
+# Define outputs at workflow level to share between jobs
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-  deploy-to-staging:
+  # Job 1: Extract metadata and prepare build information
+  prepare:
     runs-on: ubuntu-24.04
+    outputs:
+      repo_name: ${{ steps.meta.outputs.REPO_NAME }}
+      short_sha: ${{ steps.meta.outputs.SHORT_SHA }}
+      version: ${{ steps.meta.outputs.VERSION }}
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: release
+      
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      
+      - name: Display metadata
+        run: |
+          echo "Repository: ${{ steps.meta.outputs.REPO_NAME }}"
+          echo "Short SHA: ${{ steps.meta.outputs.SHORT_SHA }}"
+          echo "Version: ${{ steps.meta.outputs.VERSION }}"
 
-    environment:
-      name: staging
-      url: https://staging-api.verboheit.org
-    permissions:
-      contents: read
-      packages: write 
-
+  # Job 2: Run all tests
+  test:
+    runs-on: ubuntu-24.04
+    needs: prepare
+    
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -31,34 +58,27 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-staging-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-test-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-staging-
+            ${{ runner.os }}-buildx-test-
             ${{ runner.os }}-buildx-
-
-      - name: Extract metadata
-        id: meta
-        run: |
-          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-        
+      
       - name: Build Docker image for tests
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           target: test
-          tags: ${{ steps.meta.outputs.REPO_NAME }}-staging-test:${{ steps.meta.outputs.SHORT_SHA }}
+          tags: ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }}
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
       
-      - name: Run tests
-        run: |
-          docker network create test-network
+      - name: Create test network
+        run: docker network create test-network
 
-          # postgres
+      - name: Start PostgreSQL
+        run: |
           docker run -d --rm \
             -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
             -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
@@ -71,7 +91,8 @@ jobs:
             --health-retries=5 \
             postgres:17.2-bookworm
 
-          # redis
+      - name: Start Redis
+        run: |
           docker run -d --rm \
             --network test-network \
             --name redis \
@@ -81,11 +102,14 @@ jobs:
             --health-retries=5 \
             redis:7.2.4-alpine
 
+      - name: Wait for database readiness
+        run: |
           echo "Waiting for database to be ready..."
           timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
           echo "Database is ready!"
 
-          # vmlc
+      - name: Run tests
+        run: |
           docker run --rm \
             -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
@@ -94,7 +118,7 @@ jobs:
             -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             --network test-network \
             --entrypoint "" \
-            ${{ steps.meta.outputs.REPO_NAME }}-staging-test:${{ steps.meta.outputs.SHORT_SHA }} \
+            ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
             sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
         timeout-minutes: 10
 
@@ -105,47 +129,74 @@ jobs:
           docker network rm test-network 2>/dev/null || true
       
       - name: Move cache
+        if: always()
         run: |
           rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache-new ]; then
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
+
+  # Job 3: Build and push production Docker image
+  build:
+    runs-on: ubuntu-24.04
+    needs: [prepare, test]
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: release
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-prod-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-prod-
+            ${{ runner.os }}-buildx-
 
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         
-      - name: Build and push Docker image to GitHub Container Registry
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:prod
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:prod
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.short_sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.version }}
           cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.repository.updated_at }}
       
-      - name: Create deployment metadata
+      - name: Move cache
+        if: always()
         run: |
-          cat > deployment-info.json << EOF
-          {
-            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",s
-            
-            "commit_sha": "${{ github.sha }}",
-            "short_sha": "${{ steps.meta.outputs.SHORT_SHA }}",
-            "version": "${{ steps.meta.outputs.VERSION }}",
-            "deployed_by": "${{ github.actor }}"
-          }
-          EOF
-          cat deployment-info.json
+          rm -rf /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache-new ]; then
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
 
-      - name: Create env file
-        run: |
-          echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" > ./envfile
-      
+  # Job 4: Backup current deployment before deploying new version
+  backup:
+    runs-on: ubuntu-24.04
+    needs: [prepare, build]
+    
+    steps:
       - name: Backup current deployment
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -163,12 +214,46 @@ jobs:
             cd ~/deployments/backups && ls -t | tail -n +11 | xargs -r rm
         continue-on-error: true
 
+  # Job 5: Deploy to staging environment
+  deploy:
+    runs-on: ubuntu-24.04
+    needs: [prepare, backup]
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./infra
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: release
+
+      - name: Create deployment metadata
+        run: |
+          cat > deployment-info.json << EOF
+          {
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "short_sha": "${{ needs.prepare.outputs.short_sha }}",
+            "version": "${{ needs.prepare.outputs.version }}",
+            "deployed_by": "${{ github.actor }}"
+          }
+          EOF
+          cat deployment-info.json
+
+      - name: Create env file
+        run: |
+          echo "GIT_COMMIT_HASH=${{ needs.prepare.outputs.short_sha }}" > ./envfile
+
       - name: Deploy to Staging
-        id: deploy
         uses: cssnr/stack-deploy-action@v1.5.0
         with:
           name: vmlc-staging
-          file: infra/stack.base.yml infra/stack.staging.yml
+          file: stack.base.yml stack.staging.yml
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
@@ -183,6 +268,12 @@ jobs:
           env_file: ./envfile
           summary: true
 
+  # Job 6: Verify deployment health
+  verify:
+    runs-on: ubuntu-24.04
+    needs: [prepare, deploy]
+    
+    steps:
       - name: Wait for deployment health check
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -215,38 +306,43 @@ jobs:
             exit 1
         timeout-minutes: 6
 
-      - name: Notify deployment status
-        if: always()
+  # Job 7: Send notifications about deployment status
+  notify:
+    runs-on: ubuntu-24.04
+    needs: [prepare, verify]
+    if: always()
+    
+    steps:
+      - name: Determine deployment status
+        id: status
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            STATUS="✅ SUCCESS"
-            COLOR="good"
+          if [ "${{ needs.verify.result }}" == "success" ]; then
+            echo "STATUS=✅ SUCCESS" >> "$GITHUB_OUTPUT"
+            echo "COLOR=good" >> "$GITHUB_OUTPUT"
           else
-            STATUS="❌ FAILED"
-            COLOR="danger"
+            echo "STATUS=❌ FAILED" >> "$GITHUB_OUTPUT"
+            echo "COLOR=danger" >> "$GITHUB_OUTPUT"
           fi
-          
-          echo "Deployment $STATUS"
-          echo "Commit: ${{ steps.meta.outputs.SHORT_SHA }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Actor: ${{ github.actor }}"
-          
+
+      - name: Send Slack notification
+        run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d '{
-              "text": "Staging Deployment '"$STATUS"'",
+              "text": "Staging Deployment ${{ steps.status.outputs.STATUS }}",
               "attachments": [{
-                "color": "'"$COLOR"'",
+                "color": "${{ steps.status.outputs.COLOR }}",
                 "fields": [
-                  {"title": "Commit", "value": "${{ steps.meta.outputs.SHORT_SHA }}", "short": true},
+                  {"title": "Commit", "value": "${{ needs.prepare.outputs.short_sha }}", "short": true},
                   {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
-                  {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Version", "value": "${{ needs.prepare.outputs.version }}", "short": true}
                 ]
               }]
             }'
+        continue-on-error: true
       
-      - name: Send deployment notification
-        if: always()
+      - name: Log deployment to server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -254,12 +350,13 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           script: |
             # Log deployment to system
-            echo "$(date): Staging deployment ${{ job.status }} - Version ${{ steps.meta.outputs.VERSION }}" >> ~/deployments/deployment.log
+            echo "$(date): Staging deployment ${{ needs.verify.result }} - Version ${{ needs.prepare.outputs.version }}" >> ~/deployments/deployment.log
         continue-on-error: true
 
-  create-release:
-    needs: deploy-to-staging
+  # Job 8: Create GitHub release
+  release:
     runs-on: ubuntu-24.04
+    needs: [prepare, verify]
     permissions:
       contents: write
     
@@ -269,22 +366,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract metadata
-        id: meta
-        run: |
-          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
       - name: Create Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.meta.outputs.VERSION }}
-          release_name: Staging Release ${{ steps.meta.outputs.VERSION }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          release_name: Staging Release ${{ needs.prepare.outputs.version }}
           body: |
             Staging deployment
 
             **Deployed by**: @${{ github.actor }}
             **Commit**: ${{ github.sha }}
+            **Short SHA**: ${{ needs.prepare.outputs.short_sha }}
+            **Version**: ${{ needs.prepare.outputs.version }}
           draft: false
           prerelease: false
