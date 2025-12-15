@@ -168,7 +168,7 @@ jobs:
         uses: theolujay/stack-deploy-action@fix/swarm-multiple-files
         with:
           name: vmlc-staging
-          file: ops/stack.base.yml ops/stack.staging.yml
+          file: infra/stack.base.yml infra/stack.staging.yml
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
