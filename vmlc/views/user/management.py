@@ -710,10 +710,9 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         if self.profile == "candidate":
-            return (
-                Candidate.objects.select_related("user", "user__verification")
-                .prefetch_related("scores__exam", "scores__score_submitted_by__user")
-                .all()
-            )
+            return Candidate.objects.select_related(
+                "user", "user__verification"
+            ).prefetch_related("scores__exam", "scores__score_submitted_by__user").all()
         if self.profile == "staff":
             return Staff.objects.select_related("user", "user__verification").all()
+        return User.objects.none()
