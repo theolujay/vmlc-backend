@@ -14,6 +14,9 @@ TESTING = True
 
 # Add daphne for testing ASGI applications
 INSTALLED_APPS.insert(0, "daphne")
+INSTALLED_APPS += [
+    "debug_toolbar",
+]
 
 # Configure test database
 DATABASES = {
