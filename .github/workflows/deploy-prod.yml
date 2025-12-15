@@ -180,7 +180,7 @@ jobs:
       # Main deployment step
       - name: Deploy to Production
         id: deploy
-        uses: theolujay/stack-deploy-action@fix/swarm-multiple-files
+        uses: cssnr/stack-deploy-action@v1.5.0
         with:
           name: vmlc-prod
           file: infra/stack.base.yml infra/stack.prod.yml
