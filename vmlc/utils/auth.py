@@ -317,7 +317,7 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
                 f"Hi!\n\n"
                 f"Good to have you onboard, {user.first_name}. "
                 f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
-                f"An opportunity to journey with your mates far and near and compete against one another awaits you.\n\n"
+                f"An opportunity to journey with your mates far and near to compete against one another awaits you.\n\n"
                 f"Kindly follow the login link below to begin.\n\n"
                 f"{generated_password_msg}"
                 f"Login: {login_url}\n\n"
