@@ -117,6 +117,7 @@ jobs:
             -e AWS_S3_REGION_NAME=eu-north-1 \
             -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
             -e DEBUG=true \
+            -e USE_S3=true \
             --network test-network \
             --entrypoint "" \
             ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
