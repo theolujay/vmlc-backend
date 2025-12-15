@@ -9,7 +9,7 @@ from .base import *
 # TEST-SPECIFIC SETTINGS
 # ============================================================================
 SECRET_KEY = "this-is-a-test-secret-key--do-not-use-in-production"
-DEBUG = False
+DEBUG = True
 TESTING = True
 
 # Add daphne for testing ASGI applications
