@@ -263,10 +263,6 @@ jobs:
       url: https://api.verboheit.org
     permissions:
       contents: read
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./infra
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -297,7 +293,7 @@ jobs:
         uses: cssnr/stack-deploy-action@v1.5.0
         with:
           name: vmlc-prod
-          file: stack.base.yml stack.prod.yml
+          file: infra/stack.base.yml infra/stack.prod.yml
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy

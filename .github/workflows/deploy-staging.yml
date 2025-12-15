@@ -221,10 +221,6 @@ jobs:
     environment:
       name: staging
       url: https://staging-api.verboheit.org
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./infra
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -253,7 +249,7 @@ jobs:
         uses: cssnr/stack-deploy-action@v1.5.0
         with:
           name: vmlc-staging
-          file: stack.base.yml stack.staging.yml
+          file: infra/stack.base.yml infra/stack.staging.yml
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
