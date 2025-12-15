@@ -1,6 +1,6 @@
 # Python
 __pycache__/
-*.py[cod]
+*.py[codz]
 *$py.class
 *.so
 *.pyc
@@ -64,7 +64,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
+*.py.cover
 .hypothesis/
 .pytest_cache/
 cover/
@@ -123,8 +123,9 @@ instance/
 target/
 
 # Environment Files
-*.env
 .env.*
+!.env.example
+!.example.env
 # Project Specific
 # vmlc/tests/
 dev_data/
@@ -143,3 +144,4 @@ docker-compose.override.local.yml
 
 backup_*
 copilot*
+.ruff_cache/
