@@ -3243,7 +3243,7 @@
     "variable": [
       {
         "key": "baseUrl",
-        "value": "http://dev-api.localhost"
+        "value": "http://localhost:8000"
       },
       {
         "key": "apiKey",
@@ -3306,7 +3306,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://dev-api.localhost"
+      "value": "http://localhost:8000"
     },
     {
       "key": "apiKey",

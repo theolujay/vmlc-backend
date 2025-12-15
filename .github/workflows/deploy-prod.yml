@@ -4,29 +4,194 @@ on:
   push:
     branches:
       - main
+
+# Define environment variables for the workflow
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-
-  deploy-to-production:
-    if: |
-      (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+  # Job 1: Check if deployment should proceed
+  check-trigger:
     runs-on: ubuntu-24.04
-
-    environment:
-      name: production
-      url: https://api.verboheit.org
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
     
-    permissions:
-      contents: read
-      packages: write
-      pull-requests: write
+    steps:
+      - name: Check deployment conditions
+        id: check
+        run: |
+          # Deploy if:
+          # 1. PR merged from 'release' branch to 'main'
+          # 2. Direct push to 'main'
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ "${{ github.event.pull_request.head.ref }}" == "release" ]; then
+              echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+              echo "Deployment triggered by merged PR from release branch"
+            else
+              echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+              echo "Skipping: PR not merged or not from release branch"
+            fi
+          elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Deployment triggered by push to main"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: Deployment conditions not met"
+          fi
 
+  # Job 2: Extract metadata and prepare build information
+  prepare:
+    runs-on: ubuntu-24.04
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should_deploy == 'true'
+    outputs:
+      repo_name: ${{ steps.meta.outputs.REPO_NAME }}
+      short_sha: ${{ steps.meta.outputs.SHORT_SHA }}
+      version: ${{ steps.meta.outputs.VERSION }}
+      pr_number: ${{ steps.meta.outputs.PR_NUMBER }}
+      pr_title: ${{ steps.meta.outputs.PR_TITLE }}
+    
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main  # Ensure we're building from main after merge
+          
+      
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "PR_NUMBER=${{ github.event.pull_request.number || 'N/A' }}" >> "$GITHUB_OUTPUT"
+          echo "PR_TITLE=${{ github.event.pull_request.title || 'Direct push to main' }}" >> "$GITHUB_OUTPUT"
+      
+      - name: Display metadata
+        run: |
+          echo "Repository: ${{ steps.meta.outputs.REPO_NAME }}"
+          echo "Short SHA: ${{ steps.meta.outputs.SHORT_SHA }}"
+          echo "Version: ${{ steps.meta.outputs.VERSION }}"
+          echo "PR Number: ${{ steps.meta.outputs.PR_NUMBER }}"
+          echo "PR Title: ${{ steps.meta.outputs.PR_TITLE }}"
+
+  # Job 3: Run all tests before production deployment
+  test:
+    runs-on: ubuntu-24.04
+    needs: prepare
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-test-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-test-
+            ${{ runner.os }}-buildx-
+      
+      - name: Build Docker image for tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: test
+          tags: ${{ needs.prepare.outputs.repo_name }}-prod-test:${{ needs.prepare.outputs.short_sha }}
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      
+      - name: Create test network
+        run: docker network create test-network
+
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --rm \
+            -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
+            -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
+            -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            --network test-network \
+            --name db \
+            --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            postgres:17.2-bookworm
+
+      - name: Start Redis
+        run: |
+          docker run -d --rm \
+            --network test-network \
+            --name redis \
+            --health-cmd="redis-cli ping" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            redis:7.2.4-alpine
+
+      - name: Wait for database readiness
+        run: |
+          echo "Waiting for database to be ready..."
+          timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
+          echo "Database is ready!"
+
+      - name: Run tests
+        run: |
+          docker run --rm \
+            -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
+            -e AWS_S3_REGION_NAME=eu-north-1 \
+            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
+            -e DEBUG=true \
+            -e USE_S3=true \
+            --network test-network \
+            --entrypoint "" \
+            ${{ needs.prepare.outputs.repo_name }}-prod-test:${{ needs.prepare.outputs.short_sha }} \
+            sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
+        timeout-minutes: 10
+
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          docker stop db redis 2>/dev/null || true
+          docker network rm test-network 2>/dev/null || true
+      
+      - name: Move cache
+        if: always()
+        run: |
+          rm -rf /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache-new ]; then
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
+
+  # Job 4: Build and push production Docker image
+  build:
+    runs-on: ubuntu-24.04
+    needs: [prepare, test]
+    permissions:
+      contents: read
+      packages: write
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,122 +205,42 @@ jobs:
             ${{ runner.os }}-buildx-prod-
             ${{ runner.os }}-buildx-
 
-      - name: Extract metadata
-        id: meta
-        run: |
-          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Build Docker image for tests
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          target: test
-          tags: ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }}
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-            
-      - name: Run tests
-        run: |
-          docker network create test-network
-
-          # postgres
-          docker run -d --rm \
-            -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
-            -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
-            -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
-            --network test-network \
-            --name db \
-            --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
-            --health-interval=5s \
-            --health-timeout=5s \
-            --health-retries=5 \
-            postgres:17.2-bookworm
-
-          # redis
-          docker run -d --rm \
-            --network test-network \
-            --name redis \
-            --health-cmd="redis-cli ping" \
-            --health-interval=5s \
-            --health-timeout=5s \
-            --health-retries=5 \
-            redis:7.2.4-alpine
-
-          # vmlc
-          echo "Waiting for database to be ready..."
-          timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
-          echo "Database is ready!"
-
-          docker run --rm \
-            -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
-            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
-            -e AWS_S3_REGION_NAME=eu-north-1 \
-            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
-            --network test-network \
-            --entrypoint "" \
-            ${{ steps.meta.outputs.REPO_NAME }}-prod-test:${{ steps.meta.outputs.SHORT_SHA }} \
-            sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
-        timeout-minutes: 10
-      - name: Cleanup test containers
-        if: always()
-        run: |
-          docker stop db redis 2>/dev/null || true
-          docker network rm test-network 2>/dev/null || true
-      
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         
-      - name: Build and push Docker image to GitHub Container Registry
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:prod
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
-            ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:prod
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.short_sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.version }}
           cache-from: type=local,src=/tmp/.buildx-cache
-          # Add build metadata as labels for traceability
-          # Docs: https://docs.docker.com/build/building/labels/
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.repository.updated_at }}
-      # Create deployment artifact for rollback capability
-      - name: Create deployment metadata
+      
+      - name: Move cache
+        if: always()
         run: |
-          cat > deployment-info.json << EOF
-          {
-            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",s
-            
-            "commit_sha": "${{ github.sha }}",
-            "short_sha": "${{ steps.meta.outputs.SHORT_SHA }}",
-            "version": "${{ steps.meta.outputs.VERSION }}",
-            "deployed_by": "${{ github.actor }}",
-            "pr_number": "${{ github.event.pull_request.number }}",
-            "pr_title": "${{ github.event.pull_request.title }}"
-          }
-          EOF
-          cat deployment-info.json
+          rm -rf /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache-new ]; then
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
 
-      - name: Create env file
-        run: |
-          echo "GIT_COMMIT_HASH=${{ steps.meta.outputs.SHORT_SHA }}" > ./envfile
-        
-      # Backup current deployment before deploying new version
-      # This creates a snapshot of the running stack for quick rollback
+  # Job 5: Backup current deployment before deploying new version
+  backup:
+    runs-on: ubuntu-24.04
+    needs: [prepare, build]
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
       - name: Backup current deployment
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -173,13 +258,46 @@ jobs:
             cd ~/deployments/backups && ls -t | tail -n +11 | xargs -r rm
         continue-on-error: true
 
-      # Main deployment step
+  # Job 6: Deploy to production environment
+  deploy:
+    runs-on: ubuntu-24.04
+    needs: [prepare, backup]
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+
+      - name: Create deployment metadata
+        run: |
+          cat > deployment-info.json << EOF
+          {
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "short_sha": "${{ needs.prepare.outputs.short_sha }}",
+            "version": "${{ needs.prepare.outputs.version }}",
+            "deployed_by": "${{ github.actor }}",
+            "pr_number": "${{ needs.prepare.outputs.pr_number }}",
+            "pr_title": "${{ needs.prepare.outputs.pr_title }}"
+          }
+          EOF
+          cat deployment-info.json
+
+      - name: Create env file
+        run: |
+          echo "GIT_COMMIT_HASH=${{ needs.prepare.outputs.short_sha }}" > ./envfile
+
       - name: Deploy to Production
-        id: deploy
-        uses: theolujay/stack-deploy-action@fix/swarm-multiple-files
+        uses: cssnr/stack-deploy-action@v1.5.0
         with:
           name: vmlc-prod
-          file: ops/stack.base.yml ops/stack.prod.yml
+          file: infra/stack.base.yml infra/stack.prod.yml
           host: ${{ secrets.VPS_HOST }}
           port: 22
           user: deploy
@@ -194,6 +312,14 @@ jobs:
           env_file: ./envfile
           summary: true
 
+  # Job 7: Verify deployment health
+  verify:
+    runs-on: ubuntu-24.04
+    needs: [prepare, deploy]
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
       - name: Wait for deployment health check
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -226,20 +352,40 @@ jobs:
             exit 1
         timeout-minutes: 6
 
+  # Job 8: Comment on PR with deployment status
+  comment-pr:
+    runs-on: ubuntu-24.04
+    needs: [prepare, verify]
+    if: always() && github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          if [ "${{ needs.verify.result }}" == "success" ]; then
+            echo "STATUS=✅ Deployed" >> "$GITHUB_OUTPUT"
+            echo "MESSAGE=🎉 Production deployment successful!" >> "$GITHUB_OUTPUT"
+          else
+            echo "STATUS=❌ Failed" >> "$GITHUB_OUTPUT"
+            echo "MESSAGE=⚠️ Deployment failed. Check the logs above." >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Comment on PR
-        if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            const status = '${{ job.status }}' === 'success' ? '✅ Deployed' : '❌ Failed';
-            const message = `### ${status} to Production
+            const message = `### ${{ steps.status.outputs.STATUS }} to Production
             
-            - **Version**: \`${{ steps.meta.outputs.VERSION }}\`
-            - **Commit**: \`${{ steps.meta.outputs.SHORT_SHA }}\`
-            - **Image**: \`ghcr.io/${{ github.repository_owner }}/${{ steps.meta.outputs.REPO_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}\`
+            - **Version**: \`${{ needs.prepare.outputs.version }}\`
+            - **Commit**: \`${{ needs.prepare.outputs.short_sha }}\`
+            - **Image**: \`ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.short_sha }}\`
             - **URL**: https://api.verboheit.org
             
-            ${status === '✅ Deployed' ? '🎉 Production deployment successful!' : '⚠️ Deployment failed. Check the logs above.'}`;
+            ${{ steps.status.outputs.MESSAGE }}`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -248,38 +394,46 @@ jobs:
               body: message
             });
 
-      - name: Notify deployment status
-        if: always()
+  # Job 9: Send notifications about deployment status
+  notify:
+    runs-on: ubuntu-24.04
+    needs: [prepare, verify]
+    if: always()
+    environment:
+      name: production
+      url: https://api.verboheit.org
+    steps:
+      - name: Determine deployment status
+        id: status
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            STATUS="✅ SUCCESS"
-            COLOR="good"
+          if [ "${{ needs.verify.result }}" == "success" ]; then
+            echo "STATUS=✅ SUCCESS" >> "$GITHUB_OUTPUT"
+            echo "COLOR=good" >> "$GITHUB_OUTPUT"
           else
-            STATUS="❌ FAILED"
-            COLOR="danger"
+            echo "STATUS=❌ FAILED" >> "$GITHUB_OUTPUT"
+            echo "COLOR=danger" >> "$GITHUB_OUTPUT"
           fi
-          
-          echo "Deployment $STATUS"
-          echo "Commit: ${{ steps.meta.outputs.SHORT_SHA }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Actor: ${{ github.actor }}"
-          
+
+      - name: Send Slack notification
+        run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d '{
-              "text": "Production Deployment '"$STATUS"'",
+              "text": "Production Deployment ${{ steps.status.outputs.STATUS }}",
               "attachments": [{
-                "color": "'"$COLOR"'",
+                "color": "${{ steps.status.outputs.COLOR }}",
                 "fields": [
-                  {"title": "Commit", "value": "${{ steps.meta.outputs.SHORT_SHA }}", "short": true},
+                  {"title": "Commit", "value": "${{ needs.prepare.outputs.short_sha }}", "short": true},
                   {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
-                  {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Version", "value": "${{ needs.prepare.outputs.version }}", "short": true},
+                  {"title": "PR", "value": "#${{ needs.prepare.outputs.pr_number }}", "short": true}
                 ]
               }]
             }'
-
-      - name: Send deployment notification
-        if: always()
+        continue-on-error: true
+      
+      - name: Log deployment to server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -287,40 +441,38 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           script: |
             # Log deployment to system
-            echo "$(date): Production deployment ${{ job.status }} - Version ${{ steps.meta.outputs.VERSION }}" >> ~/deployments/deployment.log
+            echo "$(date): Production deployment ${{ needs.verify.result }} - Version ${{ needs.prepare.outputs.version }}" >> ~/deployments/deployment.log
         continue-on-error: true
 
-  create-release:
-    needs: deploy-to-production
+  # Job 10: Create GitHub release
+  release:
     runs-on: ubuntu-24.04
+    needs: [prepare, verify]
     permissions:
       contents: write
-    
+    environment:
+      name: production
+      url: https://api.verboheit.org
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Extract metadata
-        id: meta
-        run: |
-          echo "VERSION=$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      # Create a GitHub release for tracking
-      # Docs: https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release
       - name: Create Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.meta.outputs.VERSION }}
-          release_name: Production Release ${{ steps.meta.outputs.VERSION }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          release_name: Production Release ${{ needs.prepare.outputs.version }}
           body: |
-            Production deployment from PR #${{ github.event.pull_request.number }}
+            Production deployment from PR #${{ needs.prepare.outputs.pr_number }}
             
-            **Changes**: ${{ github.event.pull_request.title }}
+            **Changes**: ${{ needs.prepare.outputs.pr_title }}
             **Deployed by**: @${{ github.actor }}
             **Commit**: ${{ github.sha }}
+            **Short SHA**: ${{ needs.prepare.outputs.short_sha }}
+            **Version**: ${{ needs.prepare.outputs.version }}
           draft: false
           prerelease: false

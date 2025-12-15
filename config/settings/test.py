@@ -1,52 +1,44 @@
 """
-Test environment for CI/CD pipelines.
+Test environment settings for CI/CD pipelines and local testing.
 """
 
-import os
 import dj_database_url
-
 from .base import *
 
+# ============================================================================
+# TEST-SPECIFIC SETTINGS
+# ============================================================================
 SECRET_KEY = "this-is-a-test-secret-key--do-not-use-in-production"
-
-INSTALLED_APPS.insert(0, "daphne")
-DEBUG = False
+DEBUG = True
 TESTING = True
-INTERNAL_IPS = ["localhost"]
-ALLOWED_HOSTS = ["localhost"]
-ADMIN_URL = "admin/"
-CONTACT_EMAIL = "admin@localhost"
-CONTACT_URL = "http://localhost/contact"
-BASE_URL = "http://localhost"
-DATABASE_URL = "postgresql://testuser:testpassword@db:5432/testdb"
+
+# Add daphne for testing ASGI applications
+INSTALLED_APPS.insert(0, "daphne")
+INSTALLED_APPS += [
+    "debug_toolbar",
+]
+
+# Configure test database
 DATABASES = {
     "default": dj_database_url.config(
-        default=DATABASE_URL,
+        default="postgresql://testuser:testpassword@db:5432/testdb"
     )
 }
+
+# Use FileSystemStorage for tests to avoid dependency on S3
+USE_S3 = False
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
-        "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage"
     },
 }
 
-
-
-# ============================================================================
-# CELERY CONFIGURATION - Docker Development Environment
-# ============================================================================
-
-# Docker service names for Redis broker
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://redis:6379/0"
-
-
+# Celery configuration for synchronous task execution in tests
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+# Cache configuration for tests (use a separate Redis DB or dummy cache)
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -60,109 +52,23 @@ CACHES = {
         "TIMEOUT": 300,
     },
 }
-
-AWS_S3_LOCATION_PREFIX = os.getenv("AWS_S3_LOCATION_PREFIX", "test")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
-AWS_S3_CUSTOM_DOMAIN = (
-    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-)
-
-AWS_S3_CUSTOM_DOMAIN = "localhost:8000"
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        # "verbose": {
-        #     "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-        #     "style": "{",
-        # },
-        # "simple": {
-        #     "format": "{levelname} {name} {message}",
-        #     "style": "{",
-        # },
-        "colored": {
-            "()": "colorlog.ColoredFormatter",
-            "format": "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(name)s%(reset)s %(message)s",
-        },
-        "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(lineno)d %(message)s",
-        },
-    },
-    "handlers": {
-        "console": {
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            # "formatter": "colored" if os.getenv("USE_COLORED_LOGS", "true").lower() == "true" else "simple",
-            "formatter": "colored",
-        },
-        #     "file": {
-        #         "level": "DEBUG",
-        #         "class": "logging.handlers.RotatingFileHandler",
-        #         "filename": str(LOG_DIR / "vmlc_docker_dev.log"),
-        #         "formatter": "json",
-        #         "maxBytes": 5 * 1024 * 1024,  # 5MB
-        #         "backupCount": 3,
-        #         "encoding": "utf-8",
-        #         "delay": True,
-        #     },
-    },
-    "root": {
-        "level": "WARNING",
-        "handlers": ["console"],
-    },
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
     "loggers": {
-        # Your app - keep detailed logging
-        "vmlc": {
-            "level": "DEBUG",
+        "django.db.backends": {
             "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
-        },
-        "comms": {
-            "level": "DEBUG",
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        # Django - only important stuff
-        "django": {
-            "level": "WARNING",  # Only warnings/errors
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        # Celery - moderate logging
-        "celery": {
-            "level": "INFO",  # Changed from DEBUG
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        # Third-party noise reduction
-        "urllib3": {"level": "ERROR"},  # Only errors
-        "requests": {"level": "ERROR"},  # Only errors
-        "boto3": {"level": "ERROR"},  # Only errors
-        "botocore": {"level": "ERROR"},  # Only errors
-        "django.db.backends": {"level": "ERROR"},  # No query spam
-        # Additional noise reducers
-        "django.request": {"level": "ERROR"},  # Only 4xx/5xx requests
-        "django.security": {"level": "WARNING"},  # Security warnings only
-        # "asyncio": {"level": "WARNING"},        # Async noise reduction
+        }
     },
 }
 
-
-FRONTEND_BASE_URL = "https://test-portal.verboheit.org"
-FRONTEND_LOGIN = FRONTEND_BASE_URL + "/login/"
-FRONTEND_REGISTER_CANDIDATE = FRONTEND_BASE_URL + "/register/"
-FRONTEND_REGISTER_STAFF = FRONTEND_BASE_URL + "/register/staff/"
-SUPPORT_EMAIL = "verboheitmlc@gmail.com"
-TWILIO_ACCOUNT_SID = "test-twilio-account-sid"
-TWILIO_AUTH_TOKEN = "test-twilio-auth-token"
-TWILIO_FROM_PHONE = "test-twilio-from-phone"
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django.core.cache.backends.dummy.DummyCache",
-#     }
-# }
+# Override sensitive/service-related settings for tests
+TWILIO_ACCOUNT_SID = "test_twilio_sid"
+TWILIO_AUTH_TOKEN = "test_twilio_token"
+TWILIO_FROM_PHONE = "+15005550006"
+SLACK_WEBHOOK_URL = None
+BROADCAST_WEBHOOK_URL = None
