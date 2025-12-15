@@ -56,7 +56,8 @@ x-vmlc-base-env: &vmlc-base-env
   OTEL_TRACES_SAMPLER_ARG: "0.01"
   OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
   OTEL_LOGS_EXPORTER: otlp
-
+  USE_S3: "true"
+  
 x-vmlc-service-base: &vmlc-service-base
   secrets: *vmlc-secrets
   volumes:
