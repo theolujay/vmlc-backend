@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserChangeForm
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
@@ -26,6 +28,11 @@ from .utils.helpers import (
     invalidate_all_dashboard_caches,
     invalidate_all_staff_dashboards,
 )
+
+
+class CustomUserChangeForm(UserChangeForm):
+    class Meta(UserChangeForm.Meta):
+        model = User
 
 
 class EmailForm(forms.Form):
@@ -72,7 +79,8 @@ def send_email_to_users(modeladmin, request, queryset):
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
+    form = CustomUserChangeForm
     actions = [send_email_to_users]
     list_display = (
         "email",
@@ -84,9 +92,36 @@ class UserAdmin(admin.ModelAdmin):
         "date_joined",
         "id",
     )
-    readonly_fields = ("date_joined", "id")
+    readonly_fields = ("date_joined", "id", "last_login")
     list_filter = ("is_active", "date_joined")
     search_fields = ("email", "first_name")
+
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        (
+            "Personal info",
+            {
+                "fields": (
+                    "first_name",
+                    "last_name",
+                    "phone",
+                )
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
 
     def save_model(self, request, obj, form, change):
         """Invalidate cache when user is updated."""
@@ -798,3 +833,4 @@ class FeatureFlagAdmin(admin.ModelAdmin):
             cache.delete(f"feature_flag_{obj.key}")
             cache.delete("registration_status")
         super().delete_queryset(request, queryset)
+
