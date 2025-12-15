@@ -216,7 +216,7 @@ TWILIO_ACCOUNT_SID = read_secret("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = read_secret("TWILIO_AUTH_TOKEN")
 TWILIO_FROM_PHONE = read_secret("TWILIO_FROM_PHONE")
 SLACK_WEBHOOK_URL = read_secret("SLACK_WEBHOOK_URL")
-BROADCAST_WEBHOOK_URL = read_secret("BROADCAST_WEBHOOK_URL")
+BROADCAST_WEBHOOK_URL = SLACK_WEBHOOK_URL
 
 # ============================================================================
 # API, JWT, AND CORS CONFIGURATION
