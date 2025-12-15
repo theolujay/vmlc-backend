@@ -43,7 +43,9 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     needs: prepare
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -116,6 +118,8 @@ jobs:
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
             -e AWS_S3_REGION_NAME=eu-north-1 \
             -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
+            -e DEBUG=true \
+            -e USE_S3=true \
             --network test-network \
             --entrypoint "" \
             ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
@@ -143,7 +147,9 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -195,7 +201,9 @@ jobs:
   backup:
     runs-on: ubuntu-24.04
     needs: [prepare, build]
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Backup current deployment
         uses: appleboy/ssh-action@v1.2.0
@@ -269,12 +277,15 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     needs: [prepare, deploy]
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Wait for deployment health check
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
+          port: 22
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           script: |
@@ -308,7 +319,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [prepare, verify]
     if: always()
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Determine deployment status
         id: status
@@ -356,7 +369,9 @@ jobs:
     needs: [prepare, verify]
     permissions:
       contents: write
-    
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
