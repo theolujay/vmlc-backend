@@ -4,9 +4,9 @@ site_author: VMLC Team
 site_url: https://verboheit.github.io/docs/vmlc-api
 
 # Repository
-repo_name: verboheit/vmlc-backend
-repo_url: https://github.com/verboheit/vmlc-backend
-edit_uri: edit/main/docs/
+# repo_name: verboheit/vmlc-backend
+# repo_url: https://github.com/verboheit/vmlc-backend
+# edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2025 Verboheit Mathematics League Competition
 
 # Theme Configuration
