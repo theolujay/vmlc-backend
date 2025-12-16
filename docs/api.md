@@ -9,10 +9,10 @@
   - [Feature Walkthroughs and User Stories](#feature-walkthroughs-and-user-stories)
   - [Endpoint Mapping](#endpoint-mapping)
 - [API Endpoints](#api-endpoints)
-  - [Health & Status](#health--status)
-  - [Authentication](#authentication-endpoints)
+  - [Health & Status](#health-status)
+  - [Authentication](#authentication_1)
   - [Registration](#registration)
-  - [Email & Password](#email--password)
+  - [Email & Password](#email-password-flows)
   - [User Profiles ("Me" Endpoints)](#user-profiles-me-endpoints)
   - [Candidate Management](#candidate-management)
   - [Staff Management](#staff-management)
@@ -21,17 +21,18 @@
   - [Account Management](#account-management)
   - [Exam Management](#exam-management)
   - [Question Management](#question-management)
-  - [Scoring & Submissions](#scoring--submissions)
+  - [Scoring & Submissions](#scoring-submissions)
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
-  - [Notifications](#notifications)
+  - [Notifications](#notifications-with-websockets)
   - [Broadcast Management](#broadcast-management)
 - [Advanced Topics](#advanced-topics)
   - [Query Parameters](#query-parameters)
   - [Error Handling](#error-handling)
   - [Rate Limiting](#rate-limiting)
   - [Versioning](#versioning)
-- [Support & More](#support--more)
+- [Support](#support)
+
   - [Interactive Documentation](#interactive-documentation)
   - [Support](#support)
   - [Changelog](#changelog)
@@ -2916,6 +2917,8 @@ The API is currently at version `v1`. All endpoints are prefixed with `/v1/`.
 - **Version Support**: Latest 2 major versions supported.
 
 ---
+
+## Support
 
 ## Interactive Documentation
 Explore the API interactively using our documentation interfaces, automatically generated from the API schema:

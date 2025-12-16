@@ -1,0 +1,119 @@
+site_name: VMLC API Documentation
+site_description: Official API documentation for the Verboheit Mathematics League Competition
+site_author: VMLC Team
+site_url: https://verboheit.github.io/docs/vmlc-api
+
+# Repository
+repo_name: verboheit/vmlc-backend
+repo_url: https://github.com/verboheit/vmlc-backend
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 Verboheit Mathematics League Competition
+
+# Theme Configuration
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
+  
+  icon:
+    repo: fontawesome/brands/github
+
+# Extensions
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+# Plugins
+plugins:
+  - search
+  - tags
+
+# Navigation Structure - Updated to match your actual files
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Overview: getting-started/overview.md
+    - Quickstart: getting-started/quickstart.md
+    - Base URLs: getting-started/base-urls.md
+    - Authentication: getting-started/authentication.md
+    - Getting Started Guide: getting-started/getting-started.md
+  
+  - User Roles & Permissions:
+    - roles/index.md
+    - Overview: roles/overview.md
+    - All Roles: roles/user-roles-permissions-and-api-access.md
+    - Staff Roles: roles/staff-roles.md
+    - Candidate Roles: roles/candidate-roles.md
+    - Feature Walkthroughs: roles/feature-walkthroughs-and-user-stories.md
+  
+  - API Reference:
+    - api/index.md
+    - Health & Status: api/health-status.md
+    - Complete API Reference: api.md
+    - API Views: views/api.md
+
+  - Advanced Topics:
+    - advanced/index.md
+    - Error Handling: advanced/error-handling.md
+    - Rate Limiting: advanced/rate-limiting.md
+    - Versioning: advanced/versioning.md
+
+  - Resources:
+    - resources/index.md
+    - Interactive Docs: resources/interactive-documentation.md
+    - Support: resources/support.md
+    - Changelog: resources/changelog.md
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/theolujay
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/theolujay
+    - icon: fontawesome/brands/discord
+      link: https://discord.com/theolujay
+  
+  version:
+    provider: mike
