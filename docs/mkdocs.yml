@@ -125,8 +125,7 @@ nav:
   - API Reference:
     - api/index.md
     - Health & Status: api/health-status.md
-    - Complete API Reference: api.md
-    - API Views: views/api.md
+    - Complete API Reference: api/reference.md
 
   - Advanced Topics:
     - advanced/index.md
