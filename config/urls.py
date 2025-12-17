@@ -31,7 +31,7 @@ from drf_yasg import openapi
 @permission_classes([AllowAny])
 def get_favicon(request):
     """Allow browsers retrieve favicon for tab icon"""
-    favicon_path = os.path.join(settings.BASE_DIR, "favicon.ico")
+    favicon_path = os.path.join(settings.BASE_DIR, "docs/assets/favicon.ico")
     try:
         return FileResponse(open(favicon_path, "rb"), content_type="image/x-icon")
     except FileNotFoundError:

@@ -1,0 +1,218 @@
+:root {
+  /* Exact brand colors from your site */
+  --vmlc-primary: #4c4fb9;
+  --vmlc-primary-dark: #3d4095;
+  --vmlc-primary-light: #6366d1;
+  --vmlc-lavender: #e8e6f3;
+  --vmlc-text-dark: #1a1a1a;
+}
+
+/* Light mode colors */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--vmlc-primary);
+  --md-primary-fg-color--light: var(--vmlc-primary-light);
+  --md-primary-fg-color--dark: var(--vmlc-primary-dark);
+  --md-accent-fg-color: var(--vmlc-primary);
+  --md-typeset-a-color: var(--vmlc-primary);
+}
+
+/* Dark mode colors */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: var(--vmlc-primary-light);
+  --md-primary-fg-color--light: #7c7ff5;
+  --md-primary-fg-color--dark: var(--vmlc-primary);
+  --md-accent-fg-color: var(--vmlc-primary-light);
+  --md-typeset-a-color: var(--vmlc-primary-light);
+}
+
+/* Header */
+.md-header {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Header title color */
+.md-header__title {
+  color: var(--vmlc-text-dark);
+}
+
+/* Header links */
+.md-header__button {
+  color: var(--vmlc-text-dark);
+}
+
+/* Tabs - purple bar */
+.md-tabs {
+  background-color: var(--vmlc-primary);
+}
+
+/* Footer - white background */
+.md-footer {
+  background-color: white;
+  color: var(--vmlc-text-dark);
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Footer links */
+.md-footer__link {
+  color: var(--vmlc-text-dark);
+}
+
+.md-footer__link:hover {
+  color: var(--vmlc-primary);
+}
+
+/* Code blocks */
+.md-typeset pre > code {
+  border-radius: 6px;
+}
+
+.md-typeset .highlight {
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Inline code */
+.md-typeset code {
+  background-color: var(--vmlc-lavender);
+  color: var(--vmlc-primary-dark);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background-color: rgba(76, 79, 185, 0.2);
+  color: var(--vmlc-primary-light);
+}
+
+/* Buttons */
+.md-button {
+  border-radius: 24px;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.md-button--primary {
+  background-color: var(--vmlc-primary);
+  border: none;
+  color: white;
+}
+
+.md-button--primary:hover {
+  background-color: var(--vmlc-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 79, 185, 0.25);
+}
+
+/* Navigation */
+.md-nav__link--active {
+  color: var(--vmlc-primary);
+  font-weight: 600;
+}
+
+.md-nav__link:hover {
+  color: var(--vmlc-primary);
+}
+
+/* Search box */
+.md-search__input {
+  border-radius: 24px;
+}
+
+.md-search__input:focus {
+  border-color: var(--vmlc-primary);
+}
+
+/* Tables */
+.md-typeset table:not([class]) {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--vmlc-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--vmlc-lavender);
+}
+
+/* Admonitions */
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-left-color: var(--vmlc-primary);
+}
+
+.md-typeset .note > .admonition-title,
+.md-typeset .note > summary {
+  background-color: var(--vmlc-lavender);
+  border-left-color: var(--vmlc-primary);
+}
+
+.md-typeset .note > .admonition-title::before,
+.md-typeset .note > summary::before {
+  background-color: var(--vmlc-primary);
+}
+
+/* API endpoint badges */
+.api-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+.api-badge.get {
+  background-color: #10b981;
+  color: white;
+}
+
+.api-badge.post {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.api-badge.put {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.api-badge.delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Back to top button */
+.md-top {
+  background-color: var(--vmlc-primary);
+}
+
+.md-top:hover {
+  background-color: var(--vmlc-primary-dark);
+}
+
+/* Scrollbar in dark mode */
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb {
+  background-color: var(--vmlc-primary);
+}
+
+/* Light background sections*/
+.section-badge {
+  display: inline-block;
+  background-color: var(--vmlc-lavender);
+  color: var(--vmlc-primary);
+  padding: 0.5rem 1.5rem;
+  border-radius: 24px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+}
