@@ -235,13 +235,16 @@ class BroadcastView(ListCreateRetrieveAPIView):
                     description="Backup status (e.g., 'success', 'first_failure', 'final_failure')",
                 ),
                 "environment": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="Environment (e.g., 'prod', 'staging')"
+                    type=openapi.TYPE_STRING,
+                    description="Environment (e.g., 'prod', 'staging')",
                 ),
                 "timestamp": openapi.Schema(
                     type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME
                 ),
                 "backup_filename": openapi.Schema(type=openapi.TYPE_STRING),
-                "error_message": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                "error_message": openapi.Schema(
+                    type=openapi.TYPE_STRING, nullable=True
+                ),
             },
             required=["status", "environment", "timestamp", "backup_filename"],
         ),

@@ -3,6 +3,7 @@ Local development environment settings.
 This settings configuration is used when running without Docker containers locally.
 Uses SQLite by default, but can be configured to use NeonDB.
 """
+
 import sys
 from datetime import timedelta
 import dj_database_url
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 from ._utils import read_secret
 
 from .base import *
+
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / ".env")
 
@@ -27,18 +29,24 @@ if "test" not in sys.argv:
         "debug_toolbar",
         "django_extensions",
     ]
-    MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware") # After CorsMiddleware
+    MIDDLEWARE.insert(
+        2, "debug_toolbar.middleware.DebugToolbarMiddleware"
+    )  # After CorsMiddleware
 
 # Use NeonDB if URL is provided, otherwise default to SQLite
 DATABASES = {
-    "default": dj_database_url.parse(read_secret("NEON_DB_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"))
+    "default": dj_database_url.parse(
+        read_secret("NEON_DB_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    )
 }
 
 # Extend token lifetimes for easier development
-SIMPLE_JWT.update({
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-})
+SIMPLE_JWT.update(
+    {
+        "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
+        "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    }
+)
 
 # Celery settings for local development
 CELERY_WORKER_LOG_COLOR = True
@@ -53,7 +61,10 @@ CACHES = {
         "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {"retry_on_timeout": True, "health_check_interval": 30},
+            "CONNECTION_POOL_KWARGS": {
+                "retry_on_timeout": True,
+                "health_check_interval": 30,
+            },
         },
         "KEY_PREFIX": "vmlc_dev_sync",
         "TIMEOUT": 300,
@@ -71,12 +82,24 @@ CACHES = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {"verbose": {"format": "{levelname} {asctime} {module}: {message}", "style": "{"}},
-    "handlers": {"console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"}},
+    "formatters": {
+        "verbose": {"format": "{levelname} {asctime} {module}: {message}", "style": "{"}
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        }
+    },
     "loggers": {
         "vmlc": {"level": "DEBUG", "handlers": ["console"], "propagate": True},
         "comms": {"level": "DEBUG", "handlers": ["console"], "propagate": True},
-        "django.db.backends": {"level": "INFO", "handlers": ["console"], "propagate": False},
+        "django.db.backends": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
 }
 

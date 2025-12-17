@@ -9,6 +9,7 @@ from comms.models import (
     BackupLog,
 )
 
+
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):
     list_display = ["id", "subject", "status", "created_at", "task_status_display"]

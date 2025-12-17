@@ -159,7 +159,9 @@ def send_backup_status_to_slack(backup_log):
     """Sends a notification about the backup status to a Slack channel."""
     slack_webhook_url = getattr(settings, "SLACK_WEBHOOK_URL", None)
     if not slack_webhook_url:
-        logger.warning("SLACK_WEBHOOK_URL is not configured. Skipping Slack notification.")
+        logger.warning(
+            "SLACK_WEBHOOK_URL is not configured. Skipping Slack notification."
+        )
         return
 
     status = backup_log.status
@@ -181,7 +183,11 @@ def send_backup_status_to_slack(backup_log):
                         "value": backup_log.get_environment_display(),
                         "short": True,
                     },
-                    {"title": "Status", "value": backup_log.get_status_display(), "short": True},
+                    {
+                        "title": "Status",
+                        "value": backup_log.get_status_display(),
+                        "short": True,
+                    },
                     {
                         "title": "Backup File",
                         "value": backup_log.backup_filename,
@@ -199,7 +205,11 @@ def send_backup_status_to_slack(backup_log):
 
     if backup_log.error_message:
         payload["attachments"][0]["fields"].append(
-            {"title": "Error Message", "value": backup_log.error_message, "short": False}
+            {
+                "title": "Error Message",
+                "value": backup_log.error_message,
+                "short": False,
+            }
         )
 
     try:
@@ -207,4 +217,6 @@ def send_backup_status_to_slack(backup_log):
         response.raise_for_status()
         logger.info(f"Slack notification sent for backup log {backup_log.id}")
     except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to send Slack notification for backup log {backup_log.id}: {e}")
+        logger.error(
+            f"Failed to send Slack notification for backup log {backup_log.id}: {e}"
+        )

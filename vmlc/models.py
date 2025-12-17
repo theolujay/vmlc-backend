@@ -18,12 +18,6 @@ from django.utils import timezone
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 
-
-
-
-
-
-
 class FeatureFlag(models.Model):
     """Feature flag model."""
 
@@ -397,25 +391,23 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         """Get the user status"""
         if not self.user.is_active:
             return "deactivated"
-        
+
         try:
             verification = self.user.verification
             if verification.is_pending:
                 return "pending"
-            
+
             if verification.status == "not_started":
                 return "inactive"
-            
+
             seven_days_ago = timezone.now() - timedelta(days=7)
             if self.user.last_login and self.user.last_login >= seven_days_ago:
                 return "active"
-            
+
             return "inactive"
-        
+
         except (AttributeError, UserVerification.DoesNotExist):
             return "inactive"
-        
-        
 
     def set_verification_override(self, value):
         """Manually override verification status"""

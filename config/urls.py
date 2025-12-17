@@ -37,6 +37,7 @@ def get_favicon(request):
     except FileNotFoundError:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+
 schema_view = get_schema_view(
     openapi.Info(
         title="Verboheit MLC API",
