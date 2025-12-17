@@ -7,12 +7,14 @@ Candidates progress through four roles as they advance in the competition.
 **Initial role** assigned upon registration.
 
 ### Abilities
+
 - View personal dashboard
 - Take screening-level exams
 - View own profile and verification status
 - View screening leaderboard
 
 ### Accessible Endpoints
+
 - `GET /dashboard/candidate/`
 - `GET /candidates/me/`
 - `GET /user/verification/status/`
@@ -26,11 +28,13 @@ Candidates progress through four roles as they advance in the competition.
 **Progression** from screening after staff approval.
 
 ### Additional Abilities
+
 - Take league-level exams
 - View competition leaderboard
 - Access more advanced content
 
 ### Additional Endpoints
+
 - `GET /exams/{id}/take-exam/` (league exams)
 - `GET /leaderboard/` (all exams)
 
@@ -39,10 +43,12 @@ Candidates progress through four roles as they advance in the competition.
 **Progression** to final stage of competition.
 
 ### Additional Abilities
+
 - Access to final-stage exams
 - Compete for top prizes
 
 ### Additional Endpoints
+
 - `GET /exams/{id}/take-exam/` (final exams)
 
 ## Role: Winner
@@ -50,6 +56,7 @@ Candidates progress through four roles as they advance in the competition.
 **Ceremonial role** for competition winners.
 
 ### Abilities
+
 - All final role permissions
 - Winner status recognition
 

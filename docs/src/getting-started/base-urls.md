@@ -21,12 +21,14 @@ Use this for testing and development. This environment may have experimental fea
 ## Environment-Specific Considerations
 
 ### Production
+
 - ✅ High availability
 - ✅ Regular backups
 - ✅ Monitoring and alerts
 - ✅ Rate limiting enforced
 
 ### Staging
+
 - 🧪 Testing environment
 - 🧪 May have downtime
 - 🧪 Data may be reset periodically
@@ -42,9 +44,9 @@ Use this for testing and development. This environment may have experimental fea
 ## Example Configuration
 
 === "Python"
-    ```python
-    import os
-    
+```python
+import os
+
     BASE_URL = os.getenv(
         'VMLC_API_BASE_URL',
         'https://api.verboheit.org/v1/'
@@ -52,7 +54,7 @@ Use this for testing and development. This environment may have experimental fea
     ```
 
 === "JavaScript"
-    ```javascript
+`javascript
     const BASE_URL = process.env.VMLC_API_BASE_URL || 
                      'https://api.verboheit.org/v1/';
-    ```
+    `

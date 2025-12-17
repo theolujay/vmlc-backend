@@ -9,30 +9,30 @@ Contact us at theolujay@gmail.com to request an API key.
 ## Step 2: Make Your First Request
 
 === "Python"
-    ```python
-    import requests
-    
+```python
+import requests
+
     # Check API health
     response = requests.get(
         "https://api.verboheit.org/v1/health/",
         headers={"X-Api-Key": "your_api_key"}
     )
-    
+
     print(response.json())
     # Output: {"status": "healthy", "timestamp": "2025-12-16T..."}
     ```
 
 === "JavaScript"
-    ```javascript
-    const response = await fetch(
-        'https://api.verboheit.org/v1/health/',
-        {
-            headers: {
-                'X-Api-Key': 'your_api_key'
-            }
-        }
-    );
-    
+```javascript
+const response = await fetch(
+'https://api.verboheit.org/v1/health/',
+{
+headers: {
+'X-Api-Key': 'your_api_key'
+}
+}
+);
+
     const data = await response.json();
     console.log(data);
     ```

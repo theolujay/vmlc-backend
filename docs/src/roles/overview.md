@@ -5,11 +5,13 @@ The VMLC API implements a comprehensive role-based access control (RBAC) system 
 ## User Types
 
 ### Candidates
+
 Students participating in the mathematics competition. They progress through different competition stages.
 
 **Roles:** `screening` → `league` → `final` → `winner`
 
 ### Staff
+
 Team members who manage the competition platform, from content creation to user verification.
 
 **Roles:** `volunteer` → `moderator` → `admin` → `manager` → `superadmin`
@@ -17,11 +19,13 @@ Team members who manage the competition platform, from content creation to user 
 ## Key Concepts
 
 ### Role Hierarchy
+
 - Permissions are hierarchical
 - Higher roles inherit permissions from lower roles
 - Role changes are managed by authorized staff
 
 ### Verification
+
 - Users must verify their email before accessing most features
 - Document verification is required for role progression
 - Verification is managed by staff with appropriate permissions

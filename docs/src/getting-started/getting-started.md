@@ -1,6 +1,5 @@
 # Getting Started
 
-
 ### Base URL
 
 `https://api.verboheit.org/v1/` ~ production
@@ -11,6 +10,7 @@ All endpoints are relative to this base URL.
 ---
 
 ### Authentication
+
 The API uses `X-Api-Key` for general authentication. The API key should be provided in the `X-Api-Key` header:
 
 `X-Api-Key: <your_api_key>`
@@ -18,15 +18,18 @@ The API uses `X-Api-Key` for general authentication. The API key should be provi
 For endpoints that require user-specific permissions, a JWT access token must also be provided in the `Authorization` header. This is typically required for actions performed by authenticated users, such as accessing their profile, taking an exam, or for staff members managing resources. Some endpoints may require both `X-Api-Key` and `Authorization: Bearer <access-token>`.
 
 #### Login Flow
+
 **Endpoint:** `POST /auth/login/`
 
 **Headers:**
+
 ```text
 X-Api-Key: <your_api_key>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "email": "your_email@example.com",
@@ -35,8 +38,9 @@ Content-Type: application/json
 ```
 
 **Response:** `200 OK`
+
 ```json
-{    
+{
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
   "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
   "profile": {
@@ -53,13 +57,17 @@ Content-Type: application/json
   }
 }
 ```
-*Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role.*
+
+_Note: The `profile` field will contain either `candidate` or `staff` specific data based on the user's role._
 
 #### Token Management
+
 ##### Refresh Token
+
 **Endpoint:** `POST /auth/token/refresh/`
 
 **Request Body:**
+
 ```json
 {
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
@@ -67,6 +75,7 @@ Content-Type: application/json
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -75,14 +84,17 @@ Content-Type: application/json
 ```
 
 ##### Logout
+
 **Endpoint:** `POST /auth/logout/`
 
 **Request Body:**
+
 ```json
 {
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
+
 **Response:** `204 No Content`
 
 ---

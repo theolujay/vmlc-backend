@@ -11,14 +11,12 @@ Welcome to the VMLC API documentation. This guide will help you get started with
 ## Base URLs
 
 === "Production"
-    ```
-    https://api.verboheit.org/v1/
-    ```
+`     https://api.verboheit.org/v1/
+    `
 
 === "Staging"
-    ```
-    https://staging-api.verboheit.org/v1/
-    ```
+`     https://staging-api.verboheit.org/v1/
+    `
 
 ## Next Steps
 

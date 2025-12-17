@@ -25,14 +25,14 @@ See the [Authentication API Reference](../api.md#authentication) for details on 
 ## Example Request
 
 === "Python"
-    ```python
-    import requests
-    
+```python
+import requests
+
     headers = {
         "X-Api-Key": "your_api_key",
         "Authorization": "Bearer your_access_token"
     }
-    
+
     response = requests.get(
         "https://api.verboheit.org/v1/candidates/me/",
         headers=headers
@@ -40,8 +40,8 @@ See the [Authentication API Reference](../api.md#authentication) for details on 
     ```
 
 === "cURL"
-    ```bash
+`bash
     curl -X GET "https://api.verboheit.org/v1/candidates/me/" \
       -H "X-Api-Key: your_api_key" \
       -H "Authorization: Bearer your_access_token"
-    ```
+    `

@@ -1,6 +1,5 @@
 # Changelog
 
-
 - **2025-12-02**:
   - **User Verification**: Added `rejection_reason` to the `POST /user/verification/action/{user_id}/` endpoint. When rejecting a user's verification, a reason for the rejection can be provided in the request body.
 
@@ -11,7 +10,7 @@
     - This allows for more flexible and targeted communication.
   - **Broadcast Logs**: The `GET /broadcasts/{id}/` endpoint response now includes a `role_type` field in the logs, which will be either `staff` or `candidate`.
 - **2025-11-19**:
-  - **User Verification**: 
+  - **User Verification**:
     - The `GET /user/verification/status/` endpoint now returns a more granular, string-based status: `email_not_verified`, `verified`, `pending`, `rejected`, or `not_submitted`.
     - The response for a `pending` status now includes a `verification_data` object with more details.
     - The `POST /user/verification/action/{user_id}/` endpoint now accepts either `{"is_approved": true}` or `{"is_rejected": true}` to action a verification request.
@@ -57,7 +56,7 @@
       - Should be used in "Upload Exam" or "Edit Exams".
       - `level` defaults to `1` if not provided.
       - Use case:
-        *Leaderboard*
+        _Leaderboard_
         - Paired with stage to give `stage_display`.
         - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
   - **Pagination**:
@@ -89,11 +88,11 @@
 
 - **2025-10-29**
   - **Leaderboard**
-    - *Breaking Change:* Modified the leaderboard generation and retrieval process.
-        - `POST /leaderboard/publish/`: Now requires no request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
-        - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
-            - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
-            - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
+    - _Breaking Change:_ Modified the leaderboard generation and retrieval process.
+      - `POST /leaderboard/publish/`: Now requires no request body to specify which exam's leaderboard to generate and publish. The permission remains `admin` and higher.
+      - `GET /load-leaderboard/`: Now fetches leaderboards based on user roles and can retrieve a specific exam's leaderboard using the `exam_id` query parameter.
+        - When `exam_id` is provided, it returns the paginated list of ranked candidates for that exam.
+        - When `exam_id` is not provided, it returns a paginated list of available leaderboard snapshots (metadata only).
     - **Addition:** Added `status` and `concluded_at` fields to the `Exam` responses.
   - **Exams**
     - `GET /exams/{exam_id}/` is now paginated.
@@ -107,17 +106,20 @@
   - Questions difficulty `medium` is renamed to `moderate`.
 
 ### Fri, 24th of Oct, 2025
-  - **Exam Results & Candidate Details** **Renamed `submitted_by` to `score_submitted_by`
-  - **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
-  - **Question Management**: 
-    Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
 
-    Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
+- **Exam Results & Candidate Details** \*\*Renamed `submitted_by` to `score_submitted_by`
+- **Candidate Details**: Candidate exam records to include detailed `submission` information within the `exams_taken` list.
+- **Question Management**:
+  Added `POST /questions/{question_id}/exams/` endpoint to add/remove questions from exams.
+
+  Added `POST /questions/bulk-add-to-exams/` endpoint for bulk association of questions with exams.
 
 ### Tue, 22nd of Oct, 2025
+
 - **Staff**: Added `POST /staff/invite/` endpoint.
 
 ### Wed, 15th of Oct, 2025
+
 - **API**: Updated the response for `GET /questions/` to include a `meta` object with question counts by difficulty and pagination links. The question list is now under the `list` key.
 - **API**: Updated the `questions` field in the response for `GET /exams/{exam_id}/` to include a `meta` object with question counts by difficulty.
 - **API**: `date_created`, `date_updated`, and `date_recorded` have been renamed to `created_at`, `updated_at`, and `recorded_at` across all endpoints' responses.
@@ -126,18 +128,23 @@
 - **Validation**: Increased the `face_id` upload limit to 5MB. `id_card` and `verification_document` remaim at 2MB limit.
 
 ### Version 0.3.4
+
 - **API Docs**: Added "Feature Walkthroughs & User Stories" section to provide better context for API usage.
 - **API Docs**: Corrected permissions for several endpoints to match the codebase.
 - **API Docs**: Corrected the response payload for the `GET /candidates/{candidate_id}/` endpoint.
+
 ### Version 0.3.3
+
 - **Breaking Change**: Renamed `profile_photo` to `face_id` across all relevant endpoints and data models to better reflect its purpose in user verification.
 - **API spec**: This current API spec can now also be reached at `<base_url>/docs/spec` (similar to Swagger).
 
 ### Version 0.3.2
+
 - **Registration**: Now takes flat rather than nested structure.
 - **Notifications**: WebSocket method now requires `X-Api-Key` and `Authorization` headers.
 
 ### Version 0.3.0
+
 - **API Authentication**: All endpoints now require use header `X-Api-Key: <api-key>`, which may or may not be used alongside `Authorization: Bearer <access-token>`.
 - **New role**: Added `manager` role with all `admin` permissions and some `superadmin` permissions.
 - **"Me" Endpoints**: Added dedicated endpoints (`/candidates/me/`, `/staff/me/`) for authenticated users to easily retrieve their own profile details.
@@ -145,10 +152,12 @@
 - **RBAC**: Only `manager` and `superadmin` can view staff details.
 
 ### Version 0.2.0
+
 - **Base URL** is now `https://api.verboheit.org/v1/`
 - **Custom Exception Handling**: Introduced custom exception classes for more specific and consistent error responses.
 
 ### Version 0.1.0
+
 - Initial API release
 - Complete user management system
 - Exam administration features

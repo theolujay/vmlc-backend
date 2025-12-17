@@ -7,10 +7,12 @@ Staff members have hierarchical roles with cumulative permissions.
 **Entry-level** staff role.
 
 ### Abilities
+
 - View own profile
 - Submit documents for verification
 
 ### Accessible Endpoints
+
 - `GET /staff/me/`
 - `GET /user/verification/status/`
 - `POST /user/verification/upload/`
@@ -20,11 +22,13 @@ Staff members have hierarchical roles with cumulative permissions.
 **Content management** role.
 
 ### Additional Abilities
+
 - View candidate details
 - Full question management (CRUD)
 - View leaderboards
 
 ### Additional Endpoints
+
 - `GET /candidates/`
 - `GET /questions/`
 - `POST /questions/`
@@ -35,6 +39,7 @@ Staff members have hierarchical roles with cumulative permissions.
 **Exam and scoring** management.
 
 ### Additional Abilities
+
 - View detailed candidate information
 - Change candidate roles
 - Full exam management (CRUD)
@@ -42,6 +47,7 @@ Staff members have hierarchical roles with cumulative permissions.
 - Publish leaderboards
 
 ### Additional Endpoints
+
 - `GET /candidates/{id}/`
 - `GET /candidates/{id}/scores/`
 - `PUT /candidates/{id}/roles/assign/`
@@ -55,12 +61,14 @@ Staff members have hierarchical roles with cumulative permissions.
 **User verification and staff** management.
 
 ### Additional Abilities
+
 - View staff member details
 - Change staff roles (except manager/superadmin)
 - Manage user verifications (approve/reject)
 - Create broadcasts
 
 ### Additional Endpoints
+
 - `GET /staff/`
 - `GET /staff/{id}/`
 - `PUT /staff/{id}/roles/assign/`
@@ -73,11 +81,13 @@ Staff members have hierarchical roles with cumulative permissions.
 **Full platform** control.
 
 ### Additional Abilities
+
 - Assign any staff role (except superadmin)
 - Complete system access
 - No restrictions
 
 ### Permissions
+
 - Inherits all manager permissions
 - Can perform any action except creating other superadmins
 
@@ -93,8 +103,8 @@ graph TD
     B --> C[admin]
     C --> D[manager]
     D --> E[superadmin]
-    
-    F[sponsor] 
+
+    F[sponsor]
 ```
 
-*Higher roles inherit all permissions from lower roles.*
+_Higher roles inherit all permissions from lower roles._
