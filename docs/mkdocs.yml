@@ -1,3 +1,4 @@
+docs_dir: src
 site_name: VMLC API Docs
 site_description: Official API documentation for the Verboheit Mathematics League Competition
 site_author: VMLC Team
@@ -5,12 +6,12 @@ site_url: https://docs.verboheit.org
 
 repo_name: verboheit/vmlc-backend
 repo_url: https://github.com/verboheit/vmlc-backend
-edit_uri: edit/main/docs/
+edit_uri: edit/main/src/
 copyright: Copyright &copy; 2025 Verboheit Mathematics League Competition
 
 theme:
   name: material
-  custom_dir: docs/stylesheets 
+  custom_dir: src/stylesheets 
   logo: assets/logo.png
   favicon: assets/favicon.ico
   
@@ -101,9 +102,6 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
-  - tags:
-  - minify:
-      minify_html: true
 
 nav:
   - Home: index.md
