@@ -1,0 +1,162 @@
+docs_dir: src
+site_name: VMLC API Docs
+site_description: Official API documentation for the Verboheit Mathematics League Competition
+site_author: VMLC Team
+site_url: https://docs.verboheit.org
+
+repo_name: verboheit/vmlc-backend
+repo_url: https://github.com/verboheit/vmlc-backend
+edit_uri: edit/main/src/
+copyright: Copyright &copy; 2025 Verboheit Mathematics League Competition
+
+theme:
+  name: material
+  custom_dir: src/stylesheets 
+  logo: assets/logo.png
+  favicon: assets/favicon.ico
+  
+  palette:
+    # Light mode
+    - scheme: default
+      primary: custom
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: custom
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+  
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+
+nav:
+  - Home: index.md
+  
+  - Getting Started:
+    - getting-started/index.md
+    - Overview: getting-started/overview.md
+    - Quickstart: getting-started/quickstart.md
+    - Base URLs: getting-started/base-urls.md
+    - Authentication: getting-started/authentication.md
+    - Getting Started Guide: getting-started/getting-started.md
+  
+  - User Roles & Permissions:
+    - roles/index.md
+    - Overview: roles/overview.md
+    - All Roles: roles/user-roles-permissions-and-api-access.md
+    - Staff Roles: roles/staff-roles.md
+    - Candidate Roles: roles/candidate-roles.md
+    - Feature Walkthroughs: roles/feature-walkthroughs-and-user-stories.md
+  
+  - API Reference:
+    - api/index.md
+    - Health & Status: api/health-status.md
+    - Complete API Reference: api/reference.md
+
+  - Advanced Topics:
+    - advanced/index.md
+    - Error Handling: advanced/error-handling.md
+    - Rate Limiting: advanced/rate-limiting.md
+    - Versioning: advanced/versioning.md
+
+  - Resources:
+    - resources/index.md
+    - Interactive Docs: resources/interactive-documentation.md
+    - Support: resources/support.md
+    - Changelog: resources/changelog.md
+
+extra:
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+  
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/theolujay
+      name: theolujay on GitHub
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/theolujay
+      name: theolujay on Twitter
+    - icon: fontawesome/brands/discord
+      link: https://discord.com/theolujay
+      name: theolujay on Discord
+  
+  version:
+    provider: mike
+    default: latest
+  
+  generator: false  # Remove "Made with Material for MkDocs"
