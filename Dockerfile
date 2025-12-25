@@ -117,7 +117,7 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
 
 FROM base AS production
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.production \
+ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONDEBUG=0 \
     DEBUG=0 \
     PYTHONOPTIMIZE=2 \
