@@ -71,6 +71,7 @@ jobs:
           context: .
           file: Dockerfile
           target: test
+          build-args: INSTALL_TEST=true
           tags: ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }}
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
