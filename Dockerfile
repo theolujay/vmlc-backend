@@ -46,6 +46,32 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ==========================================================================
 FROM python:3.13-slim-bookworm AS base
 
+ARG GOSU_VERSION
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpq5 \
+        libmagic1 \
+        postgresql-client \
+        curl \
+        ca-certificates \
+        gnupg && \
+    # Create temp GPG keyring and verify gosu
+    export GNUPGHOME="$(mktemp -d)" && \
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 && \
+    dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" && \
+    curl -fsSL -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}" && \
+    curl -fsSL -o /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${dpkgArch}.asc" && \
+    gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu && \
+    chmod +x /usr/local/bin/gosu && \
+    gosu --version && \
+    # Cleanup in single layer
+    rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
+    apt-get purge -y gnupg && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 RUN groupadd --system --gid 999 verboheit \
  && useradd --system --gid 999 --uid 999 --create-home verboheit
 
@@ -54,16 +80,7 @@ COPY --from=builder --chown=verboheit:verboheit /app /app
 ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
-
-ARG GOSU_VERSION
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libpq5 \
-        libmagic1 \
-        postgresql-client \
-        curl
-
+USER verboheit
 ENV PYTHONDEBUG=1 \
     DEBUG=1 \
     PYTHONOPTIMIZE=0
