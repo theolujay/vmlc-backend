@@ -120,7 +120,6 @@ Feature: Dashboards and permissions
 #### Health & discovery
 
 - `GET /health/` — public health check. `200 OK`.
-- `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
 
 #### Interactive docs
 
