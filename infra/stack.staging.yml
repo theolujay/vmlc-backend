@@ -120,6 +120,13 @@ services:
     networks:
       - staging
     deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 5
+        window: 300s
       resources:
         limits:
           memory: 384M
