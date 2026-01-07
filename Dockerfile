@@ -6,8 +6,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=0 \
-    UV_NO_DEV=1
+    UV_PYTHON_DOWNLOADS=0
 
 ARG INSTALL_DEV=false
 ARG INSTALL_TEST=false
@@ -79,8 +78,8 @@ COPY --from=builder --chown=verboheit:verboheit /app /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-WORKDIR /app
 USER verboheit
+WORKDIR /app
 ENV PYTHONDEBUG=1 \
     DEBUG=1 \
     PYTHONOPTIMIZE=0

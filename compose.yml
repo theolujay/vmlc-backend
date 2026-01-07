@@ -10,11 +10,28 @@ x-app-base: &app-base
   build:
     context: .
     target: development
+    args:
+      - INSTALL_DEV=true
   image: vmlc-backend:dev
   volumes:
-    - dev_media:/home/verboheit/web/media
-    - dev_static:/home/verboheit/web/staticfiles
-    - ./:/home/verboheit/web
+    - ./vmlc/migrations:/app/vmlc/migrations
+  #   - dev_media:/app/media
+  #   - dev_static:/app/staticfiles
+  #   - ./:/app
+  #   # - /app/.venv
+  develop:
+    watch:
+      - action: sync
+        path: .
+        target: /app
+        ignore:
+          - vmlc/migrations
+          - .venv/
+          # - config/certs/
+      - action: rebuild
+        path: ./uv.lock
+  environment:
+    - UV_NO_DEV=0
   env_file: .env
   networks:
     - dev
