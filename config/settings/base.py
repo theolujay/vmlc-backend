@@ -186,7 +186,8 @@ DEFAULT_FROM_EMAIL = read_secret("DEFAULT_FROM_EMAIL", "dev@vmlc.local")
 SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")
 SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
-if DEBUG and not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD]):
+EMAIL_TIMEOUT = 30
+if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif (
     not DEBUG

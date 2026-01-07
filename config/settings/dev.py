@@ -8,9 +8,9 @@ import sys
 from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
+from .base import *
 from ._utils import read_secret
 
-from .base import *
 
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / ".env")
@@ -36,7 +36,7 @@ if "test" not in sys.argv:
 # Use NeonDB if URL is provided, otherwise default to SQLite
 DATABASES = {
     "default": dj_database_url.parse(
-        read_secret("NEON_DB_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+        read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
     )
 }
 

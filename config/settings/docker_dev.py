@@ -121,14 +121,14 @@ LOGGING = {
     "loggers": {
         "vmlc": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
         "comms": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
-        "django": {"level": "WARNING", "handlers": ["console"], "propagate": False},
-        "celery": {"level": "INFO", "handlers": ["console"], "propagate": False},
+        "django": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
+        "celery": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
         "urllib3": {"level": "ERROR"},
         "requests": {"level": "ERROR"},
         "boto3": {"level": "ERROR"},
         "botocore": {"level": "ERROR"},
         "django.db.backends": {"level": "ERROR"},
-        "django.request": {"level": "WARNING"},
+        "django.request": {"level": "DEBUG"},
         "django.security": {"level": "WARNING"},
     },
 }

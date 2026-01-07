@@ -57,6 +57,7 @@ schema_view = get_schema_view(
 
 vmlc_urlpatterns = [
     path("v1/", include("vmlc.urls", namespace="vmlc")),
+    path("v2/", include("vmlc.v2.urls", namespace="vmlc-v2")),
 ]
 
 comms_urlpatterns = [
