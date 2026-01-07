@@ -40,6 +40,7 @@ from .registration import (
     CandidateInviteSerializer,
     StaffInviteSerializer,
 )
+from ..v2.serializers.registration import RegistrationV2Serializer
 from .role import (
     CandidateRoleSerializer,
     StaffRoleSerializer,
@@ -97,6 +98,7 @@ __all__ = [
     "StaffRegistrationSerializer",
     "CandidateInviteSerializer",
     "StaffInviteSerializer",
+    "RegistrationV2Serializer",
     # role
     "CandidateRoleSerializer",
     "StaffRoleSerializer",

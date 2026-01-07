@@ -83,6 +83,21 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
 
+def validate_verification_document(value):
+    """Validate verification document"""
+    if not value:
+        return
+
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png", ".pdf"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
+        )
+
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 5MB.")
+
 
 def validate_profile_picture(value):
     """Validate profile picture file"""
@@ -112,8 +127,8 @@ def validate_id_card_file(value):
             f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
         )
 
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 2MB.")
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("File size cannot exceed 5MB.")
 
 
 def validate_face_id(value):
@@ -144,8 +159,8 @@ def validate_document_file(value):
             f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 2MB.")
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 5MB.")
 
 
 class User(AbstractUser):
@@ -167,13 +182,15 @@ class User(AbstractUser):
         max_length=17,
         help_text="Nigerian phone number for SMS notifications and contact",
     )
-    profile_picture = models.ImageField(
-        upload_to="profile_pictures/",
+    state = models.CharField(max_length=50, blank=True, null=True)
+    verification_document = models.FileField(
+        upload_to="verfication_documents/",
         blank=True,
         null=True,
-        storage=PublicMediaStorage(),
-        validators=[validate_profile_picture],
+        storage=PrivateMediaStorage(),
+        validators=[validate_verification_document],
     )
+    verification_document_type = models.CharField(max_length=50, blank=True, null=True)
     username = models.CharField(max_length=255, unique=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -215,6 +232,7 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
+    document_type = models.CharField(max_length=50, blank=True, null=True)
     action_by = models.ForeignKey(
         "Staff",
         on_delete=models.SET_NULL,
@@ -720,6 +738,18 @@ class Candidate(models.Model):
         related_name="candidate_profile",
     )
     school = models.CharField(max_length=150)
+    school_type = models.CharField(
+        max_length=20,
+        choices=[("public", "Public"), ("private", "Private")],
+        blank=True,
+        null=True,
+    )
+    current_class = models.CharField(
+        max_length=10,
+        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")],
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "Staff",
