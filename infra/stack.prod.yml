@@ -6,7 +6,7 @@ x-vmlc-prod-env: &vmlc-prod-env
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod
   ALLOWED_HOSTS: api.verboheit.org,localhost
   AWS_STORAGE_BUCKET_NAME: vmlc-prod
-  CORS_ALLOWED_ORIGINS: https://portal.verboheit.org
+  CORS_ALLOWED_ORIGINS: https://portal.verboheit.org,https://verboheit.org
   CORS_ALLOW_ALL_ORIGINS: "false"
   DEFAULT_FROM_EMAIL: "Verboheit MLC <mlc@verboheit.org>"
   DJANGO_SETTINGS_MODULE: config.settings.prod
