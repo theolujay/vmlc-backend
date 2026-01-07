@@ -331,6 +331,7 @@ def send_welcome_email(user: User, generated_password: str = None) -> None:
                 f"Glad to have you volunteering to make this competition a success. We look forward "
                 f"to your contributions. First things first, please follow the link below to log in "
                 f"to get started.\n\n"
+                f"{generated_password_msg}"
                 f"Login: {login_url}\n\n"
                 "Looking forward to achieving great things together!\n\n"
                 "Best regards,\n"

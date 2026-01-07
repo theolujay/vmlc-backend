@@ -183,6 +183,13 @@ class User(AbstractUser):
         help_text="Nigerian phone number for SMS notifications and contact",
     )
     state = models.CharField(max_length=50, blank=True, null=True)
+    profile_picture = models.ImageField(
+        upload_to="profile_pictures/",
+        blank=True,
+        null=True,
+        storage=PublicMediaStorage(),
+        validators=[validate_profile_picture],
+    )
     verification_document = models.FileField(
         upload_to="verfication_documents/",
         blank=True,
