@@ -155,6 +155,8 @@ test = [
     "pytest-django==4.11.1",
     "faker==37.8.0",
     "moto==5.1.12",
+    "django-debug-toolbar==6.0.0",
+    "django-extensions==4.1",
     "responses==0.25.8",
     "daphne>=4.2.1",
 ]

@@ -54,6 +54,37 @@ class FeatureFlag(models.Model):
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
 
 
+class PreRegUser(models.Model):
+    """Model for pre-registration data."""
+
+    class InterestType(models.TextChoices):
+        """Interest types for pre-registration."""
+
+        CANDIDATE = "candidate", "Candidate"
+        VOLUNTEER = "volunteer", "Volunteer"
+
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone_regex = RegexValidator(
+        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+    )
+    phone_number = models.CharField(
+        validators=[phone_regex],
+        max_length=17,
+        help_text="Nigerian phone number",
+    )
+    interest_type = models.CharField(
+        max_length=20,
+        choices=InterestType.choices,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        """Return a string representation of the pre-registration."""
+        return f"{self.full_name} ({self.interest_type})"
+
+
 class CustomUserManager(BaseUserManager):
     """Custom user manager for the User model."""
 
@@ -82,6 +113,21 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
+
+def validate_verification_document(value):
+    """Validate verification document"""
+    if not value:
+        return
+
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png", ".pdf"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
+        )
+
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 5MB.")
 
 
 def validate_profile_picture(value):
@@ -112,8 +158,8 @@ def validate_id_card_file(value):
             f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
         )
 
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("File size cannot exceed 2MB.")
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("File size cannot exceed 5MB.")
 
 
 def validate_face_id(value):
@@ -144,8 +190,8 @@ def validate_document_file(value):
             f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
         )
 
-    if value.size > 2 * 1024 * 1024:
-        raise ValidationError("Document size cannot exceed 2MB.")
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Document size cannot exceed 5MB.")
 
 
 class User(AbstractUser):
@@ -167,6 +213,7 @@ class User(AbstractUser):
         max_length=17,
         help_text="Nigerian phone number for SMS notifications and contact",
     )
+    state = models.CharField(max_length=50, blank=True, null=True)
     profile_picture = models.ImageField(
         upload_to="profile_pictures/",
         blank=True,
@@ -174,6 +221,14 @@ class User(AbstractUser):
         storage=PublicMediaStorage(),
         validators=[validate_profile_picture],
     )
+    verification_document = models.FileField(
+        upload_to="verfication_documents/",
+        blank=True,
+        null=True,
+        storage=PrivateMediaStorage(),
+        validators=[validate_verification_document],
+    )
+    verification_document_type = models.CharField(max_length=50, blank=True, null=True)
     username = models.CharField(max_length=255, unique=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -215,6 +270,7 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
+    document_type = models.CharField(max_length=50, blank=True, null=True)
     action_by = models.ForeignKey(
         "Staff",
         on_delete=models.SET_NULL,
@@ -720,6 +776,18 @@ class Candidate(models.Model):
         related_name="candidate_profile",
     )
     school = models.CharField(max_length=150)
+    school_type = models.CharField(
+        max_length=20,
+        choices=[("public", "Public"), ("private", "Private")],
+        blank=True,
+        null=True,
+    )
+    current_class = models.CharField(
+        max_length=10,
+        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")],
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "Staff",

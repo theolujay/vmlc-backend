@@ -42,33 +42,37 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     """
     Handles post-login tasks:
     - Invalidates stats cache.
+    - Sets email as verified on login if not already verified.
     - Updates dashboard caches for verified users.
-    - Sets email as verified on first login for invited users.
     """
     refresh_stats_overview_cache()
 
+    # Accurately identify first login by checking the database value
+    # before it was potentially updated by Django's update_last_login receiver.
+    user_from_db = User.objects.filter(pk=user.pk).values("last_login").first()
+    is_first_login = user_from_db and user_from_db["last_login"] is None
+
+    # Set email as verified on login if not already verified.
+    # This effectively verifies the email on the first successful login.
+    if not user.is_email_verified:
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
+
+    # Update dashboard caches for verified users.
+    # We ensure these are triggered for newly verified users as well.
     if (
         hasattr(user, "staff_profile")
         and user.is_email_verified
         and user.staff_profile.is_user_verified
     ):
         update_staff_dashboard_cache_task.delay(user.id)
+
     if (
         hasattr(user, "candidate_profile")
         and user.is_email_verified
         and user.candidate_profile.is_user_verified
     ):
         update_candidate_dashboard_cache_task.delay(user.id)
-    if user.last_login is None and not user.is_email_verified:
-        profile = None
-        if hasattr(user, "staff_profile"):
-            profile = user.staff_profile
-        elif hasattr(user, "candidate_profile"):
-            profile = user.candidate_profile
-
-        if profile and profile.created_by is not None:
-            user.is_email_verified = True
-            user.save(update_fields=["is_email_verified"])
 
 
 # Invalidate stats cache on changes to relevant models.

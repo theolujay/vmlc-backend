@@ -6,6 +6,7 @@ from django.core.mail import send_mail
 from celery import shared_task
 from celery.exceptions import Retry
 
+from vmlc.models import PreRegUser
 from vmlc.utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
@@ -165,12 +166,15 @@ def revoke_user_invite_task(user_id):
 
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(self, user_id, generated_password=None):
+def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
     from .models import User
 
-    user = User.objects.get(pk=user_id)
+    if is_pre_reg:
+        user = PreRegUser.objects.get(pk=user_id)
+    else:
+        user = User.objects.get(pk=user_id) 
 
     try:
         send_welcome_email(user, generated_password)
@@ -194,3 +198,45 @@ def generate_stats_overview_task():
     data = generate_stats_overview_data()
     cache.set("stats_overview", data, timeout=3600)  # Cache for 1 hour
     logger.info("Successfully generated and cached stats overview.")
+
+
+@shared_task(
+    bind=True,
+    name="upload_user_document_task",
+    max_retries=5,
+    default_retry_delay=60,
+    queue="files",
+)
+def upload_user_document_task(self, user_id, temp_file_path):
+    """
+    Asynchronously uploads a user document from a temporary local path to the configured storage.
+    """
+    import os
+    from django.core.files import File
+    from .models import User
+
+    try:
+        user = User.objects.get(pk=user_id)
+        if not os.path.exists(temp_file_path):
+            logger.error(f"Temp file {temp_file_path} not found for user {user_id}")
+            return
+
+        with open(temp_file_path, "rb") as f:
+            django_file = File(f)
+            # Use the original filename from the temp path
+            filename = os.path.basename(temp_file_path)
+            # Remove the UUID prefix we added during registration to get the original name if needed,
+            # but usually, keeping it unique is better.
+            user.verification_document.save(filename, django_file, save=True)
+
+        # Cleanup temp file
+        os.remove(temp_file_path)
+        logger.info(f"Successfully uploaded document for user {user.email}")
+
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found during document upload.")
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+    except Exception as exc:
+        logger.error(f"Failed to upload document for user {user_id}: {exc}")
+        raise self.retry(exc=exc)

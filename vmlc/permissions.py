@@ -14,7 +14,7 @@ def _is_api_key_valid(key):
 
 class HasXAPIKey(HasAPIKey):
     def _get_key(self, request):
-        return request.headers.get("X-Api-Key")
+        return request.headers.get("x-api-key") or request.headers.get("X-Api-Key")
 
     def has_permission(self, request, view):
         key = self._get_key(request)

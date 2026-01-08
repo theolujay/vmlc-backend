@@ -339,7 +339,6 @@ Feature: Dashboards and permissions
 #### Health & discovery
 
 - `GET /health/` — public health check. `200 OK`.
-- `GET /root/` — discoverable list of endpoints (requires API key). `200 OK`.
 
 #### Interactive docs
 
@@ -431,7 +430,6 @@ Password-change:
 - `PUT /exams/{id}/`, `PATCH /exams/{id}/`, `DELETE /exams/{id}/` — update/delete exam. Role: `admin`+. `200/204`.
 - `GET /exams/{id}/take-exam/` — candidate takes exam (stage-limited: screening/league/final). Candidate must be eligible. `200 OK`.
 - `POST /exams/{id}/submit-exam-answers/` — candidate submits answers. `200 OK`.
-- `PUT /exams/{id}/submit-exam-score/` — manual score submission (admin). `200 OK`.
 
 ---
 
@@ -1845,42 +1843,6 @@ _Note: `selected_option` can be an empty string `""` if the question is unanswer
 
 _Note: A `403 Forbidden` will be returned if the exam is closed or the candidate is not eligible. A `400 Bad Request` will be returned if the candidate has already submitted answers for the exam._
 
-#### Submit Exam Score (Manual by Staff)
-
-Allows 'admin' or higher staff members to manually submit or update a candidate's score for a specific exam.
-
-**Endpoint:** `PUT /exams/{exam_id}/submit-exam-score/`
-**Headers:**
-
-```text
-X-Api-Key: <your_api_key>
-```
-
-**Required Role:** `admin` or higher
-**Request Body:**
-
-```json
-{
-  "candidate_id": "4ecxxxxx-8f43-xxxx-xxxx-xxxxxxxxxx",
-  "score": 95.5
-}
-```
-
-**Response:** `200 OK`
-
-```json
-{
-  "message": "Score updated.",
-  "data": {
-    "candidate": "John Doe",
-    "exam": "Algebra Screening Exam",
-    "score": 95.5
-  }
-}
-```
-
-_Note: If the score is being submitted for the first time, the message will be "Score submitted."_
-
 ---
 
 ### Question Management
@@ -2732,7 +2694,7 @@ If `user_id` is not provided, it defaults to the current authenticated user.
 - `first_name` (string, optional)
 - `last_name` (string, optional)
 - `profile_picture` (file, optional)
-- `phone_number` (string, optional)
+- `phone` (string, optional)
 - `school` (string, optional, for candidates)
 - `occupation` (string, optional, for staff)
 
@@ -2933,6 +2895,7 @@ The broadcast system allows authorized staff to send targeted communications to 
 
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
 ```
 
 **Required Role:** `manager` or higher
@@ -2977,6 +2940,7 @@ X-Api-Key: <your_api_key>
 
 ```text
 X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
 ```
 
 **Required Role:** `manager` or higher
@@ -2996,7 +2960,7 @@ X-Api-Key: <your_api_key>
 
 _Note: The `target_roles` object must contain either a `staff` key, a `candidate` key, or both. The values should be arrays of valid roles._
 
-- _Valid `staff` roles: `volunteer`, `moderator`, `admin`, `manager`_
+- _Valid `staff` roles: `volunteer`, `moderator`, `admin`, `manager`, `superadmin`_
 - _Valid `candidate` roles: `screening`, `league`, `final`, `winner`_
 
 **Response:** `201 Created`
@@ -3023,12 +2987,109 @@ _Note: Creating a broadcast triggers an asynchronous task. The response includes
 
 #### Get Broadcast Details
 
+
+
 **Endpoint:** `GET /broadcasts/{broadcast_id}/`  
+
 **Required Role:** `manager` or higher
+
 _Note: The response for this endpoint is cached for performance. The cache is invalidated when the broadcast sending task completes._
+
 **Response:** `200 OK` (Returns the detailed broadcast object, including the status and logs of sending attempts)
 
+
+
 ---
+
+
+
+### Webhooks
+
+
+
+This section details API endpoints designed to receive automated notifications or data from other services.
+
+
+
+#### Database Backup Webhook
+
+
+
+This webhook endpoint is designed to receive status updates from the database backup script. It provides a way to monitor the success or failure of backup operations.
+
+
+
+**Endpoint:** `POST /webhooks/db-backup/`
+
+**Headers:**
+
+
+
+```text
+
+X-Api-Key: <your_api_key>
+
+```
+
+
+
+**Required Role:** None (API Key only)
+
+**Request Body:**
+
+
+
+```json
+
+{
+
+  "status": "success",
+
+  "environment": "prod",
+
+  "timestamp": "2025-01-01T12:00:00Z",
+
+  "backup_filename": "db_backup_2025-01-01.sql",
+
+  "error_message": null
+
+}
+
+```
+
+
+
+- `status` (string): The status of the backup operation (`success`, `first_failure`, `final_failure`).
+
+- `environment` (string): The environment where the backup was performed (`prod`, `staging`).
+
+- `timestamp` (string): ISO 8601 formatted timestamp of the backup event.
+
+- `backup_filename` (string): The name of the backup file.
+
+- `error_message` (string, optional): Details of the error if the backup failed.
+
+
+
+**Response:** `200 OK`
+
+
+
+```json
+
+{
+
+  "status": "received"
+
+}
+
+```
+
+
+
+---
+
+
 
 ## Advanced Topics
 
