@@ -8,7 +8,7 @@ from .base import *
 # ============================================================================
 # TEST-SPECIFIC SETTINGS
 # ============================================================================
-SECRET_KEY = "this-is-a-test-secret-key--do-not-use-in-production"
+SECRET_KEY = "dummy"
 DEBUG = True
 TESTING = True
 

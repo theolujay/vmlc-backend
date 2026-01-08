@@ -187,7 +187,7 @@ SUPPORT_EMAIL = read_secret("SUPPORT_EMAIL", "verboheitmlc@gmail.com")
 SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 
 EMAIL_TIMEOUT = 30
-if DEBUG:
+if DEBUG or SECRET_KEY == "dummy":
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif (
     not DEBUG

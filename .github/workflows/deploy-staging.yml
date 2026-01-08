@@ -178,9 +178,10 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: staging
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:prod
+            ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:staging
             ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.short_sha }}
             ghcr.io/${{ github.repository_owner }}/${{ needs.prepare.outputs.repo_name }}:${{ needs.prepare.outputs.version }}
           cache-from: type=local,src=/tmp/.buildx-cache
