@@ -208,10 +208,11 @@ CONTACT_URL = read_secret("CONTACT_URL", f"{BASE_URL}/contact/")
 LICENSE_URL = read_secret("LICENSE_URL", f"{BASE_URL}/license/")
 LOGO_URL = read_secret("LOGO_URL", f"{BASE_URL}/static/images/logo.png")
 
-FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "http://localhost:3000")
+FRONTEND_BASE_URL = read_secret("FRONTEND_BASE_URL", "http://localhost:3001")
 FRONTEND_LOGIN = f"{FRONTEND_BASE_URL}/login/"
 FRONTEND_REGISTER_CANDIDATE = f"{FRONTEND_BASE_URL}/register/"
 FRONTEND_REGISTER_STAFF = f"{FRONTEND_BASE_URL}/register/staff/"
+LANDING_BASE_URL = read_secret("LANDING_BASE_URL", "http://localhost:3000")
 
 TWILIO_ACCOUNT_SID = read_secret("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = read_secret("TWILIO_AUTH_TOKEN")

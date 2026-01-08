@@ -6,6 +6,7 @@ from django.core.mail import send_mail
 from celery import shared_task
 from celery.exceptions import Retry
 
+from vmlc.models import PreRegUser
 from vmlc.utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
@@ -165,12 +166,15 @@ def revoke_user_invite_task(user_id):
 
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(self, user_id, generated_password=None):
+def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
     from .models import User
 
-    user = User.objects.get(pk=user_id)
+    if is_pre_reg:
+        user = PreRegUser.objects.get(pk=user_id)
+    else:
+        user = User.objects.get(pk=user_id) 
 
     try:
         send_welcome_email(user, generated_password)

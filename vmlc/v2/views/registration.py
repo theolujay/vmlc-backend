@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from vmlc.tasks import send_welcome_mail_task
 from vmlc.models import Candidate, Staff, FeatureFlag
 from vmlc.permissions import HasXAPIKey
-from vmlc.v2.serializers.registration import RegistrationV2Serializer
+from vmlc.v2.serializers.registration import PreRegUserSerializer, RegistrationV2Serializer
 from vmlc.utils.exceptions import PermissionDenied
 from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
 
@@ -59,10 +59,6 @@ class RegistrationV2View(CreateAPIView):
         # 3. Check Feature Flags
         user_type = request.data.get("user_type")
         feature_flag_key = None
-        if user_type == "candidate":
-            feature_flag_key = "candidate_registration"
-        elif user_type == "volunteer":
-             feature_flag_key = "staff_registration_open" # Using the key from V1 ToggleStaffRegistrationView
 
         # Note: V1 used "staff_registration" in StaffRegistrationView but "staff_registration_open" in ToggleStaffRegistrationView.
         # I should check the toggle view in vmlc/views/registration.py (v1) again.
@@ -93,7 +89,7 @@ class RegistrationV2View(CreateAPIView):
         generated_password = getattr(instance, "_generated_password", None)
         
         if generated_password:
-             send_welcome_mail_task.delay(instance.user.pk, generated_password)
+             send_welcome_mail_task.delay(user_id=instance.user.pk, generated_password=generated_password)
         
         # 6. Invalidate Caches
         if isinstance(instance, Candidate):
@@ -111,3 +107,62 @@ class RegistrationV2View(CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
+    
+
+class PreRegistrationView(CreateAPIView):
+    """
+    Pre-Registration endpoint for both Candidate and Volunteer.
+    """
+    permission_classes = [HasXAPIKey]
+    serializer_class = PreRegUserSerializer
+
+    @swagger_auto_schema(
+        operation_summary="Pre-Register Interested User (Candidate/Volunteer)",
+        operation_description="Registers a new user as either an interested Candidate or a Volunteer.",
+        request_body=PreRegUserSerializer,
+        responses={
+            201: openapi.Response(
+                description="Action completed successfully.",
+                examples={"application/json": {"status": "success", "message": "Action completed successfully."}}
+            ),
+            400: openapi.Response(description="Bad Request"),
+        },
+        tags=["Registration V2"],
+        manual_parameters=[
+            openapi.Parameter(
+                "x-api-key",
+                openapi.IN_HEADER,
+                description="API Key",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ]
+    )
+    def post(self, request, *args, **kwargs):
+        # 1. Sanitize Data (logging mostly)
+        safe_data = sanitize_data(request.data)
+        logger.info(f"Pre-Registration attempt with data: {safe_data}")
+
+        # 2. Check Feature Flag
+        if not FeatureFlag.get_bool("pre_registration_open", default=True):
+             logger.warning("Pre-registration attempt while it is closed.")
+             raise PermissionDenied("Pre-registration is currently closed.")
+
+        # 3. Serialize & Save
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pre_reg_user = serializer.save()
+
+        # 4. Tasks (Email)
+        send_welcome_mail_task.delay(user_id=pre_reg_user.id, is_pre_reg=True)
+
+        logger.info(f"Successfully pre-registered new user with email: {pre_reg_user.email}")
+        
+        return Response(
+            {
+                "status": "success",
+                "message": "Action completed successfully."
+            },
+            status=status.HTTP_201_CREATED
+        )
+    

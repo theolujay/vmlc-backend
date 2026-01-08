@@ -1,11 +1,10 @@
-import logging
-
 from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from ...models import (
+    PreRegUser,
     User,
     Candidate,
     Staff,
@@ -13,9 +12,6 @@ from ...models import (
     validate_document_file,
 )
 from ...utils.auth import generate_password
-
-logger = logging.getLogger(__name__)
-
 
 class RegistrationV2Serializer(serializers.Serializer):
     """
@@ -189,3 +185,44 @@ class RegistrationV2Serializer(serializers.Serializer):
         # Attaching password to instance so view can access it
         profile._generated_password = password
         return profile
+
+class PreRegUserSerializer(serializers.Serializer):
+
+    full_name = serializers.CharField(max_length=50)
+    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=17)
+    interest_type = serializers.ChoiceField(choices=["candidate", "volunteer"])
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                _("A user with this email already exists.")
+            )
+        if PreRegUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                _("This email has already been pre-registered.")
+            )
+        return value
+    
+    def validate_phone_number(self, value):
+        """Validate phone number format."""
+        import re
+
+        if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
+            raise serializers.ValidationError(_("Enter a valid Nigerian phone number."))
+        return value
+    
+    def create(self, validated_data):
+
+        full_name = validated_data.get("full_name")
+        email = validated_data.get("email")
+        phone_number = validated_data.get("phone_number")
+        interest_type = validated_data.get("interest_type")
+
+        interested_user = PreRegUser.objects.create(
+            full_name=full_name,
+            email=email,
+            phone_number=phone_number,
+            interest_type=interest_type
+        )
+        return interested_user

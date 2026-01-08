@@ -54,6 +54,37 @@ class FeatureFlag(models.Model):
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
 
 
+class PreRegUser(models.Model):
+    """Model for pre-registration data."""
+
+    class InterestType(models.TextChoices):
+        """Interest types for pre-registration."""
+
+        CANDIDATE = "candidate", "Candidate"
+        VOLUNTEER = "volunteer", "Volunteer"
+
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone_regex = RegexValidator(
+        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+    )
+    phone_number = models.CharField(
+        validators=[phone_regex],
+        max_length=17,
+        help_text="Nigerian phone number",
+    )
+    interest_type = models.CharField(
+        max_length=20,
+        choices=InterestType.choices,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        """Return a string representation of the pre-registration."""
+        return f"{self.full_name} ({self.interest_type})"
+
+
 class CustomUserManager(BaseUserManager):
     """Custom user manager for the User model."""
 
