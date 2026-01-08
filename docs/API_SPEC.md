@@ -18,7 +18,7 @@ Requests require an API key passed in the `x-api-key` header.
 | :--- | :--- | :--- |
 | `/register/` | `VITE_API_KEY` | `x-api-key` |
 | `/support-us/` | `VITE_API_KEY` | `x-api-key` |
-| `/pre-register` | `VITE_PRE_REGISTER_API_KEY` | `x-api-key` |
+| `/pre-register/` | `VITE_PRE_REGISTER_API_KEY` | `x-api-key` |
 
 ---
 
@@ -40,9 +40,10 @@ Registers a new user as either a **Candidate** or a **Volunteer**.
 | `last_name` | `string` | User's last name. |
 | `email` | `string` | Valid email address. |
 | `phone_number`| `string` | Phone number (e.g., `+234...`). |
+| `state` | `string` | State of residence (e.g., Lagos, Ogun, etc). |
 | `document` | `file` | ID or Result upload (Max 5MB). |
 | `document_type`| `string` | `NIN` or `school result` (Candidate) / `NIN`, `passport`, or `drivers license` (Volunteer). |
-| `consent` | `string` | `"true"` or `"false"` (Boolean sent as string in FormData). |
+| `consent` | `string` | `"true"` (Boolean sent as string in FormData). Must be true to proceed. |
 
 #### Candidate-Specific Fields (Required if `user_type` is `candidate`)
 | Key | Type | Description |
@@ -50,13 +51,11 @@ Registers a new user as either a **Candidate** or a **Volunteer**.
 | `school_name` | `string` | Full name of the secondary school. |
 | `school_type` | `string` | `public` or `private`. |
 | `current_class`| `string` | `SS1`, `SS2`, or `SS3`. |
-| `state` | `string` | State of residence (e.g., Lagos, Ogun, etc). |
 
 #### Volunteer-Specific Fields (Required if `user_type` is `volunteer`)
 | Key | Type | Description |
 | :--- | :--- | :--- |
 | `occupation` | `string` | Current profession or status. |
-| `state` | `string` | Current location. |
 
 ---
 
@@ -85,7 +84,7 @@ For sponsorships, partnerships, and other forms of support.
 
 Lead collection for interested participants.
 
-- **Endpoint:** `/pre-register`
+- **Endpoint:** `/pre-register/`
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
