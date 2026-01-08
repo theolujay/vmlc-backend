@@ -155,10 +155,6 @@ setup_django_env() {
         mkdir -p /home/verboheit/web/staticfiles
         mkdir -p /home/verboheit/web/media
         log_info "Directories setup completed"
-
-        log_info "Collecting static files..."
-        python manage.py collectstatic --no-input --skip-checks
-        log_info "Static files collection completed"
     else
         log_info "Skipping static files collection in development mode"
     fi

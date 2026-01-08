@@ -113,6 +113,7 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
 
+RUN SECRET_KEY=dummy DATABASE_URL=sqlite:////tmp/db.sqlite3 USE_S3=false python manage.py collectstatic --no-input --clear
 
 FROM base AS production
 
@@ -121,3 +122,5 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     DEBUG=0 \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
+
+RUN SECRET_KEY=dummy DATABASE_URL=sqlite:////tmp/db.sqlite3 USE_S3=false python manage.py collectstatic --no-input --clear

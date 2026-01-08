@@ -62,7 +62,6 @@ x-vmlc-service-base: &vmlc-service-base
   secrets: *vmlc-secrets
   volumes:
     - media:/home/verboheit/web/media
-    - static:/home/verboheit/web/staticfiles
   environment:
     <<: [*vmlc-base-env]
   <<: [*dns, *security]
@@ -396,7 +395,6 @@ volumes:
   db:
   redis:
   media:
-  static:
   alloy:
   loki:
   tempo:
