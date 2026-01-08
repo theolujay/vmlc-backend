@@ -218,7 +218,7 @@ jobs:
             mkdir -p ~/deployments/backups
             
             # Save current deployment info
-            docker service ls --format "{{.Name}} {{.Image}}" | grep vmlc-prod > ~/deployments/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
+            docker service ls --format "{{.Name}} {{.Image}}" | grep vmlc-staging > ~/deployments/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
             
             # Keep only last 10 backups
             cd ~/deployments/backups && ls -t | tail -n +11 | xargs -r rm

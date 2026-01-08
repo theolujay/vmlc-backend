@@ -155,6 +155,7 @@ setup_django_env() {
         mkdir -p /home/verboheit/app/staticfiles
         mkdir -p /home/verboheit/app/media
         log_info "Directories setup completed"
+        python manage.py collectstatic --no-input --clear
     else
         log_info "Skipping static files collection in development mode"
     fi
