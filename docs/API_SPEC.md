@@ -100,9 +100,10 @@ Lead collection for interested participants.
 
 ## 5. Response Formats
 
-The API should return consistent JSON responses.
+The API returns JSON responses.
 
-### Success (200 OK)
+### Success (201 Created)
+Returned when a registration or pre-registration is successfully created.
 ```json
 {
   "status": "success",
@@ -110,11 +111,29 @@ The API should return consistent JSON responses.
 }
 ```
 
-### Error (400 Bad Request / 500 Internal Server Error)
+### Error Responses
+
+#### Validation Error (400 Bad Request)
+Returned when input data fails validation (e.g., invalid email, missing fields).
 ```json
 {
-  "status": "error",
-  "message": "Specific error message to be displayed to the user."
+  "email": [
+    "A user with this email already exists."
+  ],
+  "phone_number": [
+    "Enter a valid Nigerian phone number."
+  ],
+  "non_field_errors": [
+    "Global error message if applicable."
+  ]
+}
+```
+
+#### Permission / General Error (403 Forbidden / 400 Bad Request)
+Returned when an action is not allowed (e.g., registration closed, already authenticated) or for other generic errors.
+```json
+{
+  "detail": "Registration is currently closed."
 }
 ```
 
