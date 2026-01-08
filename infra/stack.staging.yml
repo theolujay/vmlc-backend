@@ -10,7 +10,8 @@ x-vmlc-staging-env: &vmlc-staging-env
   CORS_ALLOW_ALL_ORIGINS: "true"
   DEFAULT_FROM_EMAIL: "Verboheit MLC <staging-mlc@verboheit.org>"
   DJANGO_SETTINGS_MODULE: config.settings.staging
-  FRONTEND_BASE_URL: "staging-portal.verboheit.org"
+  FRONTEND_BASE_URL: "https://staging-portal.verboheit.org"
+  LANDING_BASE_URL: "https://staging.verboheit.org"
   GUNICORN_WORKERS: "1"
 
 x-vmlc-staging: &vmlc-staging
