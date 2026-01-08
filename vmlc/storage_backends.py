@@ -7,12 +7,15 @@ class PublicMediaStorage(S3Boto3Storage):
     Storage for files that can be publicly accessible (like profile photos)
     These files get public URLs that don't expire
     """
-
     location = "media/public"
     default_acl = "public-read"
     file_overwrite = False
 
     def __init__(self, *args, **kwargs):
+        if not getattr(settings, 'USE_S3', False):
+            super().__init__(*args, **kwargs)
+            return
+            
         kwargs.update(
             {
                 "access_key": settings.AWS_ACCESS_KEY_ID,
@@ -30,7 +33,6 @@ class PrivateMediaStorage(S3Boto3Storage):
     Storage for sensitive files that need access control (ID cards, verification docs)
     These files generate signed URLs that expire
     """
-
     location = "media/private"
     default_acl = "private"
     file_overwrite = False
@@ -38,6 +40,10 @@ class PrivateMediaStorage(S3Boto3Storage):
     querystring_expire = 3600  # URLs expire in 1 hour
 
     def __init__(self, *args, **kwargs):
+        if not getattr(settings, 'USE_S3', False):
+            super().__init__(*args, **kwargs)
+            return
+            
         kwargs.update(
             {
                 "access_key": settings.AWS_ACCESS_KEY_ID,
