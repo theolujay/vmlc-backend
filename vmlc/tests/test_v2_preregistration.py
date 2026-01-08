@@ -54,7 +54,8 @@ class PreRegistrationTestCase(APITestCase):
             del payload[field]
             response = self.client.post(self.url, payload, **self.header)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(field, response.data)
+            self.assertIn(field, response.data["errors"])
+            
 
     def test_invalid_email(self):
         """Test request with invalid email format."""
@@ -62,7 +63,7 @@ class PreRegistrationTestCase(APITestCase):
         payload["email"] = "invalid-email"
         response = self.client.post(self.url, payload, **self.header)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data)
+        self.assertIn("email", response.data["errors"])
 
     def test_invalid_phone_number(self):
         """Test request with invalid phone number format."""
@@ -70,7 +71,7 @@ class PreRegistrationTestCase(APITestCase):
         payload["phone_number"] = "12345"
         response = self.client.post(self.url, payload, **self.header)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("phone_number", response.data)
+        self.assertIn("phone_number", response.data["errors"])
 
     def test_duplicate_pre_registration_email(self):
         """Test that duplicate email in pre-registration returns 400, not 500."""
@@ -80,7 +81,7 @@ class PreRegistrationTestCase(APITestCase):
         # Second registration with same email
         response = self.client.post(self.url, self.valid_payload, **self.header)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data)
+        self.assertIn("email", response.data["errors"])
         # Check that we didn't create a second record
         self.assertEqual(PreRegUser.objects.count(), 1)
 
@@ -90,7 +91,7 @@ class PreRegistrationTestCase(APITestCase):
         
         response = self.client.post(self.url, self.valid_payload, **self.header)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data)
+        self.assertIn("email", response.data["errors"])
 
     def test_pre_registration_closed(self):
         """Test that pre-registration is blocked when feature flag is disabled."""

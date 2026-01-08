@@ -128,7 +128,7 @@ class RegistrationV2Tests(APITestCase):
             HTTP_X_API_KEY=self.api_key
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("document_type", response.data)
+        self.assertIn("document_type", response.data["errors"])
 
     def test_candidate_registration_invalid_file_format(self):
         file = io.BytesIO(b"not an image")
@@ -156,7 +156,7 @@ class RegistrationV2Tests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Check either field "document" or non_field_errors
-        self.assertTrue("document" in response.data or "non_field_errors" in response.data)
+        self.assertTrue("document" in response.data["errors"] or "non_field_errors" in response.data["errors"])
 
     def test_volunteer_missing_fields(self):
         data = {
@@ -178,7 +178,7 @@ class RegistrationV2Tests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Should have errors for occupation and phone_number (if not using defaults)
-        self.assertTrue("occupation" in response.data or "phone_number" in response.data)
+        self.assertTrue("occupation" in response.data["errors"] or "phone_number" in response.data["errors"])
 
     def test_registration_already_exists(self):
         # First registration
@@ -206,7 +206,7 @@ class RegistrationV2Tests(APITestCase):
             HTTP_X_API_KEY=self.api_key
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data)
+        self.assertIn("email", response.data["errors"])
 
     def test_registration_no_consent(self):
         data = {
@@ -230,4 +230,6 @@ class RegistrationV2Tests(APITestCase):
             HTTP_X_API_KEY=self.api_key
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("consent", response.data)
+        self.assertIn("consent", response.data["errors"])
+
+        
