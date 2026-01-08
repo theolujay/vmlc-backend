@@ -6,6 +6,7 @@ from drf_yasg import openapi
 from rest_framework import status, parsers
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
 from vmlc.tasks import send_welcome_mail_task
 from vmlc.models import Candidate, Staff, FeatureFlag
@@ -80,10 +81,21 @@ class RegistrationV2View(CreateAPIView):
              logger.warning(f"Registration attempt for {feature_flag_key} which is currently closed.")
              raise PermissionDenied(f"{feature_flag_key.replace('_', ' ').title()} is currently closed.")
 
-        # 4. Serialize & Save
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        try:
+            # 4. Serialize & Save
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            instance = serializer.save()
+        except ValidationError as e:
+            logger.warning(f"Registration validation failed: {e.detail}")
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Validation failed.",
+                    "errors": e.detail
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # 5. Tasks (Email with Password)
         generated_password = getattr(instance, "_generated_password", None)
@@ -107,7 +119,6 @@ class RegistrationV2View(CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
-    
 
 class PreRegistrationView(CreateAPIView):
     """
@@ -125,7 +136,17 @@ class PreRegistrationView(CreateAPIView):
                 description="Action completed successfully.",
                 examples={"application/json": {"status": "success", "message": "Action completed successfully."}}
             ),
-            400: openapi.Response(description="Bad Request"),
+            400: openapi.Response(
+                description="Validation Error",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example='error'),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example='Validation failed.'),
+                        'errors': openapi.Schema(type=openapi.TYPE_OBJECT, description="Field-specific validation errors")
+                    }
+                )
+            ),
         },
         tags=["Registration V2"],
         manual_parameters=[
@@ -148,21 +169,31 @@ class PreRegistrationView(CreateAPIView):
              logger.warning("Pre-registration attempt while it is closed.")
              raise PermissionDenied("Pre-registration is currently closed.")
 
-        # 3. Serialize & Save
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        pre_reg_user = serializer.save()
+        try:
+            # 3. Serialize & Save
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            pre_reg_user = serializer.save()
 
-        # 4. Tasks (Email)
-        send_welcome_mail_task.delay(user_id=pre_reg_user.id, is_pre_reg=True)
+            # 4. Tasks (Email)
+            send_welcome_mail_task.delay(user_id=pre_reg_user.id, is_pre_reg=True)
 
-        logger.info(f"Successfully pre-registered new user with email: {pre_reg_user.email}")
-        
-        return Response(
-            {
-                "status": "success",
-                "message": "Action completed successfully."
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
+            logger.info(f"Successfully pre-registered new user with email: {pre_reg_user.email}")
+            
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Action completed successfully."
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except ValidationError as e:
+            logger.warning(f"Pre-registration validation failed: {e.detail}")
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Validation failed.",
+                    "errors": e.detail
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )

@@ -2,6 +2,7 @@
 # Deploy: docker stack deploy -c stack.base.yml -c stack.staging.yml vmlc-staging
 
 x-vmlc-staging-env: &vmlc-staging-env
+  DEBUG: "false"
   OTEL_SERVICE_NAME: ${COMPOSE_PROJECT_NAME}_staging
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=staging
   ALLOWED_HOSTS: staging-api.verboheit.org,localhost
