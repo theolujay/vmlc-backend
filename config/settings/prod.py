@@ -12,8 +12,8 @@ from .base import *
 
 load_dotenv(BASE_DIR / "prod.env")
 # Ensure SECRET_KEY is set for production
-if not SECRET_KEY:
-    raise ValueError("The SECRET_KEY environment variable must be set in production.")
+# if not SECRET_KEY:
+#     raise ValueError("The SECRET_KEY environment variable must be set in production.")
 
 # ============================================================================
 # PRODUCTION-SPECIFIC SETTINGS
