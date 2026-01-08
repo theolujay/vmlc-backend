@@ -189,14 +189,14 @@ SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 EMAIL_TIMEOUT = 30
 if DEBUG or SECRET_KEY == "dummy":
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-elif (
-    not DEBUG
-    and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"
-    and not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD])
-):
-    raise ImproperlyConfigured(
-        "SMTP email backend requires EMAIL_HOST, EMAIL_HOST_USER, and EMAIL_HOST_PASSWORD to be set in production."
-    )
+# elif (
+#     not DEBUG
+#     and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"
+#     and not all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD])
+# ):
+#     raise ImproperlyConfigured(
+#         "SMTP email backend requires EMAIL_HOST, EMAIL_HOST_USER, and EMAIL_HOST_PASSWORD to be set in production."
+#     )
 
 # ============================================================================
 # APPLICATION URLS & SERVICE KEYS
