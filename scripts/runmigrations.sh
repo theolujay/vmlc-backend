@@ -152,8 +152,8 @@ setup_django_env() {
     # Static files collection (only in production/staging)
     if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
         log_info "Setting up directories..."
-        mkdir -p /home/verboheit/web/staticfiles
-        mkdir -p /home/verboheit/web/media
+        mkdir -p /home/verboheit/app/staticfiles
+        mkdir -p /home/verboheit/app/media
         log_info "Directories setup completed"
     else
         log_info "Skipping static files collection in development mode"
