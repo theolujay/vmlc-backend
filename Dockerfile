@@ -111,7 +111,8 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     PYTHONDEBUG=0 \
     DEBUG=0 \
     PYTHONOPTIMIZE=2 \
-    SERVER_SOFTWARE=
+    SERVER_SOFTWARE= \
+    BUILD=true
 
 RUN python manage.py collectstatic --noinput --clear
 FROM base AS production
@@ -120,6 +121,7 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONDEBUG=0 \
     DEBUG=0 \
     PYTHONOPTIMIZE=2 \
-    SERVER_SOFTWARE=
+    SERVER_SOFTWARE= \
+    BUILD=true
 
 RUN python manage.py collectstatic --noinput --clear
