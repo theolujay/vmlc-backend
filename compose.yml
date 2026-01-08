@@ -32,6 +32,7 @@ x-app-base: &app-base
         path: ./uv.lock
   environment:
     - UV_NO_DEV=0
+    # - DATABASE_URL=postgresql://postgres:dev_password_123@db:5432/vmlc_dev
   env_file: .env
   networks:
     - dev
@@ -43,6 +44,8 @@ x-app-base: &app-base
 services:
   db:
     image: postgres:17.2-bookworm
+    ports:
+      - "5432:5432"
     volumes:
       - dev_db:/var/lib/postgresql/data
       - ./docker/postgresql/init:/docker-entrypoint-initdb.d:ro
