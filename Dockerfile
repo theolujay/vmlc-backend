@@ -113,6 +113,7 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
 
+RUN python manage.py collectstatic --noinput --clear
 FROM base AS production
 
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
@@ -120,3 +121,5 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     DEBUG=0 \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE=
+
+RUN python manage.py collectstatic --noinput --clear
