@@ -61,7 +61,7 @@ x-vmlc-base-env: &vmlc-base-env
 x-vmlc-service-base: &vmlc-service-base
   secrets: *vmlc-secrets
   volumes:
-    - media:/home/verboheit/web/media
+    - media:/app/media
   environment:
     <<: [*vmlc-base-env]
   <<: [*dns, *security]

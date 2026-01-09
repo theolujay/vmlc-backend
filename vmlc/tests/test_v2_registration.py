@@ -39,7 +39,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "NIN",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(self.url, data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -57,7 +58,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "NIN",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -80,7 +82,8 @@ class RegistrationV2Tests(APITestCase):
             "state": "Abuja",
             "occupation": "Teacher",
             "document_type": "passport",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -119,7 +122,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "passport", # Invalid for candidate
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -145,7 +149,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "NIN",
-            "document": file
+            "document": file,
+            "face_capture": generate_photo_file("face.jpg")
         }
         
         response = self.client.post(
@@ -168,7 +173,8 @@ class RegistrationV2Tests(APITestCase):
             "consent": "true",
             "state": "Abuja",
             "document_type": "passport",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -197,7 +203,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "NIN",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -221,7 +228,8 @@ class RegistrationV2Tests(APITestCase):
             "school_type": "public",
             "current_class": "SS1",
             "document_type": "NIN",
-            "document": generate_photo_file()
+            "document": generate_photo_file(),
+            "face_capture": generate_photo_file("face.jpg")
         }
         response = self.client.post(
             self.url, 
@@ -231,5 +239,3 @@ class RegistrationV2Tests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("consent", response.data["errors"])
-
-        

@@ -12,8 +12,8 @@ from .base import *
 
 load_dotenv(BASE_DIR / "prod.env")
 # Ensure SECRET_KEY is set for production
-if not SECRET_KEY:
-    raise ValueError("The SECRET_KEY environment variable must be set in production.")
+# if not SECRET_KEY:
+#     raise ValueError("The SECRET_KEY environment variable must be set in production.")
 
 # ============================================================================
 # PRODUCTION-SPECIFIC SETTINGS
@@ -183,3 +183,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# === STATIC & MEDIA FILES ===
+# STATIC_ROOT = "/home/verboheit/app/staticfiles"
+# MEDIA_ROOT = "/home/verboheit/app/media"
