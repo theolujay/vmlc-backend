@@ -185,5 +185,5 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # === STATIC & MEDIA FILES ===
-STATIC_ROOT = "/home/verboheit/app/staticfiles"
-MEDIA_ROOT = "/home/verboheit/app/media"
+# STATIC_ROOT = "/home/verboheit/app/staticfiles"
+# MEDIA_ROOT = "/home/verboheit/app/media"
