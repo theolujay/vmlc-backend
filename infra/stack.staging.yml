@@ -117,8 +117,8 @@ services:
       - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
-      - staging_media:/home/verboheit/web/media
-      - staging_static:/home/verboheit/web/staticfiles
+      - staging_media:/home/verboheit/app/media
+      - staging_static:/home/verboheit/app/staticfiles
     networks:
       - staging
     deploy:
@@ -142,8 +142,8 @@ services:
       - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
-      - staging_media:/home/verboheit/web/media
-      - staging_static:/home/verboheit/web/staticfiles
+      - staging_media:/home/verboheit/app/media
+      - staging_static:/home/verboheit/app/staticfiles
     labels:
       - "traefik.http.routers.django.rule=Host(`staging-api.verboheit.org`)"
     networks:
@@ -162,8 +162,8 @@ services:
       - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
-      - staging_media:/home/verboheit/web/media
-      - staging_static:/home/verboheit/web/staticfiles
+      - staging_media:/home/verboheit/app/media
+      - staging_static:/home/verboheit/app/staticfiles
     networks:
       - staging
     deploy:
@@ -180,8 +180,8 @@ services:
       - *vmlc-staging
     environment: *vmlc-staging-env
     volumes:
-      - staging_media:/home/verboheit/web/media
-      - staging_static:/home/verboheit/web/staticfiles
+      - staging_media:/home/verboheit/app/media
+      - staging_static:/home/verboheit/app/staticfiles
     networks:
       - staging
     deploy:
