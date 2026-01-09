@@ -132,8 +132,8 @@ services:
       - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
-      - prod_media:/home/verboheit/app/media
-      - prod_static:/home/verboheit/app/staticfiles
+      - prod_media:/app/media
+      - prod_static:/app/staticfiles
     networks:
       - prod
     deploy:
@@ -150,8 +150,8 @@ services:
       - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
-      - prod_media:/home/verboheit/app/media
-      - prod_static:/home/verboheit/app/staticfiles
+      - prod_media:/app/media
+      - prod_static:/app/staticfiles
     labels:
       - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
     networks:
@@ -171,8 +171,8 @@ services:
       - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
-      - prod_media:/home/verboheit/app/media
-      - prod_static:/home/verboheit/app/staticfiles
+      - prod_media:/app/media
+      - prod_static:/app/staticfiles
     command:
       - opentelemetry-instrument
       - --traces_exporter
@@ -209,8 +209,8 @@ services:
       - *vmlc-prod
     environment: *vmlc-prod-env
     volumes:
-      - prod_media:/home/verboheit/app/media
-      - prod_static:/home/verboheit/app/staticfiles
+      - prod_media:/app/media
+      - prod_static:/app/staticfiles
     networks:
       - prod
     deploy:
