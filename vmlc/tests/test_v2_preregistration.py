@@ -18,7 +18,7 @@ class PreRegistrationTestCase(APITestCase):
         self.valid_payload = {
             "full_name": "Test User",
             "email": "test@example.com",
-            "phone_number": "08012345678",
+            "phone": "08012345678",
             "interest_type": "candidate"
         }
 
@@ -48,7 +48,7 @@ class PreRegistrationTestCase(APITestCase):
 
     def test_missing_required_fields(self):
         """Test request with missing required fields."""
-        required_fields = ["full_name", "email", "phone_number", "interest_type"]
+        required_fields = ["full_name", "email", "phone", "interest_type"]
         for field in required_fields:
             payload = self.valid_payload.copy()
             del payload[field]
@@ -65,13 +65,13 @@ class PreRegistrationTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
 
-    def test_invalid_phone_number(self):
+    def test_invalid_phone(self):
         """Test request with invalid phone number format."""
         payload = self.valid_payload.copy()
-        payload["phone_number"] = "12345"
+        payload["phone"] = "12345"
         response = self.client.post(self.url, payload, **self.header)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("phone_number", response.data["errors"])
+        self.assertIn("phone", response.data["errors"])
 
     def test_duplicate_pre_registration_email(self):
         """Test that duplicate email in pre-registration returns 400, not 500."""

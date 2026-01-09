@@ -109,7 +109,7 @@ class PreRegUser(models.Model):
 
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
-    phone_number = phone_field
+    phone = phone_field
     interest_type = models.CharField(
         max_length=20,
         choices=InterestType.choices,

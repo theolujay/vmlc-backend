@@ -28,7 +28,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=30)
     last_name = serializers.CharField(max_length=30)
     email = serializers.EmailField()
-    phone_number = serializers.CharField(max_length=17)
+    phone = serializers.CharField(max_length=17)
 
     # File upload fields
     face_capture = serializers.FileField()
@@ -58,7 +58,7 @@ class RegistrationV2Serializer(serializers.Serializer):
             )
         return value
 
-    def validate_phone_number(self, value):
+    def validate_phone(self, value):
         """Validate phone number format."""
         import re
 
@@ -159,7 +159,7 @@ class RegistrationV2Serializer(serializers.Serializer):
             username=email,
             first_name=validated_data.get("first_name"),
             last_name=validated_data.get("last_name"),
-            phone=validated_data.get("phone_number"),
+            phone=validated_data.get("phone"),
             state=validated_data.get("state"),
             is_active=True,
             is_email_verified=False,
@@ -238,7 +238,7 @@ class PreRegUserSerializer(serializers.Serializer):
 
     full_name = serializers.CharField(max_length=50)
     email = serializers.EmailField()
-    phone_number = serializers.CharField(max_length=17)
+    phone = serializers.CharField(max_length=17)
     interest_type = serializers.ChoiceField(choices=["candidate", "volunteer"])
 
     def validate_email(self, value):
@@ -252,7 +252,7 @@ class PreRegUserSerializer(serializers.Serializer):
             )
         return value
     
-    def validate_phone_number(self, value):
+    def validate_phone(self, value):
         """Validate phone number format."""
         import re
 
@@ -264,13 +264,13 @@ class PreRegUserSerializer(serializers.Serializer):
 
         full_name = validated_data.get("full_name")
         email = validated_data.get("email")
-        phone_number = validated_data.get("phone_number")
+        phone = validated_data.get("phone")
         interest_type = validated_data.get("interest_type")
 
         interested_user = PreRegUser.objects.create(
             full_name=full_name,
             email=email,
-            phone_number=phone_number,
+            phone=phone,
             interest_type=interest_type
         )
         return interested_user
