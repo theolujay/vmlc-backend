@@ -15,10 +15,8 @@ x-app-base: &app-base
   image: vmlc-backend:dev
   volumes:
     - ./vmlc/migrations:/app/vmlc/migrations
-  #   - dev_media:/app/media
-  #   - dev_static:/app/staticfiles
-  #   - ./:/app
-  #   # - /app/.venv
+    - dev_media:/app/media
+    - dev_static:/app/staticfiles
   develop:
     watch:
       - action: sync
