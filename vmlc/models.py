@@ -221,14 +221,6 @@ class User(AbstractUser):
         storage=PublicMediaStorage(),
         validators=[validate_profile_picture],
     )
-    verification_document = models.FileField(
-        upload_to="verfication_documents/",
-        blank=True,
-        null=True,
-        storage=PrivateMediaStorage(),
-        validators=[validate_verification_document],
-    )
-    verification_document_type = models.CharField(max_length=50, blank=True, null=True)
     username = models.CharField(max_length=255, unique=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -270,7 +262,7 @@ class UserVerification(models.Model):
         storage=PrivateMediaStorage(),
         validators=[validate_document_file],
     )
-    document_type = models.CharField(max_length=50, blank=True, null=True)
+    verification_document_type = models.CharField(max_length=50, blank=True, null=True)
     action_by = models.ForeignKey(
         "Staff",
         on_delete=models.SET_NULL,

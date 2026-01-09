@@ -1,15 +1,20 @@
+import os
+import uuid
 from django.conf import settings
 from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from ...models import (
     PreRegUser,
     User,
+    UserVerification,
     Candidate,
     Staff,
     validate_id_card_file,
     validate_document_file,
+    validate_face_id,
 )
 from ...utils.auth import generate_password
 
@@ -25,6 +30,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=17)
 
     # File upload fields
+    face_capture = serializers.FileField()
     document = serializers.FileField()
     document_type = serializers.CharField(max_length=50)
     consent = serializers.CharField()  # "true" or "false" string from form-data
@@ -104,68 +110,66 @@ class RegistrationV2Serializer(serializers.Serializer):
         document = data.get("document")
         if document:
             try:
-                if self._is_id_card(user_type, document_type):
-                    validate_id_card_file(document)
-                else:
-                    validate_document_file(document)
-            except serializers.ValidationError as e:
+                # if self._is_id_card(user_type, document_type):
+                #     validate_id_card_file(document)
+                # else:
+                validate_document_file(document)
+            except (serializers.ValidationError, DjangoValidationError) as e:
                 # Re-raise as field error
-                raise serializers.ValidationError({"document": e.detail})
+                detail = e.messages if isinstance(e, DjangoValidationError) else e.detail
+                raise serializers.ValidationError({"document": detail})
+
+        # Validate face capture
+        face_capture = data.get("face_capture")
+        if face_capture:
+            try:
+                validate_face_id(face_capture)
+            except (serializers.ValidationError, DjangoValidationError) as e:
+                detail = e.messages if isinstance(e, DjangoValidationError) else e.detail
+                raise serializers.ValidationError({"face_capture": detail})
 
         return data
 
-    def _is_id_card(self, user_type, document_type):
-        """Helper to determine if document maps to id_card"""
-        if user_type == "volunteer":
-            return True
-        if user_type == "candidate" and document_type == "NIN":
-            return True
-        return False
-
+    # def _is_id_card(self, user_type, document_type):
+    #     """Helper to determine if document maps to id_card"""
+    #     if user_type == "volunteer":
+    #         return True
+    #     if user_type == "candidate" and document_type == "NIN":
+    #         return True
+    #     return False
     @transaction.atomic
     def create(self, validated_data):
-
-        import os
-        import uuid
-        from django.core.files.storage import default_storage
-        from vmlc.tasks import upload_user_document_task
-
+        """
+        Create user and related objects with async file upload.
+        """
+        from vmlc.tasks import upload_user_documents_task
+        
         user_type = validated_data.get("user_type")
         email = validated_data.get("email")
         document = validated_data.get("document")
         document_type = validated_data.get("document_type")
+        face_capture = validated_data.get("face_capture")
+
         # Create User
         password = generate_password()
         user = User.objects.create_user(
             email=email,
             password=password,
-            username=email,  # Using email as username per convention
+            username=email,
             first_name=validated_data.get("first_name"),
             last_name=validated_data.get("last_name"),
             phone=validated_data.get("phone_number"),
             state=validated_data.get("state"),
             is_active=True,
             is_email_verified=False,
-            # We don't set verification_document here yet to keep response fast
+        )
+
+        # Create UserVerification
+        verification = UserVerification.objects.create(
+            user=user,
             verification_document_type=document_type,
         )
-        # Handle file asynchronously
-        if document:
-            # Save to a temporary location in the local filesystem
-            temp_dir = os.path.join(settings.BASE_DIR, "media", "temp_uploads")
-            os.makedirs(temp_dir, exist_ok=True)
-            # Use a unique filename to avoid collisions
-            ext = os.path.splitext(document.name)[1]
-            temp_filename = f"{uuid.uuid4()}{ext}"
-            temp_file_path = os.path.join(temp_dir, temp_filename)
 
-            with open(temp_file_path, "wb+") as destination:
-                for chunk in document.chunks():
-                    destination.write(chunk)
-            # Trigger asynchronous upload
-            transaction.on_commit(
-                lambda: upload_user_document_task.delay(user.pk, temp_file_path)
-            )
         # Create Profile (Candidate or Staff/Volunteer)
         if user_type == "candidate":
             profile = Candidate.objects.create(
@@ -175,15 +179,58 @@ class RegistrationV2Serializer(serializers.Serializer):
                 current_class=validated_data.get("current_class"),
                 role=Candidate.Roles.SCREENING,
             )
-        else:  # volunteer
+        else:
             profile = Staff.objects.create(
                 user=user,
                 occupation=validated_data.get("occupation"),
                 role=Staff.Roles.VOLUNTEER,
             )
-        # Return the profile instance and generated password for the view to handle tasks
-        # Attaching password to instance so view can access it
         profile._generated_password = password
+
+        # Prepare files for async upload - save to temp location
+        temp_dir = os.path.join(settings.BASE_DIR, "media", "temp_uploads")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        file_mappings = []
+        
+        # Process document file
+        if document:
+            doc_ext = os.path.splitext(document.name)[1]
+            doc_temp_name = f"{uuid.uuid4()}_verification_document{doc_ext}"
+            doc_temp_path = os.path.join(temp_dir, doc_temp_name)
+            
+            with open(doc_temp_path, "wb") as dest:
+                for chunk in document.chunks():
+                    dest.write(chunk)
+            
+            file_mappings.append({
+                "temp_path": doc_temp_path,
+                "field_name": "verification_document",
+                "original_name": document.name
+            })
+        
+        # Process face capture file
+        if face_capture:
+            face_ext = os.path.splitext(face_capture.name)[1]
+            face_temp_name = f"{uuid.uuid4()}_face_id{face_ext}"
+            face_temp_path = os.path.join(temp_dir, face_temp_name)
+            
+            with open(face_temp_path, "wb") as dest:
+                for chunk in face_capture.chunks():
+                    dest.write(chunk)
+            
+            file_mappings.append({
+                "temp_path": face_temp_path,
+                "field_name": "face_id",
+                "original_name": face_capture.name
+            })
+        
+        # Schedule async upload after transaction commits
+        # Use a proper closure to avoid variable capture issues
+        def schedule_upload():
+            upload_user_documents_task.delay(user.pk, file_mappings)
+        
+        transaction.on_commit(schedule_upload)
         return profile
 
 class PreRegUserSerializer(serializers.Serializer):
