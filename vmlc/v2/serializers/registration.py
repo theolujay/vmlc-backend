@@ -8,6 +8,7 @@ from rest_framework import serializers
 
 from ...models import (
     PreRegUser,
+    SupportInquiry,
     User,
     UserVerification,
     Candidate,
@@ -273,3 +274,26 @@ class PreRegUserSerializer(serializers.Serializer):
             interest_type=interest_type
         )
         return interested_user
+
+class SupportInquirySerializer(serializers.ModelSerializer):
+
+    # full_name = serializers.CharField(max_length=50)
+    # email = serializers.EmailField()
+    # phone = serializers.CharField(max_length=17)
+    # support_type = serializers.ChoiceField(
+    #     choices=[
+    #         "sponsorship", "partnership", "media_support", "other"
+    #     ]
+    # )
+    # message = serializers.CharField(required=True)
+
+    class Meta:
+        model = SupportInquiry
+        fields = [
+            "full_name",
+            "email",
+            "phone",
+            "support_type",
+            "message",
+            "organization",
+        ]

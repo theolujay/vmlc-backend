@@ -1,3 +1,143 @@
+import logging
+from typing import Optional, Tuple
+
+from django.conf import settings
+
+from vmlc.models import User, PreRegUser, SupportInquiry, FeatureFlag
+
+logger = logging.getLogger(__name__)
+
+def send_system_email(
+    subject: str,
+    message: str,
+    recipient_email: str,
+) -> None:
+    try:
+        from vmlc.tasks import send_mail_task
+
+        send_mail_task.delay(
+            subject=subject,
+            message=message,
+            recipient_list=[recipient_email],
+        )
+    except Exception as e:
+        logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
+
+def build_registration_welcome_email(
+    user: User,
+    generated_password: Optional[str] = None,
+) -> Tuple[str, str]:
+    login_url = settings.FRONTEND_LOGIN
+    password_msg = ""
+
+    if generated_password:
+        password_msg = (
+            f"Your generated password is: {generated_password}\n"
+            "Please use 'Forgot Password' to set your own password.\n\n"
+        )
+
+    subject = "Welcome to Verboheit MLC!"
+
+    if hasattr(user, "candidate_profile"):
+        message = (
+            f"Hi {user.first_name},\n\n"
+            "You have successfully registered for the Verboheit Mathematics League Competition.\n\n"
+            "We're excited to have you participate and compete with students across regions.\n\n"
+            f"{password_msg}"
+            f"Login here: {login_url}\n\n"
+            "Best regards,\n"
+            "The VMLC Team"
+        )
+
+    elif hasattr(user, "staff_profile"):
+        message = (
+            f"Hi {user.first_name},\n\n"
+            "Thank you for volunteering to support the Verboheit Mathematics League Competition.\n\n"
+            "We appreciate your willingness to contribute to the success of this initiative.\n\n"
+            f"{password_msg}"
+            f"Login here: {login_url}\n\n"
+            "Best regards,\n"
+            "The VMLC Team"
+        )
+
+    else:
+        raise ValueError("User must have either candidate or staff profile")
+
+    return subject, message
+
+def build_pre_registration_email(
+    user: PreRegUser,
+) -> Tuple[str, str]:
+    registration_url = f"{settings.LANDING_BASE_URL}/register"
+    interest_type = user.interest_type
+
+    feature_flag_key = (
+        "candidate_registration"
+        if interest_type == "candidate"
+        else "staff_registration"
+    )
+
+    if FeatureFlag.get_bool(feature_flag_key, default=False):
+        subject = "Registration Is Now Open - Verboheit MLC"
+        message = (
+            f"Hi {user.full_name},\n\n"
+            f"You previously expressed interest in the Verboheit Mathematics League Competition "
+            f"as a {interest_type}.\n\n"
+            "Registration is now open. You can complete your registration using the link below:\n\n"
+            f"{registration_url}\n\n"
+            "We look forward to having you on board.\n\n"
+            "Best regards,\n"
+            "The Verboheit MLC Team"
+        )
+    else:
+        subject = "Your Interest Has Been Recorded - Verboheit MLC"
+        message = (
+            f"Hi {user.full_name},\n\n"
+            f"Thank you for expressing interest in the Verboheit Mathematics League Competition "
+            f"as a {interest_type}.\n\n"
+            "We'll notify you once registration opens.\n\n"
+            f"If you have any questions, contact us at {settings.SUPPORT_EMAIL}.\n\n"
+            "Best regards,\n"
+            "The Verboheit MLC Team"
+        )
+
+    return subject, message
+
+def build_support_confirmation_email(
+    inquiry: SupportInquiry,
+) -> Tuple[str, str]:
+    subject = "Thank You for Supporting Verboheit"
+
+    message = (
+        f"Dear {inquiry.full_name},\n\n"
+        "Thank you for reaching out to support the Verboheit Mathematics League Competition.\n\n"
+        f"We've received your inquiry regarding {inquiry.support_type} support. "
+        "A member of our team will review your message and follow up if necessary.\n\n"
+        "We truly appreciate your interest in supporting this initiative.\n\n"
+        "Best regards,\n"
+        "The Verboheit MLC Team"
+    )
+
+    return subject, message
+
+def build_support_notification_email(
+    inquiry: SupportInquiry,
+) -> Tuple[str, str]:
+    subject = f"New Support Inquiry: {inquiry.support_type}"
+
+    message = (
+        f"A new support inquiry has been received.\n\n"
+        f"Name: {inquiry.full_name}\n"
+        f"Email: {inquiry.email}\n"
+        f"Phone: {inquiry.phone}\n"
+        f"Organization: {inquiry.organization}\n"
+        f"Support Type: {inquiry.support_type}\n\n"
+        f"Message:\n{inquiry.message}\n\n"
+        "Please review and follow up."
+    )
+
+    return subject, message
+
 def create_email_html(subject, message, otp=None, otp_message=None):
     html_template = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
