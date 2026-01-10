@@ -64,10 +64,36 @@ x-vmlc-service-base: &vmlc-service-base
     - media:/app/media
   environment:
     <<: [*vmlc-base-env]
+  logging:
+    driver: "json-file"
+    options:
+      mode: "non-blocking"
+      max-buffer-size: "4m"
+      max-size: "10m"
+      max-file: "3"
   <<: [*dns, *security]
+
+x-observability-logging: &observability-logging
+  logging:
+    driver: "json-file"
+    options:
+      mode: "non-blocking"
+      max-buffer-size: "2m"
+      max-size: "5m"
+      max-file: "2"
+
+x-infra-logging: &infra-logging
+  logging:
+    driver: "json-file"
+    options:
+      mode: "non-blocking"
+      max-buffer-size: "4m"
+      max-size: "10m"
+      max-file: "3"
 
 services:
   traefik:
+    <<: *infra-logging
     image: traefik:v3.5.3
     command:
       - "--api.insecure=false"
@@ -109,6 +135,7 @@ services:
       - "443:443"
 
   db:
+    <<: *infra-logging
     image: postgres:17.2-bookworm
     secrets:
       - db-password
@@ -122,6 +149,7 @@ services:
       start_period: 30s
 
   redis:
+    <<: *infra-logging
     image: redis:7.2.4-alpine
     command: >
       redis-server
@@ -257,6 +285,7 @@ services:
         order: start-first
 
   alloy:
+    <<: *observability-logging
     image: grafana/alloy:v1.12.0
     command:
       - run
@@ -279,6 +308,7 @@ services:
       mode: global
 
   prometheus:
+    <<: *observability-logging
     image: prom/prometheus:v3.7.2
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -297,6 +327,7 @@ services:
       - "traefik.enable=false"
 
   loki:
+    <<: *observability-logging
     image: grafana/loki:3.5
     command: -config.file=/etc/loki/local-config.yaml
     configs:

@@ -20,41 +20,10 @@ x-vmlc-prod: &vmlc-prod
 
 services:
   traefik:
-    command:
-      - "--api.insecure=false"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.network=prod"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
-      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-      - "--metrics.prometheus=false"
-      - "--metrics.otlp=true"
-      - "--metrics.otlp.http=true"
-      - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
-      - "--metrics.otlp.serviceName=traefik"
-      - "--metrics.otlp.addEntryPointsLabels=true"
-      - "--metrics.otlp.addRoutersLabels=true"
-      - "--metrics.otlp.addServicesLabels=true"
-      - "--tracing=true"
-      - "--tracing.serviceName=traefik"
-      - "--tracing.sampleRate=0.05"
-      - "--tracing.otlp.grpc=false"
-      - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
-      - "--log.level=INFO"
-      - "--log.format=json"
-      - "--accesslog=true"
     volumes:
       - "prod_letsencrypt:/letsencrypt"
+    environment:
+      TRAEFIK_PROVIDERS_DOCKER_NETWORK: prod
     networks:
       - prod
     deploy:
@@ -70,16 +39,16 @@ services:
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.max=10000
       -c pg_stat_statements.track=top
+      -c effective_io_concurrency=200
+      -c random_page_cost=1.1
+      -c pg_stat_statements.max=10000
       -c log_min_duration_statement=3000
       -c max_connections=120
       -c shared_buffers=512MB
       -c effective_cache_size=3GB
       -c work_mem=8MB
       -c maintenance_work_mem=192MB
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=200
       -c wal_buffers=16MB
       -c checkpoint_completion_target=0.9
     environment:
