@@ -334,8 +334,12 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = int(
     read_secret("FILE_UPLOAD_MAX_MEMORY_SIZE", 2 * 1024 * 1024)
 )
 
-# OpenTelemetry configuration
-if read_secret("OTEL_EXPORTER_OTLP_ENDPOINT"):
+if (
+    str(
+        read_secret("OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED", "false")
+    ).lower()
+    == "true"
+):
     from config.otel import configure_opentelemetry
 
     configure_opentelemetry()

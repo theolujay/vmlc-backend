@@ -101,26 +101,6 @@ LOGGING = {
     },
 }
 
-# === OPENTELEMETRY ===
-if (
-    str(
-        read_secret("OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED", "false")
-    ).lower()
-    == "true"
-):
-    from opentelemetry.instrumentation.logging import LoggingInstrumentor
-    import logging
-
-    try:
-        LoggingInstrumentor().instrument(set_logging_format=True)
-        logging.getLogger(__name__).info(
-            "OpenTelemetry logging instrumentation initialized."
-        )
-    except Exception as e:
-        logging.getLogger(__name__).error(
-            f"Failed to initialize OpenTelemetry logging: {e}"
-        )
-
 # === CELERY CONFIGURATION ===
 CELERY_WORKER_LOG_COLOR = False
 CELERY_TASK_ALWAYS_EAGER = False

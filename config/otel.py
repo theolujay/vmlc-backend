@@ -16,5 +16,5 @@ def configure_opentelemetry():
     # Enable logging instrumentation
     LoggingInstrumentor().instrument(set_logging_format=True)
 
-    logger = logging.getLogger(__name__)
-    logger.info("OpenTelemetry logging instrumentation initialized")
+    # logger = logging.getLogger(__name__)
+    # logger.info("OpenTelemetry logging instrumentation initialized")
