@@ -32,7 +32,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "test@example.com",
-            "phone_number": "08012345678",
+            "phone": "08012345678",
             "consent": "true",
             "state": "Lagos",
             "school_name": "Test School",
@@ -51,7 +51,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Candidate",
             "last_name": "One",
             "email": "candidate1@example.com",
-            "phone_number": "08012345678",
+            "phone": "08012345678",
             "consent": "true",
             "state": "Lagos",
             "school_name": "Test School",
@@ -77,7 +77,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Volunteer",
             "last_name": "One",
             "email": "volunteer1@example.com",
-            "phone_number": "08087654321",
+            "phone": "08087654321",
             "consent": "true",
             "state": "Abuja",
             "occupation": "Teacher",
@@ -115,7 +115,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Candidate",
             "last_name": "Two",
             "email": "candidate2@example.com",
-            "phone_number": "08012345678",
+            "phone": "08012345678",
             "consent": "true",
             "state": "Lagos",
             "school_name": "Test School",
@@ -142,7 +142,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "invalidfile@example.com",
-            "phone_number": "08012345678",
+            "phone": "08012345678",
             "consent": "true",
             "state": "Lagos",
             "school_name": "Test School",
@@ -169,7 +169,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Volunteer",
             "last_name": "One",
             "email": "v_missing@example.com",
-            # missing occupation, phone_number, etc.
+            # missing occupation, phone, etc.
             "consent": "true",
             "state": "Abuja",
             "document_type": "passport",
@@ -183,8 +183,8 @@ class RegistrationV2Tests(APITestCase):
             HTTP_X_API_KEY=self.api_key
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        # Should have errors for occupation and phone_number (if not using defaults)
-        self.assertTrue("occupation" in response.data["errors"] or "phone_number" in response.data["errors"])
+        # Should have errors for occupation and phone (if not using defaults)
+        self.assertTrue("occupation" in response.data["errors"] or "phone" in response.data["errors"])
 
     def test_registration_already_exists(self):
         # First registration
@@ -196,7 +196,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "Duplicate",
             "last_name": "User",
             "email": "candidate1@example.com",
-            "phone_number": "08011112222",
+            "phone": "08011112222",
             "consent": "true",
             "state": "Lagos",
             "school_name": "Other School",
@@ -221,7 +221,7 @@ class RegistrationV2Tests(APITestCase):
             "first_name": "No",
             "last_name": "Consent",
             "email": "noconsent@example.com",
-            "phone_number": "08033334444",
+            "phone": "08033334444",
             "consent": "false",
             "state": "Lagos",
             "school_name": "Test School",

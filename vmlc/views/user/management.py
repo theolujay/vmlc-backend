@@ -277,7 +277,7 @@ class AccountManagementView(APIView):
                 description="User's profile picture.",
             ),
             openapi.Parameter(
-                "phone_number",
+                "phone",
                 openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
                 description="User's phone number.",

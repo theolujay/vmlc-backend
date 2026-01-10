@@ -17,6 +17,16 @@ from django.utils import timezone
 
 from .storage_backends import PrivateMediaStorage, PublicMediaStorage
 
+phone_regex = RegexValidator(
+    regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+    message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+)
+
+phone_field = models.CharField(
+    validators=[phone_regex],
+    max_length=17,
+    help_text="Nigerian phone number",
+)
 
 class FeatureFlag(models.Model):
     """Feature flag model."""
@@ -53,6 +63,40 @@ class FeatureFlag(models.Model):
         """Return a string representation of the feature flag."""
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
 
+class SupportInquiry(models.Model):
+    """Model for support inquiries"""
+
+    class SupportType(models.TextChoices):
+        """Type of support inquires"""
+
+        SPONSORSHIP = "sponsorship", "Sponsorship"
+        PARTNERSHIP = "partnership", "Partnership"
+        MEDIA_SUPPORT = "media_publiciy", "Media/Publicity"
+        OTHER = "other", "Other"
+
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(
+        validators=[phone_regex],
+        max_length=17,
+        help_text="Nigerian phone number",
+        blank=True,
+    )
+    support_type = models.CharField(
+        max_length=20,
+        choices=SupportType.choices,
+    )
+    message = models.TextField()
+    organization = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    consent = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        """Return a string representation of the support inquiry"""
+
+        return f"{self.full_name} ({self.support_type})"
 
 class PreRegUser(models.Model):
     """Model for pre-registration data."""
@@ -65,15 +109,7 @@ class PreRegUser(models.Model):
 
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
-    phone_regex = RegexValidator(
-        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-    )
-    phone_number = models.CharField(
-        validators=[phone_regex],
-        max_length=17,
-        help_text="Nigerian phone number",
-    )
+    phone = phone_field
     interest_type = models.CharField(
         max_length=20,
         choices=InterestType.choices,
@@ -204,16 +240,8 @@ class User(AbstractUser):
     is_email_verified = models.BooleanField(default=False)
     first_name = models.CharField(max_length=30, blank=False)
     last_name = models.CharField(max_length=30, blank=False)
-    phone_regex = RegexValidator(
-        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-    )
-    phone = models.CharField(
-        validators=[phone_regex],
-        max_length=17,
-        help_text="Nigerian phone number for SMS notifications and contact",
-    )
-    state = models.CharField(max_length=50, blank=True, null=True)
+    phone = phone_field
+    state = models.CharField(max_length=50, blank=True)
     profile_picture = models.ImageField(
         upload_to="profile_pictures/",
         blank=True,
@@ -772,7 +800,6 @@ class Candidate(models.Model):
         max_length=20,
         choices=[("public", "Public"), ("private", "Private")],
         blank=True,
-        null=True,
     )
     current_class = models.CharField(
         max_length=10,
