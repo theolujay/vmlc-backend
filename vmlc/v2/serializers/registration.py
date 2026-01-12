@@ -31,7 +31,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     phone = serializers.CharField(max_length=17)
 
     # File upload fields
-    face_capture = serializers.FileField(required=False)
+    face_capture = serializers.FileField()
     document = serializers.FileField()
     document_type = serializers.CharField(max_length=50)
     consent = serializers.CharField()  # "true" or "false" string from form-data
@@ -85,7 +85,7 @@ class RegistrationV2Serializer(serializers.Serializer):
                         {field: _("This field is required for candidates.")}
                     )
 
-            valid_doc_types = ["NIN", "school result"]
+            valid_doc_types = ["school ID card", "report card", "NIN"]
             if document_type not in valid_doc_types:
                 raise serializers.ValidationError(
                     {
