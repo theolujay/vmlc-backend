@@ -31,7 +31,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     phone = serializers.CharField(max_length=17)
 
     # File upload fields
-    face_capture = serializers.FileField()
+    face_capture = serializers.FileField(required=False)
     document = serializers.FileField()
     document_type = serializers.CharField(max_length=50)
     consent = serializers.CharField()  # "true" or "false" string from form-data
