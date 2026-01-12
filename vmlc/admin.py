@@ -78,6 +78,81 @@ def send_email_to_users(modeladmin, request, queryset):
     )
 
 
+class ChangeRoleForm(forms.Form):
+    role = forms.ChoiceField(choices=[])
+
+    def __init__(self, *args, **kwargs):
+        choices = kwargs.pop("choices", [])
+        super().__init__(*args, **kwargs)
+        self.fields["role"].choices = choices
+
+
+@admin.action(description="Change role for selected candidates")
+def change_candidate_role(modeladmin, request, queryset):
+    if "apply" in request.POST:
+        form = ChangeRoleForm(request.POST, choices=Candidate.Roles.choices)
+        if form.is_valid():
+            new_role = form.cleaned_data["role"]
+            count = queryset.update(role=new_role)
+
+            # Invalidate caches
+            for candidate in queryset:
+                modeladmin._invalidate_candidate_cache(candidate)
+
+            modeladmin.message_user(
+                request, f"Role changed to {new_role} for {count} candidates."
+            )
+            return None
+    else:
+        form = ChangeRoleForm(choices=Candidate.Roles.choices)
+
+    return TemplateResponse(
+        request,
+        "admin/change_role_form.html",
+        {
+            "opts": modeladmin.model._meta,
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            "queryset": queryset,
+            "form": form,
+            "title": "Change Candidate Role",
+            "action": "change_candidate_role",
+        },
+    )
+
+
+@admin.action(description="Change role for selected staff")
+def change_staff_role(modeladmin, request, queryset):
+    if "apply" in request.POST:
+        form = ChangeRoleForm(request.POST, choices=Staff.Roles.choices)
+        if form.is_valid():
+            new_role = form.cleaned_data["role"]
+            count = queryset.update(role=new_role)
+
+            # Invalidate caches
+            for staff in queryset:
+                modeladmin._invalidate_staff_cache(staff)
+
+            modeladmin.message_user(
+                request, f"Role changed to {new_role} for {count} staff members."
+            )
+            return None
+    else:
+        form = ChangeRoleForm(choices=Staff.Roles.choices)
+
+    return TemplateResponse(
+        request,
+        "admin/change_role_form.html",
+        {
+            "opts": modeladmin.model._meta,
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            "queryset": queryset,
+            "form": form,
+            "title": "Change Staff Role",
+            "action": "change_staff_role",
+        },
+    )
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
@@ -331,6 +406,7 @@ class CandidateAdmin(admin.ModelAdmin):
     Displays key candidate details and allows filtering by role, verification, and active status.
     """
 
+    actions = [change_candidate_role]
     list_display = (
         "email",
         "full_name",
@@ -419,6 +495,7 @@ class StaffAdmin(admin.ModelAdmin):
     Displays key staff information and allows filtering by role, verification, and active status.
     """
 
+    actions = [change_staff_role]
     list_display = (
         "email",
         "full_name",
