@@ -19,7 +19,7 @@ x-app-base: &app-base
     - dev_static:/app/staticfiles
   develop:
     watch:
-      - action: sync
+      - action: sync+restart
         path: .
         target: /app
         ignore:
@@ -30,7 +30,6 @@ x-app-base: &app-base
         path: ./uv.lock
   environment:
     - UV_NO_DEV=0
-    # - DATABASE_URL=postgresql://postgres:dev_password_123@db:5432/vmlc_dev
   env_file: .env
   networks:
     - dev
@@ -38,6 +37,13 @@ x-app-base: &app-base
     - 8.8.8.8
     - 8.8.4.4
   <<: *dev-security
+  logging:
+    driver: "json-file"
+    options:
+      # mode: "non-blocking"
+      # max-buffer-size: "4m"
+      max-size: "10m"
+      max-file: "3"
 
 services:
   db:
@@ -87,6 +93,7 @@ services:
         window: 120s
   django:
     <<: *app-base
+    container_name: vmlc-django
     entrypoint: "./scripts/entrypoint.sh"
     command: python manage.py runserver 0.0.0.0:8000
     ports:
@@ -98,10 +105,6 @@ services:
     environment:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.instance.id=django
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.django.rule=Host(`dev-api.localhost`)"
-      - "traefik.http.services.django.loadbalancer.server.port=8000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8000/v1/health/ --max-time 10 || exit 1"]
       interval: 60s
@@ -124,6 +127,7 @@ services:
 
   celery_worker:
     <<: *app-base
+    container_name: vmlc-celery_worker
     entrypoint: "./scripts/entrypoint.sh"
     command:
       - celery
@@ -161,6 +165,7 @@ services:
 
   celery_beat:
     <<: *app-base
+    container_name: vmlc-celery_beat
     entrypoint: "./scripts/entrypoint.sh"
     command: 
       - celery
@@ -179,21 +184,25 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: '0.05'
+          cpus: '0.2'
         reservations:
           memory: 50M
-          cpus: '0.03'
+          cpus: '0.1'
 
+  flower:
+    <<: *app-base
+    container_name: vmlc-flower
+    command: celery -A config flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      
 volumes:
-  dev_letsencrypt:
   dev_db:
   dev_redis:
   dev_media:
   dev_static:
-  dev_loki:
-  dev_tempo:
-  dev_grafana:
-  dev_prometheus:
 
 networks:
   dev:

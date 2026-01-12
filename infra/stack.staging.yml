@@ -20,41 +20,10 @@ x-vmlc-staging: &vmlc-staging
 
 services:
   traefik:
-    command:
-      - "--api.insecure=false"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.network=staging"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
-      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-      - "--metrics.prometheus=false"
-      - "--metrics.otlp=true"
-      - "--metrics.otlp.http=true"
-      - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
-      - "--metrics.otlp.serviceName=traefik"
-      - "--metrics.otlp.addEntryPointsLabels=true"
-      - "--metrics.otlp.addRoutersLabels=true"
-      - "--metrics.otlp.addServicesLabels=true"
-      - "--tracing=true"
-      - "--tracing.serviceName=traefik"
-      - "--tracing.sampleRate=0.05"
-      - "--tracing.otlp.grpc=false"
-      - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
-      - "--log.level=INFO"
-      - "--log.format=json"
-      - "--accesslog=true"
     volumes:
       - "staging_letsencrypt:/letsencrypt"
+    environment:
+      TRAEFIK_PROVIDERS_DOCKER_NETWORK: staging
     networks:
       - staging
     deploy:
@@ -70,16 +39,16 @@ services:
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
-      -c pg_stat_statements.max=5000
       -c pg_stat_statements.track=top
+      -c effective_io_concurrency=200
+      -c random_page_cost=1.1
+      -c pg_stat_statements.max=5000
       -c log_min_duration_statement=5000
       -c max_connections=50
       -c shared_buffers=256MB
       -c effective_cache_size=768MB
       -c work_mem=5MB
       -c maintenance_work_mem=64MB
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=200
       -c wal_buffers=8MB
     environment:
       - POSTGRES_DB=vmlc_staging

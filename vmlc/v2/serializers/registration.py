@@ -85,7 +85,7 @@ class RegistrationV2Serializer(serializers.Serializer):
                         {field: _("This field is required for candidates.")}
                     )
 
-            valid_doc_types = ["NIN", "school result"]
+            valid_doc_types = ["school ID card", "report card", "NIN"]
             if document_type not in valid_doc_types:
                 raise serializers.ValidationError(
                     {
