@@ -1,4 +1,5 @@
 ARG GOSU_VERSION=1.17
+
 # ==========================================================================
 # Builder: Compile dependencies in isolated env  
 # ==========================================================================
@@ -30,12 +31,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
-
-COPY . /app
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked \
+    uv sync --locked --no-install-project \
     $(if [ "$INSTALL_DOCS" = "true" ]; then echo "--group docs"; fi) \
     $(if [ "$INSTALL_TEST" = "true" ]; then echo "--group test"; fi) \
     $(if [ "$INSTALL_DEV" = "true" ]; then echo "--group dev"; fi)
@@ -45,17 +41,21 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ==========================================================================
 FROM python:3.13-slim-bookworm AS base
 
-ARG GOSU_VERSION
-
+# Install runtime dependencies (rarely changes - good caching)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpq5 \
         libmagic1 \
         postgresql-client \
         curl \
-        ca-certificates \
-        gnupg && \
-    # Create temp GPG keyring and verify gosu
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install gosu in separate layer
+ARG GOSU_VERSION=1.17
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gnupg && \
     export GNUPGHOME="$(mktemp -d)" && \
     gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 && \
     dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" && \
@@ -64,36 +64,42 @@ RUN apt-get update && \
     gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu && \
     chmod +x /usr/local/bin/gosu && \
     gosu --version && \
-    # Cleanup in single layer
     rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc && \
     apt-get purge -y gnupg && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/*
 
+# Create user
 RUN groupadd --system --gid 999 verboheit \
  && useradd --system --gid 999 --uid 999 --create-home verboheit
 
-COPY --from=builder --chown=verboheit:verboheit /app /app
+# Copy venv from builder
+COPY --from=builder --chown=verboheit:verboheit /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
 USER verboheit
 WORKDIR /app
-ENV PYTHONDEBUG=1 \
-    DEBUG=1 \
-    PYTHONOPTIMIZE=0
-RUN mkdir -p media staticfiles && \
-    chmod -R 755 media staticfiles && \
-    chmod +x ./scripts/*
 
-EXPOSE 8000
 # ==========================================================================
 # Development
 # ==========================================================================
 FROM base AS development
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev
+ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev \
+    PYTHONDEBUG=1 \
+    DEBUG=1 \
+    PYTHONOPTIMIZE=0
+
+COPY --chown=verboheit:verboheit . .
+
+# Create directories for volumes
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles && \
+    chmod +x ./scripts/*
+
+EXPOSE 8000
 
 # ==========================================================================
 # Test
@@ -101,6 +107,12 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.docker_dev
 FROM base AS test
 
 ENV DJANGO_SETTINGS_MODULE=config.settings.test
+
+COPY --chown=verboheit:verboheit . /app
+
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles && \
+    chmod +x ./scripts/*
 
 # ==========================================================================
 # Staging
@@ -114,7 +126,15 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
     SERVER_SOFTWARE= \
     BUILD=true
 
+COPY --chown=verboheit:verboheit . /app
 
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles && \
+    chmod +x ./scripts/*
+
+# ==========================================================================
+# Production
+# ==========================================================================
 FROM base AS production
 
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
@@ -123,3 +143,9 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.prod \
     PYTHONOPTIMIZE=2 \
     SERVER_SOFTWARE= \
     BUILD=true
+
+COPY --chown=verboheit:verboheit . /app
+
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles && \
+    chmod +x ./scripts/*

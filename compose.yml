@@ -14,20 +14,33 @@ x-app-base: &app-base
       - INSTALL_DEV=true
   image: vmlc-backend:dev
   volumes:
-    - ./vmlc/migrations:/app/vmlc/migrations
     - dev_media:/app/media
     - dev_static:/app/staticfiles
   develop:
     watch:
       - action: sync+restart
-        path: .
-        target: /app
+        path: ./vmlc
+        target: /app/vmlc
         ignore:
-          - vmlc/migrations
-          - .venv/
-          # - config/certs/
+          - __pycache__
+          - "*.pyc"
+      - action: sync+restart
+        path: ./comms
+        target: /app/comms
+        ignore:
+          - __pycache__
+          - "*.pyc"
+      - action: sync+restart
+        path: ./config
+        target: /app/config
+        ignore:
+          - __pycache__
+          - "*.pyc"
       - action: rebuild
         path: ./uv.lock
+      - action: rebuild
+        path: ./pyproject.toml
+
   environment:
     - UV_NO_DEV=0
   env_file: .env
@@ -38,10 +51,10 @@ x-app-base: &app-base
     - 8.8.4.4
   <<: *dev-security
   logging:
-    driver: "json-file"
+    driver: "local"
     options:
-      # mode: "non-blocking"
-      # max-buffer-size: "4m"
+      mode: "non-blocking"
+      max-buffer-size: "4m"
       max-size: "10m"
       max-file: "3"
 
