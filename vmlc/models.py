@@ -33,6 +33,7 @@ class FeatureFlag(models.Model):
 
     key = models.CharField(max_length=50, unique=True)
     value = models.BooleanField(default=True)
+    auto_off_date = models.DateTimeField(null=True, blank=True)
 
     @classmethod
     def get_bool(cls, key, default=False):

@@ -891,14 +891,23 @@ class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(FeatureFlag)
 class FeatureFlagAdmin(admin.ModelAdmin):
-    list_display = ("key", "value")
+
+    list_display = ("key", "value", "auto_off_date")
     search_fields = ("key",)
-    list_editable = ("value",)
+    list_editable = ("value", "auto_off_date")
 
     def save_model(self, request, obj, form, change):
+        from vmlc.tasks import disable_expired_feature_flags_task
+
         super().save_model(request, obj, form, change)
         cache.delete(f"feature_flag_{obj.key}")
         cache.delete("registration_status")
+
+        if obj.auto_off_date:
+            time_to_revoke = obj.auto_off_date
+            disable_expired_feature_flags_task.apply_async(
+                args=[obj.pk], eta=time_to_revoke
+            )
 
     def delete_model(self, request, obj):
         cache.delete(f"feature_flag_{obj.key}")

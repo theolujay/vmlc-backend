@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -37,7 +38,7 @@ def health_check(request):
     """
     Returns a 200 OK response to indicate the service is healthy.
     """
-    current_time = datetime.now(timezone.utc)
+    current_time = timezone.now()
     logger.info("Health check performed at %s", current_time)
     return Response(
         {"status": "healthy", "timestamp": current_time.isoformat()},
@@ -64,17 +65,29 @@ def registration_status(request):
 
     if cached_data:
         return Response(cached_data, status=status.HTTP_200_OK)
-    is_candidate_reg_open: bool = FeatureFlag.get_bool("candidate_registration")
-    is_staff_reg_open: bool = FeatureFlag.get_bool("staff_registration")
 
-    reg_status = {
-        "is_candidate_reg_open": is_candidate_reg_open,
-        "is_staff_reg_open": is_staff_reg_open,
+    def _get_detailed_status(feature_flag_key):
+        try:
+            flag, _ = FeatureFlag.objects.get_or_create(key=feature_flag_key)
+            return {
+                "is_open": flag.value,
+                "closing_date": flag.auto_off_date
+            }
+        except Exception as e:
+            logger.error(f"Error getting feature flag {feature_flag_key}: {e}")
+            return {
+                "is_open": False,
+                "closing_date": None
+            }
+
+    reg_status_data = {
+        "candidate_registration": _get_detailed_status("candidate_registration"),
+        "staff_registration": _get_detailed_status("staff_registration"),
         "support_email": settings.SUPPORT_EMAIL,
     }
-    cache.set(cache_key, reg_status, 604800)
+    cache.set(cache_key, reg_status_data, 604800) # Cache for 1 week
 
-    return Response(reg_status, status=status.HTTP_200_OK)
+    return Response(reg_status_data, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(

@@ -1,6 +1,7 @@
 import os
 import logging
 
+from django.utils import timezone
 from django.conf import settings
 from django.core.files import File
 from django.core.cache import cache
@@ -8,7 +9,6 @@ from django.core.mail import send_mail
 from celery import shared_task
 from celery.exceptions import Retry
 
-from vmlc.models import PreRegUser, SupportInquiry
 from vmlc.utils import generate_stats_overview_data
 
 logger = logging.getLogger(__name__)
@@ -141,6 +141,110 @@ def update_candidate_ranking_cache_task():
 
     update_candidate_ranking_cache()
 
+@shared_task(
+    name="disable_expired_feature_flags_task",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300  # 5 minutes
+)
+def disable_expired_feature_flags_task(self, feature_flag_id):
+    """
+    Automatically disable feature flags that have reached their auto_off_date.
+    
+    Args:
+        feature_flag_id: Primary key of the FeatureFlag to check and disable
+        
+    Returns:
+        dict: Status of the operation with relevant details
+    """
+    from .models import FeatureFlag
+    
+    try:
+        feature_flag = FeatureFlag.objects.get(pk=feature_flag_id)
+    except FeatureFlag.DoesNotExist:
+        logger.error(f"FeatureFlag with id {feature_flag_id} does not exist")
+        return {
+            "status": "error",
+            "message": f"FeatureFlag {feature_flag_id} not found"
+        }
+    
+    try:
+        # Check if flag should be disabled
+        if not feature_flag.auto_off_date:
+            logger.info(
+                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
+                "has no auto_off_date set - skipping"
+            )
+            return
+        
+        # Check if the flag is already disabled
+        if not feature_flag.value:
+            logger.info(
+                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
+                "is already disabled"
+            )
+            return
+        
+        # Check if expiration time has been reached
+        now = timezone.now()
+        if feature_flag.auto_off_date > now:
+            time_remaining = feature_flag.auto_off_date - now
+            logger.info(
+                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
+                f"not yet expired. Time remaining: {time_remaining}"
+            )
+            return
+
+        feature_flag.value = False
+        feature_flag.save(update_fields=["value"])
+        cache.delete("registration_status")
+
+        readable_flag_key = feature_flag.key.replace('_', ' ').title()
+        
+        logger.info(
+            f"Successfully auto-disabled feature flag '{feature_flag.key}' "
+            f"(id: {feature_flag_id}) at {now.isoformat()}"
+        )
+        
+        # Send notification email to admins
+        admin_emails = [email for _, email in settings.ADMINS]
+        if admin_emails:
+            send_mail_task.delay(
+                subject=f"{readable_flag_key} Auto-Disabled - System Notification",
+                message=(
+                    f"This is an automated system notification.\n\n"
+                    f"Feature Flag: {readable_flag_key}\n"
+                    f"Status: Successfully disabled\n"
+                    f"Scheduled Disable Time: {feature_flag.auto_off_date.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+                    f"Actual Disable Time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}\n\n"
+                    f"This feature flag was automatically disabled as scheduled.\n\n"
+                    f"Regards,\n"
+                    f"VMLC System\n"
+                ),
+                recipient_list=admin_emails,
+            )
+            logger.info(
+                f"Auto-disable notification sent for '{feature_flag.key}' "
+                f"to {len(admin_emails)} admin(s)"
+            )
+        
+        return
+        
+    except Exception as exc:
+        logger.exception(
+            f"Error disabling feature flag '{feature_flag.key}' "
+            f"(id: {feature_flag_id}): {exc}"
+        )
+        
+        # Retry the task if it's a transient error
+        try:
+            raise self.retry(exc=exc)
+        except self.MaxRetriesExceededError:
+            logger.error(
+                f"Max retries exceeded for disabling feature flag "
+                f"'{feature_flag.key}' (id: {feature_flag_id})"
+            )
+            return
 
 @shared_task(name="revoke_user_invite_task")
 def revoke_user_invite_task(user_id):
@@ -261,7 +365,7 @@ def send_system_email_task(
 def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
-    from .models import User
+    from .models import User, PreRegUser
 
     if is_pre_reg:
         user = PreRegUser.objects.get(pk=user_id)
