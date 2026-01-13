@@ -8,7 +8,7 @@ This documentation outlines the backend API integration for the VMLC landing pag
 
 ### Base URL
 The API base URL is configured via environment variables.
-- **Base URL:** Defined by `VITE_PORTAL_URL` (e.g., `https://api.verboheit.org/v2`).
+- **Base URL:** Defined by `VITE_PORTAL_URL` (e.g., `https://api.verboheit.org`).
 - **Sanitization:** The frontend strips trailing slashes from this URL before appending endpoints.
 
 ### Authentication
@@ -18,15 +18,53 @@ Requests require an API key passed in the `x-api-key` header.
 | :--- | :--- | :--- |
 | `/register/` | `VITE_API_KEY` | `x-api-key` |
 | `/support-us/` | `VITE_API_KEY` | `x-api-key` |
-| `/pre-register/` | `VITE_PRE_REGISTER_API_KEY` | `x-api-key` |
+| `/pre-register/` | `VITE_API_KEY` | `x-api-key` |
 
 ---
 
-## 2. User Registration
+## 2. Registration Status
+
+Check if registration is currently open for candidates and staff, and see scheduled closing dates.
+
+- **Endpoint:** `/v2/registration/`
+- **Method:** `GET`
+- **Content-Type:** `application/json`
+- **Authentication:** None (Public)
+
+### Success Response (200 OK)
+```json
+{
+  "candidate_registration": {
+    "is_open": true,
+    "closing_date": "2026-01-20T23:59:59Z"
+  },
+  "staff_registration": {
+    "is_open": true,
+    "closing_date": null
+  },
+  "support_email": "support@verboheit.org"
+}
+```
+
+| Key | Type | Description |
+| :--- | :--- | :--- |
+| `candidate_registration` | `object` | Status for candidate registration. |
+| `staff_registration` | `object` | Status for volunteer/staff registration. |
+| `support_email` | `string` | System support email address. |
+
+#### Detailed Status Object
+| Key | Type | Description |
+| :--- | :--- | :--- |
+| `is_open` | `boolean` | `true` if registration is active. |
+| `closing_date` | `string | null` | ISO 8601 timestamp of scheduled auto-close, or `null` if not set. |
+
+---
+
+## 3. User Registration
 
 Registers a new user as either a **Candidate** or a **Volunteer**.
 
-- **Endpoint:** `/register/`
+- **Endpoint:** `/v2/register/`
 - **Method:** `POST`
 - **Content-Type:** `multipart/form-data`
 
@@ -59,11 +97,11 @@ Registers a new user as either a **Candidate** or a **Volunteer**.
 
 ---
 
-## 3. Support Inquiry
+## 4. Support Inquiry
 
 For sponsorships, partnerships, and other forms of support.
 
-- **Endpoint:** `/support-us/`
+- **Endpoint:** `/v2/support-us/`
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
@@ -80,11 +118,11 @@ For sponsorships, partnerships, and other forms of support.
 
 ---
 
-## 4. Pre-Registration
+## 5. Pre-Registration
 
 Lead collection for interested participants.
 
-- **Endpoint:** `/pre-register/`
+- **Endpoint:** `/v2/pre-register/`
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
@@ -98,7 +136,7 @@ Lead collection for interested participants.
 
 ---
 
-## 5. Response Formats
+## 6. Response Formats
 
 The API returns JSON responses.
 
@@ -143,8 +181,8 @@ Returned when an action is not allowed (e.g., registration closed, already authe
 
 ---
 
-## 6. Implementation Notes
+## 7. Implementation Notes
 
-- **Multipart Data:** The browser handles the boundary for `multipart/form-data`. Do not manually set `Content-Type` headers for `/register/`.
+- **Multipart Data:** The browser handles the boundary for `multipart/form-data`. Do not manually set `Content-Type` headers for `/v2/register/`.
 - **File Validation:** The frontend filters files by extension (.pdf, .jpg, .png) and enforces a 5MB size limit.
 - **CORS:** Ensure the backend allows requests from the landing page domain and allows the `x-api-key` header.
