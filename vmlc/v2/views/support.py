@@ -17,7 +17,7 @@ class SupportUsView(CreateAPIView):
     API View to handle 'Support Us' inquiries.
     Authentication: x-api-key required.
     """
-    permission_classes = [HasXAPIKey]
+    # permission_classes = [HasXAPIKey]
     serializer_class = SupportInquirySerializer
     def post(self, request, *args, **kwargs):
         from vmlc.tasks import send_system_email_task

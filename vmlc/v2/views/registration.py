@@ -21,7 +21,7 @@ class RegistrationV2View(CreateAPIView):
     """
     V2 Registration endpoint for both Candidate and Volunteer.
     """
-    permission_classes = [HasXAPIKey]
+    # permission_classes = [HasXAPIKey]
     serializer_class = RegistrationV2Serializer
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
@@ -124,7 +124,7 @@ class PreRegistrationView(CreateAPIView):
     """
     Pre-Registration endpoint for both Candidate and Volunteer.
     """
-    permission_classes = [HasXAPIKey]
+    # permission_classes = [HasXAPIKey]
     serializer_class = PreRegUserSerializer
 
     @swagger_auto_schema(
