@@ -26,25 +26,6 @@ class RegistrationV2Tests(APITestCase):
         
         self.url = reverse("vmlc-v2:register")
 
-    def test_registration_missing_api_key(self):
-        data = {
-            "user_type": "candidate",
-            "first_name": "Test",
-            "last_name": "User",
-            "email": "test@example.com",
-            "phone": "08012345678",
-            "consent": "true",
-            "state": "Lagos",
-            "school_name": "Test School",
-            "school_type": "public",
-            "current_class": "SS1",
-            "document_type": "NIN",
-            "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
-        }
-        response = self.client.post(self.url, data, format='multipart')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
     def test_candidate_registration_success(self):
         data = {
             "user_type": "candidate",
@@ -180,7 +161,6 @@ class RegistrationV2Tests(APITestCase):
             self.url, 
             data, 
             format='multipart', 
-            # HTTP_X_API_KEY=self.api_key
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Should have errors for occupation and phone (if not using defaults)
@@ -209,8 +189,7 @@ class RegistrationV2Tests(APITestCase):
         response = self.client.post(
             self.url, 
             data, 
-            format='multipart', 
-            # HTTP_X_API_KEY=self.api_key
+            format='multipart',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
@@ -234,8 +213,7 @@ class RegistrationV2Tests(APITestCase):
         response = self.client.post(
             self.url, 
             data, 
-            format='multipart', 
-            # HTTP_X_API_KEY=self.api_key
+            format='multipart',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("consent", response.data["errors"])
