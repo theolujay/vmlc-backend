@@ -147,6 +147,7 @@ dev = [
     "pytest>=8.4.1",
     "moto>=5.1.12",
     "responses>=0.25.8",
+    "daphne>=4.2.1",
 ]
 
 # Testing tools
