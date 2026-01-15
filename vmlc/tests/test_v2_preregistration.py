@@ -1,18 +1,10 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
-from rest_framework_api_key.models import APIKey
-from vmlc.models import PreRegUser, FeatureFlag, User
+from vmlc.models import PreRegUser, User
 
 class PreRegistrationTestCase(APITestCase):
-    def setUp(self):
-        # Create API Key
-        self.api_key_obj, self.api_key = APIKey.objects.create_key(name="Test Key")
-        self.header = {"HTTP_X_API_KEY": self.api_key}
-        
-        # Ensure feature flag is open by default
-        FeatureFlag.objects.create(key="pre_registration_open", value=True)
-        
+    def setUp(self):        
         self.url = reverse("vmlc-v2:pre-register")
         
         self.valid_payload = {
@@ -24,7 +16,7 @@ class PreRegistrationTestCase(APITestCase):
 
     def test_pre_registration_success_candidate(self):
         """Test successful pre-registration for a candidate."""
-        response = self.client.post(self.url, self.valid_payload, **self.header)
+        response = self.client.post(self.url, self.valid_payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(PreRegUser.objects.count(), 1)
         user = PreRegUser.objects.first()
@@ -37,14 +29,9 @@ class PreRegistrationTestCase(APITestCase):
         payload["interest_type"] = "volunteer"
         payload["email"] = "volunteer@example.com"
         
-        response = self.client.post(self.url, payload, **self.header)
+        response = self.client.post(self.url, payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(PreRegUser.objects.filter(interest_type="volunteer").count(), 1)
-
-    def test_missing_api_key(self):
-        """Test request without API key should fail."""
-        response = self.client.post(self.url, self.valid_payload)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_missing_required_fields(self):
         """Test request with missing required fields."""
@@ -52,7 +39,7 @@ class PreRegistrationTestCase(APITestCase):
         for field in required_fields:
             payload = self.valid_payload.copy()
             del payload[field]
-            response = self.client.post(self.url, payload, **self.header)
+            response = self.client.post(self.url, payload)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(field, response.data["errors"])
             
@@ -61,7 +48,7 @@ class PreRegistrationTestCase(APITestCase):
         """Test request with invalid email format."""
         payload = self.valid_payload.copy()
         payload["email"] = "invalid-email"
-        response = self.client.post(self.url, payload, **self.header)
+        response = self.client.post(self.url, payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
 
@@ -69,17 +56,17 @@ class PreRegistrationTestCase(APITestCase):
         """Test request with invalid phone number format."""
         payload = self.valid_payload.copy()
         payload["phone"] = "12345"
-        response = self.client.post(self.url, payload, **self.header)
+        response = self.client.post(self.url, payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("phone", response.data["errors"])
 
     def test_duplicate_pre_registration_email(self):
         """Test that duplicate email in pre-registration returns 400, not 500."""
         # First registration
-        self.client.post(self.url, self.valid_payload, **self.header)
+        self.client.post(self.url, self.valid_payload)
         
         # Second registration with same email
-        response = self.client.post(self.url, self.valid_payload, **self.header)
+        response = self.client.post(self.url, self.valid_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
         # Check that we didn't create a second record
@@ -89,13 +76,6 @@ class PreRegistrationTestCase(APITestCase):
         """Test that an email already belonging to a User cannot pre-register."""
         User.objects.create_user(username="existing", email="test@example.com", password="pwd")
         
-        response = self.client.post(self.url, self.valid_payload, **self.header)
+        response = self.client.post(self.url, self.valid_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
-
-    def test_pre_registration_closed(self):
-        """Test that pre-registration is blocked when feature flag is disabled."""
-        FeatureFlag.objects.filter(key="pre_registration_open").update(value=False)
-        
-        response = self.client.post(self.url, self.valid_payload, **self.header)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

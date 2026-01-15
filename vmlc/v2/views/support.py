@@ -4,8 +4,8 @@ from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.permissions import AllowAny
 
-from vmlc.permissions import HasXAPIKey
 from vmlc.utils.helpers import sanitize_data
 from vmlc.v2.serializers.support import SupportInquirySerializer
 
@@ -17,7 +17,7 @@ class SupportUsView(CreateAPIView):
     API View to handle 'Support Us' inquiries.
     Authentication: x-api-key required.
     """
-    permission_classes = [HasXAPIKey]
+    permission_classes = [AllowAny]
     serializer_class = SupportInquirySerializer
     def post(self, request, *args, **kwargs):
         from vmlc.tasks import send_system_email_task

@@ -18,24 +18,15 @@ x-app-base: &app-base
     - dev_static:/app/staticfiles
   develop:
     watch:
-      - action: sync+restart
+      - action: sync
         path: ./vmlc
         target: /app/vmlc
-        ignore:
-          - __pycache__
-          - "*.pyc"
-      - action: sync+restart
+      - action: sync
         path: ./comms
         target: /app/comms
-        ignore:
-          - __pycache__
-          - "*.pyc"
-      - action: sync+restart
+      - action: sync
         path: ./config
         target: /app/config
-        ignore:
-          - __pycache__
-          - "*.pyc"
       - action: rebuild
         path: ./uv.lock
       - action: rebuild
@@ -108,7 +99,7 @@ services:
     <<: *app-base
     container_name: vmlc-django
     entrypoint: "./scripts/entrypoint.sh"
-    command: python manage.py runserver 0.0.0.0:8000
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     ports:
       - "8000:8000"
     depends_on:
@@ -219,5 +210,5 @@ volumes:
 
 networks:
   dev:
-    external: true
+    # external: true
     name: ${COMPOSE_PROJECT_NAME}_dev
