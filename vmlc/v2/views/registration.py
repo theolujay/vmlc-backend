@@ -7,10 +7,10 @@ from rest_framework import status, parsers
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.permissions import AllowAny
 
 from vmlc.tasks import send_welcome_mail_task
 from vmlc.models import Candidate, Staff, FeatureFlag
-from vmlc.permissions import HasXAPIKey
 from vmlc.v2.serializers.registration import PreRegUserSerializer, RegistrationV2Serializer, SupportInquirySerializer
 from vmlc.utils.exceptions import PermissionDenied
 from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
@@ -21,7 +21,7 @@ class RegistrationV2View(CreateAPIView):
     """
     V2 Registration endpoint for both Candidate and Volunteer.
     """
-    # permission_classes = [HasXAPIKey]
+    permission_classes = [AllowAny]
     serializer_class = RegistrationV2Serializer
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
@@ -124,7 +124,7 @@ class PreRegistrationView(CreateAPIView):
     """
     Pre-Registration endpoint for both Candidate and Volunteer.
     """
-    # permission_classes = [HasXAPIKey]
+    permission_classes = [AllowAny]
     serializer_class = PreRegUserSerializer
 
     @swagger_auto_schema(
