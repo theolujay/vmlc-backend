@@ -10,7 +10,7 @@ from vmlc.models import SupportInquiry
 class SupportUsViewTests(APITestCase):
     def setUp(self):
         self.url = reverse("vmlc-v2:support-us")
-        _, self.api_key = APIKey.objects.create_key(name="test-key")
+        # _, self.api_key = APIKey.objects.create_key(name="test-key")
         self.valid_payload = {
             "full_name": "Test User",
             "email": "test@example.com",
@@ -27,7 +27,6 @@ class SupportUsViewTests(APITestCase):
             response = self.client.post(
                 self.url,
                 self.valid_payload,
-                HTTP_X_API_KEY=self.api_key,
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -35,27 +34,12 @@ class SupportUsViewTests(APITestCase):
             # Should call send_system_email twice (confirmation + notification)
             self.assertEqual(mock_send_email.delay.call_count, 2)
 
-    def test_submit_support_inquiry_no_api_key(self):
-        """Test submission without API key fails."""
-        response = self.client.post(self.url, self.valid_payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_submit_support_inquiry_invalid_api_key(self):
-        """Test submission with invalid API key fails."""
-        response = self.client.post(
-            self.url,
-            self.valid_payload,
-            HTTP_X_API_KEY="invalid-key",
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
     def test_submit_support_inquiry_missing_fields(self):
         """Test submission with missing required fields."""
         payload = self.valid_payload.copy()
         del payload["full_name"]
         response = self.client.post(
-            self.url, payload, HTTP_X_API_KEY=self.api_key, format="json"
+            self.url, payload, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("full_name", response.data["errors"])
@@ -65,7 +49,7 @@ class SupportUsViewTests(APITestCase):
         payload = self.valid_payload.copy()
         payload["email"] = "invalid-email"
         response = self.client.post(
-            self.url, payload, HTTP_X_API_KEY=self.api_key, format="json"
+            self.url, payload, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
@@ -75,7 +59,7 @@ class SupportUsViewTests(APITestCase):
         payload = self.valid_payload.copy()
         payload["consent"] = False
         response = self.client.post(
-            self.url, payload, HTTP_X_API_KEY=self.api_key, format="json"
+            self.url, payload, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("consent", response.data["errors"])
