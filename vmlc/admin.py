@@ -21,6 +21,8 @@ from .models import (
     User,
     CandidateScoreSnapshot,
     UserVerification,
+    SupportInquiry,
+    PreRegUser,
 )
 
 from .utils.email import create_email_html
@@ -276,10 +278,17 @@ class UserVerificationAdmin(admin.ModelAdmin):
         "has_face_id",
         "has_id_card",
         "has_verification_document",
+        "action_by",
         "created_at",
     ]
 
-    list_filter = ["is_pending", "is_approved", "is_rejected", "created_at"]
+    list_filter = [
+        "is_pending",
+        "is_approved",
+        "is_rejected",
+        "verification_document_type",
+        "created_at",
+    ]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     readonly_fields = ["created_at", "updated_at"]
     list_select_related = ("user",)
@@ -297,10 +306,21 @@ class UserVerificationAdmin(admin.ModelAdmin):
                     "is_approved",
                     "is_rejected",
                     "rejection_reason",
+                    "action_by",
                 )
             },
         ),
-        ("Files", {"fields": ("face_id", "id_card", "verification_document")}),
+        (
+            "Files",
+            {
+                "fields": (
+                    "face_id",
+                    "id_card",
+                    "verification_document",
+                    "verification_document_type",
+                )
+            },
+        ),
         (
             "Timestamps",
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
@@ -411,6 +431,8 @@ class CandidateAdmin(admin.ModelAdmin):
         "email",
         "full_name",
         "school",
+        "school_type",
+        "current_class",
         "role",
         "total_score_display",
         "get_primary_key",
@@ -422,6 +444,8 @@ class CandidateAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     list_filter = (
         "role",
+        "school_type",
+        "current_class",
         "user__is_active",
         "user__verification__is_approved",
         "created_at",
@@ -576,6 +600,7 @@ class ExamAdmin(admin.ModelAdmin):
         "id",
         "title",
         "stage",
+        "level",
         "scheduled_date",
         "get_question_count",
         "is_active",
@@ -584,7 +609,7 @@ class ExamAdmin(admin.ModelAdmin):
         "created_at",
     )
     readonly_fields = ("created_at", "updated_at")
-    list_filter = ("stage", "is_active", "created_by")
+    list_filter = ("stage", "level", "is_active", "created_by")
     search_fields = ("title", "stage")
     date_hierarchy = "created_at"
     filter_horizontal = ("questions",)
@@ -919,3 +944,19 @@ class FeatureFlagAdmin(admin.ModelAdmin):
             cache.delete(f"feature_flag_{obj.key}")
             cache.delete("registration_status")
         super().delete_queryset(request, queryset)
+
+
+@admin.register(SupportInquiry)
+class SupportInquiryAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "email", "support_type", "organization", "created_at")
+    list_filter = ("support_type", "created_at")
+    search_fields = ("full_name", "email", "message", "organization")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(PreRegUser)
+class PreRegUserAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "email", "interest_type", "created_at")
+    list_filter = ("interest_type", "created_at")
+    search_fields = ("full_name", "email", "phone")
+    readonly_fields = ("created_at",)

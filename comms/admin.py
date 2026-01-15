@@ -12,9 +12,17 @@ from comms.models import (
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):
-    list_display = ["id", "subject", "status", "created_at", "task_status_display"]
-    list_filter = ["status", "created_at", "mediums"]
+    list_display = [
+        "id",
+        "subject",
+        "status",
+        "created_by",
+        "created_at",
+        "task_status_display",
+    ]
+    list_filter = ["status", "created_at", "mediums", "created_by"]
     readonly_fields = ["task_result_display"]
+    autocomplete_fields = ["created_by"]
 
     def task_status_display(self, obj):
         if not obj.task_id:
@@ -71,6 +79,31 @@ class BroadcastAdmin(admin.ModelAdmin):
     task_result_display.short_description = "Task Result Details"
 
 
-admin.site.register(BroadcastLog)
-admin.site.register(Notification)
-admin.site.register(BackupLog)
+@admin.register(BroadcastLog)
+class BroadcastLogAdmin(admin.ModelAdmin):
+    list_display = [
+        "broadcast",
+        "medium",
+        "target_role",
+        "role_type",
+        "status",
+        "attempted_at",
+    ]
+    list_filter = ["status", "medium", "role_type", "attempted_at"]
+    search_fields = ["broadcast__subject", "message"]
+    readonly_fields = ["attempted_at"]
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ["recipient", "subject", "read", "created_at"]
+    list_filter = ["read", "created_at"]
+    search_fields = ["recipient__email", "recipient__first_name", "subject", "message"]
+    readonly_fields = ["created_at"]
+
+
+@admin.register(BackupLog)
+class BackupLogAdmin(admin.ModelAdmin):
+    list_display = ["environment", "status", "timestamp", "backup_filename"]
+    list_filter = ["environment", "status", "created_at"]
+    readonly_fields = ["created_at"]
