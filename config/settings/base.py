@@ -4,6 +4,7 @@ Base Django settings to be shared across all environments.
 
 from datetime import timedelta
 from pathlib import Path
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from corsheaders.defaults import default_headers, default_methods
 from ._utils import read_secret
@@ -16,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # ============================================================================
 SECRET_KEY = read_secret("SECRET_KEY")
 DEBUG = str(read_secret("DEBUG", "False")).lower() == "true"
-
+ENVIRONMENT = read_secret("ENVIRONMENT", "development")
 ALLOWED_HOSTS = [
     host.strip() for host in read_secret("ALLOWED_HOSTS", "").split(",") if host.strip()
 ]
@@ -113,13 +114,34 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# === DATABASE CONFIGURATION ===
+DATABASE_URL = read_secret("DATABASE_URL")
+
+db_config = dj_database_url.config(
+    default=DATABASE_URL,
+    engine="dj_db_conn_pool.backends.postgresql",
+    conn_health_checks=True,
+)
+db_config["POOL_OPTIONS"] = {
+    "POOL_SIZE": 3,
+    "MAX_OVERFLOW": 5,
+    "RECYCLE": 3600,
+    "PRE_PING": True,
+}
+DATABASES = {"default": db_config}
 # ============================================================================
 # STORAGE CONFIGURATION (S3)
 # ============================================================================
 USE_S3 = str(read_secret("USE_S3", "false")).lower() == "true"
 
-if USE_S3:
+# Always read AWS keys so they are defined for child settings validation
+AWS_ACCESS_KEY_ID = read_secret("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = read_secret("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = read_secret("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = read_secret("AWS_S3_REGION_NAME")
+AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "dev")
 
+if USE_S3:
     def validate_aws_config():
         required_vars = [
             "AWS_ACCESS_KEY_ID",
@@ -127,7 +149,7 @@ if USE_S3:
             "AWS_STORAGE_BUCKET_NAME",
             "AWS_S3_REGION_NAME",
         ]
-        missing_vars = [var for var in required_vars if not read_secret(var)]
+        missing_vars = [var for var in required_vars if not globals().get(var)]
         if missing_vars:
             raise ImproperlyConfigured(
                 f"Missing required AWS S3 env vars: {', '.join(missing_vars)}"
@@ -135,11 +157,6 @@ if USE_S3:
 
     validate_aws_config()
 
-    AWS_ACCESS_KEY_ID = read_secret("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = read_secret("AWS_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = read_secret("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_REGION_NAME = read_secret("AWS_S3_REGION_NAME")
-    AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "dev")
     AWS_S3_CUSTOM_DOMAIN = (
         f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
     )

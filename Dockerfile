@@ -99,6 +99,7 @@ RUN mkdir -p media staticfiles && \
     chmod -R 755 media staticfiles && \
     chmod +x ./scripts/*
 
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput --clear --skip-checks
 EXPOSE 8000
 
 # ==========================================================================
@@ -132,6 +133,7 @@ RUN mkdir -p media staticfiles && \
     chmod -R 755 media staticfiles && \
     chmod +x ./scripts/*
 
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput --clear --skip-checks
 # ==========================================================================
 # Production
 # ==========================================================================
@@ -149,3 +151,5 @@ COPY --chown=verboheit:verboheit . /app
 RUN mkdir -p media staticfiles && \
     chmod -R 755 media staticfiles && \
     chmod +x ./scripts/*
+
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput --clear --skip-checks

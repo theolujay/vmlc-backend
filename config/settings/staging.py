@@ -20,29 +20,9 @@ load_dotenv(BASE_DIR / "staging.env")
 # STAGING-SPECIFIC SETTINGS
 # ============================================================================
 
-# === DATABASE CONFIGURATION ===
-DATABASE_URL = read_secret("DATABASE_URL")
-if not DATABASE_URL:
-    raise ImproperlyConfigured(
-        "DATABASE_URL environment variable is required for staging."
-    )
-
-db_config = dj_database_url.config(
-    default=DATABASE_URL,
-    engine="dj_db_conn_pool.backends.postgresql",
-    conn_health_checks=True,
-)
-db_config["POOL_OPTIONS"] = {
-    "POOL_SIZE": 3,
-    "MAX_OVERFLOW": 5,
-    "RECYCLE": 3600,
-    "PRE_PING": True,
-}
-DATABASES = {"default": db_config}
 
 # === S3 CONFIGURATION ===
-# Explicitly set USE_S3 to True for staging since it's required for media storage.
-USE_S3 = True
+
 # AWS S3 Location Prefix for staging
 AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "staging")
 
