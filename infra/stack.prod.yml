@@ -120,7 +120,6 @@ services:
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/app/media
-      - prod_static:/app/staticfiles
     labels:
       - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
     networks:
