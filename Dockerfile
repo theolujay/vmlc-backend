@@ -119,8 +119,20 @@ RUN mkdir -p media staticfiles && \
 # ==========================================================================
 FROM base AS staging
 
-RUN python manage.py collectstatic --noinput --clear
+ENV DJANGO_SETTINGS_MODULE=config.settings.staging \
+    PYTHONDEBUG=0 \
+    DEBUG=0 \
+    PYTHONOPTIMIZE=2 \
+    SERVER_SOFTWARE= \
+    BUILD=true
 
+COPY --chown=verboheit:verboheit . /app
+
+RUN mkdir -p media staticfiles && \
+    chmod -R 755 media staticfiles && \
+    chmod +x ./scripts/*
+
+RUN python manage.py collectstatic --noinput --clear
 # ==========================================================================
 # Production
 # ==========================================================================
