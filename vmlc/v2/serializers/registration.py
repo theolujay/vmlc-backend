@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from ...models import (
+from vmlc.models import (
     PreRegUser,
     SupportInquiry,
     User,
@@ -17,7 +17,7 @@ from ...models import (
     validate_document_file,
     validate_face_id,
 )
-from ...utils.auth import generate_password
+from vmlc.utils.auth import generate_password
 
 class RegistrationV2Serializer(serializers.Serializer):
     """
@@ -31,7 +31,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     phone = serializers.CharField(max_length=17)
 
     # File upload fields
-    face_capture = serializers.FileField()
+    face_capture = serializers.FileField(required=False)
     document = serializers.FileField()
     document_type = serializers.CharField(max_length=50)
     consent = serializers.CharField()  # "true" or "false" string from form-data
