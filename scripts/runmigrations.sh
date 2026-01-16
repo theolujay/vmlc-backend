@@ -23,17 +23,9 @@ trap cleanup SIGTERM SIGINT SIGQUIT SIGHUP
 
 security_check() {
     if [[ "$(id -u)" -eq 0 ]]; then
-        log_info "Running as root - checking permissions..."
-        
-        # Ensure directories exist
-        mkdir -p /app/media /app/staticfiles
-        
-        # Fix permissions
-        log_info "Fixing permissions for /app/media and /app/staticfiles..."
-        chown -R verboheit:verboheit /app/media /app/staticfiles
-        
-        log_info "Dropping privileges to user 'verboheit'..."
-        exec gosu verboheit "$0" "$@"
+        log_error "Security violation: Container is running as root user!"
+        log_error "This is a serious security risk. Exiting..."
+        exit 1
     fi
 
     local current_user

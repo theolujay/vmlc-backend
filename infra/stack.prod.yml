@@ -99,7 +99,6 @@ services:
   db-migrate:
     <<:
       - *vmlc-prod
-    user: root
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/app/media
