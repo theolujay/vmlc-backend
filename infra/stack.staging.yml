@@ -84,6 +84,7 @@ services:
   db-migrate:
     <<:
       - *vmlc-staging
+    user: root
     environment: *vmlc-staging-env
     volumes:
       - staging_media:/app/media
