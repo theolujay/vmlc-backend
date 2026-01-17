@@ -71,7 +71,7 @@ class RegistrationV2View(CreateAPIView):
         # I suspect the keys are consistent in DB, maybe just inconsistent naming in code or mapped.
         # Let's look at `FeatureFlag.get_bool`. It just queries by key.
         # I will use "candidate_registration" and "staff_registration" as used in the Registration Views in V1.
-        
+        from vmlc.tasks import clear_pre_reg_user
         if user_type == "candidate":
             feature_flag_key = "candidate_registration"
         elif user_type == "volunteer":
@@ -86,6 +86,7 @@ class RegistrationV2View(CreateAPIView):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             instance = serializer.save()
+            clear_pre_reg_user.delay(user_email=instance.user.email)
         except ValidationError as e:
             logger.warning(f"Registration validation failed: {e.detail}")
             return Response(
@@ -165,9 +166,9 @@ class PreRegistrationView(CreateAPIView):
         logger.info(f"Pre-Registration attempt with data: {safe_data}")
 
         # 2. Check Feature Flag
-        if not FeatureFlag.get_bool("pre_registration_open", default=True):
-             logger.warning("Pre-registration attempt while it is closed.")
-             raise PermissionDenied("Pre-registration is currently closed.")
+        # if not FeatureFlag.get_bool("pre_registration_open", default=True):
+        #      logger.warning("Pre-registration attempt while it is closed.")
+        #      raise PermissionDenied("Pre-registration is currently closed.")
 
         try:
             # 3. Serialize & Save
