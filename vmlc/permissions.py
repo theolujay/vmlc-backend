@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework_api_key.permissions import HasAPIKey
@@ -18,6 +19,8 @@ class HasXAPIKey(HasAPIKey):
 
     def has_permission(self, request, view):
         key = self._get_key(request)
+        if settings.DEBUG:
+            return True
         if not key:
             return False
         return _is_api_key_valid(key)

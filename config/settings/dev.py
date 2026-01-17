@@ -1,7 +1,6 @@
 """
 Local development environment settings.
 This settings configuration is used when running without Docker containers locally.
-Uses SQLite by default, but can be configured to use NeonDB.
 """
 
 import sys
