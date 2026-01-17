@@ -1,77 +1,83 @@
 from datetime import timedelta
 from django.db.models import Q, QuerySet, F, ExpressionWrapper, DateTimeField
 from django.utils import timezone
-from ..models import Exam
+from ..models import Exam, PreRegUser
 
 
 def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
     """
-    Calculates the counts of users by status (active, inactive, pending, deactivated).
+    Calculates the counts of users by status (active, inactive, pre-registered, deactivated).
 
     Status priority (mutually exclusive):
     1. Deactivated: user.is_active = False
-    2. Pending: has verification record with is_pending = True
-    3. Active: logged in within 7 days + additional criteria
-    4. Inactive: everyone else
+    2. Active: logged in within 7 days + additional criteria (excluding verification)
+    3. Inactive: everyone else
+    4. Pre-registered: PreRegUser entries (excluding those fully registered)
     """
     seven_days_ago = timezone.now() - timedelta(days=7)
 
-    # Total count
+    # Total count (fully registered users)
     total_registered = base_queryset.count()
 
     # 1. Deactivated (highest priority)
     deactivated = base_queryset.filter(user__is_active=False).count()
 
-    # 2. Pending verification (second priority)
-    # Only count users who ARE active but have pending verification
-    pending = base_queryset.filter(
-        user__is_active=True, user__verification__is_pending=True  # Not deactivated
-    ).count()
-
-    # 3. Active users (third priority)
-    # Base requirement: is_active=True, logged in recently, NOT pending
-    active_filter = (
-        Q(user__is_active=True)
-        & Q(user__last_login__gte=seven_days_ago)
-        & ~Q(user__verification__is_pending=True)  # Exclude pending users
-    )
+    # 2. Active users
+    # Base requirement: is_active=True, logged in recently
+    # Removed verification checks as requested
+    active_filter = Q(user__is_active=True) & Q(user__last_login__gte=seven_days_ago)
 
     if user_type == "candidate":
         # Candidates must also:
-        # - Be verified (is_approved=True)
         # - Have participated in the last concluded exam
         last_concluded_exam = get_last_concluded_exam()
         if last_concluded_exam:
-            active_filter &= Q(
-                user__verification__is_approved=True,
-                scores__exam=last_concluded_exam,
-            )
+            active_filter &= Q(scores__exam=last_concluded_exam)
             active = base_queryset.filter(active_filter).distinct().count()
         else:
-            # No concluded exam = no candidates can be "active"
+            # No concluded exam = no candidates can be "active" based on this rule
             active = 0
     else:  # staff
         # Staff just need to have logged in recently
-        # But they should NOT be pending, and NOT 'not_started' verification
-        staff_active_filter = active_filter & (
-            Q(user__verification__is_approved=True)
-            | Q(user__verification__is_rejected=True)
-        )
-        active = base_queryset.filter(staff_active_filter).count()
+        active = base_queryset.filter(active_filter).count()
 
-    # 4. Inactive: everyone who isn't deactivated, pending, or active
-    inactive = total_registered - (active + deactivated + pending)
+    # 3. Inactive: everyone who isn't deactivated or active
+    inactive = total_registered - (active + deactivated)
 
-    # Safety check (shouldn't happen with correct logic)
+    # Safety check
     if inactive < 0:
         inactive = 0
+
+    # 4. Pre-registered (from PreRegUser model)
+    # Determine interest type based on user_type
+    interest_type = (
+        PreRegUser.InterestType.CANDIDATE
+        if user_type == "candidate"
+        else PreRegUser.InterestType.VOLUNTEER
+    )
+
+    # Filter for pre-registered users of the correct type
+    # And exclude those who are already fully registered (exist in base_queryset)
+    # We use email to check for existence
+    registered_emails = base_queryset.values_list("user__email", flat=True)
+    
+    pre_registered = PreRegUser.objects.filter(
+        interest_type=interest_type
+    ).exclude(email__in=registered_emails).count()
+
+    # Filter for cases when a user has both entities (fully registered AND in PreRegUser)
+    both_entities = PreRegUser.objects.filter(
+        interest_type=interest_type,
+        email__in=registered_emails
+    ).count()
 
     return {
         "registered": total_registered,
         "active": active,
         "inactive": inactive,
-        "pending_verification": pending,
+        "pre_registered": pre_registered,
         "deactivated": deactivated,
+        "both_entities": both_entities,
     }
 
 

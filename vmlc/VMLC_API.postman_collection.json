@@ -14,6 +14,225 @@
     },
     "item": [
       {
+        "name": "V2 API",
+        "item": [
+          {
+            "name": "Registration",
+            "item": [
+              {
+                "name": "Register User (Candidate/Volunteer)",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                      {
+                        "key": "user_type",
+                        "value": "candidate",
+                        "type": "text",
+                        "description": "candidate or volunteer"
+                      },
+                      {
+                        "key": "first_name",
+                        "value": "John",
+                        "type": "text"
+                      },
+                      {
+                        "key": "last_name",
+                        "value": "Doe",
+                        "type": "text"
+                      },
+                      {
+                        "key": "email",
+                        "value": "john.doe.v2@example.com",
+                        "type": "text"
+                      },
+                      {
+                        "key": "phone",
+                        "value": "08012345678",
+                        "type": "text"
+                      },
+                      {
+                        "key": "state",
+                        "value": "Lagos",
+                        "type": "text"
+                      },
+                      {
+                        "key": "document_type",
+                        "value": "NIN",
+                        "type": "text",
+                        "description": "NIN, school ID card, report card (candidate) / NIN, passport, drivers license (volunteer)"
+                      },
+                      {
+                        "key": "consent",
+                        "value": "true",
+                        "type": "text"
+                      },
+                      {
+                        "key": "school_name",
+                        "value": "Example High",
+                        "type": "text",
+                        "description": "Required for candidate"
+                      },
+                      {
+                        "key": "school_type",
+                        "value": "public",
+                        "type": "text",
+                        "description": "public or private. Required for candidate"
+                      },
+                      {
+                        "key": "current_class",
+                        "value": "SS2",
+                        "type": "text",
+                        "description": "SS1, SS2, SS3. Required for candidate"
+                      },
+                      {
+                        "key": "occupation",
+                        "value": "Teacher",
+                        "type": "text",
+                        "description": "Required for volunteer"
+                      },
+                      {
+                        "key": "document",
+                        "type": "file",
+                        "src": []
+                      },
+                      {
+                        "key": "face_capture",
+                        "type": "file",
+                        "src": []
+                      }
+                    ]
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v2/register/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v2",
+                      "register",
+                      ""
+                    ]
+                  },
+                  "description": "V2 Registration for Candidate or Volunteer. Requires multipart/form-data."
+                },
+                "response": []
+              },
+              {
+                "name": "Pre-Register User",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"full_name\": \"Jane Doe\",\n    \"email\": \"jane.doe.pre@example.com\",\n    \"phone\": \"08087654321\",\n    \"interest_type\": \"candidate\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v2/pre-register/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v2",
+                      "pre-register",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              },
+              {
+                "name": "Registration Status",
+                "request": {
+                  "method": "GET",
+                  "header": [],
+                  "url": {
+                    "raw": "{{baseUrl}}/v2/registration/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v2",
+                      "registration",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ]
+          },
+          {
+            "name": "Support",
+            "item": [
+              {
+                "name": "Support Us Inquiry",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    {
+                      "key": "X-Api-Key",
+                      "value": "{{apiKey}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json",
+                      "type": "text"
+                    }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"full_name\": \"Generous Donor\",\n    \"email\": \"donor@example.com\",\n    \"phone\": \"08011112222\",\n    \"support_type\": \"sponsorship\",\n    \"message\": \"I would like to sponsor the event.\",\n    \"organization\": \"Big Corp\",\n    \"consent\": true\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "{{baseUrl}}/v2/support-us/",
+                    "host": [
+                      "{{baseUrl}}"
+                    ],
+                    "path": [
+                      "v2",
+                      "support-us",
+                      ""
+                    ]
+                  }
+                },
+                "response": []
+              }
+            ]
+          }
+        ]
+      },
+      {
         "name": "Health & Root",
         "item": [
           {

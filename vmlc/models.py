@@ -469,22 +469,11 @@ class Staff(models.Model):  # pylint: disable=too-many-lines
         if not self.user.is_active:
             return "deactivated"
 
-        try:
-            verification = self.user.verification
-            if verification.is_pending:
-                return "pending"
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        if self.user.last_login and self.user.last_login >= seven_days_ago:
+            return "active"
 
-            if verification.status == "not_started":
-                return "inactive"
-
-            seven_days_ago = timezone.now() - timedelta(days=7)
-            if self.user.last_login and self.user.last_login >= seven_days_ago:
-                return "active"
-
-            return "inactive"
-
-        except (AttributeError, UserVerification.DoesNotExist):
-            return "inactive"
+        return "inactive"
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -900,11 +889,6 @@ class Candidate(models.Model):
 
         if not self.user.is_active:
             return "deactivated"
-        try:
-            if self.user.verification and self.user.verification.is_pending:
-                return "pending"
-        except (AttributeError, UserVerification.DoesNotExist):
-            return "inactive"  # A user without a verification record is inactive
 
         seven_days_ago = timezone.now() - timedelta(days=7)
 
@@ -914,7 +898,6 @@ class Candidate(models.Model):
                 self.__class__.objects.filter(
                     pk=self.pk,
                     user__is_active=True,
-                    user__verification__is_approved=True,
                     user__last_login__gte=seven_days_ago,
                     scores__exam=last_concluded_exam,
                 )

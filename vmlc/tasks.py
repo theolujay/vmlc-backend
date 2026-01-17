@@ -246,6 +246,19 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
             )
             return
 
+@shared_task(name="clear_pre_reg_user")
+def clear_pre_reg_user(user_email, user_type="candidate"):
+
+    from vmlc.models import Staff, Candidate, PreRegUser
+    try:
+        pre_reg_user = PreRegUser.objects.get(email=user_email)
+        pre_reg_user.delete()
+        logger.info(f"[{user_email}] fully registered. PreRegUser entity cleared")
+    except PreRegUser.DoesNotExist:
+        logger.info(f"PreRegUser entity not found for [{user_email}]")
+
+
+
 @shared_task(name="revoke_user_invite_task")
 def revoke_user_invite_task(user_id):
     """
