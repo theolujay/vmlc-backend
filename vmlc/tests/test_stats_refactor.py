@@ -25,7 +25,7 @@ class UserStatsRefactorTest(TestCase):
         return user
 
     def create_candidate(self, user):
-        return Candidate.objects.create(user=user, school="Test School")
+        return Candidate.objects.create(user=user, school_name="Test School")
 
     def create_staff(self, user, role=Staff.Roles.VOLUNTEER):
         return Staff.objects.create(user=user, role=role)

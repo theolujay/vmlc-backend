@@ -50,9 +50,9 @@ class AuthEndpointsTest(APITestCase):
             "first_name": "New",
             "last_name": "Candidate",
             "phone": "08012345678",
-            "password": "newpassword123",
-            "password2": "newpassword123",
-            "school": "New School",
+            "password": "strongpassword123",
+            "password2": "strongpassword123",
+            "school_name": "New School",
         }
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -287,7 +287,7 @@ class DashboardEndpointsTest(APITestCase):
             last_name="User",
         )
         self.candidate_profile = Candidate.objects.create(
-            user=self.candidate_user, school="Test School"
+            user=self.candidate_user, school_name="Test School"
         )
 
         self.staff_user = User.objects.create_user(

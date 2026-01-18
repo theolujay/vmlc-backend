@@ -120,7 +120,7 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     Serializer for registering new candidates.
     """
 
-    school = serializers.CharField(max_length=150)
+    school_name = serializers.CharField(max_length=150)
 
     class Meta:
         model = Candidate
@@ -131,7 +131,7 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
             "phone",
             "password",
             "password2",
-            "school",
+            "school_name",
             "generate_password",
         ]
 
@@ -221,7 +221,7 @@ class CandidateInviteSerializer(BaseRegistrationSerializer):
     """
 
     created_by = MinimalStaffSerializer(read_only=True)
-    school = serializers.CharField(max_length=100, required=False)
+    school_name = serializers.CharField(max_length=100, required=False)
     role = serializers.ChoiceField(choices=Candidate.Roles.choices, required=False)
 
     class Meta:
@@ -234,7 +234,7 @@ class CandidateInviteSerializer(BaseRegistrationSerializer):
             "password",
             "password2",
             "role",
-            "school",
+            "school_name",
             "created_by",
             "generate_password",
         ]

@@ -13,10 +13,11 @@ def filter_candidates(
     Filter candidate queryset based on optional query parameters.
 
     Supported filters:
-        - role: Candidate role (e.g., 'league', 'school')
+        - role: Candidate role (e.g., 'league', 'final')
+        - school_name: Filter by school name
         - league: League ID or identifier
         - is_active: 'true' or 'false' (filters based on user's active status)
-        - search: Partial match on email, first name, or last name
+        - search: Partial match on email, first name, last name, or school name
 
     Args:
         queryset (QuerySet): The initial Candidate queryset.
@@ -26,12 +27,16 @@ def filter_candidates(
         QuerySet: Filtered queryset.
     """
     role: Any = params.get("role")
+    school_name: Any = params.get("school_name")
     league: Any = params.get("league")
     is_active: Any = params.get("is_active")
     search: Any = params.get("search")
 
     if role:
         queryset = queryset.filter(role=role)
+
+    if school_name:
+        queryset = queryset.filter(school_name__icontains=school_name)
 
     if league:
         queryset = queryset.filter(league=league)
@@ -47,6 +52,7 @@ def filter_candidates(
             Q(user__email__icontains=search)
             | Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
+            | Q(school_name__icontains=search)
         )
 
     return queryset
@@ -106,7 +112,9 @@ def filter_users(queryset: QuerySet[User], params: Any) -> QuerySet[User]:
             Q(first_name__icontains=search)
             | Q(last_name__icontains=search)
             | Q(email__icontains=search)
-        )
+            | Q(candidate_profile__school_name__icontains=search)
+            | Q(staff_profile__occupation__icontains=search)
+        ).distinct()
 
     return queryset
 

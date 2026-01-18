@@ -56,12 +56,13 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     )
 
     dashboard_data = {
-        "candidate_info": {
-            "name": candidate.user.get_full_name(),
-            "email": candidate.user.email,
-            "phone": candidate.user.phone,
-            "school": candidate.school,
-            "role": candidate.role.lower(),
+            "candidate_info": {
+                "name": candidate.user.get_full_name(),
+                "email": candidate.user.email,
+                "phone": candidate.user.phone,
+                "school_name": candidate.school_name,
+                "role": candidate.role.lower(),
+        
             "is_user_verified": candidate.is_user_verified,
             "is_email_verified": candidate.user.is_email_verified,
             "is_active": candidate.user.is_active,
@@ -330,7 +331,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
                 "exam_title": activity["exam__title"],
                 "score": float(activity["score"]),
                 "date": activity["recorded_at"],
-                "candidate_school": activity["candidate__school"],
+                "candidate_school_name": activity["candidate__school_name"],
             }
             for activity in recent_activity_list
         ],
@@ -418,7 +419,7 @@ def _get_staff_recent_activity() -> list:
             "candidate__user__first_name",
             "candidate__user__last_name",
             "exam__title",
-            "candidate__school",
+            "candidate__school_name",
         )[:10]
     )
     return recent_activity_list

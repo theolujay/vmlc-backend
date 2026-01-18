@@ -39,4 +39,5 @@ class CandidateLeaderboardPerfSerializer(serializers.Serializer):
 
     id = serializers.UUIDField(source="user.id")
     full_name = serializers.CharField(source="user.get_full_name")
-    school = serializers.CharField()
+    school_name = serializers.CharField()
+    # role = serializers.CharField()

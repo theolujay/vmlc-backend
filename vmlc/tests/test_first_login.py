@@ -18,9 +18,8 @@ class FirstLoginTest(TestCase):
         # Create a profile with created_by=None to simulate a self-registered user
         self.candidate = Candidate.objects.create(
             user=self.user,
-            school="Test School",
+            school_name="Test School",
             role=Candidate.Roles.SCREENING,
-            created_by=None
         )
 
     def test_first_login_sets_email_verified(self):

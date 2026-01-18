@@ -121,6 +121,7 @@ class Command(BaseCommand):
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
+                state=fake.state()[:49],
             )
 
             creator = random.choice(existing_staff) if existing_staff else None
@@ -165,13 +166,14 @@ class Command(BaseCommand):
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
+                state=fake.state()[:49],
             )
             candidate = Candidate.objects.create(
                 user=user,
-                school=fake.company()[:154] + " High",
+                school_name=fake.company()[:140] + " High",
                 school_type=random.choice(["public", "private"]),
                 current_class=random.choice(["SS1", "SS2", "SS3"]),
-                role=random.choice(["league", "screening"]),
+                role=random.choice(["screening", "league", "final", "winner"]),
                 created_by=random.choice(staff_list),
             )
 

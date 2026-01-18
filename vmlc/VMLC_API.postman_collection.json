@@ -293,7 +293,7 @@
               ],
               "body": {
                 "mode": "raw",
-                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"08012345678\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"school\": \"Example High School\",\n    \"generate_password\": false\n}",
+                "raw": "{\n    \"email\": \"candidate@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"08012345678\",\n    \"password\": \"strongpassword123\",\n    \"password2\": \"strongpassword123\",\n    \"school_name\": \"Example High School\",\n    \"generate_password\": false\n}",
                 "options": {
                   "raw": {
                     "language": "json"
@@ -957,7 +957,7 @@
                   ],
                   "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
+                    "raw": "{\n    \"profile\": {\n        \"school_name\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
                     "options": {
                       "raw": {
                         "language": "json"
@@ -1437,7 +1437,7 @@
                   ],
                   "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"profile\": {\n        \"school\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
+                    "raw": "{\n    \"profile\": {\n        \"school_name\": \"Updated School Name\"\n    },\n    \"user\": {\n        \"first_name\": \"Johnny\"\n    }\n}",
                     "options": {
                       "raw": {
                         "language": "json"
@@ -3028,7 +3028,7 @@
                   ],
                   "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"profile\": {\n        \"school\": \"Admin Updated School Name\"\n    }\n}",
+                    "raw": "{\n    \"profile\": {\n        \"school_name\": \"Admin Updated School Name\"\n    }\n}",
                     "options": {
                       "raw": {
                         "language": "json"
