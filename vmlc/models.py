@@ -577,6 +577,9 @@ class Exam(models.Model):
         CONCLUDED = "concluded", "Concluded"
         CANCELLED = "cancelled", "Cancelled"
 
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
     stage = models.CharField(

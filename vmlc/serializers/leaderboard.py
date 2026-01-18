@@ -16,7 +16,7 @@ class LeaderboardSnapshotListSerializer(serializers.ModelSerializer):
 
 
 class PublishLeaderboardSerializer(serializers.Serializer):
-    exam_id = serializers.IntegerField()
+    exam_id = serializers.UUIDField()
 
     def validate_exam_id(self, value):
         try:

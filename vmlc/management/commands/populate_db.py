@@ -18,8 +18,10 @@ from vmlc.models import (
     Exam,
     FeatureFlag,
     LeaderboardSnapshot,
+    PreRegUser,
     Question,
     Staff,
+    SupportInquiry,
     User,
     UserVerification,
 )
@@ -55,6 +57,34 @@ class Command(BaseCommand):
             prefix = random.choice(["070", "080", "081", "090", "091"])
             return f"{prefix}{random.randint(10000000, 99999999)}"
 
+        def update_verification(user, staff_pool=None):
+            statuses = [
+                {"is_pending": True, "is_approved": False, "is_rejected": False},
+                {"is_pending": False, "is_approved": True, "is_rejected": False},
+                {"is_pending": False, "is_approved": False, "is_rejected": True},
+            ]
+            status_data = random.choice(statuses)
+
+            # Check if verification already exists (created by signals?)
+            verification, created = UserVerification.objects.get_or_create(
+                user=user, defaults=status_data
+            )
+            if not created:
+                for key, value in status_data.items():
+                    setattr(verification, key, value)
+
+            verification.verification_document_type = random.choice(
+                ["NIN", "Passport", "School ID"]
+            )
+
+            if staff_pool and (verification.is_approved or verification.is_rejected):
+                verification.action_by = random.choice(staff_pool)
+
+            if verification.is_rejected:
+                verification.rejection_reason = fake.sentence()
+
+            verification.save()
+
         # Clear existing data
         self.stdout.write("Clearing existing data...")
         CandidateAnswer.objects.all().delete()
@@ -63,47 +93,52 @@ class Command(BaseCommand):
         Question.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
         CandidateScoreSnapshot.objects.all().delete()
+        PreRegUser.objects.all().delete()
+        SupportInquiry.objects.all().delete()
 
         self.stdout.write("Creating feature flags...")
         FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
         FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
-        statuses = [
-            {"is_pending": True, "is_approved": False, "is_rejected": False},
-            {"is_pending": False, "is_approved": True, "is_rejected": False},
-            {"is_pending": False, "is_approved": False, "is_rejected": True},
-        ]
+
         # Create staff users
         self.stdout.write("Creating staff users...")
         staff_list = []
+        # We need an initial list of existing staff to act as 'created_by' or 'action_by'
+        existing_staff = list(Staff.objects.all())
+
         for i in range(20):
-            if User.objects.filter(email=f"staff{i+1}@mail.com").exists():
+            email = f"staff{i+1}@mail.com"
+            if User.objects.filter(email=email).exists():
+                staff = Staff.objects.filter(user__email=email).first()
+                if staff:
+                    staff_list.append(staff)
                 continue
+
             user = User.objects.create_user(
-                email=f"staff{i+1}@mail.com",
-                password=os.getenv("ANON_PASSWORD"),
+                email=email,
+                password=os.getenv("ANON_PASSWORD", "SecurePass123!"),
                 first_name=fake.first_name()[:29],
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
             )
+
+            creator = random.choice(existing_staff) if existing_staff else None
+
             staff = Staff.objects.create(
                 user=user,
                 occupation=fake.job()[:49],
                 role=random.choice(["admin", "moderator", "volunteer"]),
+                created_by=creator,
             )
-            UserVerification.objects.create(user=user, **random.choice(statuses))
-            user_verification = UserVerification.objects.get(user=user)
-            if not user_verification.is_approved:
-                random.choice(
-                    [user_verification.is_pending, user_verification.is_rejected]
-                )
-                user_verification.save()
+
+            # Add to potential creators for subsequent iterations
+            existing_staff.append(staff)
             staff_list.append(staff)
 
+            update_verification(user, existing_staff)
+
         if not staff_list:
-            self.stdout.write(
-                "No new staff users created, fetching existing ones from the database."
-            )
             staff_list = list(Staff.objects.all())
 
         if not staff_list:
@@ -116,11 +151,16 @@ class Command(BaseCommand):
         self.stdout.write("Creating candidate users...")
         candidate_list = []
         for i in range(100):
-            if User.objects.filter(email=f"candidate{i+1}@mail.com").exists():
+            email = f"candidate{i+1}@mail.com"
+            if User.objects.filter(email=email).exists():
+                candidate = Candidate.objects.filter(user__email=email).first()
+                if candidate:
+                    candidate_list.append(candidate)
                 continue
+
             user = User.objects.create_user(
-                email=f"candidate{i+1}@mail.com",
-                password=os.getenv("ANON_PASSWORD"),
+                email=email,
+                password=os.getenv("ANON_PASSWORD", "password123"),
                 first_name=fake.first_name()[:29],
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
@@ -129,22 +169,40 @@ class Command(BaseCommand):
             candidate = Candidate.objects.create(
                 user=user,
                 school=fake.company()[:154] + " High",
+                school_type=random.choice(["public", "private"]),
+                current_class=random.choice(["SS1", "SS2", "SS3"]),
                 role=random.choice(["league", "screening"]),
+                created_by=random.choice(staff_list),
             )
-            UserVerification.objects.create(user=user, **random.choice(statuses))
-            user_verification = UserVerification.objects.get(user=user)
-            if not user_verification.is_approved:
-                random.choice(
-                    [user_verification.is_pending, user_verification.is_rejected]
-                )
-                user_verification.save()
+
+            update_verification(user, staff_list)
             candidate_list.append(candidate)
 
         if not candidate_list:
-            self.stdout.write(
-                "No new candidate users created, fetching existing ones from the database."
-            )
             candidate_list = list(Candidate.objects.all())
+
+        # Create PreRegUsers
+        self.stdout.write("Creating pre-registration users...")
+        for _ in range(50):
+            PreRegUser.objects.create(
+                full_name=fake.name(),
+                email=fake.email(),
+                phone=generate_nigerian_phone_number(),
+                interest_type=random.choice(PreRegUser.InterestType.values),
+            )
+
+        # Create SupportInquiries
+        self.stdout.write("Creating support inquiries...")
+        for _ in range(20):
+            SupportInquiry.objects.create(
+                full_name=fake.name(),
+                email=fake.email(),
+                phone=generate_nigerian_phone_number(),
+                support_type=random.choice(SupportInquiry.SupportType.values),
+                message=fake.text(),
+                organization=fake.company() if random.choice([True, False]) else "",
+                consent=True,
+            )
 
         # Create questions
         self.stdout.write("Creating questions...")
@@ -166,39 +224,32 @@ class Command(BaseCommand):
         self.stdout.write("Creating exams...")
         league_exams = []
         screening_exams = []
-        screening_exam = Exam.objects.create(
-            stage="screening",
-            level=1,
-            title=fake.catch_phrase(),
-            description=fake.text(),
-            created_by=random.choice(staff_list),
-            is_active=True,
-            scheduled_date=timezone.now()
-            - timezone.timedelta(days=random.randint(1, 30)),
-            open_duration_hours=12,
-            countdown_minutes=60,
-        )
-        screening_exam.questions.set(
-            random.sample(question_list, k=random.randint(5, 20))
-        )
-        screening_exams.append(screening_exam)
 
-        for i in range(10):
-            exam = Exam.objects.create(
-                stage="league",
-                level=random.randint(1, 5),
-                title=fake.catch_phrase(),
-                description=fake.text(),
-                created_by=random.choice(staff_list),
-                is_active=True,
-                scheduled_date=timezone.now()
-                - timezone.timedelta(days=random.randint(1, 30)),
-                open_duration_hours=random.randint(1, 24),
-                countdown_minutes=random.randint(30, 120),
-            )
-            # Add a random number of questions to each exam
-            exam.questions.set(random.sample(question_list, k=random.randint(5, 20)))
-            league_exams.append(exam)
+        # Helper for creating exams
+        def create_exams(stage, count, is_screening=False):
+            for _ in range(count):
+                exam = Exam.objects.create(
+                    stage=stage,
+                    level=1 if is_screening else random.randint(1, 5),
+                    title=fake.catch_phrase(),
+                    description=fake.text(),
+                    created_by=random.choice(staff_list),
+                    is_active=True,
+                    scheduled_date=timezone.now()
+                    - timezone.timedelta(days=random.randint(1, 30)),
+                    open_duration_hours=12 if is_screening else random.randint(1, 24),
+                    countdown_minutes=60 if is_screening else random.randint(30, 120),
+                )
+                exam.questions.set(
+                    random.sample(question_list, k=random.randint(5, 20))
+                )
+                if is_screening:
+                    screening_exams.append(exam)
+                else:
+                    league_exams.append(exam)
+
+        create_exams("screening", 3, is_screening=True)
+        create_exams("league", 10, is_screening=False)
 
         # Create Candidate scores and answers
         self.stdout.write("Creating candidate scores and answers...")
@@ -218,6 +269,7 @@ class Command(BaseCommand):
                     candidate=candidate,
                     exam=exam,
                     score=round(random.uniform(30.0, 100.0), 2),
+                    score_submitted_by=random.choice(staff_list),
                 )
                 # Create answers for each question in the exam
                 for question in exam.questions.all():
@@ -226,14 +278,6 @@ class Command(BaseCommand):
                         question=question,
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
-
-        # Generate Leaderboard Snapshot
-        self.stdout.write("Generating leaderboard snapshot...")
-        league_candidates = (
-            Candidate.objects.filter(role="league", user__is_active=True)
-            .annotate(total_score=Sum("scores__score"))
-            .order_by("-total_score")
-        )
 
         # Generate Candidate Score Snapshot
         self.stdout.write("Generating candidate score snapshot...")
@@ -259,6 +303,7 @@ class Command(BaseCommand):
             published_by=random.choice(staff_list),
             published_at=timezone.now(),
         )
+        self.stdout.write("Generating leaderboard snapshot...")
         generate_leaderboard_snapshot(random.choice(staff_list).pk)
 
         self.stdout.write(

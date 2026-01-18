@@ -200,14 +200,14 @@ urlpatterns = [
     # =============================================================================
     # Exams
     path("exams/", ExamListView.as_view(), name="exam-list"),
-    path("exams/<int:exam_id>/", ExamDetailView.as_view(), name="exam-detail"),
+    path("exams/<uuid:exam_id>/", ExamDetailView.as_view(), name="exam-detail"),
     path(
-        "exams/<int:exam_id>/questions/",
+        "exams/<uuid:exam_id>/questions/",
         ExamQuestionsView.as_view(),
         name="exam-questions",
     ),
     path(
-        "exams/<int:exam_id>/results/", ExamResultsView.as_view(), name="exam-results"
+        "exams/<uuid:exam_id>/results/", ExamResultsView.as_view(), name="exam-results"
     ),
     # Questions
     path("questions/", QuestionListView.as_view(), name="question-list"),
@@ -234,14 +234,14 @@ urlpatterns = [
     # =============================================================================
     # SUBMISSIONS & SCORING
     # =============================================================================
-    path("exams/<int:exam_id>/take-exam/", candidate_take_exam, name="take-exam"),
+    path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam, name="take-exam"),
     path(
-        "exams/<int:exam_id>/submit-exam-answers/",
+        "exams/<uuid:exam_id>/submit-exam-answers/",
         SubmitAnswersView.as_view(),
         name="submit-exam-answers",
     ),
     # path(
-    #     "exams/<int:exam_id>/submit-exam-score/",
+    #     "exams/<uuid:exam_id>/submit-exam-score/",
     #     SubmitScoreView.as_view(),
     #     name="submit-exam-score",
     # ),

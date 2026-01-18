@@ -358,7 +358,9 @@ exam_list_response_schema = openapi.Schema(
             items=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "id": openapi.Schema(
+                        type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID
+                    ),
                     "title": openapi.Schema(type=openapi.TYPE_STRING),
                     "stage": openapi.Schema(type=openapi.TYPE_STRING),
                     "question_count": openapi.Schema(type=openapi.TYPE_INTEGER),
@@ -392,7 +394,7 @@ exam_detail_request_body = openapi.Schema(
 exam_detail_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
-        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+        "id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         "title": openapi.Schema(type=openapi.TYPE_STRING),
         "stage": openapi.Schema(type=openapi.TYPE_STRING),
         "description": openapi.Schema(type=openapi.TYPE_STRING),
@@ -485,7 +487,7 @@ candidate_exam_score_list_response_schema = openapi.Schema(
 candidate_exam_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
-        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+        "id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         "title": openapi.Schema(type=openapi.TYPE_STRING),
         "stage": openapi.Schema(type=openapi.TYPE_STRING),
         "description": openapi.Schema(type=openapi.TYPE_STRING),
