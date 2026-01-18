@@ -577,6 +577,9 @@ class Exam(models.Model):
         CONCLUDED = "concluded", "Concluded"
         CANCELLED = "cancelled", "Cancelled"
 
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
     stage = models.CharField(
@@ -785,7 +788,7 @@ class Candidate(models.Model):
         on_delete=models.CASCADE,
         related_name="candidate_profile",
     )
-    school = models.CharField(max_length=150)
+    school_name = models.CharField(max_length=150)
     school_type = models.CharField(
         max_length=20,
         choices=[("public", "Public"), ("private", "Private")],
@@ -919,7 +922,7 @@ class Candidate(models.Model):
 
     def __str__(self):
         """Return a string representation of the candidate."""
-        return f"{self.user.get_full_name()} - {self.school}"
+        return f"{self.user.get_full_name()} - {self.school_name}"
 
     @classmethod
     def active_candidates(cls):
@@ -1119,7 +1122,7 @@ class Candidate(models.Model):
 
         indexes = [
             models.Index(fields=["role"]),
-            models.Index(fields=["school"]),
+            models.Index(fields=["school_name"]),
         ]
 
 

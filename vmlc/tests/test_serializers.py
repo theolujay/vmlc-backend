@@ -10,9 +10,9 @@ class CandidateRegistrationSerializerTest(TestCase):
             "first_name": "New",
             "last_name": "Candidate",
             "phone": "08012345678",
-            "password": "newpassword123",
-            "password2": "newpassword123",
-            "school": "New School",
+            "password": "testpassword123",
+            "password2": "testpassword123",
+            "school_name": "New School",
         }
         serializer = CandidateRegistrationSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -25,7 +25,7 @@ class CandidateRegistrationSerializerTest(TestCase):
             "phone": "08012345678",
             "password": "newpassword123",
             "password2": "wrongpassword",
-            "school": "New School",
+            "school_name": "New School",
         }
         serializer = CandidateRegistrationSerializer(data=data)
         self.assertFalse(serializer.is_valid())

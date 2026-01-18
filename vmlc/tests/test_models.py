@@ -41,9 +41,9 @@ class CandidateModelTest(TestCase):
         )
 
     def test_create_candidate(self):
-        candidate = Candidate.objects.create(user=self.user, school="Test School")
+        candidate = Candidate.objects.create(user=self.user, school_name="Test School")
         self.assertEqual(candidate.user.email, "candidate@example.com")
-        self.assertEqual(candidate.school, "Test School")
+        self.assertEqual(candidate.school_name, "Test School")
         self.assertEqual(str(candidate), "Candidate User - Test School")
 
 

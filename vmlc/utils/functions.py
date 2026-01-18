@@ -144,7 +144,7 @@ def _build_leaderboard_entries(exam):
 def _create_exam_leaderboard_data(exam, leaderboard_entries, stage_display):
     """Helper to create the final data structure for an exam's leaderboard."""
     return {
-        "exam_id": exam.id,
+        "exam_id": str(exam.id),
         "exam_title": exam.title,
         "exam_description": exam.description,
         "stage": exam.stage,

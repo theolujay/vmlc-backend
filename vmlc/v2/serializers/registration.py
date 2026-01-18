@@ -175,7 +175,7 @@ class RegistrationV2Serializer(serializers.Serializer):
         if user_type == "candidate":
             profile = Candidate.objects.create(
                 user=user,
-                school=validated_data.get("school_name"),
+                school_name=validated_data.get("school_name"),
                 school_type=validated_data.get("school_type"),
                 current_class=validated_data.get("current_class"),
                 role=Candidate.Roles.SCREENING,

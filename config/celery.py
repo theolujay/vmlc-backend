@@ -23,4 +23,8 @@ app.conf.beat_schedule = {
         "task": "update_candidate_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
+    "notify-prereg-users-every-4-days": {
+        "task": "notify_prereg_users_via_whatsapp_task",
+        "schedule": crontab(minute=0, hour=10, day_of_month="*/4"),
+    },
 }

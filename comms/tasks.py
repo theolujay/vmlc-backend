@@ -44,3 +44,63 @@ def send_broadcast_task(self, broadcast_id):
             str(e),
         )
         raise
+
+
+@shared_task(name="notify_prereg_users_via_whatsapp_task")
+def notify_prereg_users_via_whatsapp_task():
+    """
+    Notify PreRegUser entities via WhatsApp if registration is open.
+    """
+    import re
+    from django.conf import settings
+    from vmlc.models import FeatureFlag, PreRegUser
+    from comms.utils import send_bulk_phone_msg
+
+    if not FeatureFlag.get_bool("candidate_registration"):
+        logger.info("Candidate registration is closed. Skipping WhatsApp notification.")
+        return
+
+    # Filter for candidates
+    candidates = PreRegUser.objects.filter(
+        interest_type=PreRegUser.InterestType.CANDIDATE
+    )
+
+    if not candidates.exists():
+        logger.info("No pre-registered candidates found.")
+        return
+
+    phones = []
+    for candidate in candidates:
+        if not candidate.phone:
+            continue
+
+        # Clean phone number
+        phone = candidate.phone.strip()
+        if re.match(r"^(\+234[789][01]\d{8})$", phone):
+            phones.append(phone)
+        elif re.match(r"^(0[789][01]\d{8})$", phone):
+            phones.append("+234" + phone[1:])
+
+    if not phones:
+        logger.info("No valid phone numbers found for pre-registered candidates.")
+        return
+
+    # Deduplicate phones
+    phones = list(set(phones))
+
+    registration_url = f"{settings.LANDING_BASE_URL}/register"
+    message = (
+        f"Hi! Registration for the Verboheit Mathematics League Competition is now open. "
+        f"You previously expressed interest. Please complete your registration here: {registration_url}"
+    )
+
+    result = send_bulk_phone_msg(
+        body=message,
+        recipients=phones,
+        medium="whatsapp"
+    )
+
+    logger.info(
+        f"Pre-reg WhatsApp notification task completed. "
+        f"Success: {result['success_count']}, Failed: {result['failure_count']}"
+    )

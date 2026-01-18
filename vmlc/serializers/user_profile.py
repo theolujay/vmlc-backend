@@ -45,7 +45,8 @@ class UserProfileListSerializer(serializers.Serializer):
     role = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     occupation = serializers.SerializerMethodField()
-    school = serializers.SerializerMethodField()
+    school_name = serializers.SerializerMethodField()
+    current_class = serializers.SerializerMethodField()
     is_user_verified = serializers.SerializerMethodField()
 
     class Meta:
@@ -55,7 +56,8 @@ class UserProfileListSerializer(serializers.Serializer):
             "role",
             "status",
             "occupation",
-            "school",
+            "school_name",
+            "current_class",
             "is_user_verified",
         ]
 
@@ -85,9 +87,14 @@ class UserProfileListSerializer(serializers.Serializer):
             return obj.staff_profile.occupation
         return None
 
-    def get_school(self, obj: User):
+    def get_school_name(self, obj: User):
         if hasattr(obj, "candidate_profile"):
-            return obj.candidate_profile.school
+            return obj.candidate_profile.school_name
+        return None
+
+    def get_current_class(self, obj: User):
+        if hasattr(obj, "candidate_profile"):
+            return obj.candidate_profile.current_class
         return None
 
     def get_is_user_verified(self, obj: User):

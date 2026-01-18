@@ -174,7 +174,7 @@ class AccountManagementView(APIView):
             "last_name",
             "profile_picture",
             "phone",  # Changed from phone_number to phone
-            "school",
+            "school_name",
             "occupation",
         ]
         user_data = {}
@@ -187,7 +187,7 @@ class AccountManagementView(APIView):
                 continue  # Skip non-editable fields
             if k in ["first_name", "last_name", "profile_picture", "phone"]:
                 user_data[k] = v
-            elif k in ["school", "occupation"]:
+            elif k in ["school_name", "occupation"]:
                 profile_data[k] = v
 
         # If no data was extracted, it's a bad request.
@@ -283,7 +283,7 @@ class AccountManagementView(APIView):
                 description="User's phone number.",
             ),
             openapi.Parameter(
-                "school",
+                "school_name",
                 openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
                 description="Candidate's school.",
@@ -592,7 +592,7 @@ class UserListView(ListAPIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                "school": openapi.Schema(
+                "school_name": openapi.Schema(
                     type=openapi.TYPE_STRING,
                     description="Candidate's school. (Candidate only)",
                 ),

@@ -330,12 +330,12 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
             properties={
                 "add_to_exams": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="uuid"),
                     description="List of exam IDs to add question to",
                 ),
                 "remove_from_exams": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="uuid"),
                     description="List of exam IDs to remove question from",
                 ),
             },
@@ -473,9 +473,9 @@ class QuestionExamAssociationView(APIView):
                 ),
                 "exam_ids": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="uuid"),
                     description="List of exam IDs to add questions to",
-                    example=[10, 11],
+                    example=["d3a06700-39d8-4122-9886-732d6916f714"],
                 ),
             },
         ),
@@ -508,7 +508,7 @@ class QuestionExamAssociationView(APIView):
                                                 type=openapi.TYPE_INTEGER
                                             ),
                                             "exam_id": openapi.Schema(
-                                                type=openapi.TYPE_INTEGER
+                                                type=openapi.TYPE_STRING, format="uuid"
                                             ),
                                             "exam_title": openapi.Schema(
                                                 type=openapi.TYPE_STRING
@@ -525,7 +525,7 @@ class QuestionExamAssociationView(APIView):
                                                 type=openapi.TYPE_INTEGER
                                             ),
                                             "exam_id": openapi.Schema(
-                                                type=openapi.TYPE_INTEGER
+                                                type=openapi.TYPE_STRING, format="uuid"
                                             ),
                                             "exam_title": openapi.Schema(
                                                 type=openapi.TYPE_STRING
@@ -556,7 +556,7 @@ class QuestionExamAssociationView(APIView):
                                         type=openapi.TYPE_OBJECT,
                                         properties={
                                             "exam_id": openapi.Schema(
-                                                type=openapi.TYPE_INTEGER
+                                                type=openapi.TYPE_STRING, format="uuid"
                                             ),
                                             "reason": openapi.Schema(
                                                 type=openapi.TYPE_STRING

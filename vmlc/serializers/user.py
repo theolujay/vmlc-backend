@@ -35,6 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "profile_picture",
             "phone",
+            "state",
             "date_joined",
         ]
         read_only_fields = ["id", "date_joined", "is_email_verified"]
@@ -63,6 +64,7 @@ class MinimalUserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "phone",
+            "state",
             "date_joined",
         ]
 

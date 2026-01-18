@@ -287,7 +287,7 @@ candidate_me_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         "user": openapi.Schema(type=openapi.TYPE_OBJECT),
-        "school": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_name": openapi.Schema(type=openapi.TYPE_STRING),
         "role": openapi.Schema(type=openapi.TYPE_STRING),
     },
 )
@@ -311,7 +311,7 @@ candidate_list_response_schema = openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "user": openapi.Schema(type=openapi.TYPE_OBJECT),
-                    "school": openapi.Schema(type=openapi.TYPE_STRING),
+                    "school_name": openapi.Schema(type=openapi.TYPE_STRING),
                     "role": openapi.Schema(type=openapi.TYPE_STRING),
                     "is_user_verified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
                 },
@@ -324,7 +324,7 @@ candidate_detail_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         "user": openapi.Schema(type=openapi.TYPE_OBJECT),
-        "school": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_name": openapi.Schema(type=openapi.TYPE_STRING),
         "face_id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "role": openapi.Schema(type=openapi.TYPE_STRING),
         "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -358,7 +358,9 @@ exam_list_response_schema = openapi.Schema(
             items=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "id": openapi.Schema(
+                        type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID
+                    ),
                     "title": openapi.Schema(type=openapi.TYPE_STRING),
                     "stage": openapi.Schema(type=openapi.TYPE_STRING),
                     "question_count": openapi.Schema(type=openapi.TYPE_INTEGER),
@@ -392,7 +394,7 @@ exam_detail_request_body = openapi.Schema(
 exam_detail_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
-        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+        "id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         "title": openapi.Schema(type=openapi.TYPE_STRING),
         "stage": openapi.Schema(type=openapi.TYPE_STRING),
         "description": openapi.Schema(type=openapi.TYPE_STRING),
@@ -425,7 +427,7 @@ exam_result_response_schema = openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "candidate_name": openapi.Schema(type=openapi.TYPE_STRING),
-                    "candidate_school": openapi.Schema(type=openapi.TYPE_STRING),
+                    "candidate_school_name": openapi.Schema(type=openapi.TYPE_STRING),
                     "score": openapi.Schema(
                         type=openapi.TYPE_NUMBER, format=openapi.FORMAT_DECIMAL
                     ),
@@ -485,7 +487,7 @@ candidate_exam_score_list_response_schema = openapi.Schema(
 candidate_exam_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
-        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+        "id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         "title": openapi.Schema(type=openapi.TYPE_STRING),
         "stage": openapi.Schema(type=openapi.TYPE_STRING),
         "description": openapi.Schema(type=openapi.TYPE_STRING),
@@ -580,7 +582,7 @@ candidate_registration_request_body = openapi.Schema(
         "password2": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
         ),
-        "school": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_name": openapi.Schema(type=openapi.TYPE_STRING),
     },
 )
 
@@ -793,6 +795,6 @@ candidate_registration_request_body = openapi.Schema(
         "password2": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
         ),
-        "school": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_name": openapi.Schema(type=openapi.TYPE_STRING),
     },
 )

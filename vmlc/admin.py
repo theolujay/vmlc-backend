@@ -430,7 +430,7 @@ class CandidateAdmin(admin.ModelAdmin):
     list_display = (
         "email",
         "full_name",
-        "school",
+        "school_name",
         "school_type",
         "current_class",
         "role",
@@ -450,7 +450,7 @@ class CandidateAdmin(admin.ModelAdmin):
         "user__verification__is_approved",
         "created_at",
     )
-    search_fields = ("user__email", "user__first_name", "user__last_name", "school")
+    search_fields = ("user__email", "user__first_name", "user__last_name", "school_name")
     list_select_related = ("user", "user__verification")
     date_hierarchy = "created_at"
 
