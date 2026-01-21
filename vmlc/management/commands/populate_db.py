@@ -22,6 +22,8 @@ from vmlc.models import (
     Question,
     Staff,
     SupportInquiry,
+    SupportMessage,
+    Event,
     User,
     UserVerification,
 )
@@ -94,7 +96,9 @@ class Command(BaseCommand):
         LeaderboardSnapshot.objects.all().delete()
         CandidateScoreSnapshot.objects.all().delete()
         PreRegUser.objects.all().delete()
+        SupportMessage.objects.all().delete()
         SupportInquiry.objects.all().delete()
+        Event.objects.all().delete()
 
         self.stdout.write("Creating feature flags...")
         FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
@@ -121,7 +125,7 @@ class Command(BaseCommand):
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
-                state=fake.state()[:49],
+                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
             )
 
             creator = random.choice(existing_staff) if existing_staff else None
@@ -166,7 +170,7 @@ class Command(BaseCommand):
                 last_name=fake.last_name()[:29],
                 is_email_verified=random.choice([True, False]),
                 phone=generate_nigerian_phone_number(),
-                state=fake.state()[:49],
+                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
             )
             candidate = Candidate.objects.create(
                 user=user,
@@ -183,28 +187,106 @@ class Command(BaseCommand):
         if not candidate_list:
             candidate_list = list(Candidate.objects.all())
 
-        # Create PreRegUsers
-        self.stdout.write("Creating pre-registration users...")
+        # Create PreRegUsers and Funnel Events
+        self.stdout.write("Creating pre-registration users and funnel events...")
         for _ in range(50):
-            PreRegUser.objects.create(
+            pre_reg = PreRegUser.objects.create(
                 full_name=fake.name(),
                 email=fake.email(),
                 phone=generate_nigerian_phone_number(),
                 interest_type=random.choice(PreRegUser.InterestType.values),
             )
+            # Log pre-registration event
+            Event.objects.create(
+                event_name="PRE_REGISTRATION",
+                metadata={"email": pre_reg.email, "interest_type": pre_reg.interest_type}
+            )
 
-        # Create SupportInquiries
-        self.stdout.write("Creating support inquiries...")
+        # Log conversion events for existing users to make funnel look realistic
+        # Candidates
+        for candidate in candidate_list[:70]:
+            Event.objects.create(
+                event_name="PRE_REGISTRATION",
+                metadata={"email": candidate.user.email, "interest_type": "candidate"}
+            )
+            Event.objects.create(
+                event_name="PRE_REG_CONVERSION",
+                metadata={
+                    "email": candidate.user.email,
+                    "user_type": "candidate",
+                    "interest_type": "candidate"
+                }
+            )
+        # Volunteers
+        for staff in staff_list[:15]:
+            Event.objects.create(
+                event_name="PRE_REGISTRATION",
+                metadata={"email": staff.user.email, "interest_type": "volunteer"}
+            )
+            Event.objects.create(
+                event_name="PRE_REG_CONVERSION",
+                metadata={
+                    "email": staff.user.email,
+                    "user_type": "staff",
+                    "interest_type": "volunteer"
+                }
+            )
+
+        # Create SupportInquiries and Messages
+        self.stdout.write("Creating support inquiries and conversation threads...")
         for _ in range(20):
-            SupportInquiry.objects.create(
-                full_name=fake.name(),
-                email=fake.email(),
-                phone=generate_nigerian_phone_number(),
+            # 30% of inquiries are from existing users
+            linked_user = None
+            if random.random() < 0.3:
+                linked_user = random.choice(candidate_list + staff_list).user
+
+            inquiry = SupportInquiry.objects.create(
+                user=linked_user,
+                full_name=linked_user.get_full_name() if linked_user else fake.name(),
+                email=linked_user.email if linked_user else fake.email(),
+                phone=linked_user.phone if linked_user else generate_nigerian_phone_number(),
                 support_type=random.choice(SupportInquiry.SupportType.values),
                 message=fake.text(),
                 organization=fake.company() if random.choice([True, False]) else "",
                 consent=True,
+                status=random.choice(SupportInquiry.Status.values)
             )
+
+            # Create initial message
+            SupportMessage.objects.create(
+                inquiry=inquiry,
+                sender=linked_user,
+                sender_profile="candidate" if linked_user and hasattr(linked_user, 'candidate_profile') else ("staff" if linked_user and hasattr(linked_user, 'staff_profile') else "guest"),
+                text=inquiry.message,
+                is_read_by_staff=inquiry.status != "open",
+                is_read_by_user=True
+            )
+
+            # Add 1-5 follow-up messages if status is not 'open'
+            if inquiry.status != "open":
+                for _ in range(random.randint(1, 5)):
+                    is_staff_reply = random.choice([True, False])
+                    # If staff reply, pick a random staff user. Otherwise user reply.
+                    sender_obj = random.choice(staff_list) if is_staff_reply else linked_user
+                    
+                    if is_staff_reply:
+                        SupportMessage.objects.create(
+                            inquiry=inquiry,
+                            sender=sender_obj.user,
+                            sender_profile=sender_obj.role,
+                            text=fake.sentence(),
+                            is_read_by_staff=True,
+                            is_read_by_user=random.choice([True, False])
+                        )
+                    elif linked_user:
+                        SupportMessage.objects.create(
+                            inquiry=inquiry,
+                            sender=linked_user,
+                            sender_profile="user",
+                            text=fake.sentence(),
+                            is_read_by_staff=random.choice([True, False]),
+                            is_read_by_user=True
+                        )
 
         # Create questions
         self.stdout.write("Creating questions...")
@@ -309,5 +391,5 @@ class Command(BaseCommand):
         generate_leaderboard_snapshot(random.choice(staff_list).pk)
 
         self.stdout.write(
-            self.style.SUCCESS("Database populated successfully with more data!")
+            self.style.SUCCESS("Database populated successfully with comprehensive test data!")
         )

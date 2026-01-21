@@ -86,7 +86,7 @@ class RegistrationV2View(CreateAPIView):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             instance = serializer.save()
-            clear_pre_reg_user.delay(user_email=instance.user.email)
+            clear_pre_reg_user.delay(user_email=instance.user.email, user_type=user_type)
         except ValidationError as e:
             logger.warning(f"Registration validation failed: {e.detail}")
             return Response(
