@@ -28,7 +28,7 @@ from vmlc.serializers import (
     CandidateListSerializer,
     UserProfileListSerializer,
 )
-from vmlc.models import User, UserVerification, Staff, Candidate
+from vmlc.models import PreRegUser, User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -65,10 +65,12 @@ from vmlc.tasks import (
     revoke_user_invite_task,
 )
 from vmlc.utils.query_filters import (
+    filter_pre_reg_users,
     filter_staffs,
     filter_candidates,
     filter_users,
 )
+from vmlc.v2.serializers.registration import PreRegUserSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -486,7 +488,7 @@ class CandidateInviteView(BaseInviteView):
 class UserListView(ListAPIView):
     """
     List all users with pagination and optional filtering.
-    Can be filtered by `profile` query parameter to 'staff' or 'candidate'.
+    Can be filtered by `profile` query parameter to 'staff', 'candidate', or 'pre_reg_candidate'.
     Level of detail depends on role.
     """
 
@@ -544,7 +546,18 @@ class UserListView(ListAPIView):
             return CandidateListSerializer
         if requested_profile == "staff":
             return StaffListSerializer
+        if requested_profile == "pre_reg_candidate" or "pre_reg_staff":
+            return PreRegUserSerializer
         return UserProfileListSerializer
+
+    def get_serializer_kwargs(self):
+        kwargs = super().get_serializer_kwargs()
+        requested_profile = self.request.query_params.get("profile")
+        if requested_profile == "pre_reg_candidate":
+            kwargs["interest_type"] = "candidate"
+        if requested_profile == "pre_reg_staff":
+            kwargs["interest_type"] = "volunteer"
+        return kwargs
 
     def get_queryset(self):
         """Returns a filtered queryset of users"""
@@ -559,6 +572,9 @@ class UserListView(ListAPIView):
         if requested_profile == "staff":
             queryset = Staff.objects.select_related("user").order_by("-created_at")
             return filter_staffs(queryset, self.request.query_params)
+        if requested_profile == "pre_reg_candidate" or "pre_reg_staff":
+            queryset = PreRegUser.objects.order_by("-created_at")
+            return filter_pre_reg_users(queryset, self.request.query_params)
 
         queryset = User.objects.prefetch_related(
             "staff_profile", "candidate_profile", "verification"

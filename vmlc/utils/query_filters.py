@@ -3,7 +3,7 @@ from typing import Any, List
 import django_filters
 from django.db.models import Q, QuerySet
 
-from vmlc.models import Candidate, Exam, Question, Staff, User
+from vmlc.models import Candidate, Exam, PreRegUser, Question, Staff, User
 
 
 def filter_candidates(
@@ -94,6 +94,16 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
             | Q(user__email__icontains=search)
         )
 
+    return queryset
+
+def filter_pre_reg_users(queryset: QuerySet[PreRegUser], params: Any) -> QuerySet[PreRegUser]:
+    profile = params.get("profile")
+    if profile is not None:
+        if profile.lower() == "pre_reg_candidate":
+            queryset = queryset.filter(interest_type="candidate")
+        if profile.lower() == "pre_reg_staff":
+            queryset = queryset.filter(interest_type="volunteer")
+            
     return queryset
 
 
