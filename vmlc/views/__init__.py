@@ -37,6 +37,7 @@ from .leaderboard import (
     LoadLeaderboardView,
     LoadLeaderboardDetailView,
 )
+from .metrics import RegistrationMetricsView
 from .question import (
     QuestionListView,
     QuestionDetailView,

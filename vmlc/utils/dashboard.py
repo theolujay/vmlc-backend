@@ -255,6 +255,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         - Exam and question statistics
         - Score submission stats
         - Recent candidate activity and upcoming exams
+        - Registration funnel metrics
 
     Args:
         staff (Staff): The staff user for whom the dashboard is being generated.
@@ -268,6 +269,8 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     if cached_data:
         return cached_data
 
+    from .metrics import get_funnel_metrics
+
     now = timezone.now()
     last_week = now - timedelta(days=7)
 
@@ -277,6 +280,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     score_stats_data = _get_staff_score_stats(last_week)
     recent_activity_list = _get_staff_recent_activity()
     upcoming_exams_list = _get_staff_upcoming_exams(now)
+    funnel_metrics = get_funnel_metrics()
 
     staff_info: Dict[str, Any] = {
         "name": staff.user.get_full_name(),
@@ -311,6 +315,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
                 else 0
             ),
         },
+        "registration_funnel": funnel_metrics,
         "exams": {
             "total": exam_stats_data["total_exams"],
             "recent": exam_stats_data["recent_exams"],

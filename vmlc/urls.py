@@ -41,6 +41,7 @@ from .views import (
     QuestionExamAssociationView,
     QuestionListView,
     RefreshTokenView,
+    RegistrationMetricsView,
     RequestPasswordChangeView,
     ResendPasswordChangeOTPView,
     SendEmailOTPView,
@@ -269,4 +270,9 @@ urlpatterns = [
     ),
     path("dashboard/staff/", StaffDashboardView.as_view(), name="staff-dashboard"),
     path("stats/overview/", stats_overview, name="stats-overview"),
+    path(
+        "stats/registration-trends/",
+        RegistrationMetricsView.as_view(),
+        name="registration-trends",
+    ),
 ]

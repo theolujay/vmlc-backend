@@ -250,10 +250,19 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
 def clear_pre_reg_user(user_email, user_type="candidate"):
 
     from vmlc.models import Staff, Candidate, PreRegUser
+    from vmlc.utils.events import log_event
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)
         pre_reg_user.delete()
-        logger.info(f"[{user_email}] fully registered. PreRegUser entity cleared")
+        log_event(
+            event_name="PRE_REG_CONVERSION",
+            metadata={
+                "email": user_email,
+                "user_type": user_type,
+                "interest_type": pre_reg_user.interest_type
+            }
+        )
+        logger.info(f"[{user_email}] fully registered. PreRegUser entity cleared and conversion event logged.")
     except PreRegUser.DoesNotExist:
         logger.info(f"PreRegUser entity not found for [{user_email}]")
 
