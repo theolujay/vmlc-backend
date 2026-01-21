@@ -29,6 +29,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(max_length=30)
     last_name = serializers.CharField(max_length=30)
     phone = serializers.CharField(max_length=17)
+    state = serializers.CharField(max_length=50, required=False, allow_blank=True)
     password = serializers.CharField(
         write_only=True,
         required=True,
@@ -75,6 +76,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             first_name=user_data["first_name"],
             last_name=user_data["last_name"],
             phone=user_data["phone"],
+            state=user_data.get("state", ""),
         )
 
     def create(self, validated_data):
@@ -86,6 +88,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
             "first_name": validated_data.pop("first_name"),
             "last_name": validated_data.pop("last_name"),
             "phone": validated_data.pop("phone"),
+            "state": validated_data.pop("state", ""),
         }
         password = validated_data.pop("password", None)
         validated_data.pop("password2", None)
@@ -121,6 +124,12 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
     """
 
     school_name = serializers.CharField(max_length=150)
+    school_type = serializers.ChoiceField(
+        choices=[("public", "Public"), ("private", "Private")], required=False
+    )
+    current_class = serializers.ChoiceField(
+        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")], required=False
+    )
 
     class Meta:
         model = Candidate
@@ -129,9 +138,12 @@ class CandidateRegistrationSerializer(BaseRegistrationSerializer):
             "first_name",
             "last_name",
             "phone",
+            "state",
             "password",
             "password2",
             "school_name",
+            "school_type",
+            "current_class",
             "generate_password",
         ]
 
@@ -150,6 +162,7 @@ class StaffRegistrationSerializer(BaseRegistrationSerializer):
             "first_name",
             "last_name",
             "phone",
+            "state",
             "password",
             "password2",
             "occupation",
@@ -173,6 +186,7 @@ class StaffInviteSerializer(BaseRegistrationSerializer):
             "first_name",
             "last_name",
             "phone",
+            "state",
             "password",
             "password2",
             "role",
@@ -222,6 +236,12 @@ class CandidateInviteSerializer(BaseRegistrationSerializer):
 
     created_by = MinimalStaffSerializer(read_only=True)
     school_name = serializers.CharField(max_length=100, required=False)
+    school_type = serializers.ChoiceField(
+        choices=[("public", "Public"), ("private", "Private")], required=False
+    )
+    current_class = serializers.ChoiceField(
+        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")], required=False
+    )
     role = serializers.ChoiceField(choices=Candidate.Roles.choices, required=False)
 
     class Meta:
@@ -231,33 +251,13 @@ class CandidateInviteSerializer(BaseRegistrationSerializer):
             "first_name",
             "last_name",
             "phone",
+            "state",
             "password",
             "password2",
             "role",
             "school_name",
+            "school_type",
+            "current_class",
             "created_by",
             "generate_password",
         ]
-
-    def validate_role(self, value):
-        """
-        Validate the role assignment.
-
-        - Ensures the role is a valid choice.
-        - Prevents assigning 'final' and 'winner' roles.
-        """
-        valid_roles: list[str] = [role[0] for role in Candidate.Roles.choices]
-
-        if value not in valid_roles:
-            raise serializers.ValidationError(
-                f"'{value}' is not a valid role. "
-                f"Valid choices are: {', '.join(valid_roles)}."
-            )
-
-        if value in ("final", "winner"):
-            raise serializers.ValidationError(
-                f"The '{value}' role cannot be assigned via the API."
-                f"Valid choices are: {', '.join(valid_roles)}."
-            )
-
-        return value

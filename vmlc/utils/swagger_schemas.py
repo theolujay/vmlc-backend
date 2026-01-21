@@ -325,6 +325,8 @@ candidate_detail_response_schema = openapi.Schema(
     properties={
         "user": openapi.Schema(type=openapi.TYPE_OBJECT),
         "school_name": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_type": openapi.Schema(type=openapi.TYPE_STRING),
+        "current_class": openapi.Schema(type=openapi.TYPE_STRING),
         "face_id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "role": openapi.Schema(type=openapi.TYPE_STRING),
         "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -576,6 +578,7 @@ candidate_registration_request_body = openapi.Schema(
         "first_name": openapi.Schema(type=openapi.TYPE_STRING),
         "last_name": openapi.Schema(type=openapi.TYPE_STRING),
         "phone": openapi.Schema(type=openapi.TYPE_STRING),
+        "state": openapi.Schema(type=openapi.TYPE_STRING),
         "password": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
         ),
@@ -583,6 +586,12 @@ candidate_registration_request_body = openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
         ),
         "school_name": openapi.Schema(type=openapi.TYPE_STRING),
+        "school_type": openapi.Schema(
+            type=openapi.TYPE_STRING, enum=["public", "private"]
+        ),
+        "current_class": openapi.Schema(
+            type=openapi.TYPE_STRING, enum=["SS1", "SS2", "SS3"]
+        ),
     },
 )
 
@@ -593,6 +602,7 @@ staff_registration_request_body = openapi.Schema(
         "first_name": openapi.Schema(type=openapi.TYPE_STRING),
         "last_name": openapi.Schema(type=openapi.TYPE_STRING),
         "phone": openapi.Schema(type=openapi.TYPE_STRING),
+        "state": openapi.Schema(type=openapi.TYPE_STRING),
         "password": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
         ),
@@ -779,22 +789,5 @@ broadcast_detail_response_schema = openapi.Schema(
         "logs": openapi.Schema(
             type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)
         ),
-    },
-)
-
-candidate_registration_request_body = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    properties={
-        "email": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL),
-        "first_name": openapi.Schema(type=openapi.TYPE_STRING),
-        "last_name": openapi.Schema(type=openapi.TYPE_STRING),
-        "phone": openapi.Schema(type=openapi.TYPE_STRING),
-        "password": openapi.Schema(
-            type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
-        ),
-        "password2": openapi.Schema(
-            type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD
-        ),
-        "school_name": openapi.Schema(type=openapi.TYPE_STRING),
     },
 )

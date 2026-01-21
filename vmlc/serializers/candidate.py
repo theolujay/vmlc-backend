@@ -18,7 +18,7 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Candidate
-        fields = ["user", "school_name", "current_class", "role"]
+        fields = ["user", "school_name", "school_type", "current_class", "role"]
 
 
 class CandidateListSerializer(serializers.ModelSerializer):
@@ -34,6 +34,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
         fields = [
             "user",
             "school_name",
+            "school_type",
             "current_class",
             "role",
             "status",
@@ -68,6 +69,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "user",
             "profile_type",
             "school_name",
+            "school_type",
             "current_class",
             "face_id",
             "role",

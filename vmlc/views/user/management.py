@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
 from django.utils.decorators import method_decorator
+from django.core.files.uploadedfile import UploadedFile
 
 from rest_framework.settings import api_settings
 from rest_framework.generics import (
@@ -74,49 +75,178 @@ from vmlc.v2.serializers.registration import PreRegUserSerializer
 
 logger = logging.getLogger(__name__)
 
+class RequestDataExtractor:
+    """Extracts and validates user and profile data from request."""
+    
+    USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone"}
+    PROFILE_FIELDS = {"occupation"}
+    FILE_FIELDS = {"profile_picture"}
+    
+    @classmethod
+    def extract(cls, request_data):
+        """
+        Extract user and profile data from request, filtering out empty values.
+        Returns: (user_data, profile_data)
+        """
+        user_data = {}
+        profile_data = {}
+        
+        for key, value in request_data.items():
+            # Skip empty values
+            if not cls._is_valid_value(key, value):
+                continue
+            
+            clean_key = cls._normalize_key(key)
+            
+            if clean_key in cls.USER_FIELDS:
+                user_data[clean_key] = value
+            elif clean_key in cls.PROFILE_FIELDS:
+                profile_data[clean_key] = value
+        
+        return user_data, profile_data
+    
+    @classmethod
+    def _is_valid_value(cls, key, value):
+        """Check if a value is valid (not empty or placeholder)."""
+        # Handle None and empty strings
+        if value is None or value == '':
+            return False
+        
+        # Handle empty lists/arrays
+        if isinstance(value, (list, tuple)) and len(value) == 0:
+            return False
+        
+        # For file fields, ensure it's an actual uploaded file
+        clean_key = cls._normalize_key(key)
+        if clean_key in cls.FILE_FIELDS:
+            return isinstance(value, UploadedFile)
+        
+        return True
+    
+    @staticmethod
+    def _normalize_key(key):
+        """Remove common prefixes from field names."""
+        # Handle user.field_name
+        if key.startswith("user."):
+            return key.replace("user.", "")
+        
+        # Handle user[field_name]
+        if key.startswith("user[") and key.endswith("]"):
+            return key[5:-1]
+        
+        # Handle profile.field_name
+        if key.startswith("profile."):
+            return key.replace("profile.", "")
+        
+        # Handle profile[field_name]
+        if key.startswith("profile[") and key.endswith("]"):
+            return key[8:-1]
+        
+        return key
+
+
+class ProfileManager:
+    """Manages profile retrieval and serialization."""
+    
+    PROFILE_MAPPING = {
+        "candidate_profile": "CandidateDetailSerializer",
+        "staff_profile": "StaffDetailSerializer",
+    }
+    
+    @classmethod
+    def get_profile_and_serializer(cls, user):
+        """
+        Get profile instance and serializer class for user.
+        Returns: (profile_instance, serializer_class) or (None, None)
+        """
+        if hasattr(user, "candidate_profile"):
+            from vmlc.serializers import CandidateDetailSerializer
+            return user.candidate_profile, CandidateDetailSerializer
+        
+        if hasattr(user, "staff_profile"):
+            from vmlc.serializers import StaffDetailSerializer
+            return user.staff_profile, StaffDetailSerializer
+        
+        return None, None
+    
+    @classmethod
+    def serialize_profile(cls, user):
+        """Serialize user profile, removing unnecessary fields."""
+        profile, serializer_class = cls.get_profile_and_serializer(user)
+        
+        if not profile or not serializer_class:
+            return None
+        
+        profile_data = serializer_class(profile).data
+        profile_data.pop("records", None)
+        return profile_data
+
+
+class AccountCacheManager:
+    """Handles caching logic for account data."""
+    
+    CACHE_TTL = 86400  # 24 hours
+    
+    @staticmethod
+    def get_cache_key(user_id):
+        return f"account_management_{user_id}"
+    
+    @classmethod
+    def get_cached_data(cls, user_id):
+        """Retrieve cached account data."""
+        return cache.get(cls.get_cache_key(user_id))
+    
+    @classmethod
+    def cache_data(cls, user_id, data):
+        """Cache account data."""
+        cache.set(cls.get_cache_key(user_id), data, cls.CACHE_TTL)
+    
+    @classmethod
+    def invalidate_user_cache(cls, user):
+        """Invalidate all caches related to a user."""
+        from vmlc.models import Staff
+        
+        cache.delete(cls.get_cache_key(user.id))
+        
+        if hasattr(user, "candidate_profile"):
+            cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
+            from vmlc.utils.helpers import invalidate_all_staff_dashboards
+            invalidate_all_staff_dashboards()
+        
+        if hasattr(user, "staff_profile"):
+            for staff in Staff.objects.all():
+                cache.delete(f"staff_dashboard_data_{staff.pk}")
+
 
 class AccountManagementView(APIView):
     """
     Retrieve or update user account and profile information.
-
+    
     - GET: Retrieve account and profile information.
-    - PUT/PATCH: Update account and profile.
-
+    - PATCH: Update account and profile.
+    
     Regular users can manage their own accounts.
     Staff with 'admin' or 'superadmin' roles can manage other users' accounts.
     """
-
+    
     permission_classes = AuthenticatedUser
     parser_classes = [MultiPartParser, FormParser]
-
+    
     def _get_target_user(self, request, user_id=None):
-        """
-        Determines the target user for the action and checks permissions.
-        """
+        """Determine target user and verify permissions."""
         if user_id is None or user_id == str(request.user.id):
             return request.user
-
-        # If a user_id is provided, check if the requester has permission.
+        
         target_user = get_object_or_404(User, id=user_id)
-        if not IsObjectOwnerOrManagerRole().has_object_permission(
-            request, self, target_user
-        ):
+        
+        if not IsObjectOwnerOrManagerRole().has_object_permission(request, self, target_user):
             logger.warning(
-                f"User {request.user.id} does not have permission to manage user {user_id}."
+                f"User {request.user.id} lacks permission to manage user {user_id}"
             )
             raise PermissionDenied("You are not authorized to manage this user.")
+        
         return target_user
-
-    def _get_profile_and_serializer(self, user):
-        """
-        Gets the user's profile (Candidate or Staff) and the appropriate serializer.
-        """
-        if hasattr(user, "candidate_profile"):
-            return user.candidate_profile, CandidateDetailSerializer
-        if hasattr(user, "staff_profile"):
-            return user.staff_profile, StaffDetailSerializer
-        return None, None
-
+    
     @swagger_auto_schema(
         operation_summary="Get User Account",
         operation_description="Retrieve the account and profile data of the target user.",
@@ -130,132 +260,32 @@ class AccountManagementView(APIView):
         manual_parameters=[api_key, bearer_auth],
     )
     def get(self, request, user_id=None):
-        """
-        Retrieve the account and profile data of the target user.
-        """
+        """Retrieve account and profile data."""
         logger.info(
-            f"AccountManagementView (get): "
-            f"request from user {request.user.id} for user {user_id}"
+            f"GET account_management: user {request.user.id} requesting user {user_id}"
         )
+        
         target_user = self._get_target_user(request, user_id)
-        cache_key = f"account_management_{target_user.id}"
-
-        cached_data = cache.get(cache_key)
+        
+        # Check cache first
+        cached_data = AccountCacheManager.get_cached_data(target_user.id)
         if cached_data:
             return Response(cached_data)
-
-        # user_data = UserSerializer(target_user).data
-        profile, profile_serializer_class = self._get_profile_and_serializer(
-            target_user
-        )
-
-        if profile and profile_serializer_class:
-            profile_data = profile_serializer_class(profile).data
-            profile_data.pop("records", None)
-        else:
-            logger.error(f"User {target_user.id} does not have a profile.")
+        
+        # Serialize profile
+        profile_data = ProfileManager.serialize_profile(target_user)
+        if not profile_data:
+            logger.error(f"User {target_user.id} has no profile")
             return Response(
                 {"detail": "User does not have a profile."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
+        
         response_data = {"profile": profile_data}
-        cache.set(cache_key, response_data, 86400)  # Cache for 24 hours
+        AccountCacheManager.cache_data(target_user.id, response_data)
+        
         return Response(response_data)
-
-    def _update_account(self, request, partial, user_id=None):
-        """
-        Handles the update logic for both user and profile data.
-        """
-        logger.info(
-            f"AccountManagementView (_update_account): request from user {request.user.id} "
-            f"for user {user_id} with data: {request.data}"
-        )
-        editable_fields = [
-            "first_name",
-            "last_name",
-            "profile_picture",
-            "phone",  # Changed from phone_number to phone
-            "school_name",
-            "occupation",
-        ]
-        user_data = {}
-        profile_data = {}
-        target_user = self._get_target_user(request, user_id)
-        request_data = request.data.copy()  # Use a copy to avoid modifying original
-
-        for k, v in request_data.items():
-            if k not in editable_fields:
-                continue  # Skip non-editable fields
-            if k in ["first_name", "last_name", "profile_picture", "phone"]:
-                user_data[k] = v
-            elif k in ["school_name", "occupation"]:
-                profile_data[k] = v
-
-        # If no data was extracted, it's a bad request.
-        if not user_data and not profile_data:
-            return Response(
-                {"detail": "No user or profile data provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user_serializer = UserSerializer(target_user, data=user_data, partial=partial)
-        user_serializer.is_valid(raise_exception=True)
-        profile, profile_serializer_class = self._get_profile_and_serializer(
-            target_user
-        )
-        profile_serializer = None
-        if profile and profile_serializer_class:
-            profile_serializer = profile_serializer_class(
-                profile, data=profile_data, partial=partial
-            )
-            profile_serializer.is_valid(raise_exception=True)
-
-        with transaction.atomic():
-            user_serializer.save()
-            if profile_serializer:
-                profile_serializer.save()
-
-        self._invalidate_profile_caches(target_user)
-
-        logger.info(
-            "Account for user %s updated by %s.",
-            target_user.id,
-            request.user.id,
-        )
-
-        # Re-serialize to get the latest data for the response
-        updated_profile, updated_serializer_class = self._get_profile_and_serializer(
-            target_user
-        )
-        if updated_profile and updated_serializer_class:
-            response_profile_data = updated_serializer_class(updated_profile).data
-        else:
-            response_profile_data = None
-
-        return Response(
-            {
-                "message": "Account updated successfully.",
-                "profile": response_profile_data,
-            }
-        )
-
-    def _invalidate_profile_caches(self, user):
-        """Helper to invalidate caches related to user profiles."""
-        cache.delete(f"account_management_{user.id}")
-
-        if hasattr(user, "candidate_profile"):
-            cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
-            # Invalidate all staff dashboards as candidate data changes
-            from vmlc.utils.helpers import invalidate_all_staff_dashboards
-
-            invalidate_all_staff_dashboards()
-
-        if hasattr(user, "staff_profile"):
-
-            for staff in Staff.objects.all():
-                cache.delete(f"staff_dashboard_data_{staff.pk}")
-
+    
     @swagger_auto_schema(
         operation_summary="Update User Account",
         operation_description="Partially update user and/or profile data.",
@@ -285,10 +315,30 @@ class AccountManagementView(APIView):
                 description="User's phone number.",
             ),
             openapi.Parameter(
+                "state",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="User's state of origin.",
+            ),
+            openapi.Parameter(
                 "school_name",
                 openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
                 description="Candidate's school.",
+            ),
+            openapi.Parameter(
+                "school_type",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                enum=["public", "private"],
+                description="Candidate's school type.",
+            ),
+            openapi.Parameter(
+                "current_class",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                enum=["SS1", "SS2", "SS3"],
+                description="Candidate's current class.",
             ),
             openapi.Parameter(
                 "occupation",
@@ -309,10 +359,71 @@ class AccountManagementView(APIView):
         tags=["User Management"],
     )
     def patch(self, request, user_id=None):
-        """
-        Partially update user and/or profile data.
-        """
-        return self._update_account(request, partial=True, user_id=user_id)
+        """Partially update user and/or profile data."""
+        logger.info(
+            f"PATCH account_management: user {request.user.id} updating user {user_id}"
+        )
+        
+        target_user = self._get_target_user(request, user_id)
+        
+        # Extract and validate data
+        user_data, profile_data = RequestDataExtractor.extract(request.data)
+        
+        if not user_data and not profile_data:
+            logger.warning(
+                f"No valid data provided for user {user_id} update. "
+                f"Request data keys: {list(request.data.keys())}"
+            )
+            return Response(
+                {"detail": "No user or profile data provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Prepare serializers for validation
+        serializers_to_save = []
+        
+        # Validate user data if provided
+        if user_data:
+            from vmlc.serializers import UserSerializer
+            user_serializer = UserSerializer(
+                target_user, 
+                data=user_data, 
+                partial=True
+            )
+            user_serializer.is_valid(raise_exception=True)
+            serializers_to_save.append(user_serializer)
+        
+        # Validate profile data if provided
+        if profile_data:
+            profile, profile_serializer_class = ProfileManager.get_profile_and_serializer(
+                target_user
+            )
+            if profile and profile_serializer_class:
+                profile_serializer = profile_serializer_class(
+                    profile, 
+                    data=profile_data, 
+                    partial=True
+                )
+                profile_serializer.is_valid(raise_exception=True)
+                serializers_to_save.append(profile_serializer)
+        
+        # Save all validated data atomically
+        with transaction.atomic():
+            for serializer in serializers_to_save:
+                serializer.save()
+        
+        # Invalidate caches
+        AccountCacheManager.invalidate_user_cache(target_user)
+        
+        logger.info(f"Account {target_user.id} updated by {request.user.id}")
+        
+        # Return updated profile data
+        updated_profile_data = ProfileManager.serialize_profile(target_user)
+        
+        return Response({
+            "message": "Account updated successfully.",
+            "profile": updated_profile_data,
+        })
 
 
 class BaseInviteView(CreateAPIView):

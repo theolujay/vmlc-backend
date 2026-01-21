@@ -92,6 +92,7 @@ class UserVerificationListSerializer(serializers.ModelSerializer):
             "has_face_id",
             "has_id_card",
             "has_verification_document",
+            "verification_document_type",
             "created_at",
         ]
 
@@ -124,6 +125,7 @@ class UserVerificationStatusSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "documents_uploaded",
+            "verification_document_type",
         ]
 
     def get_documents_uploaded(self, obj):
@@ -149,6 +151,7 @@ class UserVerificationUploadSerializer(serializers.ModelSerializer):
             "face_id",
             "id_card",
             "verification_document",
+            "verification_document_type",
         ]
 
 
