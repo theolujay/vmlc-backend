@@ -234,13 +234,12 @@ class RegistrationV2Serializer(serializers.Serializer):
         transaction.on_commit(schedule_upload)
         return profile
 
-class PreRegUserSerializer(serializers.Serializer):
-
-    full_name = serializers.CharField(max_length=50)
-    email = serializers.EmailField()
-    phone = serializers.CharField(max_length=17)
-    interest_type = serializers.ChoiceField(choices=["candidate", "volunteer"])
-
+class PreRegUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreRegUser
+        fields = ['full_name', 'email', 'phone', 'interest_type', 'created_at']
+        read_only_fields = ['created_at']
+    
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
@@ -255,25 +254,9 @@ class PreRegUserSerializer(serializers.Serializer):
     def validate_phone(self, value):
         """Validate phone number format."""
         import re
-
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
             raise serializers.ValidationError(_("Enter a valid Nigerian phone number."))
         return value
-    
-    def create(self, validated_data):
-
-        full_name = validated_data.get("full_name")
-        email = validated_data.get("email")
-        phone = validated_data.get("phone")
-        interest_type = validated_data.get("interest_type")
-
-        interested_user = PreRegUser.objects.create(
-            full_name=full_name,
-            email=email,
-            phone=phone,
-            interest_type=interest_type
-        )
-        return interested_user
 
 class SupportInquirySerializer(serializers.ModelSerializer):
 

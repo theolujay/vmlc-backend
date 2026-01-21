@@ -4,6 +4,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import (
+    PreRegUser,
     User,
     Candidate,
     Staff,
@@ -77,12 +78,12 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
 # Invalidate stats cache on changes to relevant models.
 # This is a broad approach, but ensures data freshness for the overview.
-models_to_watch = [User, Candidate, Staff, UserVerification, CandidateScore, Exam]
+models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateScore, Exam]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
     post_delete.connect(refresh_stats_overview_cache, sender=model)
 
     # Connect user list invalidation for relevant models
-    if model in [User, Staff, Candidate, UserVerification, Exam]:
+    if model in [User, Staff, Candidate, PreRegUser, UserVerification, Exam]:
         post_save.connect(invalidate_user_list_cache, sender=model)
         post_delete.connect(invalidate_user_list_cache, sender=model)
