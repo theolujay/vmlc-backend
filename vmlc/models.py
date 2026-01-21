@@ -1227,3 +1227,36 @@ class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-me
         """Meta options for the CandidateScoreSnapshot model."""
 
         ordering = ["-created_at"]
+
+
+class Event(models.Model):
+    """
+    Model for recording key events for analytics and dashboards.
+    Append-only log of events.
+    """
+
+    id = models.UUIDField(
+        default=uuid.uuid4, unique=True, primary_key=True, editable=False
+    )
+    event_name = models.CharField(max_length=255, db_index=True)
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="events",
+        help_text="User who triggered the event, if applicable.",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        """Meta options for the Event model."""
+
+        ordering = ["-timestamp"]
+        verbose_name = "Event"
+        verbose_name_plural = "Events"
+
+    def __str__(self):
+        """Return a string representation of the event."""
+        return f"{self.event_name} at {self.timestamp}"

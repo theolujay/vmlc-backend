@@ -24,6 +24,7 @@ def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
     Invalidates the cache for the stats overview and triggers regeneration.
     """
     cache.delete("stats_overview")
+    cache.delete("registration_metrics")
     cache.delete_pattern("user_list_view_*")
     generate_stats_overview_task.delay()
 

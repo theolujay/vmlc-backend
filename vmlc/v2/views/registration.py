@@ -176,6 +176,15 @@ class PreRegistrationView(CreateAPIView):
             serializer.is_valid(raise_exception=True)
             pre_reg_user = serializer.save()
 
+            from vmlc.utils.events import log_event
+            log_event(
+                event_name="PRE_REGISTRATION",
+                metadata={
+                    "email": pre_reg_user.email,
+                    "interest_type": pre_reg_user.interest_type
+                }
+            )
+
             # 4. Tasks (Email)
             send_welcome_mail_task.delay(user_id=pre_reg_user.id, is_pre_reg=True)
 
