@@ -5,7 +5,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
-
+from vmlc.utils.user import normalize_name
 # from vmlc.tasks import revoke_staff_registration_task
 from ..models import (
     Candidate,
@@ -58,6 +58,14 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
             raise serializers.ValidationError("Enter a valid Nigerian phone number.")
         return value
+
+    def validate_first_name(self, value):
+        """Normalize first name to title case."""
+        return normalize_name(value)
+
+    def validate_last_name(self, value):
+        """Normalize last name to title case."""
+        return normalize_name(value)
 
     def validate(self, attrs):
         """Validate that passwords match"""

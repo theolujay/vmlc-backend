@@ -18,7 +18,7 @@ from vmlc.models import (
     validate_face_id,
 )
 from vmlc.utils.auth import generate_password
-
+from vmlc.utils.user import normalize_name
 class RegistrationV2Serializer(serializers.Serializer):
     """
     Unified serializer for v2 registration (Candidate and Volunteer).
@@ -65,6 +65,14 @@ class RegistrationV2Serializer(serializers.Serializer):
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
             raise serializers.ValidationError(_("Enter a valid Nigerian phone number."))
         return value
+
+    def validate_first_name(self, value):
+        """Normalize first name to title case."""
+        return normalize_name(value)
+
+    def validate_last_name(self, value):
+        """Normalize last name to title case."""
+        return normalize_name(value)
 
     def validate(self, data):
         user_type = data.get("user_type")
@@ -258,6 +266,10 @@ class PreRegUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("Enter a valid Nigerian phone number."))
         return value
 
+    def validate_full_name(self, value):
+        """Normalize full name to title case."""
+        return normalize_name(value)
+
 class SupportInquirySerializer(serializers.ModelSerializer):
 
     # full_name = serializers.CharField(max_length=50)
@@ -280,3 +292,7 @@ class SupportInquirySerializer(serializers.ModelSerializer):
             "message",
             "organization",
         ]
+
+    def validate_full_name(self, value):
+        """Normalize full name to title case."""
+        return normalize_name(value)
