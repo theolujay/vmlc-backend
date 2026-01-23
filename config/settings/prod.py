@@ -7,10 +7,7 @@ from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 from ._utils import read_secret
 
-# Load environment variables from prod.env file
 from .base import *
-
-load_dotenv(BASE_DIR / "prod.env")
 # Ensure SECRET_KEY is set for production
 # if not SECRET_KEY:
 #     raise ValueError("The SECRET_KEY environment variable must be set in production.")
