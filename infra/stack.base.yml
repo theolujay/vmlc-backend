@@ -46,6 +46,8 @@ x-vmlc-base-env: &vmlc-base-env
   CELERY_BROKER_URL: redis://redis:6379/0
   CELERY_RESULT_BACKEND: redis://redis:6379/0
   REDIS_URL: redis://redis:6379/0
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
   CORS_ALLOW_CREDENTIALS: "true"
   DEBUG: "false"
   INTERNAL_IPS: 127.0.0.1,0.0.0.0,localhost

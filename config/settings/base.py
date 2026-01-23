@@ -289,16 +289,13 @@ CORS_ALLOW_HEADERS = (*default_headers, "x-api-key")
 # ============================================================================
 # CHANNELS AND CACHE CONFIGURATION
 # ============================================================================
+REDIS_URL = read_secret("REDIS_URL", f"redis://{read_secret('REDIS_HOST', '127.0.0.1')}:{read_secret('REDIS_PORT', 6379)}/0")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                (
-                    read_secret("REDIS_HOST", "127.0.0.1"),
-                    int(read_secret("REDIS_PORT", 6379)),
-                )
-            ]
+            "hosts": [REDIS_URL]
         },
     },
 }
