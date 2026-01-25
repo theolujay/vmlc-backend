@@ -214,31 +214,40 @@ class IsManagerForStaffDetail(BasePermission):
         return staff_profile.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
 
 
-class IsObjectOwnerOrManagerRole(BasePermission):
+class IsObjectOwnerOrVerifiedAdmin(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object (e.g., `request.user == obj.user`).
-    2. A verified staff member with a 'manager' or 'superadmin' role.
+    2. A verified staff member with a 'admin' role or higher.
     """
 
     message = "You do not have permission to perform this action on this object."
 
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
+        # 1. Check if the user is the owner
         is_owner = False
         if hasattr(obj, "user"):
             is_owner = request.user == obj.user
         elif isinstance(obj, request.user.__class__):
             is_owner = request.user == obj
 
-        # Check if the user is a manager
+        if is_owner:
+            return True
+
+        # 2. Check if the user is a verified moderator or higher
         staff_profile = _get_staff_profile(request)
-        is_manager = (
+        is_admin = (
             staff_profile is not None
-            and staff_profile.is_user_verified
-            and staff_profile.role in (Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN)
+            and (settings.DEBUG or staff_profile.is_user_verified)
+            and StaffRoleHierarchy.has_minimum_role(
+                staff_profile.role, Staff.Roles.ADMIN
+            )
         )
 
-        return is_owner or is_manager
+        return is_admin
 
 
 class IsVerifiedModeratorOrCandidate(BasePermission):

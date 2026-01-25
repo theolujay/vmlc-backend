@@ -47,7 +47,7 @@ from vmlc.utils.swagger_schemas import (
 from vmlc.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
-    IsObjectOwnerOrManagerRole,
+    IsObjectOwnerOrVerifiedAdmin,
     VerifiedAdminPermissions,
     VerifiedManagerPermissions,
     VerifiedModeratorPermissions,
@@ -239,7 +239,7 @@ class AccountManagementView(APIView):
         
         target_user = get_object_or_404(User, id=user_id)
         
-        if not IsObjectOwnerOrManagerRole().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrVerifiedAdmin().has_object_permission(request, self, target_user):
             logger.warning(
                 f"User {request.user.id} lacks permission to manage user {user_id}"
             )

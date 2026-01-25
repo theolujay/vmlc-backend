@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from vmlc.models import User, UserVerification
 from vmlc.permissions import (
     AuthenticatedUser,
-    IsObjectOwnerOrManagerRole,
+    IsObjectOwnerOrVerifiedAdmin,
     VerifiedManagerPermissions,
 )
 from vmlc.serializers import (
@@ -85,7 +85,7 @@ class UserVerificationStatusView(APIView):
                 raise NotFound("User not found.")
             if (
                 request.user.id != target_user.id
-                and not IsObjectOwnerOrManagerRole().has_object_permission(
+                and not IsObjectOwnerOrVerifiedAdmin().has_object_permission(
                     self.request, self, target_user
                 )
             ):
@@ -507,7 +507,7 @@ class UserVerificationDocumentView(APIView):
             # Check permissions: only the user themselves or superadmin can access
             if str(request.user.id) != str(
                 user_id
-            ) and not IsObjectOwnerOrManagerRole().has_object_permission(  # Convert both to string for comparison
+            ) and not IsObjectOwnerOrVerifiedAdmin().has_object_permission(  # Convert both to string for comparison
                 request, self, target_user
             ):
                 logger.warning(
