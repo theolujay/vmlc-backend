@@ -753,6 +753,59 @@
         ]
       },
       {
+        "name": "Notifications",
+        "item": [
+          {
+            "name": "Get Notification History",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "X-Api-Key",
+                  "value": "{{apiKey}}",
+                  "type": "text"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/v1/notifications/?status=unread",
+                "host": [
+                  "{{baseUrl}}"
+                ],
+                "path": [
+                  "v1",
+                  "notifications",
+                  ""
+                ],
+                "query": [
+                  {
+                    "key": "status",
+                    "value": "unread",
+                    "description": "Filter by status: read or unread"
+                  },
+                  {
+                    "key": "page",
+                    "value": "1",
+                    "disabled": true
+                  }
+                ]
+              },
+              "description": "Retrieve the notification history for the authenticated user. Supports filtering by status."
+            },
+            "response": []
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{candidateAccessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      {
         "name": "Candidate",
         "item": [
           {
@@ -3162,7 +3215,7 @@
                   ],
                   "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"is_approved\": true\n}",
+                    "raw": "{\n    \"is_approved\": true,\n    \"is_rejected\": false,\n    \"rejection_reason\": \"Optional reason for rejection\"\n}",
                     "options": {
                       "raw": {
                         "language": "json"
