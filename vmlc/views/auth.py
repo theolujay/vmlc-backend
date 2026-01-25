@@ -23,8 +23,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from ..models import User
 from ..permissions import HasXAPIKey
 from ..serializers import (
-    MinimalCandidateSerializer,
-    MinimalStaffSerializer,
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     RequestPasswordChangeSerializer,
@@ -470,11 +468,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         )
 
         # Add profile information (candidate or staff)
-        profile_data = None
-        if hasattr(self.user, "candidate_profile"):
-            profile_data = MinimalCandidateSerializer(self.user.candidate_profile).data
-        elif hasattr(self.user, "staff_profile"):
-            profile_data = MinimalStaffSerializer(self.user.staff_profile).data
+        from .user.management import ProfileManager
+
+        profile_data = ProfileManager.serialize_profile(self.user)
 
         if profile_data:
             data["profile"] = profile_data

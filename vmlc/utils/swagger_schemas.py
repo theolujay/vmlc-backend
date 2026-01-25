@@ -108,18 +108,9 @@ login_response_schema = openapi.Schema(
         "refresh": openapi.Schema(
             type=openapi.TYPE_STRING, description="Refresh token"
         ),
-        "user": openapi.Schema(
+        "profile": openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            properties={
-                "id": openapi.Schema(
-                    type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID
-                ),
-                "email": openapi.Schema(
-                    type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL
-                ),
-                "first_name": openapi.Schema(type=openapi.TYPE_STRING),
-                "last_name": openapi.Schema(type=openapi.TYPE_STRING),
-            },
+            description="User profile data (candidate or staff details)",
         ),
     },
 )

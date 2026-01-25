@@ -6,7 +6,7 @@ from ..models import (
     Candidate,
 )
 
-from .user import UserSerializer, MinimalUserSerializer
+from .user import UserSerializer
 
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):
@@ -14,11 +14,18 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
     Minimal serializer for listing candidate info.
     """
 
-    user = MinimalUserSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = Candidate
-        fields = ["user", "school_name", "school_type", "current_class", "role"]
+        fields = [
+            "user",
+            "school_name",
+            "school_type",
+            "current_class",
+            "role",
+            "verifiction_document",
+        ]
 
 
 class CandidateListSerializer(serializers.ModelSerializer):
@@ -26,7 +33,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
     Lightweight serializer for listing candidate info.
     """
 
-    user = MinimalUserSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
     status = serializers.SerializerMethodField()
 
     class Meta:
@@ -57,8 +64,8 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     records: serializers.SerializerMethodField = serializers.SerializerMethodField(
         help_text="Contains a detailed breakdown of the candidate's performance and list of available exams."
     )
-    face_id = serializers.SerializerMethodField()
-    id_card = serializers.SerializerMethodField()
+    # face_id = serializers.SerializerMethodField()
+    # id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -71,16 +78,16 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "school_name",
             "school_type",
             "current_class",
-            "face_id",
             "role",
             "is_active",
-            "is_user_verified",
             "status",
-            "id_card",
             "verification_document",
             "created_at",
             "updated_at",
             "records",
+            # "is_user_verified",
+            # "face_id",
+            # "id_card",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
 

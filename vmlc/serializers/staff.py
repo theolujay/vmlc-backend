@@ -47,8 +47,8 @@ class StaffDetailSerializer(serializers.ModelSerializer):
     """
 
     user = UserSerializer(read_only=True)
-    face_id = serializers.SerializerMethodField()
-    id_card = serializers.SerializerMethodField()
+    # face_id = serializers.SerializerMethodField()
+    # id_card = serializers.SerializerMethodField()
     verification_document = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -59,15 +59,15 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "user",
             "profile_type",
             "occupation",
-            "face_id",
             "role",
             "is_active",
-            "is_user_verified",
             "status",
-            "id_card",
             "verification_document",
             "created_at",
             "updated_at",
+            # "id_card",
+            # "face_id",
+            # "is_user_verified",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
 
