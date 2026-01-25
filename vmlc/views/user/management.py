@@ -657,7 +657,7 @@ class UserListView(ListAPIView):
             return CandidateListSerializer
         if requested_profile == "staff":
             return StaffListSerializer
-        if requested_profile == "pre_reg_candidate" or "pre_reg_staff":
+        if requested_profile in ["pre_reg_candidate", "pre_reg_staff"]:
             return PreRegUserSerializer
         return UserProfileListSerializer
 
@@ -683,7 +683,7 @@ class UserListView(ListAPIView):
         if requested_profile == "staff":
             queryset = Staff.objects.select_related("user").order_by("-created_at")
             return filter_staffs(queryset, self.request.query_params)
-        if requested_profile == "pre_reg_candidate" or "pre_reg_staff":
+        if requested_profile in ["pre_reg_candidate", "pre_reg_staff"]:
             queryset = PreRegUser.objects.order_by("-created_at")
             return filter_pre_reg_users(queryset, self.request.query_params)
 
