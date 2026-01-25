@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class RegistrationStatusThrottle(AnonRateThrottle):
-    rate = "1000/hour"
-
+    rate = "5000/hour"
 
 @swagger_auto_schema(
     method="get",
@@ -52,7 +51,7 @@ def health_check(request):
     operation_description="Check registration status.",
     tags=["Status"],
 )
-@api_view(["GET"])
+@api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
 @throttle_classes([RegistrationStatusThrottle])
 def registration_status(request):
