@@ -5,7 +5,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
-from vmlc.utils.user import normalize_name
+from vmlc.utils.user import normalize_title
 # from vmlc.tasks import revoke_staff_registration_task
 from ..models import (
     Candidate,
@@ -61,11 +61,11 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
 
     def validate_first_name(self, value):
         """Normalize first name to title case."""
-        return normalize_name(value)
+        return normalize_title(value)
 
     def validate_last_name(self, value):
         """Normalize last name to title case."""
-        return normalize_name(value)
+        return normalize_title(value)
 
     def validate(self, attrs):
         """Validate that passwords match"""

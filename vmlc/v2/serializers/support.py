@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from vmlc.models import SupportInquiry, SupportMessage, User, Staff
 from vmlc.serializers import MinimalUserSerializer
-from vmlc.utils.user import normalize_name
+from vmlc.utils.user import normalize_title
 
 class SupportMessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source="sender.get_full_name", read_only=True)
@@ -91,4 +91,4 @@ class SupportInquirySerializer(serializers.ModelSerializer):
 
     def validate_full_name(self, value):
         """Normalize full name to title case."""
-        return normalize_name(value)
+        return normalize_title(value)
