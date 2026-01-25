@@ -56,17 +56,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     )
 
     dashboard_data = {
-            "candidate_info": {
-                "name": candidate.user.get_full_name(),
-                "email": candidate.user.email,
-                "phone": candidate.user.phone,
-                "school_name": candidate.school_name,
-                "role": candidate.role.lower(),
-        
-            "is_user_verified": candidate.is_user_verified,
-            "is_email_verified": candidate.user.is_email_verified,
-            "is_active": candidate.user.is_active,
-            "date_joined": candidate.created_at,
+        "candidate_info": {
+            "first_name": candidate.user.first_name,
+            "last_name": candidate.user.last_name,
         },
         "exam_stats": {
             "total_exams_taken": score_stats["total_exams_taken"],
@@ -74,11 +66,17 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "average_score": round(float(score_stats["average_score"] or 0), 2),
             "highest_score": float(score_stats["highest_score"] or 0),
             "lowest_score": float(score_stats["lowest_score"] or 0),
-            "latest_score": score_stats["latest_score_data"],
+            "latest_score": (
+                score_stats["latest_score_data"]["score"]
+                if score_stats["latest_score_data"]
+                else 0
+            ),
+            "latest_score_info": score_stats["latest_score_data"],
         },
         "leaderboard_ranking": (
             {
                 "current_rank": candidate_rank,
+                "position": candidate_rank,
                 "total_candidates": total_league_candidates,
             }
             if candidate.role == "league"
@@ -86,6 +84,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ),
         "recent_scores": [
             {
+                "exam": score["exam__title"],
                 "exam_title": score["exam__title"],
                 "score": float(score["score"]),
                 "date": score["recorded_at"],
