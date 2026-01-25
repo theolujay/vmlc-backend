@@ -26,6 +26,8 @@
   - [Dashboard](#dashboard)
   - [Leaderboard](#leaderboard)
   - [Notifications](#notifications-with-websockets)
+    - [Notification History](#notification-history)
+    - [Real-time Notifications](#real-time-notifications)
   - [Broadcast Management](#broadcast-management)
 - [Advanced Topics](#advanced-topics)
   - [Query Parameters](#query-parameters)
@@ -2824,7 +2826,103 @@ _Note: You can update `user` fields, `profile` fields, or both. The `profile` fi
 
 Clients receive notifcations usin WebSockets. For example, [broadcasts](#create-broadcast) made via the `platform` medium at target users (or roles) will come through the notifications endpoint, allowing clients to receive instant updates without needing to poll the server.
 
+#### Notification History
+
+Allows any authenticated user to retrieve their past notifications.
+
+**Endpoint:** `GET /notifications/`
+**Headers:**
+
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+
+**Required Role:** Any authenticated user.
+
+**Query Parameters:**
+
+- `status` (string, optional): Filter by `read` or `unread`.
+- `page` (integer, optional): Page number for pagination.
+
+**Response:** `200 OK`
+
+```json
+{
+  "stats": {
+    "total_count": 10,
+    "unread_count": 2,
+    "read_count": 8
+  },
+  "results": [
+    {
+      "id": 1,
+      "subject": "Welcome",
+      "message": "Welcome to VMLC!",
+      "read": true,
+      "created_at": "2026-01-24T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "count": 10,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 1,
+    "has_next": false,
+    "has_previous": false,
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+#### Mark Notification as Read
+
+Allows any authenticated user to mark a specific notification as read.
+
+**Endpoint:** `PATCH /notifications/{notification_id}/mark-as-read/`
+**Headers:**
+
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+
+**Required Role:** Any authenticated user.
+
+**Response:** `200 OK`
+
+```json
+{
+  "status": "success"
+}
+```
+
+#### Mark All Notifications as Read
+
+Allows any authenticated user to mark all their unread notifications as read.
+
+**Endpoint:** `PATCH /notifications/mark-all-as-read/`
+**Headers:**
+
+```text
+X-Api-Key: <your_api_key>
+Authorization: Bearer <access_token>
+```
+
+**Required Role:** Any authenticated user.
+
+**Response:** `200 OK`
+
+```json
+{
+  "status": "success",
+  "updated_count": 2
+}
+```
+
 #### Real-time Notifications
+
 
 Connect to this endpoint to receive `platform` notifications in real-time.
 

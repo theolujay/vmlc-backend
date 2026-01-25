@@ -136,7 +136,62 @@ Lead collection for interested participants.
 
 ---
 
-## 6. Response Formats
+## 6. Notifications
+
+Retrieve notification history and real-time updates.
+
+### Notification History
+- **Endpoint:** `/v1/notifications/`
+- **Method:** `GET`
+- **Authentication:** Bearer Token required.
+
+#### Query Parameters
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `status` | `string` | Filter by `read` or `unread`. |
+| `page` | `integer` | Page number for pagination. |
+
+#### Success Response (200 OK)
+```json
+{
+  "stats": {
+    "total_count": 10,
+    "unread_count": 2,
+    "read_count": 8
+  },
+  "results": [
+    {
+      "id": 1,
+      "subject": "Welcome",
+      "message": "Welcome to VMLC!",
+      "read": true,
+      "created_at": "2026-01-24T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "count": 10,
+    "next": null,
+    "previous": null
+  }
+}
+```
+
+### Real-time Notifications (WebSockets)
+- **Endpoint:** `ws://<host>/v1/ws/notifications/`
+- **Authentication:** `X-API-Key` and `Authorization` headers (or query params for some clients).
+
+### Mark Notifications as Read
+- **Endpoint:** `/v1/notifications/<notification_id>/mark-as-read/`
+- **Method:** `PATCH`
+- **Authentication:** Bearer Token required.
+
+- **Endpoint:** `/v1/notifications/mark-all-as-read/`
+- **Method:** `PATCH`
+- **Authentication:** Bearer Token required.
+
+---
+
+## 7. Response Formats
 
 The API returns JSON responses.
 

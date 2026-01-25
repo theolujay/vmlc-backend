@@ -1,14 +1,34 @@
 import logging
 from django.conf import settings
-from django.dispatch import Signal
+from django.dispatch import Signal, receiver
 from django.core.mail import mail_admins
+from django.core.cache import cache
+from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
 from vmlc.utils.exceptions import ValidationError
+from .models import Notification
 
 logger = logging.getLogger(__name__)
 notifications_created = Signal()
 
+
+def invalidate_notification_cache(sender, instance, **kwargs):
+    """Invalidates the notification cache for a user by incrementing the version."""
+    user_id = instance.recipient_id
+    version_key = f"notifications_version_{user_id}"
+    
+    try:
+        cache.incr(version_key)
+    except ValueError:
+        # First time, set to 1 (next read will be version 1)
+        cache.set(version_key, 1, timeout=86400)
+    
+    logger.info(f"Invalidated notification cache for user {user_id}")
+
+
+post_save.connect(invalidate_notification_cache, sender=Notification)
+post_delete.connect(invalidate_notification_cache, sender=Notification)
 
 @task_success.connect
 def task_success_handler(sender=None, result=None, **kwargs):

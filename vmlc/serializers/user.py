@@ -5,7 +5,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from ..models import User, UserVerification
-from vmlc.utils.user import normalize_name
+from vmlc.utils.user import normalize_title
 logger = logging.getLogger(__name__)
 
 
@@ -27,11 +27,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_first_name(self, value):
         """Normalize first name to title case."""
-        return normalize_name(value)
+        return normalize_title(value)
 
     def validate_last_name(self, value):
         """Normalize last name to title case."""
-        return normalize_name(value)
+        return normalize_title(value)
 
     class Meta:
         model = User

@@ -97,7 +97,7 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
                 "notification_id is required for 'mark_as_read' action."
             )
             return
-
+        
         updated_count = await self.mark_notification_as_read(notification_id)
 
         if updated_count > 0:
@@ -111,10 +111,23 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
 
     @database_sync_to_async
     def mark_notification_as_read(self, notification_id):
-        """Marks a notification as read in the database."""
-        return Notification.objects.filter(
-            id=notification_id, recipient=self.scope["user"]
+        """Marks a notification as read in the database and invalidates cache."""
+        from django.core.cache import cache
+
+        user = self.scope["user"]
+        updated_count = Notification.objects.filter(
+            id=notification_id, recipient=user, read=False
         ).update(read=True)
+
+        if updated_count > 0:
+            # Invalidate cache
+            cache.delete(f"notification_stats_{user.id}")
+            cache.set(
+                f"notifications_version_{user.id}",
+                cache.get(f"notifications_version_{user.id}", 1) + 1,
+                timeout=86400,
+            )
+        return updated_count
 
     async def send_error(self, message):
         """Sends a standardized error message to the client."""
