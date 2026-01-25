@@ -3,23 +3,25 @@ from datetime import datetime
 
 from django.core.cache import cache
 from django.db import models, transaction
+from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import mixins
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
-from comms.models import BackupLog, Broadcast, BroadcastLog
+from comms.models import BackupLog, Broadcast, BroadcastLog, Notification
 from comms.serializers import (
     BroadcastDetailSerializer,
     BroadcastListSerializer,
+    NotificationSerializer,
 )
 from comms.tasks import send_broadcast_task
 from comms.utils import send_backup_status_to_slack
-from vmlc.permissions import HasXAPIKey, VerifiedManagerPermissions
+from vmlc.permissions import AuthenticatedUser, HasXAPIKey, VerifiedManagerPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -280,3 +282,167 @@ class DatabaseBackupWebhookView(APIView):
             return Response({"status": "error", "message": str(e)}, status=400)
 
         return Response({"status": "received"}, status=200)
+
+@method_decorator(
+    name="get",
+    decorator=swagger_auto_schema(
+        operation_summary="List notifications",
+        operation_description="List all notifications for the authenticated user. Can be filtered by 'status' (read/unread).",
+        manual_parameters=[
+            api_key,
+            bearer_auth,
+            openapi.Parameter(
+                "status",
+                openapi.IN_QUERY,
+                description="Filter by status: 'read' or 'unread'",
+                type=openapi.TYPE_STRING,
+            ),
+        ],
+        responses={
+            200: NotificationSerializer(many=True),
+            401: error_response_401,
+        },
+        tags=["Notifications"],
+    ),
+)
+class NotificationHistory(ListAPIView):
+    """
+    List all notifications for authenticated user and optional filtering.
+    Can be filtered by 'status' query parameter to 'read' or 'unread'
+    """
+
+    permission_classes = AuthenticatedUser
+    serializer_class = NotificationSerializer
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        # Get current version (defaults to 0 if not set)
+        version = cache.get(f"notifications_version_{user.id}", 0)
+        query_hash = hash(frozenset(request.query_params.items()))
+        cache_key = f"notifications_{user.id}_{version}_{query_hash}"
+        
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached notifications for user {user.id}")
+            return Response(cached_data)
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Stats cache also includes version
+        stats_cache_key = f"notification_stats_{user.id}_{version}"
+        stats = cache.get(stats_cache_key)
+        if not stats:
+            logger.info(
+                f"Notification stats for user {user.id} not in cache. Aggregating and caching."
+            )
+            stats = Notification.objects.filter(recipient=user).aggregate(
+                total_count=Count("id"),
+                unread_count=Count("id", filter=Q(read=False)),
+                read_count=Count("id", filter=Q(read=True)),
+            )
+            cache.set(stats_cache_key, stats, timeout=3600)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["stats"] = stats
+            cache.set(cache_key, response.data, 3600)
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        response_data = {"stats": stats, "results": serializer.data}
+        cache.set(cache_key, response_data, timeout=3600)
+        return Response(response_data)
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Notification.objects.filter(recipient=user)
+
+        status = self.request.query_params.get("status")
+        if status == "read":
+            queryset = queryset.filter(read=True)
+        elif status == "unread":
+            queryset = queryset.filter(read=False)
+
+        return queryset
+
+
+class MarkNotificationAsReadView(APIView):
+    """
+    Mark a specific notification as read for the authenticated user.
+    """
+
+    permission_classes = AuthenticatedUser
+
+    @swagger_auto_schema(
+        operation_summary="Mark notification as read",
+        operation_description="Mark a single notification as read by its ID.",
+        manual_parameters=[api_key, bearer_auth],
+        responses={
+            200: openapi.Response("Notification marked as read."),
+            404: error_response_400,
+            401: error_response_401,
+        },
+        tags=["Notifications"],
+    )
+    def patch(self, request, notification_id):
+        user = request.user
+        try:
+            notification = Notification.objects.get(id=notification_id, recipient=user)
+            if not notification.read:
+                notification.read = True
+                notification.save()
+                
+                # Invalidate all notification caches by incrementing version
+                version_key = f"notifications_version_{user.id}"
+                current_version = cache.get(version_key, 0)
+                cache.set(version_key, current_version + 1, timeout=86400)
+                
+                logger.info(
+                    f"Notification {notification_id} marked as read for user {user.id}"
+                )
+            return Response({"status": "success"}, status=200)
+        except Notification.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Notification not found"}, status=404
+            )
+
+
+class MarkAllNotificationsAsReadView(APIView):
+    """
+    Mark all notifications as read for the authenticated user.
+    """
+
+    permission_classes = AuthenticatedUser
+
+    @swagger_auto_schema(
+        operation_summary="Mark all notifications as read",
+        operation_description="Mark all unread notifications for the authenticated user as read.",
+        manual_parameters=[api_key, bearer_auth],
+        responses={
+            200: openapi.Response("All notifications marked as read."),
+            401: error_response_401,
+        },
+        tags=["Notifications"],
+    )
+    def patch(self, request):
+        user = request.user
+        updated_count = Notification.objects.filter(recipient=user, read=False).update(
+            read=True
+        )
+
+        if updated_count > 0:
+            # Invalidate all notification caches by incrementing version
+            version_key = f"notifications_version_{user.id}"
+            current_version = cache.get(version_key, 0)
+            cache.set(version_key, current_version + 1, timeout=86400)
+            
+            logger.info(
+                f"All notifications ({updated_count}) marked as read for user {user.id}"
+            )
+
+        return Response(
+            {"status": "success", "updated_count": updated_count}, status=200
+        )
