@@ -78,8 +78,8 @@ logger = logging.getLogger(__name__)
 class RequestDataExtractor:
     """Extracts and validates user and profile data from request."""
     
-    USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone"}
-    PROFILE_FIELDS = {"occupation"}
+    USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone", "state"}
+    PROFILE_FIELDS = {"occupation", "current_class", "school_type"}
     FILE_FIELDS = {"profile_picture"}
     
     @classmethod
