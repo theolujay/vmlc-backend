@@ -54,6 +54,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     candidate_rank, total_league_candidates = _get_candidate_leaderboard_ranking(
         candidate, latest_snapshot
     )
+    screening_rank, total_screening_candidates = _get_candidate_screening_ranking(
+        candidate
+    )
 
     dashboard_data = {
         "candidate_info": {
@@ -73,13 +76,32 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             ),
             "latest_score_info": score_stats["latest_score_data"],
         },
-        "leaderboard_ranking": (
+        "stage_progress": {
+            "current_stage": candidate.role,
+            "current_level": available_exams_list[0]["level"] if available_exams_list else 1,
+            "has_taken_exam": (
+                available_exams_list[0]["participation"] == "done"
+                if available_exams_list
+                else score_stats["total_exams_taken"] > 0
+            ),
+            "qualification_threshold_score": 70,
+        },
+        "league_leaderboard_ranking": (
             {
                 "current_rank": candidate_rank,
                 "position": candidate_rank,
                 "total_candidates": total_league_candidates,
             }
             if candidate.role == "league"
+            else None
+        ),
+        "screening_standings_ranking": (
+            {
+                "current_rank": screening_rank,
+                "position": screening_rank,
+                "total_candidates": total_screening_candidates,
+            }
+            if screening_rank is not None
             else None
         ),
         "recent_scores": [
@@ -94,6 +116,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ],
         "available_exams": available_exams_list,
         "concluded_exams": concluded_exams_list,
+        "next_exam": available_exams_list[0] if available_exams_list else None
     }
 
     cache_key = f"candidate_dashboard_{candidate.pk}"
@@ -242,6 +265,34 @@ def _get_candidate_leaderboard_ranking(
 
         total_league_candidates = league_candidates_qs.count()
     return candidate_rank, total_league_candidates
+
+
+def _get_candidate_screening_ranking(
+    candidate: Candidate,
+) -> tuple[Optional[int], int]:
+    """Helper to get ranking for the Screening Level 1 exam."""
+    screening_exam = Exam.objects.filter(stage="screening", level=1).first()
+    if not screening_exam:
+        return None, 0
+
+    scores_qs = CandidateScore.objects.filter(exam=screening_exam)
+    total_participants = scores_qs.count()
+
+    if total_participants == 0:
+        return None, 0
+
+    ranked_qs = scores_qs.annotate(
+        rank=Window(
+            expression=Rank(),
+            order_by=F("score").desc(),
+        )
+    )
+
+    target_score = ranked_qs.filter(candidate=candidate).first()
+    if not target_score:
+        return None, total_participants
+
+    return target_score.rank, total_participants
 
 
 def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
