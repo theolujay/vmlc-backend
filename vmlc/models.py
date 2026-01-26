@@ -328,6 +328,28 @@ class User(AbstractUser):
 
     objects = CustomUserManager()
 
+    @property
+    def is_setup_complete(self):
+        """
+        Check if the user has completed their profile setup.
+        Returns True if all required fields from RegistrationV2 are present.
+        """
+        # Base user fields
+        if not all([self.first_name, self.last_name, self.phone, self.state]):
+            return False
+
+        # Candidate specific fields
+        if hasattr(self, "candidate_profile"):
+            cp = self.candidate_profile
+            return all([cp.school_name, cp.school_type, cp.current_class])
+
+        # Staff specific fields
+        if hasattr(self, "staff_profile"):
+            sp = self.staff_profile
+            return bool(sp.occupation)
+
+        return False
+
     def get_full_name(self):
         """Return the user's full name."""
         return f"{self.first_name} {self.last_name}".strip()

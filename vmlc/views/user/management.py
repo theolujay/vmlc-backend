@@ -47,7 +47,7 @@ from vmlc.utils.swagger_schemas import (
 from vmlc.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
-    IsObjectOwnerOrManagerRole,
+    IsObjectOwnerOrVerifiedAdmin,
     VerifiedAdminPermissions,
     VerifiedManagerPermissions,
     VerifiedModeratorPermissions,
@@ -78,8 +78,8 @@ logger = logging.getLogger(__name__)
 class RequestDataExtractor:
     """Extracts and validates user and profile data from request."""
     
-    USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone"}
-    PROFILE_FIELDS = {"occupation"}
+    USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone", "state"}
+    PROFILE_FIELDS = {"occupation", "current_class", "school_type"}
     FILE_FIELDS = {"profile_picture"}
     
     @classmethod
@@ -239,7 +239,7 @@ class AccountManagementView(APIView):
         
         target_user = get_object_or_404(User, id=user_id)
         
-        if not IsObjectOwnerOrManagerRole().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrVerifiedAdmin().has_object_permission(request, self, target_user):
             logger.warning(
                 f"User {request.user.id} lacks permission to manage user {user_id}"
             )
