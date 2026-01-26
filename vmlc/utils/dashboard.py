@@ -84,7 +84,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                 if available_exams_list
                 else score_stats["total_exams_taken"] > 0
             ),
-            "qualification_threshold_score": 70,
+            "qualification_threshold_score": None,
         },
         "league_leaderboard_ranking": (
             {
