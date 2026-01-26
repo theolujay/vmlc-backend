@@ -112,6 +112,10 @@ login_response_schema = openapi.Schema(
             type=openapi.TYPE_OBJECT,
             description="User profile data (candidate or staff details)",
         ),
+        "is_setup_complete": openapi.Schema(
+            type=openapi.TYPE_BOOLEAN,
+            description="True if the user has completed their profile setup.",
+        ),
     },
 )
 
