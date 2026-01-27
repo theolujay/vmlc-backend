@@ -249,7 +249,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
 @shared_task(name="clear_pre_reg_user")
 def clear_pre_reg_user(user_email, user_type="candidate"):
 
-    from vmlc.models import Staff, Candidate, PreRegUser
+    from identity.models import PreRegUser
     from vmlc.utils.events import log_event
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)
@@ -273,7 +273,7 @@ def revoke_user_invite_task(user_id):
     """
     Celery task to revoke user credentials if they haven't logged in within a week since invite.
     """
-    from .models import User
+    from identity.models import User
 
     try:
         user = User.objects.get(pk=user_id)
