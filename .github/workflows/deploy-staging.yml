@@ -124,7 +124,7 @@ jobs:
             --network test-network \
             --entrypoint "" \
             ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
-            sh -c "python manage.py migrate --settings=config.settings.test --no-input && python manage.py test --settings=config.settings.test --noinput --failfast"
+            sh -c "python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
         timeout-minutes: 10
 
       - name: Cleanup test containers
