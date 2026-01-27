@@ -9,7 +9,7 @@ from .models import (
     Candidate,
     Staff,
     UserVerification,
-    CandidateScore,
+    CandidateExamResult,
     Exam,
 )
 from .tasks import (
@@ -79,7 +79,7 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
 # Invalidate stats cache on changes to relevant models.
 # This is a broad approach, but ensures data freshness for the overview.
-models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateScore, Exam]
+models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateExamResult, Exam]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
     post_delete.connect(refresh_stats_overview_cache, sender=model)

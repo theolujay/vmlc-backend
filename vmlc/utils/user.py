@@ -34,7 +34,7 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
         # - Have participated in the last concluded exam
         last_concluded_exam = get_last_concluded_exam()
         if last_concluded_exam:
-            active_filter &= Q(scores__exam=last_concluded_exam)
+            active_filter &= Q(results__exam=last_concluded_exam)
             active = base_queryset.filter(active_filter).distinct().count()
         else:
             # No concluded exam = no candidates can be "active" based on this rule

@@ -336,7 +336,7 @@ candidate_detail_response_schema = openapi.Schema(
         "updated_at": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME
         ),
-        "scores": openapi.Schema(type=openapi.TYPE_OBJECT),
+        "results": openapi.Schema(type=openapi.TYPE_OBJECT),
     },
 )
 
@@ -425,7 +425,7 @@ exam_result_response_schema = openapi.Schema(
                 properties={
                     "candidate_name": openapi.Schema(type=openapi.TYPE_STRING),
                     "candidate_school_name": openapi.Schema(type=openapi.TYPE_STRING),
-                    "score": openapi.Schema(
+                    "result": openapi.Schema(
                         type=openapi.TYPE_NUMBER, format=openapi.FORMAT_DECIMAL
                     ),
                     "recorded_at": openapi.Schema(
@@ -463,7 +463,7 @@ question_detail_list_response_schema = openapi.Schema(
     },
 )
 
-candidate_exam_score_list_response_schema = openapi.Schema(
+candidate_exam_result_list_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         "results": openapi.Schema(
@@ -608,7 +608,7 @@ staff_registration_request_body = openapi.Schema(
     },
 )
 
-candidate_score_list_response_schema = openapi.Schema(
+candidate_result_list_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         "results": openapi.Schema(

@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..models import CandidateAnswer, CandidateScore, Exam
+from ..models import CandidateAnswer, CandidateExamResult, Exam
 from ..permissions import CandidatePermissions
 from ..serializers import CandidateAnswerBulkSerializer
 from ..utils.swagger_schemas import (
@@ -87,13 +87,13 @@ class SubmitAnswersView(APIView):
             )
 
         # 2. Prevent Re-submission
-        candidate_score, created = CandidateScore.objects.get_or_create(
+        candidate_exam_result, created = CandidateExamResult.objects.get_or_create(
             candidate=candidate, exam=exam
         )
 
         if (
             not created
-            and CandidateAnswer.objects.filter(candidate_score=candidate_score).exists()
+            and CandidateAnswer.objects.filter(candidate_exam_result=candidate_exam_result).exists()
         ):
             logger.warning(
                 f"Candidate {candidate.pk} attempted to re-submit answers for exam {exam_id}"
@@ -112,7 +112,7 @@ class SubmitAnswersView(APIView):
         with transaction.atomic():
             answers_to_create = [
                 CandidateAnswer(
-                    candidate_score=candidate_score,
+                    candidate_exam_result=candidate_exam_result,
                     question=answer_data["question"],
                     selected_option=answer_data.get("selected_option", ""),
                 )
@@ -120,10 +120,10 @@ class SubmitAnswersView(APIView):
             ]
             CandidateAnswer.objects.bulk_create(answers_to_create)
 
-            # Asynchronously calculate the score
-            from ..tasks import calculate_and_save_auto_score_task
+            # Asynchronously computes the result
+            from ..tasks import compute_candidate_result_task
 
-            calculate_and_save_auto_score_task.delay(candidate_score.id)
+            compute_candidate_result_task.delay(candidate_exam_result.id)
 
         logger.info(
             "Candidate %s successfully submitted answers for exam %s.",

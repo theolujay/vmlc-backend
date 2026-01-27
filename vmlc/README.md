@@ -4,11 +4,11 @@ The `vmlc` Django application serves as the core backend for the Verboheit Mathe
 
 ## Key Modules and Their Responsibilities
 
--   **`admin.py`**: Configures the Django Admin interface for all major models within the application. It provides extensive customization for managing users, candidates, staff, exams, questions, scores, and verification requests, including custom actions for email notifications and role changes, along with robust cache invalidation logic.
+-   **`admin.py`**: Configures the Django Admin interface for all major models within the application. It provides extensive customization for managing users, candidates, staff, exams, questions, results, and verification requests, including custom actions for email notifications and role changes, along with robust cache invalidation logic.
 -   **`apps.py`**: Django application configuration for `vmlc`, ensuring signals are registered upon app readiness.
 -   **`management/commands/`**:
     -   **`fix_candidate_roles.py`**: A custom Django management command to standardize candidate roles, ensuring consistency with predefined choices (e.g., converting roles to lowercase).
-    -   **`populate_db.py`**: A management command designed for development and testing environments, populating the database with synthetic data for users, exams, questions, and scores.
+    -   **`populate_db.py`**: A management command designed for development and testing environments, populating the database with synthetic data for users, exams, questions, and results.
 -   **`migrations/`**: Contains database migration files, managing schema changes and data transformations across different versions of the application.
 -   **`models.py`**: Defines the fundamental database models that structure the entire application. This includes:
     -   **`User`**: Custom user model extending Django's `AbstractUser`, managing authentication and core user data.
@@ -18,10 +18,10 @@ The `vmlc` Django application serves as the core backend for the Verboheit Mathe
     -   **`Question`**: Defines the structure of exam questions, including text, options, correct answer, difficulty, and creation/modification metadata.
     -   **`Exam`**: Represents a competition exam, linking questions, specifying stage (Screening, League), scheduling details, and active status.
     -   **`Candidate`**: Represents a participant in the competition, linked to a User, with roles (Screening, League, Final, Winner), and tracking school information.
-    -   **`CandidateScore`**: Records a candidate's score for a specific exam.
+    -   **`CandidateExamResult`**: Records a candidate's result for a specific exam.
     -   **`CandidateAnswer`**: Stores a candidate's submitted answer to a particular question within an exam.
     -   **`LeaderboardSnapshot`**: Captures historical states of the competition leaderboard.
-    -   **`CandidateScoreSnapshot`**: Stores historical snapshots of candidate scores.
+    -   **`CandidateExamResultSnapshot`**: Stores historical snapshots of candidate results.
     -   **`FeatureFlag`**: Manages application-wide feature toggles, allowing dynamic enabling/disabling of functionalities.
     -   **`SupportInquiry`**: Stores details of support requests submitted by users.
     -   **`PreRegUser`**: Holds data for users who have expressed pre-registration interest.
@@ -29,10 +29,10 @@ The `vmlc` Django application serves as the core backend for the Verboheit Mathe
 -   **`pagination.py`**: Provides `StandardResultsSetPagination` for consistent and customizable pagination across API list responses.
 -   **`permissions.py`**: Implements custom Django REST Framework permission classes to enforce access control based on user authentication status, user type (Candidate/Staff), staff roles (hierarchical), and object ownership. Includes `HasXAPIKey` for API key authentication.
 -   **`routing.py`**: (Currently empty) Placeholder for potential WebSocket routing specific to the `vmlc` app, although general WebSockets are handled by the `comms` app.
--   **`serializers/`**: A package containing numerous Django REST Framework serializers, organized by model and functionality, for data validation, conversion, and API representation. Key sub-modules include `answer`, `auth`, `candidate`, `exam`, `exam_result`, `leaderboard`, `question`, `registration`, `role`, `score`, `staff`, `user`, and `user_profile`.
--   **`signals.py`**: Connects Django signals to various models (`User`, `Candidate`, `Staff`, `Exam`, `Question`, `CandidateScore`, `UserVerification`) to trigger actions like cache invalidation, asynchronous task execution (e.g., for dashboard updates, stats generation), and user login processing.
+-   **`serializers/`**: A package containing numerous Django REST Framework serializers, organized by model and functionality, for data validation, conversion, and API representation. Key sub-modules include `answer`, `auth`, `candidate`, `exam`, `exam_result`, `leaderboard`, `question`, `registration`, `role`, `result`, `staff`, `user`, and `user_profile`.
+-   **`signals.py`**: Connects Django signals to various models (`User`, `Candidate`, `Staff`, `Exam`, `Question`, `CandidateExamResult`, `UserVerification`) to trigger actions like cache invalidation, asynchronous task execution (e.g., for dashboard updates, stats generation), and user login processing.
 -   **`storage_backends.py`**: Custom storage solutions (`PublicMediaStorage`, `PrivateMediaStorage`) that abstract file storage to either Amazon S3 (for production) or the local filesystem (for development), providing secure handling for sensitive documents and public access for others.
--   **`tasks.py`**: Contains Celery tasks for asynchronous background processing, such as sending emails (`send_mail_task`, `send_welcome_mail_task`), calculating exam scores (`calculate_and_save_auto_score_task`), generating leaderboard/score snapshots, validating user-uploaded documents (`validate_user_verification_files_task`), updating dashboard caches, and managing feature flags (`disable_expired_feature_flags_task`).
+-   **`tasks.py`**: Contains Celery tasks for asynchronous background processing, such as sending emails (`send_mail_task`, `send_welcome_mail_task`), calculating exam results (`compute_candidate_result_task`), generating leaderboard/result snapshots, validating user-uploaded documents (`validate_user_verification_files_task`), updating dashboard caches, and managing feature flags (`disable_expired_feature_flags_task`).
 -   **`templates/admin/`**: Custom Django admin templates used for enhanced functionality, such as bulk email sending and role changes for users.
 -   **`tests/`**: Contains a comprehensive suite of unit and integration tests covering API endpoints, model logic, permissions, serializers, and utility functions to ensure application reliability and correctness.
 -   **`urls.py`**: Defines the URL routing for all `v1` API endpoints, covering authentication, user registration, profile management, exam and question CRUD operations, score submissions, leaderboard views, and dashboard access.
@@ -43,7 +43,7 @@ The `vmlc` Django application serves as the core backend for the Verboheit Mathe
     -   **`exception_handlers.py`**: Custom handler to standardize API error responses.
     -   **`exceptions.py`**: Custom exception classes for domain-specific errors.
     -   **`feature.py`**: View for safely toggling `FeatureFlag` states.
-    -   **`functions.py`**: General-purpose functions, including logic for leaderboard/score snapshot generation, automatic score calculation, and file validation.
+    -   **`functions.py`**: General-purpose functions, including logic for leaderboard/result snapshot generation, automatic result computation, and file validation.
     -   **`helpers.py`**: Provides data sanitization (for logging), and cache invalidation utilities.
     -   **`query_filters.py`**: Functions and Django-Filter integration for dynamically filtering querysets across various models.
     -   **`stats.py`**: Logic for generating aggregated statistics about users.

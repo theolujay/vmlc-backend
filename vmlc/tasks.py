@@ -70,14 +70,14 @@ def send_otp_on_registration_task(self, user_id):
         raise self.retry(exc=exc, countdown=60)
 
 
-@shared_task(name="calculate_and_save_auto_score_task")
-def calculate_and_save_auto_score_task(candidate_score_id):
+@shared_task(name="compute_candidate_result_task")
+def compute_candidate_result_task(candidate_result_id):
     """
     Celery task to calculate and save the auto score for a candidate's exam submission.
     """
-    from vmlc.utils.functions import calculate_and_save_auto_score
+    from vmlc.utils.functions import compute_candidate_result
 
-    calculate_and_save_auto_score(candidate_score_id)
+    compute_candidate_result(candidate_result_id)
 
 
 @shared_task(name="generate_leaderboard_snapshot_task")
@@ -90,14 +90,14 @@ def generate_leaderboard_snapshot_task(staff_id=None):
     return generate_leaderboard_snapshot(staff_id)
 
 
-@shared_task(name="generate_scores_snapshot_task")
-def generate_scores_snapshot_task(staff_id=None):
+@shared_task(name="generate_results_snapshot_task")
+def generate_results_snapshot_task(staff_id=None):
     """
-    Celery task to generate and publish the scores snapshot.
+    Celery task to generate and publish the results snapshot.
     """
-    from vmlc.utils.functions import generate_scores_snapshot
+    from vmlc.utils.functions import generate_results_snapshot
 
-    generate_scores_snapshot(staff_id)
+    generate_results_snapshot(staff_id)
 
 
 @shared_task(name="validate_user_verification_files_task")

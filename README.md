@@ -122,7 +122,7 @@ To configure your environment:
             # Import inside task to avoid startup cost
             from vmlc.models import Leaderboard
 
-            # Implementation: fetch candidates, compute scores, persist snapshot
+            # Implementation: fetch candidates, compute results, persist snapshot
             Leaderboard.recalculate_for_league(league_id)
 
             return True

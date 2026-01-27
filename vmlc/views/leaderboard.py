@@ -62,7 +62,7 @@ class PublishLeaderboardView(APIView):
         staff_id = request.user.staff_profile.pk
         from vmlc.utils.helpers import invalidate_all_candidate_records
         from vmlc.tasks import (
-            generate_scores_snapshot_task,
+            generate_results_snapshot_task,
             generate_leaderboard_snapshot_task,
         )
 
@@ -75,7 +75,7 @@ class PublishLeaderboardView(APIView):
         logger.info("Leaderboard cache invalidated.")
 
         invalidate_all_candidate_records()
-        generate_scores_snapshot_task.delay(staff_id)
+        generate_results_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 
         logger.info(f"Leaderboard generation triggered by staff {staff_id}")

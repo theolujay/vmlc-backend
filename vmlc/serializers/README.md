@@ -19,7 +19,7 @@ The serializers are organized into sub-modules based on the models or functional
 -   **`candidate.py`**: Defines serializers for the `Candidate` model, covering different levels of detail required for various API operations.
     -   `MinimalCandidateSerializer`: A concise serializer for basic candidate information.
     -   `CandidateListSerializer`: Used for listing multiple candidates with essential details.
-    -   `CandidateDetailSerializer`: Provides a comprehensive view of a single candidate, including related scores and verification data.
+    -   `CandidateDetailSerializer`: Provides a comprehensive view of a single candidate, including related results and verification data.
 -   **`exam_result.py`**: Contains serializers specifically designed for displaying the results of an exam, often including candidate and score details.
     -   `ExamResultSerializer`: Formats exam results for display, including candidate name and school.
 -   **`exam.py`**: Houses serializers for the `Exam` model, handling exam listings, detailed views, and candidate-specific exam data.
@@ -43,8 +43,8 @@ The serializers are organized into sub-modules based on the models or functional
 -   **`role.py`**: Provides serializers for updating the roles of candidates and staff members.
     -   `CandidateRoleSerializer`: Validates and updates a candidate's role.
     -   `StaffRoleSerializer`: Validates and updates a staff member's role.
--   **`score.py`**: Defines serializers for `CandidateScore` models and for submitting scores.
-    -   `CandidateScoreSerializer`: Displays detailed information about a candidate's score.
+-   **`result.py`**: Defines serializers for `CandidateExamResult` models and for submitting results.
+    -   `CandidateExamResultSerializer`: Displays detailed information about a candidate's result.
     -   `SubmitScoreSerializer`: Validates data for submitting or updating a candidate's score for an exam.
 -   **`staff.py`**: Contains serializers for the `Staff` model, similar to candidate serializers but tailored for staff.
     -   `MinimalStaffSerializer`: Concise serializer for basic staff information.

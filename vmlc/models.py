@@ -475,7 +475,7 @@ class EmailOTP(models.Model):  # pylint: disable=too-few-public-methods
 
 class Staff(models.Model):  # pylint: disable=too-many-lines
     """
-    Administrative user with a specific role for managing candidates, exams, and scores.
+    Administrative user with a specific role for managing candidates, exams, and results.
     """
 
     class Roles(models.TextChoices):
@@ -807,7 +807,7 @@ class Exam(models.Model):
         """
         Calculates the average score for all submissions tied to this exam.
         """
-        return self.scores.aggregate(avg_score=Avg("score"))["avg_score"]
+        return self.results.aggregate(avg_score=Avg("score"))["avg_score"]
 
 
 class CandidateManager(models.Manager):
@@ -815,32 +815,32 @@ class CandidateManager(models.Manager):
     Custom manager for the Candidate model.
     """
 
-    def with_scores(self):
+    def with_results(self):
         """
-        Annotate candidates with total, average, and count of exam scores,
-        excluding scores from exams at the 'screening' stage.
+        Annotate candidates with total, average, and count of exam results,
+        excluding results from exams at the 'screening' stage.
         """
         return self.annotate(
             total_score=Sum(
-                "scores__score", filter=Q(scores__exam__stage=Exam.Stages.LEAGUE)
+                "results__score", filter=Q(results__exam__stage=Exam.Stages.LEAGUE)
             ),
             average_score=Avg(
-                "scores__score", filter=Q(scores__exam__stage=Exam.Stages.LEAGUE)
+                "results__score", filter=Q(results__exam__stage=Exam.Stages.LEAGUE)
             ),
             exams_taken=Count(
-                "scores",
-                filter=Q(scores__exam__stage=Exam.Stages.LEAGUE),
+                "results",
+                filter=Q(results__exam__stage=Exam.Stages.LEAGUE),
                 distinct=True,
             ),
         )
 
     def with_complete_data(self):
         """
-        Annotate candidates with scores and optimize related data fetching.
+        Annotate candidates with results and optimize related data fetching.
         """
         return (
-            self.with_scores()
-            .prefetch_related("scores__exam", "scores__score_submitted_by__user")
+            self.with_results()
+            .prefetch_related("results__exam", "results__score_submitted_by__user")
             .select_related("user")
         )
 
@@ -860,7 +860,7 @@ class CandidateManager(models.Manager):
 class Candidate(models.Model):
     """
     Represents a student or participant in the exam system.
-    Linked to a User, assigned a role, and tracks their profile and score history.
+    Linked to a User, assigned a role, and tracks their profile and result history.
     """
 
     class Roles(models.TextChoices):
@@ -968,9 +968,9 @@ class Candidate(models.Model):
         self._verification_override = None
 
     @property
-    def score_data(self):
+    def result_data(self):
         """
-        Returns score summary (total and average) if annotated via `with_scores()`.
+        Returns result summary (total and average scores) if annotated via `with_results()`.
         """
         if hasattr(self, "total_score"):
             return {
@@ -996,7 +996,7 @@ class Candidate(models.Model):
                     pk=self.pk,
                     user__is_active=True,
                     user__last_login__gte=seven_days_ago,
-                    scores__exam=last_concluded_exam,
+                    results__exam=last_concluded_exam,
                 )
                 .distinct()
                 .exists()
@@ -1036,11 +1036,11 @@ class Candidate(models.Model):
         """
         Returns the most recent score submitted for this candidate.
         """
-        return self.scores.latest("recorded_at")
+        return self.results.latest("recorded_at")
 
     def get_records(self):
         """
-        Returns a dictionary of a candidate's performance stats, scores, and available exams.
+        Returns a dictionary of a candidate's performance stats, results, and available exams.
         """
         return {
             "performance": self._get_performance_stats(),
@@ -1050,16 +1050,16 @@ class Candidate(models.Model):
     def _get_performance_stats(self):
         """Helper to compute performance statistics for the candidate."""
         latest_snapshot = (
-            CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
+            CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
             .order_by("-published_at")
             .first()
         )
 
-        scores_qs = self.scores.all()
+        results_qs = self.results.all()
         if latest_snapshot:
-            scores_qs = scores_qs.filter(recorded_at__lte=latest_snapshot.published_at)
+            results_qs = results_qs.filter(recorded_at__lte=latest_snapshot.published_at)
 
-        score_stats = scores_qs.aggregate(
+        result_stats = results_qs.aggregate(
             total_exams_taken=Count("id"),
             average_score=Avg("score"),
             highest_score=Max("score"),
@@ -1067,18 +1067,18 @@ class Candidate(models.Model):
             total_score=Sum("score"),
         )
 
-        recent_scores_list = list(
-            scores_qs.order_by("-recorded_at")
+        recent_results_list = list(
+            results_qs.order_by("-recorded_at")
             .select_related("exam")
             .values("score", "exam__title", "recorded_at")[:1]
         )
 
         latest_score_data = None
-        if recent_scores_list:
+        if recent_results_list:
             latest_score_data = {
-                "score": float(recent_scores_list[0]["score"]),
-                "exam_title": recent_scores_list[0]["exam__title"],
-                "date": recent_scores_list[0]["recorded_at"],
+                "score": float(recent_results_list[0]["score"]),
+                "exam_title": recent_results_list[0]["exam__title"],
+                "date": recent_results_list[0]["recorded_at"],
             }
 
         candidate_rank, total_league_candidates = self._get_leaderboard_ranking(
@@ -1087,8 +1087,8 @@ class Candidate(models.Model):
 
         return {
             "stats": {
-                "total_score": float(score_stats["total_score"] or 0),
-                "average_score": round(float(score_stats["average_score"] or 0), 2),
+                "total_score": float(result_stats["total_score"] or 0),
+                "average_score": round(float(result_stats["average_score"] or 0), 2),
                 "leaderboard_ranking": (
                     {
                         "current_rank": candidate_rank,
@@ -1098,9 +1098,9 @@ class Candidate(models.Model):
                     else None
                 ),
                 "latest_score": latest_score_data,
-                "highest_score": float(score_stats["highest_score"] or 0),
-                "total_exams_taken": score_stats["total_exams_taken"],
-                "lowest_score": float(score_stats["lowest_score"] or 0),
+                "highest_score": float(result_stats["highest_score"] or 0),
+                "total_exams_taken": result_stats["total_exams_taken"],
+                "lowest_result": float(result_stats["lowest_score"] or 0),
                 "highest_obtainable_score": 100.0,
             },
             "exams_taken": self._get_exams_taken(),
@@ -1113,8 +1113,8 @@ class Candidate(models.Model):
                 self.Roles.LEAGUE
             ).annotate(
                 total_score=Sum(
-                    "scores__score",
-                    filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
+                    "results__score",
+                    filter=Q(results__recorded_at__lte=latest_snapshot.published_at),
                     default=0.0,
                 )
             )
@@ -1164,19 +1164,19 @@ class Candidate(models.Model):
         """Helper to get a list of exams taken by the candidate."""
         if (
             hasattr(self, "_prefetched_objects_cache")
-            and "scores" in self._prefetched_objects_cache
+            and "results" in self._prefetched_objects_cache
         ):
-            scores = self._prefetched_objects_cache["scores"]
+            results = self._prefetched_objects_cache["results"]
         else:
-            scores = (
-                self.scores.select_related("exam", "score_submitted_by__user")
+            results = (
+                self.results.select_related("exam", "score_submitted_by__user")
                 .prefetch_related("answers__question")
                 .all()
             )
 
         exams_taken_list = []
-        for score in scores:
-            answers = score.answers.all()
+        for result in results:
+            answers = result.answers.all()
             submission_list = []
             for answer in answers:
                 submission_list.append(
@@ -1194,18 +1194,18 @@ class Candidate(models.Model):
 
             exams_taken_list.append(
                 {
-                    "exam_id": score.exam.id,
-                    "exam_title": score.exam.title,
-                    "exam_stage": score.exam.stage,
-                    "scheduled_date": score.exam.scheduled_date,
-                    "score": float(score.score),
-                    "recorded_at": score.recorded_at.isoformat(),
+                    "exam_id": result.exam.id,
+                    "exam_title": result.exam.title,
+                    "exam_stage": result.exam.stage,
+                    "scheduled_date": result.exam.scheduled_date,
+                    "score": float(result.score),
+                    "recorded_at": result.recorded_at.isoformat(),
                     "score_submitted_by": (
-                        score.score_submitted_by.user.get_full_name()
-                        if score.score_submitted_by and score.score_submitted_by.user
+                        result.score_submitted_by.user.get_full_name()
+                        if result.score_submitted_by and result.score_submitted_by.user
                         else None
                     ),
-                    "auto_score": score.auto_score,
+                    "auto_score": result.auto_score,
                     "submission": submission_list,
                 }
             )
@@ -1220,17 +1220,17 @@ class Candidate(models.Model):
         ]
 
 
-class CandidateScore(models.Model):
+class CandidateExamResult(models.Model):
     """
-    A score representing a candidate's performance in an exam.
+    A result representing a candidate's performance in an exam.
 
     Links to candidate, exam, and submitting staff member.
     """
 
     candidate = models.ForeignKey(
-        Candidate, on_delete=models.CASCADE, related_name="scores"
+        Candidate, on_delete=models.CASCADE, related_name="results"
     )
-    exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="scores")
+    exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="results")
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     recorded_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1240,7 +1240,7 @@ class CandidateScore(models.Model):
     auto_score = models.BooleanField(default=False, db_index=True)
 
     class Meta:
-        """Meta options for the CandidateScore model."""
+        """Meta options for the CandidateExamResult model."""
 
         unique_together = ("candidate", "exam")
         ordering = ["-recorded_at"]
@@ -1249,8 +1249,8 @@ class CandidateScore(models.Model):
 class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
-    candidate_score = models.ForeignKey(
-        CandidateScore, related_name="answers", on_delete=models.PROTECT
+    candidate_exam_result = models.ForeignKey(
+        CandidateExamResult, related_name="answers", on_delete=models.PROTECT
     )
     question = models.ForeignKey(Question, on_delete=models.PROTECT)
     selected_option = models.CharField(
@@ -1266,19 +1266,19 @@ class CandidateAnswer(models.Model):
 
         constraints = [
             models.UniqueConstraint(
-                fields=["candidate_score", "question"],
-                name="unique_answer_per_candidate_score",
+                fields=["candidate_exam_result", "question"],
+                name="unique_answer_per_candidate_exam_result",
             )
         ]
 
     def __str__(self):
-        if self.candidate_score and self.question:
-            username = self.candidate_score.candidate.user.username
+        if self.candidate_exam_result and self.question:
+            username = self.candidate_exam_result.candidate.user.username
             return f"Answer by {username} for Q{self.question.id}"
-        if self.candidate_score:
-            return f"Answer by {self.candidate_score.candidate.user.username} (deleted question)"
+        if self.candidate_exam_result:
+            return f"Answer by {self.candidate_exam_result.candidate.user.username} (deleted question)"
         if self.question:
-            return f"Answer for Q{self.question.id} (deleted score)"
+            return f"Answer for Q{self.question.id} (deleted result)"
         return f"Orphaned Answer #{self.id}"
 
 
@@ -1302,8 +1302,8 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         ordering = ["-created_at"]
 
 
-class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-methods
-    """Model for a snapshot of a candidate's score."""
+class CandidateExamResultSnapshot(models.Model):  # pylint: disable=too-few-public-methods
+    """Model for a snapshot of a candidate's result."""
 
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -1314,11 +1314,11 @@ class CandidateScoreSnapshot(models.Model):  # pylint: disable=too-few-public-me
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="candidate_score_snapshots",
+        related_name="candidate_exam_result_snapshots",
     )
 
     class Meta:
-        """Meta options for the CandidateScoreSnapshot model."""
+        """Meta options for the CandidateExamResultSnapshot model."""
 
         ordering = ["-created_at"]
 

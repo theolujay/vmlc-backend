@@ -115,8 +115,8 @@ class UserStatsRefactorTest(TestCase):
         candidate = self.create_candidate(user)
         
         # Candidate needs to have score in this exam
-        from vmlc.models import CandidateScore
-        CandidateScore.objects.create(candidate=candidate, exam=exam, score=10.0)
+        from vmlc.models import CandidateExamResult
+        CandidateExamResult.objects.create(candidate=candidate, exam=exam, score=10.0)
 
         counts = get_user_status_counts(Candidate.objects.all(), "candidate")
         self.assertEqual(counts["active"], 1)

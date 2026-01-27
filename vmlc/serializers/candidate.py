@@ -56,7 +56,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     """
     Detailed candidate serializer including:
     - latest score
-    - all scores
+    - all results
     - total and average score
     """
 

@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from ..models import (
     Candidate,
-    CandidateScore,
+    CandidateExamResult,
     Exam,
 )
 from ..permissions import (
@@ -53,7 +53,7 @@ class SubmitScoreView(APIView):
             403: error_response_403,
             404: error_response_404,
         },
-        tags=["Scores"],
+        tags=["Results"],
         manual_parameters=[api_key, bearer_auth],
     )
     def put(self, request, exam_id):
@@ -83,7 +83,7 @@ class SubmitScoreView(APIView):
         staff = request.user.staff_profile
 
         # Create or update the score
-        _, created = CandidateScore.objects.update_or_create(
+        _, created = CandidateExamResult.objects.update_or_create(
             candidate=candidate,
             exam=exam,
             defaults={
@@ -128,7 +128,7 @@ class SubmitScoreView(APIView):
 
 class PublishScoresView(APIView):
     """
-    Refreshes and publishes the scores.
+    Refreshes and publishes the results.
     Admin or higher.
     """
 
@@ -136,7 +136,7 @@ class PublishScoresView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Publish Scores",
-        operation_description="Refreshes and publishes the scores.",
+        operation_description="Refreshes and publishes the results.",
         responses={
             202: openapi.Response(
                 "Scores snapshot generation has been started and will be available shortly."
@@ -144,20 +144,20 @@ class PublishScoresView(APIView):
             401: error_response_401,
             403: error_response_403,
         },
-        tags=["Scores"],
+        tags=["Results"],
         manual_parameters=[api_key, bearer_auth],
     )
     def post(self, request):
         """
-        Triggers an asynchronous task to generate and publish the scores snapshot.
+        Triggers an asynchronous task to generate and publish the results snapshot.
         """
-        from ..tasks import generate_scores_snapshot_task
+        from ..tasks import generate_results_snapshot_task
 
         staff_id = request.user.staff_profile.pk
         logger.info(
             f"PublishScoresView: request from user {request.user.id} (staff_id: {staff_id})"
         )
-        generate_scores_snapshot_task.delay(staff_id)
+        generate_results_snapshot_task.delay(staff_id)
 
         logger.info(f"Scores snapshot generation triggered by staff {staff_id}")
 

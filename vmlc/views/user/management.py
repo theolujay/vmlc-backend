@@ -839,7 +839,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         if self.profile == "candidate":
             return (
                 Candidate.objects.select_related("user", "user__verification")
-                .prefetch_related("scores__exam", "scores__score_submitted_by__user")
+                .prefetch_related("results__exam", "results__score_submitted_by__user")
                 .all()
             )
         if self.profile == "staff":
