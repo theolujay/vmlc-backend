@@ -26,7 +26,7 @@ from ..serializers import (
     CandidateExamScoreSerializer,
 )
 from ..permissions import (
-    VerifiedAdminPermissions,
+    ActiveAdminPermissions,
     CandidatePermissions,
 )
 from ..utils.swagger_schemas import (
@@ -90,7 +90,7 @@ class ExamListView(ListCreateAPIView):
     """
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
 
@@ -248,7 +248,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Remove the exam.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -375,7 +375,7 @@ class ExamResultsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
 
@@ -439,7 +439,7 @@ class ExamQuestionsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = QuestionListSerializer
 
     def list(self, request, *args, **kwargs):
@@ -496,7 +496,7 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"
 
@@ -563,11 +563,11 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not candidate.is_user_verified:
+    if not candidate.is_active:
         logger.warning(
-            f"Unverified candidate {candidate.id} attempted to take exam {exam_id}"
+            f"Deactivated candidate {candidate.id} attempted to take exam {exam_id}"
         )
-        raise PermissionDenied("Candidate must be verified to take this exam.")
+        raise PermissionDenied("Candidate is deactivaated and cannot take this exam.")
 
     if candidate.role != exam.stage:
         logger.warning(

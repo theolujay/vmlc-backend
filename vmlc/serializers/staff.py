@@ -34,7 +34,6 @@ class StaffListSerializer(serializers.ModelSerializer):
             "role",
             "status",
             "occupation",
-            "is_user_verified",
         ]
 
     def get_status(self, obj: Staff):
@@ -65,9 +64,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             "verification_document",
             "created_at",
             "updated_at",
-            # "id_card",
-            # "face_id",
-            # "is_user_verified",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
 

@@ -170,7 +170,7 @@ def _get_candidate_performance_stats(
 def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) -> list:
     """Helper to get available exams for a candidate."""
     available_exams_list = []
-    if candidate.is_user_verified:
+    if candidate.is_active:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role.lower(), is_active=True)
             .annotate(
@@ -206,7 +206,7 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
 def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) -> list:
     """Helper to get concluded exams for a candidate."""
     concluded_exams_list = []
-    if candidate.is_user_verified:
+    if candidate.is_active:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
             .annotate(
@@ -337,7 +337,6 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "email": staff.user.email,
         "role": staff.get_role_display(),
         "occupation": staff.occupation,
-        "is_user_verified": staff.is_user_verified,
         "is_email_verified": staff.user.is_email_verified,
         "is_active": staff.user.is_active,
         "date_joined": staff.created_at,
@@ -349,21 +348,8 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "candidates": {
             "total": candidate_stats_data["total_candidates"],
             "active": candidate_stats_data["active_candidates"],
-            "verified": candidate_stats_data["verified_candidates"],
             "recent_registrations": candidate_stats_data["recent_registrations"],
             "by_role": candidate_stats_data["candidates_by_role"],
-            "verification_rate": (
-                round(
-                    (
-                        candidate_stats_data["verified_candidates"]
-                        / candidate_stats_data["total_candidates"]
-                        * 100
-                    ),
-                    1,
-                )
-                if candidate_stats_data["total_candidates"] > 0
-                else 0
-            ),
         },
         "registration_funnel": funnel_metrics,
         "exams": {
@@ -413,9 +399,6 @@ def _get_staff_candidate_stats(last_week: timedelta) -> Dict[str, Any]:
     candidate_stats = Candidate.objects.aggregate(
         total_candidates=Count("user_id"),
         active_candidates=Count("user_id", filter=Q(user__is_active=True)),
-        verified_candidates=Count(
-            "user_id", filter=Q(user__verification__is_approved=True)
-        ),
         recent_registrations=Count("user_id", filter=Q(created_at__gte=last_week)),
     )
 

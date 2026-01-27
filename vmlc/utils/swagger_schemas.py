@@ -308,7 +308,6 @@ candidate_list_response_schema = openapi.Schema(
                     "user": openapi.Schema(type=openapi.TYPE_OBJECT),
                     "school_name": openapi.Schema(type=openapi.TYPE_STRING),
                     "role": openapi.Schema(type=openapi.TYPE_STRING),
-                    "is_user_verified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
                 },
             ),
         )
@@ -325,7 +324,6 @@ candidate_detail_response_schema = openapi.Schema(
         "face_id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "role": openapi.Schema(type=openapi.TYPE_STRING),
         "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        "is_user_verified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
         "id_card": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "verification_document": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_URI
@@ -677,7 +675,6 @@ staff_detail_response_schema = openapi.Schema(
         "face_id": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "role": openapi.Schema(type=openapi.TYPE_STRING),
         "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        "is_user_verified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
         "id_card": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
         "verification_document": openapi.Schema(
             type=openapi.TYPE_STRING, format=openapi.FORMAT_URI

@@ -45,7 +45,6 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "current_class",
             "role",
             "status",
-            "is_user_verified",
         ]
 
     def get_status(self, obj: Candidate):
@@ -85,9 +84,6 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "records",
-            # "is_user_verified",
-            # "face_id",
-            # "id_card",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
 

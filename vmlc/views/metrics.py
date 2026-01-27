@@ -7,7 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..utils.metrics import get_registration_metrics, get_funnel_metrics
-from ..permissions import VerifiedManagerPermissions
+from ..permissions import ActiveManagerPermissions
 from ..utils.swagger_schemas import (
     api_key,
     bearer_auth,
@@ -22,7 +22,7 @@ class RegistrationMetricsView(APIView):
     Retrieve aggregated registration metrics for daily and weekly trends, 
     including the registration funnel.
     """
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
 
     @swagger_auto_schema(
         operation_summary="Get Registration Metrics",

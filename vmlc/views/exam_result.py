@@ -16,7 +16,7 @@ from ..models import (
     Exam,
 )
 from ..permissions import (
-    VerifiedAdminPermissions,
+    ActiveAdminPermissions,
 )
 from ..serializers import (
     SubmitScoreSerializer,
@@ -39,7 +39,7 @@ class SubmitScoreView(APIView):
     Submit or update a candidate's score for a specific exam.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = SubmitScoreSerializer
 
     @swagger_auto_schema(
@@ -132,7 +132,7 @@ class PublishScoresView(APIView):
     Admin or higher.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
 
     @swagger_auto_schema(
         operation_summary="Publish Scores",

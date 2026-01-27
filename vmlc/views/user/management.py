@@ -47,10 +47,10 @@ from vmlc.utils.swagger_schemas import (
 from vmlc.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
-    IsObjectOwnerOrVerifiedAdmin,
-    VerifiedAdminPermissions,
-    VerifiedManagerPermissions,
-    VerifiedModeratorPermissions,
+    IsObjectOwnerOrActiveAdmin,
+    ActiveAdminPermissions,
+    ActiveManagerPermissions,
+    ActiveModeratorPermissions,
 )
 from vmlc.serializers import (
     CandidateDetailSerializer,
@@ -239,7 +239,7 @@ class AccountManagementView(APIView):
         
         target_user = get_object_or_404(User, id=user_id)
         
-        if not IsObjectOwnerOrVerifiedAdmin().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrActiveAdmin().has_object_permission(request, self, target_user):
             logger.warning(
                 f"User {request.user.id} lacks permission to manage user {user_id}"
             )
@@ -431,7 +431,7 @@ class BaseInviteView(CreateAPIView):
     Base API view to create a new user invite.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = None
     profile_type = ""
 
@@ -544,7 +544,7 @@ class StaffInviteView(BaseInviteView):
     API view to create a new staff member.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
 
@@ -568,7 +568,7 @@ class CandidateInviteView(BaseInviteView):
     API view to create a new candidate.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = CandidateInviteSerializer
     profile_type = "candidate"
 
@@ -603,7 +603,7 @@ class UserListView(ListAPIView):
     Level of detail depends on role.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def list(self, request, *args, **kwargs):
@@ -775,7 +775,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = UserProfileDetailSerializer
-    permission_classes = VerifiedAdminPermissions + [IsManagerForStaffDetail]
+    permission_classes = ActiveAdminPermissions + [IsManagerForStaffDetail]
     http_method_names = ["get", "patch", "delete"]
     profile = ""
 

@@ -21,7 +21,7 @@ from comms.serializers import (
 )
 from comms.tasks import send_broadcast_task
 from comms.utils import send_backup_status_to_slack
-from vmlc.permissions import AuthenticatedUser, HasXAPIKey, VerifiedManagerPermissions
+from vmlc.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.swagger_schemas import (
     api_key,
@@ -109,10 +109,10 @@ class BroadcastView(ListCreateRetrieveAPIView):
     - POST /broadcasts/ : Create and send a new broadcast
 
     Permissions:
-        - Only accessible to verified staff with manager+ permissions
+        - Only accessible to active staff with manager+ permissions
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     lookup_url_kwarg = "broadcast_id"
 

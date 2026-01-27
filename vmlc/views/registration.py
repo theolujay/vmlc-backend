@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from ..tasks import send_otp_on_registration_task, send_welcome_mail_task
 from ..utils import ToggleFeatureFlagView
 from ..models import FeatureFlag, Candidate, Staff
-from ..permissions import HasXAPIKey, VerifiedManagerPermissions
+from ..permissions import HasXAPIKey, ActiveManagerPermissions
 from ..serializers import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
@@ -155,7 +155,7 @@ class ToggleCandidateRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'candidate_registration_open' feature flag."""
 
     swagger_schema = None
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     feature_flag_key = "candidate_registration_open"
 
 
@@ -177,5 +177,5 @@ class ToggleStaffRegistrationView(ToggleFeatureFlagView):
     """Toggles the 'staff_registration_open' feature flag."""
 
     swagger_schema = None
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     feature_flag_key = "staff_registration_open"

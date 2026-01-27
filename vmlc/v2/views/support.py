@@ -10,7 +10,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from vmlc.models import SupportInquiry, SupportMessage, Staff
-from vmlc.permissions import VerifiedModeratorPermissions
+from vmlc.permissions import ActiveModeratorPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.v2.serializers.support import (
     SupportInquirySerializer, 
@@ -86,7 +86,7 @@ class SupportConversationListView(ListAPIView):
     List all support inquiries as conversations.
     Accessible by Moderators and higher.
     """
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = SupportConversationSerializer
     queryset = SupportInquiry.objects.all().prefetch_related("messages")
 
@@ -102,7 +102,7 @@ class SupportConversationDetailView(RetrieveAPIView):
     """
     Retrieve full conversation history and manage read status.
     """
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = SupportConversationDetailSerializer
     queryset = SupportInquiry.objects.all()
     lookup_field = "id"
@@ -122,7 +122,7 @@ class SupportReplyView(CreateAPIView):
     """
     Staff reply to a support conversation.
     """
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = SupportMessageSerializer
 
     @swagger_auto_schema(

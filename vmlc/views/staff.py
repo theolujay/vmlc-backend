@@ -16,8 +16,8 @@ from rest_framework.settings import api_settings
 from ..models import Staff
 from ..permissions import (
     StaffPermissions,
-    VerifiedModeratorPermissions,
-    VerifiedManagerPermissions,
+    ActiveModeratorPermissions,
+    ActiveManagerPermissions,
 )
 from ..serializers import (
     StaffDetailSerializer,
@@ -101,7 +101,7 @@ class StaffListView(ListAPIView):
     Only accessible to users with roles: moderator, admin, manager, or superadmin.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = StaffListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -159,7 +159,7 @@ class AssignStaffRoleView(UpdateAPIView):
     - Only accepts PUT requests.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = StaffRoleSerializer
     queryset = Staff.objects.all()
     lookup_url_kwarg = "staff_id"

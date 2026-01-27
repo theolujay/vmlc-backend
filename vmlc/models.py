@@ -954,10 +954,14 @@ class Candidate(models.Model):
 
     @property
     def is_user_verified(self):
-        """Check if user has verification and is verified"""
-        if self._verification_override is not None:
-            return self._verification_override
-        return hasattr(self.user, "verification") and self.user.verification.is_approved
+        """
+        Check if user has verification and is verified.
+        DEPRECATED: Currently suppressed to always return True.
+        """
+        return True
+        # if self._verification_override is not None:
+        #     return self._verification_override
+        # return hasattr(self.user, "verification") and self.user.verification.is_approved
 
     def set_verification_override(self, value):
         """Manually override verification status"""
@@ -1134,8 +1138,9 @@ class Candidate(models.Model):
 
     def _get_available_exams(self):
         """Helper to get a list of available exams for the candidate."""
-        if not self.is_user_verified:
-            return []
+        # Verification requirement suppressed
+        # if not self.is_user_verified:
+        #     return []
 
         all_relevant_exams = (
             Exam.objects.filter(stage=self.role, is_active=True)
