@@ -16,7 +16,8 @@ from rest_framework.generics import (
 )
 
 from vmlc.utils.helpers import invalidate_all_dashboard_caches
-from ..models import Exam, CandidateExamResult, Candidate, Question
+from identity.models import Candidate
+from ..models import Exam, Question, CandidateExamResult
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,

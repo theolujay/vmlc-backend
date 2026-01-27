@@ -2,6 +2,7 @@ from django.db.models import Avg
 
 from rest_framework import serializers
 
+from identity.models import Staff
 from ..models import (
     CandidateExamResult,
     Question,

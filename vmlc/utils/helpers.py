@@ -1,5 +1,5 @@
 from django.core.cache import cache
-from vmlc.models import Staff, Candidate
+from identity.models import Staff, Candidate
 
 SENSITIVE_FIELDS = {
     # User credentials

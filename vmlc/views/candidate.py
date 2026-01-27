@@ -13,7 +13,7 @@ from rest_framework.settings import api_settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..models import Candidate
+from identity.models import Candidate
 from ..permissions import (
     CandidatePermissions,
     ActiveModeratorPermissions,

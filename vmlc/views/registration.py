@@ -10,7 +10,8 @@ from rest_framework.response import Response
 
 from ..tasks import send_otp_on_registration_task, send_welcome_mail_task
 from ..utils import ToggleFeatureFlagView
-from ..models import FeatureFlag, Candidate, Staff
+from ..models import FeatureFlag
+from identity.models import Candidate, Staff
 from ..permissions import HasXAPIKey, ActiveManagerPermissions
 from ..serializers import (
     CandidateRegistrationSerializer,

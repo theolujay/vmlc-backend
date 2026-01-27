@@ -26,7 +26,7 @@ INTERNAL_IPS = [
 ]
 ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
 
-AUTH_USER_MODEL = "vmlc.User"
+AUTH_USER_MODEL = "identity.User"
 APPEND_SLASH = True
 
 INSTALLED_APPS = [
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "django_celery_results",
     "django_celery_beat",
     "channels",
+    "identity",
     "vmlc",
     "comms",
 ]

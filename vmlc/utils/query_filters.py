@@ -3,7 +3,8 @@ from typing import Any, List
 import django_filters
 from django.db.models import Q, QuerySet
 
-from vmlc.models import Candidate, Exam, PreRegUser, Question, Staff, User
+from identity.models import Candidate, PreRegUser, Staff, User
+from vmlc.models import Exam, Question
 
 
 def filter_candidates(

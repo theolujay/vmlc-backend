@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-from vmlc.models import Staff, Candidate, User
+from identity.models import Staff, Candidate, User
 
 
 class Broadcast(models.Model):

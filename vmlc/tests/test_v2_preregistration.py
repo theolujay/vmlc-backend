@@ -1,7 +1,7 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
-from vmlc.models import PreRegUser, User
+from identity.models import PreRegUser, User
 
 class PreRegistrationTestCase(APITestCase):
     def setUp(self):        

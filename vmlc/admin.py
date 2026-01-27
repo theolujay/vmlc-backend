@@ -9,20 +9,22 @@ from django.db.models import Count, Sum
 from django import forms
 from django.template.response import TemplateResponse
 from vmlc.tasks import send_mail_task
-from .models import (
+from identity.models import (
     Candidate,
     Staff,
+    User,
+    UserVerification,
+    PreRegUser,
+)
+from .models import (
     Exam,
     Question,
     CandidateExamResult,
     CandidateAnswer,
     LeaderboardSnapshot,
     FeatureFlag,
-    User,
     CandidateExamResultSnapshot,
-    UserVerification,
     SupportInquiry,
-    PreRegUser,
 )
 
 from .utils.email import create_email_html

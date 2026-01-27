@@ -1,7 +1,8 @@
 from datetime import timedelta
 from django.db.models import Q, QuerySet, F, ExpressionWrapper, DateTimeField
 from django.utils import timezone
-from ..models import Exam, PreRegUser
+from identity.models import PreRegUser
+from ..models import Exam
 
 def normalize_title(name):
     return name.lower().title()

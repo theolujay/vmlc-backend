@@ -2,7 +2,8 @@ from datetime import timedelta
 from django.db.models import F, Count, Q, ExpressionWrapper, DateTimeField
 from django.utils import timezone
 from django.db.models.functions import Now
-from ..models import Candidate, Staff, Exam, User
+from identity.models import Candidate, Staff, User
+from ..models import Exam
 from .user import get_user_status_counts
 from .metrics import get_funnel_metrics
 

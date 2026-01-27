@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.core.cache import cache
 
 
-from ..models import (
+from identity.models import (
     Candidate,
 )
 

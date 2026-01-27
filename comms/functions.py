@@ -27,7 +27,7 @@ def send_broadcast(broadcast_id):
     """
     Send a broadcast to multiple recipients across different mediums.
     """
-    from vmlc.models import Candidate, Staff
+    from identity.models import Candidate, Staff
     from comms.models import Broadcast, BroadcastLog
 
     try:

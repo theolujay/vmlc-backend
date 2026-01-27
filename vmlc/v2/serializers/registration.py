@@ -6,16 +6,17 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from vmlc.models import (
+from identity.models import (
     PreRegUser,
-    SupportInquiry,
     User,
     UserVerification,
     Candidate,
     Staff,
-    validate_id_card_file,
     validate_document_file,
     validate_face_id,
+)
+from vmlc.models import (
+    SupportInquiry,
 )
 from vmlc.utils.auth import generate_password
 from vmlc.utils.user import normalize_title

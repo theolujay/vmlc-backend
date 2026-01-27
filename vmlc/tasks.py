@@ -56,8 +56,8 @@ def send_otp_on_registration_task(self, user_id):
     """
     Celery task to send OTP to user on registration.
     """
-    from .models import User
-    from .utils.auth import send_otp_to_email
+    from identity.models import User
+    from vmlc.utils.auth import send_otp_to_email
 
     try:
         user = User.objects.get(pk=user_id)
@@ -320,7 +320,8 @@ def send_system_email_task(
         build_support_confirmation_email,
         build_support_notification_email,
     )
-    from .models import User, PreRegUser, SupportInquiry
+    from identity.models import User, PreRegUser
+    from vmlc.models import SupportInquiry
 
     if not obj_id:
         logger.error("No object ID provided for email task")
@@ -387,7 +388,7 @@ def send_system_email_task(
 def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
-    from .models import User, PreRegUser
+    from identity.models import User, PreRegUser
 
     if is_pre_reg:
         user = PreRegUser.objects.get(pk=user_id)
@@ -435,7 +436,7 @@ def upload_user_documents_task(self, user_id, file_mappings):
         user_id: ID of the user
         file_mappings: List of dicts with keys: temp_path, field_name, original_name
     """
-    from .models import User, UserVerification
+    from identity.models import User, UserVerification
     
     uploaded_files = []
     failed_files = []

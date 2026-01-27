@@ -13,7 +13,7 @@ from rest_framework.generics import (
 from rest_framework.settings import api_settings
 
 
-from ..models import Staff
+from identity.models import Staff
 from ..permissions import (
     StaffPermissions,
     ActiveModeratorPermissions,

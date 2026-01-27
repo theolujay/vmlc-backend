@@ -10,7 +10,8 @@ from rest_framework.serializers import ValidationError
 from rest_framework.permissions import AllowAny
 
 from vmlc.tasks import send_welcome_mail_task
-from vmlc.models import Candidate, Staff, FeatureFlag
+from identity.models import Candidate, Staff
+from vmlc.models import FeatureFlag
 from vmlc.v2.serializers.registration import PreRegUserSerializer, RegistrationV2Serializer, SupportInquirySerializer
 from vmlc.utils.exceptions import PermissionDenied
 from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards

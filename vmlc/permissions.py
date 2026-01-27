@@ -4,7 +4,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_MET
 from rest_framework_api_key.permissions import HasAPIKey
 
 
-from .models import Candidate, Staff
+from identity.models import Candidate, Staff
 
 
 def _is_api_key_valid(key):

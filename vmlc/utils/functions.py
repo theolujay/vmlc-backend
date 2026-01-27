@@ -17,16 +17,18 @@ from PIL import Image
 import magic
 import mimetypes
 
-from vmlc.models import (
+from identity.models import (
     Candidate,
-    LeaderboardSnapshot,
     Staff,
+    User,
+    UserVerification,
+)
+from vmlc.models import (
+    LeaderboardSnapshot,
     Exam,
     CandidateExamResult,
     CandidateAnswer,
     CandidateExamResultSnapshot,
-    User,
-    UserVerification,
 )
 from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,

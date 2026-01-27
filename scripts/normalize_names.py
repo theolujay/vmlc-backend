@@ -2,7 +2,7 @@ code = """
 from django.core.cache import cache
 from django.db import transaction
 
-from vmlc.models import Candidate, Staff
+from identity.models import Candidate, Staff
 
 def normalize_title(name):
     if name:

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ..models import Candidate, Staff
+from identity.models import Candidate, Staff
 
 
 class CandidateRoleSerializer(serializers.ModelSerializer):

@@ -3,7 +3,8 @@ from typing import Optional, Tuple
 
 from django.conf import settings
 
-from vmlc.models import User, PreRegUser, SupportInquiry, FeatureFlag
+from identity.models import User, PreRegUser
+from vmlc.models import SupportInquiry, FeatureFlag
 
 logger = logging.getLogger(__name__)
 

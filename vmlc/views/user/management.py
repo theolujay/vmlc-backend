@@ -29,15 +29,13 @@ from vmlc.serializers import (
     CandidateListSerializer,
     UserProfileListSerializer,
 )
-from vmlc.models import PreRegUser, User, UserVerification, Staff, Candidate
+from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     staff_registration_request_body,
     candidate_registration_request_body,
-    candidate_invite_response_schema,
-    staff_invite_response_schema,
     account_management_response_schema,
     error_response_401,
     error_response_403,
@@ -53,15 +51,11 @@ from vmlc.permissions import (
     ActiveModeratorPermissions,
 )
 from vmlc.serializers import (
-    CandidateDetailSerializer,
-    StaffDetailSerializer,
     StaffInviteSerializer,
     CandidateInviteSerializer,
-    UserSerializer,
     UserProfileDetailSerializer,
 )
 from vmlc.tasks import (
-    generate_stats_overview_task,
     send_mail_task,
     revoke_user_invite_task,
 )
@@ -204,7 +198,7 @@ class AccountCacheManager:
     @classmethod
     def invalidate_user_cache(cls, user):
         """Invalidate all caches related to a user."""
-        from vmlc.models import Staff
+        from identity.models import Staff
         
         cache.delete(cls.get_cache_key(user.id))
         

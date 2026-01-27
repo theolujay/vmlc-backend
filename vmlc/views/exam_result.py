@@ -10,10 +10,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from identity.models import (
+    Candidate,)
 from ..models import (
-    Candidate,
-    CandidateExamResult,
     Exam,
+    CandidateExamResult,
 )
 from ..permissions import (
     ActiveAdminPermissions,

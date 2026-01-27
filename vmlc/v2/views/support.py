@@ -2,14 +2,13 @@ import logging
 
 from django.db import transaction
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 
-from vmlc.models import SupportInquiry, SupportMessage, Staff
+from vmlc.models import SupportInquiry, SupportMessage
 from vmlc.permissions import ActiveModeratorPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.v2.serializers.support import (

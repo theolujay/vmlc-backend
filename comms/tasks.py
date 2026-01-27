@@ -53,7 +53,8 @@ def notify_prereg_users_via_whatsapp_task():
     """
     import re
     from django.conf import settings
-    from vmlc.models import FeatureFlag, PreRegUser
+    from vmlc.models import FeatureFlag
+    from identity.models import PreRegUser
     from comms.utils import send_bulk_phone_msg
 
     if not FeatureFlag.get_bool("candidate_registration"):

@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
-from ..models import (
+from identity.models import (
     Candidate,
+)
+from ..models import (
     CandidateExamResult,
 )
 

@@ -1,8 +1,9 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
+
+from identity.models import Staff
 from vmlc.permissions import IsStaff
-from vmlc.models import Staff
 
 User = get_user_model()
 

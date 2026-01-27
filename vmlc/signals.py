@@ -3,12 +3,14 @@ from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-from .models import (
+from identity.models import (
     PreRegUser,
     User,
     Candidate,
     Staff,
     UserVerification,
+)
+from vmlc.models import (
     CandidateExamResult,
     Exam,
 )

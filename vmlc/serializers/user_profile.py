@@ -6,7 +6,7 @@ from vmlc.serializers import (
     MinimalUserSerializer,
 )
 
-from vmlc.models import User, Staff, Candidate
+from identity.models import User
 
 
 class UserProfileDetailSerializer(serializers.Serializer):
@@ -19,7 +19,7 @@ class UserProfileDetailSerializer(serializers.Serializer):
         """
         Dynamically serialize the instance based on whether it's a Candidate or Staff.
         """
-        from vmlc.models import Candidate, Staff
+        from identity.models import Candidate, Staff
 
         if isinstance(instance, Candidate):
             return CandidateDetailSerializer(instance).data

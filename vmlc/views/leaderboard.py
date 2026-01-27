@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.settings import api_settings
 
-
-from vmlc.models import Candidate, LeaderboardSnapshot
+from identity.models import Candidate
+from vmlc.models import LeaderboardSnapshot
 from vmlc.permissions import (
     AuthenticatedUser,
     IsActiveModeratorOrCandidate,

@@ -10,22 +10,24 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from vmlc.models import (
+from identity.models import (
     Candidate,
+    PreRegUser,
+    Staff,
+    User,
+    UserVerification,
+)
+from vmlc.models import (
     CandidateAnswer,
     CandidateExamResult,
     CandidateExamResultSnapshot,
     Exam,
     FeatureFlag,
     LeaderboardSnapshot,
-    PreRegUser,
     Question,
-    Staff,
     SupportInquiry,
     SupportMessage,
     Event,
-    User,
-    UserVerification,
 )
 from vmlc.serializers.candidate import MinimalCandidateSerializer
 from vmlc.utils.functions import generate_leaderboard_snapshot

@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from vmlc.models import SupportInquiry, SupportMessage, User, Staff
-from vmlc.serializers import MinimalUserSerializer
+from vmlc.models import SupportInquiry, SupportMessage
 from vmlc.utils.user import normalize_title
 
 class SupportMessageSerializer(serializers.ModelSerializer):

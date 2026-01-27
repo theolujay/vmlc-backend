@@ -7,13 +7,16 @@ from django.db.models import Window
 from django.db.models.functions import Rank
 from django.utils import timezone
 
-from ..models import (
+from identity.models import (
     Candidate,
+    Staff,
+)
+
+from vmlc.models import (
     CandidateExamResult,
     CandidateExamResultSnapshot,
     Exam,
     Question,
-    Staff,
 )
 
 
