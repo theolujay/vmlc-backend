@@ -407,7 +407,7 @@ class CandidateExamResult(models.Model):
     recorded_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     score_submitted_by = models.ForeignKey(
-        "Staff", on_delete=models.SET_NULL, null=True, blank=True
+        "identity.Staff", on_delete=models.SET_NULL, null=True, blank=True
     )
     auto_score = models.BooleanField(default=False, db_index=True)
 
