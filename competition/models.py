@@ -72,6 +72,47 @@ class Stage(models.Model):
         ]
 
 
+class StageExam(models.Model):
+    """
+    Links an exam to a specific Competition Stage and holds its
+    competition-specific configuration (e.g., round number).
+    """
+
+    competition_stage = models.ForeignKey(
+        Stage, on_delete=models.CASCADE, related_name="stage_exams"
+    )
+    exam = models.ForeignKey(
+        "vmlc.Exam",
+        on_delete=models.PROTECT,  # Protect exam from deletion if linked
+        related_name="competition_contexts",
+    )
+    round = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Round number within this stage (e.g., Week 1, Week 2 for League stages).",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Is this exam currently part of the active competition flow?",
+    )
+    config = models.JSONField(
+        default=dict, blank=True, help_text="StageExam-specific config."
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["competition_stage", "exam"], name="unique_exam_per_stage"
+            ),
+            # If a stage has rounds, ensure unique round per stage
+            models.UniqueConstraint(
+                fields=["competition_stage", "round"],
+                name="unique_round_per_stage",
+                condition=models.Q(round__isnull=False),
+            ),
+        ]
+
+
 class CandidateCompetition(models.Model):
     """
     Represents a candidate's participation in a specific competition edition.
@@ -182,6 +223,7 @@ class Standings(models.Model):
     Changes to the underlying exam results do not automatically mutate published standings.
     Regeneration must be explicit.
     """
+
     class Facilitator(models.TextChoices):
         VMLC = "vmlc", "VMLC"
         ESTURDI = "esturdi", "Esturdi"
