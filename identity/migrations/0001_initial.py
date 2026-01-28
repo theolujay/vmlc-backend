@@ -102,7 +102,7 @@ class Migration(migrations.Migration):
                                 validators=[
                                     django.core.validators.RegexValidator(
                                         message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-                                        regex="^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+                                        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
                                     )
                                 ],
                             ),
@@ -182,7 +182,7 @@ class Migration(migrations.Migration):
                                 validators=[
                                     django.core.validators.RegexValidator(
                                         message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-                                        regex="^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+                                        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
                                     )
                                 ],
                             ),
