@@ -144,7 +144,9 @@ setup_django_env() {
         exit 1
     fi
 
-    log_info " migrations..."
+    python manage.py migrate admin --fake 2>/dev/null || true
+
+    log_info "Running database migrations..."
     
     # Show migration plan first for debugging
     if ! python manage.py showmigrations --plan; then
