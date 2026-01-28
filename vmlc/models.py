@@ -239,11 +239,11 @@ class Exam(models.Model):
     Represents a collection of questions scheduled at a specific date for a stage of competition.
     """
 
-    class Stages(models.TextChoices):
-        """Stages of an exam."""
+    # class Stages(models.TextChoices):
+    #     """Stages of an exam."""
 
-        SCREENING = "screening", "Screening"
-        LEAGUE = "league", "League"
+    #     SCREENING = "screening", "Screening"
+    #     LEAGUE = "league", "League"
 
     class Status(models.TextChoices):
         """Statuses for an exam."""
@@ -282,16 +282,16 @@ class Exam(models.Model):
     questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        """Return a string representation of the exam."""
-        if self.stage == self.Stages.SCREENING:
-            return f"Screening {self.round}: {self.title} ({self.id})"
-        return f"League {self.round}: {self.title} ({self.id})"
+    # def __str__(self):
+    #     """Return a string representation of the exam."""
+    #     if self.stage == self.Stages.SCREENING:
+    #         return f"Screening {self.round}: {self.title} ({self.id})"
+    #     return f"League {self.round}: {self.title} ({self.id})"
 
-    @property
-    def stage_display(self):
-        """Returns a formatted stage display like 'screening_1' or 'league_2'"""
-        return f"{self.stage}_{self.round}"
+    # @property
+    # def stage_display(self):
+    #     """Returns a formatted stage display like 'screening_1' or 'league_2'"""
+    #     return f"{self.stage}_{self.round}"
 
     @classmethod
     def active_exams(cls):
