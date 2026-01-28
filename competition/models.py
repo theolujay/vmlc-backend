@@ -89,7 +89,7 @@ class CandidateCompetition(models.Model):
         ELIMINATED = "eliminated", "Eliminated"
         # left voluntarily
         WITHDRAWN = "withdrawn", "Withdrawn"
-         # forcibly removed due to violation
+        # forcibly removed due to violation
         DISQUALIFIED = "disqualified", "Disqualified"
 
     id = models.UUIDField(
@@ -171,15 +171,20 @@ class CandidateStageProgress(models.Model):
 
 class Standings(models.Model):
     """
-    Represents the official standings produced from a single exam within a competition.
+    Official standings generated from a single exam for a competition.
 
-    Standings are presentation artifacts derived from authoritative exam results.
-    Exactly one Standings record exists per exam.
+    A Standings object is a presentation artifact derived from exam results.
+    Exactly one Standings record should exist for a given published (competition, stage, round).
+    The record should only point to a local vmlc.Exam (native execution) AND should be
+    associated with an external facilitator via `facilitator_system`.
 
-    - Screening: standings from the screening exam
-    - League: weekly standings (one exam per round/week)
-    - Final: standings from the final exam
+    Immutable principle: `StandingsEntry.exam_score` is the canonical score for the snapshot.
+    Changes to the underlying exam results do not automatically mutate published standings.
+    Regeneration must be explicit.
     """
+    class Facilitator(models.TextChoices):
+        VMLC = "vmlc", "VMLC"
+        ESTURDI = "esturdi", "Esturdi"
 
     competition = models.ForeignKey(
         "competition.Competition",
@@ -201,6 +206,12 @@ class Standings(models.Model):
         "vmlc.Exam",
         on_delete=models.PROTECT,
         help_text="Exam from which this standings was generated.",
+    )
+    # provenance field
+    facilitator_system = models.CharField(
+        max_length=20,
+        choices=Facilitator.choices,
+        default=Facilitator.VMLC,
     )
     is_published = models.BooleanField(
         default=False,
@@ -227,19 +238,29 @@ class Standings(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
+                fields=["exam"],
+                condition=Q(exam__isnull=False),
+                name="unique_standings_per_exam",
+            ),
+            models.UniqueConstraint(
                 fields=["competition", "stage", "round"],
                 condition=Q(is_published=True),
                 name="one_published_standings_per_stage_round",
-            )
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["competition", "stage", "round", "is_published"]),
         ]
 
 
 class StandingsEntry(models.Model):
     """
-    Represents a candidate's ranked outcome within a single standings.
+    A single candidate's standing within a specific Standings for an exam.
 
-    This model is authoritative for competition display and progression logic,
-    but not for raw exam evaluation.
+    This is the canonical table for that exam snapshot. It is authoritative
+    for competition display and progression logic, but not for raw exam evaluation.
+
+    - exam_score: the snapshot score used for ranking (copied at generation time).
     """
 
     standings = models.ForeignKey(
@@ -269,6 +290,12 @@ class StandingsEntry(models.Model):
         blank=True,
         db_index=True,
     )
+    tie_break_reason = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="Optional explanation when tie-break applied.",
+    )
     percentile = models.FloatField(
         null=True,
         blank=True,
@@ -284,4 +311,50 @@ class StandingsEntry(models.Model):
         indexes = [
             models.Index(fields=["standings", "rank"]),
             models.Index(fields=["standings", "candidate"]),
+            models.Index(fields=["standings", "exam_score"]),
+        ]
+
+
+class AggregateLeaderboard(models.Model):
+    """
+    Materialized leaderboard for a stage across rounds (e.g., League table).
+    Created/updated when Standings are published.
+    """
+
+    competition = models.ForeignKey("Competition", on_delete=models.PROTECT)
+    stage = models.CharField(max_length=20, choices=Stage.Type.choices)
+    as_of_round = models.PositiveSmallIntegerField(
+        null=True, blank=True
+    )  # e.g., Week 3
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["competition", "stage", "as_of_round"])]
+
+
+class AggregateLeaderboardEntry(models.Model):
+    """
+    A single candidate's entry in a materialized AggregateLeaderboard.
+    Tracks cumulative performance across multiple rounds within a stage.
+    """
+
+    leaderboard = models.ForeignKey(
+        AggregateLeaderboard, related_name="entries", on_delete=models.CASCADE
+    )
+    candidate = models.ForeignKey("identity.Candidate", on_delete=models.CASCADE)
+    candidate_competition = models.ForeignKey(
+        "competition.CandidateCompetition",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    total_score = models.DecimalField(max_digits=10, decimal_places=2)
+    overall_rank = models.PositiveIntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["leaderboard", "overall_rank"]),
+            models.Index(fields=["leaderboard", "candidate"]),
         ]
