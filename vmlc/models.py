@@ -245,6 +245,10 @@ class Exam(models.Model):
     #     SCREENING = "screening", "Screening"
     #     LEAGUE = "league", "League"
 
+    class ExamDeliveryMode(models.TextChoices):
+        ONLINE = "online", "Online (Remote)"
+        IN_PERSON = "in_person", "In-Person (CBT Venue)"
+
     class Status(models.TextChoices):
         """Statuses for an exam."""
 
@@ -278,6 +282,12 @@ class Exam(models.Model):
     countdown_minutes = models.PositiveIntegerField(default=60)
     scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    delivery_mode = models.CharField(
+        max_length=20,
+        choices=ExamDeliveryMode.choices,
+        default=ExamDeliveryMode.ONLINE,
+        db_index=True,
+    )
 
     questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     updated_at = models.DateTimeField(auto_now=True)
