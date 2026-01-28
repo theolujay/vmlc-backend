@@ -49,13 +49,13 @@
 
 - **2025-10-31**
   - **Exam**:
-    - Contains new fields `level` and `stage_display`.
+    - Contains new fields `round` and `stage_display`.
       - Should be used in "Upload Exam" or "Edit Exams".
-      - `level` defaults to `1` if not provided.
+      - `round` defaults to `1` if not provided.
       - Use case:
-        *Leaderboard*
+        _Leaderboard_
         - Paired with stage to give `stage_display`.
-        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+        - If two exams in the same stage have the same `round`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
   - **Pagination**:
     - Now contains more information, such as `has_previous`.
     - Is better structured and puts into a new `"pagination"` field for each paginated response.
@@ -67,10 +67,10 @@
     - `GET /load-leaderboard/`:
       - Now `GET /leaderboard/`
       - Lists available leaderboards.
-      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - With query params (e.g. `stage=league`, `round=2`), leaderboard for specific exam is loaded.
       - Includes `exam_details`, `top_three`, and `remaining_candidates`.
       - Paginated.
-    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - `GET /leaderboard/<stage>/<round>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
     - Cached for 6 hours.
   - **OTP**:
     - `POST /resend-email-otp/`:

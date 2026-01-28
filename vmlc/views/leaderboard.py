@@ -113,7 +113,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
         operation_summary="Get Published Leaderboards",
         operation_description=(
             "Returns published leaderboard snapshots, filtered by user role. "
-            "Provide 'stage' and 'level' query parameters to view a specific leaderboard. "
+            "Provide 'stage' and 'round' query parameters to view a specific leaderboard. "
             "Without them, it returns a summary of all accessible leaderboards."
         ),
         manual_parameters=[
@@ -125,9 +125,9 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
                 required=False,
             ),
             openapi.Parameter(
-                "level",
+                "round",
                 openapi.IN_QUERY,
-                description="The level of the exam.",
+                description="The round of the exam.",
                 type=openapi.TYPE_INTEGER,
                 required=False,
             ),
@@ -157,10 +157,10 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
 
         user_role_key = self._get_user_role_key(user)
         requested_stage = request.query_params.get("stage")
-        requested_level = request.query_params.get("level")
+        requested_round = request.query_params.get("round")
         page = request.query_params.get(self.pagination_class.page_query_param, 1)
 
-        cache_key = f"leaderboard_view_{latest_snapshot.id}_{user_role_key}_{requested_stage or 'all'}_{requested_level or 'all'}_{page}"
+        cache_key = f"leaderboard_view_{latest_snapshot.id}_{user_role_key}_{requested_stage or 'all'}_{requested_round or 'all'}_{page}"
         cached_data = self._get_cached_leaderboard_response(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -176,12 +176,12 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if requested_stage and requested_level:
+        if requested_stage and requested_round:
             response_data = self._handle_specific_leaderboard_request(
                 user,
                 all_leaderboards,
                 requested_stage,
-                requested_level,
+                requested_round,
                 self.pagination_class(),
                 request,
             )
@@ -211,17 +211,17 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
         user,
         all_leaderboards,
         requested_stage,
-        requested_level,
+        requested_round,
         paginator,
         request,
     ):
-        """Helper to handle requests for a specific stage and level leaderboard."""
-        leaderboard_key = f"{requested_stage}_{requested_level}"
+        """Helper to handle requests for a specific stage and round leaderboard."""
+        leaderboard_key = f"{requested_stage}_{requested_round}"
 
         if leaderboard_key not in all_leaderboards:
             return Response(
                 {
-                    "detail": f"No leaderboard found for {requested_stage} level {requested_level}"
+                    "detail": f"No leaderboard found for {requested_stage} round {requested_round}"
                 },
                 status=status.HTTP_200_OK,
             )
@@ -249,7 +249,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
             "id": leaderboard_data.get("exam_id"),
             "title": leaderboard_data.get("exam_title"),
             "stage": leaderboard_data.get("stage"),
-            "level": leaderboard_data.get("level"),
+            "round": leaderboard_data.get("round"),
             "scheduled_date": leaderboard_data.get("scheduled_date"),
             "concluded_at": leaderboard_data.get("concluded_at"),
             "total_questions": leaderboard_data.get("total_questions"),
@@ -291,12 +291,12 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
 
         def sort_key_func(key):
             try:
-                stage, level_str = key.split("_", 1)
-                level = int(level_str)
+                stage, round_str = key.split("_", 1)
+                round = int(round_str)
                 # Prioritize 'league' (0) over 'screening' (1)
                 stage_priority = 1 if stage == "screening" else 0
-                # Sort by level in descending order
-                return (stage_priority, -level)
+                # Sort by round in descending order
+                return (stage_priority, -round)
             except (ValueError, IndexError):
                 # Fallback for unexpected key formats
                 return (2, key)
@@ -308,7 +308,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
                 leaderboards_summary.append(
                     {
                         "stage": lb.get("stage"),
-                        "level": lb.get("level"),
+                        "round": lb.get("round"),
                         "stage_display": key,
                         "exam_title": lb.get("exam_title"),
                         "total_candidates": lb.get("total_candidates"),
@@ -327,7 +327,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
     """
     Returns detailed performance for a specific candidate in a specific exam.
 
-    URL: leaderboard/<stage>/<level>/candidate/<candidate_id>/
+    URL: leaderboard/<stage>/<round>/candidate/<candidate_id>/
     Example: leaderboard/league/2/candidate/123/
     """
 
@@ -349,7 +349,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
         },
         tags=["Leaderboard"],
     )
-    def get(self, request: Request, stage: str, level: int, candidate_id):
+    def get(self, request: Request, stage: str, round: int, candidate_id):
         user = request.user
         user_role_key = self._get_user_role_key(user)
 
@@ -360,13 +360,13 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
                 status=status.HTTP_200_OK,
             )
 
-        cache_key = f"leaderboard_detail_{latest_snapshot.id}_{stage}_{level}_{candidate_id}_{user_role_key}"
+        cache_key = f"leaderboard_detail_{latest_snapshot.id}_{stage}_{round}_{candidate_id}_{user_role_key}"
         cached_data = self._get_cached_leaderboard_detail_response(cache_key)
         if cached_data:
             return Response(cached_data)
 
         candidate_entry, leaderboard = self._get_leaderboard_entry(
-            latest_snapshot, stage, level, candidate_id
+            latest_snapshot, stage, round, candidate_id
         )
 
         if not candidate_entry:
@@ -386,7 +386,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
             "id": leaderboard.get("exam_id"),
             "title": leaderboard.get("exam_title"),
             "stage": leaderboard.get("stage"),
-            "level": leaderboard.get("level"),
+            "round": leaderboard.get("round"),
             "scheduled_date": leaderboard.get("scheduled_date"),
             "concluded_at": leaderboard.get("concluded_at"),
             "total_questions": leaderboard.get("total_questions"),
@@ -414,9 +414,9 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
             return f"candidate_{user.candidate_profile.role}"
         return "staff"
 
-    def _get_leaderboard_entry(self, latest_snapshot, stage, level, candidate_id):
+    def _get_leaderboard_entry(self, latest_snapshot, stage, round, candidate_id):
         """Helper to find the specific candidate's entry in the leaderboard."""
-        leaderboard_key = f"{stage}_{level}"
+        leaderboard_key = f"{stage}_{round}"
 
         if leaderboard_key not in latest_snapshot.data:
             return None, None

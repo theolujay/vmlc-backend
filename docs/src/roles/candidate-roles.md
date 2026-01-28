@@ -9,7 +9,7 @@ Candidates progress through four roles as they advance in the competition.
 ### Abilities
 
 - View personal dashboard
-- Take screening-level exams
+- Take screening-round exams
 - View own profile and verification status
 - View screening leaderboard
 
@@ -29,7 +29,7 @@ Candidates progress through four roles as they advance in the competition.
 
 ### Additional Abilities
 
-- Take league-level exams
+- Take league-round exams
 - View competition leaderboard
 - Access more advanced content
 

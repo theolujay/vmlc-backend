@@ -133,18 +133,7 @@ except Exception as e:
 
 
 setup_django_env() {
-    log_info "Running identity app migration..."
-
-    python manage.py shell < ./scripts/deploy_identity_migration.py
-
-    if [ $? -eq 0 ]; then
-        echo "✓ Identity migration completed or skipped"
-    else
-        echo "✗ Identity migration failed"
-        exit 1
-    fi
-
-    log_info " migrations..."
+    log_info "Running database migrations..."
     
     # Show migration plan first for debugging
     if ! python manage.py showmigrations --plan; then

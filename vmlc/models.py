@@ -262,10 +262,10 @@ class Exam(models.Model):
     stage = models.CharField(
         max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
     )
-    level = models.PositiveIntegerField(
+    round = models.PositiveIntegerField(
         default=1,
         db_index=True,
-        help_text="Level within the stage (e.g., 1 for League 1, 2 for League 2)",
+        help_text="Round within the stage (e.g., 1 for League 1, 2 for League 2)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -291,28 +291,28 @@ class Exam(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # # Ensure only one exam per stage-level combination can be active at a time
+        # # Ensure only one exam per stage-round combination can be active at a time
         # constraints = [
         #     models.UniqueConstraint(
-        #         fields=['stage', 'level'],
+        #         fields=['stage', 'round'],
         #         condition=models.Q(is_active=True),
-        #         name='unique_active_stage_level'
+        #         name='unique_active_stage_round'
         #     )
         # ]
         indexes = [
-            models.Index(fields=["stage", "level", "is_active"]),
+            models.Index(fields=["stage", "round", "is_active"]),
         ]
 
     def __str__(self):
         """Return a string representation of the exam."""
         if self.stage == self.Stages.SCREENING:
-            return f"Screening {self.level}: {self.title} ({self.id})"
-        return f"League {self.level}: {self.title} ({self.id})"
+            return f"Screening {self.round}: {self.title} ({self.id})"
+        return f"League {self.round}: {self.title} ({self.id})"
 
     @property
     def stage_display(self):
         """Returns a formatted stage display like 'screening_1' or 'league_2'"""
-        return f"{self.stage}_{self.level}"
+        return f"{self.stage}_{self.round}"
 
     @classmethod
     def active_exams(cls):

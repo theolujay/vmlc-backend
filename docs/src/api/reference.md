@@ -193,8 +193,8 @@ This table provides a detailed breakdown of each user role, its key abilities on
 
 | Role            | Key Abilities (What they can do)                                                                                                                                  | Accessible API Endpoints                                                                                                                                                                                                                                                                           |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`screening`** | • View their personal dashboard.<br>• Take screening-level exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /leaderboard/` (for screening exams) |
-| **`league`**    | • All `screening` abilities.<br>• Take league-level exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard.                        | • All `screening` endpoints.<br>• `GET /leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`)                                                                                                                                                                                |
+| **`screening`** | • View their personal dashboard.<br>• Take screening-round exams.<br>• View their own profile and verification status.<br>• View screening leaderboard snapshots. | • `GET /dashboard/candidate/`<br>• `GET /candidates/me/`<br>• `GET /user/verification/status/`<br>• `POST /user/verification/upload/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `screening`)<br>• `POST /exams/{id}/submit-exam-answers/`<br>• `GET /leaderboard/` (for screening exams) |
+| **`league`**    | • All `screening` abilities.<br>• Take league-round exams.<br>• View the competition leaderboard snapshots or a specific exam leaderboard.                        | • All `screening` endpoints.<br>• `GET /leaderboard/`<br>• `GET /exams/{id}/take-exam/` (where `stage` is `league`)                                                                                                                                                                                |
 | **`final`**     | • All `league` abilities.<br>• Access to (offline) final-stage exams.                                                                                             | • All `league` endpoints.<br>• `GET /exams/{id}/take-exam/` (where `stage` is `final`)                                                                                                                                                                                                             |
 | **`winner`**    | • Ceremonial role with all candidate permissions. Registered winner of the final stage.                                                                           | • All `final` endpoints.                                                                                                                                                                                                                                                                           |
 
@@ -1507,7 +1507,7 @@ X-Api-Key: <your_api_key>
       "id": 1,
       "title": "Algebra Screening Exam",
       "stage": "screening",
-      "level": 1,
+      "round": 1,
       "stage_display": "screening_1",
       "question_count": 20,
       "created_at": "2024-01-10T09:00:00Z",
@@ -1545,7 +1545,7 @@ X-Api-Key: <your_api_key>
 {
   "title": "New Algebra Exam",
   "stage": "screening",
-  "level": 1,
+  "round": 1,
   "description": "A new exam for algebra screening.",
   "scheduled_date": "2025-10-01T10:00:00Z",
   "countdown_minutes": 60,
@@ -1562,7 +1562,7 @@ X-Api-Key: <your_api_key>
   "id": 4,
   "title": "New Algebra Exam",
   "stage": "screening",
-  "level": 1,
+  "round": 1,
   "stage_display": "screening_1",
   "description": "A new exam for algebra screening.",
   "scheduled_date": "2025-10-01T10:00:00Z",
@@ -1613,7 +1613,7 @@ X-Api-Key: <your_api_key>
   "id": 1,
   "title": "Algebra Screening Exam",
   "stage": "screening",
-  "level": 1,
+  "round": 1,
   "stage_display": "screening_1",
   "description": "Comprehensive algebra exam covering linear equations, polynomials, and systems.",
   "scheduled_date": "2024-01-20T15:00:00Z",
@@ -2172,7 +2172,7 @@ X-Api-Key: <your_api_key>
       "id": 2,
       "title": "Geometry Screening",
       "stage": "screening",
-      "level": 1,
+      "round": 1,
       "stage_display": "screening_1",
       "description": "Comprehensive geometry exam covering shapes, angles, and spatial reasoning.",
       "open_duration_hours": 12,
@@ -2187,7 +2187,7 @@ X-Api-Key: <your_api_key>
       "id": 1,
       "title": "Algebra Screening",
       "stage": "screening",
-      "level": 1,
+      "round": 1,
       "stage_display": "screening_1",
       "description": "Comprehensive algebra exam.",
       "concluded_at": "2024-01-21T15:00:00Z",
@@ -2400,17 +2400,17 @@ When called without query parameters, it returns a summary of all published lead
   "available_leaderboards": [
     {
       "stage": "screening",
-      "level": 1,
+      "round": 1,
       "stage_display": "screening_1",
-      "exam_title": "Screening Exam - Level 1",
+      "exam_title": "Screening Exam - Round 1",
       "total_candidates": 50,
       "average_score": 75.5
     },
     {
       "stage": "league",
-      "level": 1,
+      "round": 1,
       "stage_display": "league_1",
-      "exam_title": "League Competition - Level 1",
+      "exam_title": "League Competition - Round 1",
       "total_candidates": 25,
       "average_score": 88.0
     }
@@ -2422,15 +2422,15 @@ _Note: `screening` candidates will only see leaderboards for the `screening` sta
 
 **2. Detail Mode: Get Specific Leaderboard**
 
-When `stage` and `level` query parameters are provided, it returns the detailed, paginated rankings for that specific leaderboard.
+When `stage` and `round` query parameters are provided, it returns the detailed, paginated rankings for that specific leaderboard.
 
-**Endpoint:** `GET /leaderboard/?stage=<stage>&level=<level>`
+**Endpoint:** `GET /leaderboard/?stage=<stage>&round=<round>`
 **Required Role:** Any verified `candidate` or `staff`.
 
 **Query Parameters:**
 
 - `stage` (string, required): The stage of the leaderboard (e.g., `screening`, `league`).
-- `level` (integer, required): The level within the stage (e.g., `1`, `2`).
+- `round` (integer, required): The round within the stage (e.g., `1`, `2`).
 - `page` (integer, optional): The page number for the `remaining_candidates` list.
 
 **Response:** `200 OK`
@@ -2439,9 +2439,9 @@ When `stage` and `level` query parameters are provided, it returns the detailed,
 {
     "exam_details": {
         "id": 1,
-        "title": "League Competition - Level 1",
+        "title": "League Competition - Round 1",
         "stage": "league",
-        "level": 1,
+        "round": 1,
         "scheduled_date": "2025-11-01T10:00:00Z",
         "concluded_at": "2025-11-01T12:00:00Z",
         "total_questions": 50,
@@ -2463,7 +2463,7 @@ When `stage` and `level` query parameters are provided, it returns the detailed,
         "total_pages": 2,
         "has_next": true,
         "has_previous": false,
-        "next": "/leaderboard/?stage=league&level=1&page=2",
+        "next": "/leaderboard/?stage=league&round=1&page=2",
         "previous": null
     }
 }
@@ -2475,7 +2475,7 @@ When `stage` and `level` query parameters are provided, it returns the detailed,
 
 Retrieves the detailed performance of a single candidate for a specific exam leaderboard.
 
-**Endpoint:** `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/`
+**Endpoint:** `GET /leaderboard/<stage>/<round>/candidate/<candidate_id>/`
 **Required Role:**
 
 - `staff` and `league` (or higher) candidates can view any candidate's detail.
@@ -2484,7 +2484,7 @@ Retrieves the detailed performance of a single candidate for a specific exam lea
 **URL Parameters:**
 
 - `stage` (string): The stage of the leaderboard (e.g., `screening`).
-- `level` (integer): The level of the leaderboard (e.g., `1`).
+- `round` (integer): The round of the leaderboard (e.g., `1`).
 - `candidate_id` (integer): The ID of the candidate.
 
 **Response:** `200 OK`
@@ -2493,9 +2493,9 @@ Retrieves the detailed performance of a single candidate for a specific exam lea
 {
   "exam_details": {
     "id": 1,
-    "title": "League Competition - Level 1",
+    "title": "League Competition - Round 1",
     "stage": "league",
-    "level": 1,
+    "round": 1,
     "scheduled_date": "2025-11-01T10:00:00Z",
     "concluded_at": "2025-11-01T12:00:00Z",
     "total_questions": 50,
@@ -3431,13 +3431,13 @@ For technical support, API key requests, or questions:
 
 - **2025-10-31**
   - **Exam**:
-    - Contains new fields `level` and `stage_display`.
+    - Contains new fields `round` and `stage_display`.
       - Should be used in "Upload Exam" or "Edit Exams".
-      - `level` defaults to `1` if not provided.
+      - `round` defaults to `1` if not provided.
       - Use case:
         _Leaderboard_
         - Paired with stage to give `stage_display`.
-        - If two exams in the same stage have the same `level`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
+        - If two exams in the same stage have the same `round`, the latest exam's leaderboard shows up instead and overrides the other from showing up.
   - **Pagination**:
     - Now contains more information, such as `has_previous`.
     - Is better structured and puts into a new `"pagination"` field for each paginated response.
@@ -3449,10 +3449,10 @@ For technical support, API key requests, or questions:
     - `GET /load-leaderboard/`:
       - Now `GET /leaderboard/`
       - Lists available leaderboards.
-      - With query params (e.g. `stage=league`, `level=2`), leaderboard for specific exam is loaded.
+      - With query params (e.g. `stage=league`, `round=2`), leaderboard for specific exam is loaded.
       - Includes `exam_details`, `top_three`, and `remaining_candidates`.
       - Paginated.
-    - `GET /leaderboard/<stage>/<level>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
+    - `GET /leaderboard/<stage>/<round>/candidate/<candidate_id>/` is used to "View Details" of a specific candidate's submissions and performance on for that exam (and leaderboard).
     - Cached for 6 hours.
   - **OTP**:
     - `POST /resend-email-otp/`:

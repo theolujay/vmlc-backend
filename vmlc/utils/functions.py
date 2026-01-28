@@ -91,7 +91,7 @@ def _get_concluded_exams(now):
         )
         .filter(is_active=True, conclusion_time__lte=now)
         .annotate(average_score=Avg("results__score"))
-        .order_by("stage", "level")
+        .order_by("stage", "round")
     )
 
 
@@ -150,7 +150,7 @@ def _create_exam_leaderboard_data(exam, leaderboard_entries, stage_display):
         "exam_title": exam.title,
         "exam_description": exam.description,
         "stage": exam.stage,
-        "level": exam.level,
+        "round": exam.round,
         "stage_display": stage_display,
         "scheduled_date": exam.scheduled_date.isoformat(),
         "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,

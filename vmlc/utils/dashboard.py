@@ -81,7 +81,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         },
         "stage_progress": {
             "current_stage": candidate.role,
-            "current_level": available_exams_list[0]["level"] if available_exams_list else 1,
+            "current_round": available_exams_list[0]["round"] if available_exams_list else 1,
             "has_taken_exam": (
                 available_exams_list[0]["participation"] == "done"
                 if available_exams_list
@@ -191,7 +191,7 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "id": exam.id,
                         "title": exam.title,
                         "stage": exam.stage,
-                        "level": exam.level,
+                        "round": exam.round,
                         "stage_display": exam.stage_display,
                         "description": exam.description,
                         "open_duration_hours": exam.open_duration_hours,
@@ -227,7 +227,7 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "id": exam.id,
                         "title": exam.title,
                         "stage": exam.stage,
-                        "level": exam.level,
+                        "round": exam.round,
                         "stage_display": exam.stage_display,
                         "description": exam.description,
                         "concluded_at": exam.concluded_at,
@@ -273,8 +273,8 @@ def _get_candidate_leaderboard_ranking(
 def _get_candidate_screening_ranking(
     candidate: Candidate,
 ) -> tuple[Optional[int], int]:
-    """Helper to get ranking for the Screening Level 1 exam."""
-    screening_exam = Exam.objects.filter(stage="screening", level=1).first()
+    """Helper to get ranking for the Screening Round 1 exam."""
+    screening_exam = Exam.objects.filter(stage="screening", round=1).first()
     if not screening_exam:
         return None, 0
 
@@ -385,7 +385,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
                 "title": exam["title"],
                 "scheduled_date": exam["scheduled_date"],
                 "is_active": exam["is_active"],
-                "stage": f"{exam['stage']}_{exam['level']}",
+                "stage": f"{exam['stage']}_{exam['round']}",
                 "question_count": exam["question_count"],
                 "countdown_minutes": exam["countdown_minutes"],
             }
@@ -477,7 +477,7 @@ def _get_staff_upcoming_exams(now: Any) -> list:
             "scheduled_date",
             "is_active",
             "stage",
-            "level",
+            "round",
             "countdown_minutes",
         )
         .annotate(question_count=Count("questions"))[:5]
