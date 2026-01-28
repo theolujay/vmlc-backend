@@ -144,16 +144,35 @@ setup_django_env() {
         exit 1
     fi
 
-    # Fix admin migration dependency issue
+    # Fix admin migration dependency issue by re-inserting records in correct order
     log_info "Fixing admin migration dependencies..."
     python manage.py shell -c "
 from django.db import connection
+from django.utils import timezone
+
 cursor = connection.cursor()
+
+# Delete existing admin migrations
 cursor.execute('DELETE FROM django_migrations WHERE app='\''admin'\''')
 print('✓ Cleared admin migration history')
-" 2>/dev/null || log_warn "Could not clear admin migrations"
-    
-    python manage.py migrate admin --fake 2>&1 || log_warn "Could not fake admin migrations"
+
+# Re-insert them in the correct order (after identity exists)
+admin_migrations = [
+    '0001_initial',
+    '0002_logentry_remove_auto_add',
+    '0003_logentry_add_action_flag_choices',
+]
+
+for migration_name in admin_migrations:
+    cursor.execute(
+        'INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, %s)',
+        ['admin', migration_name, timezone.now()]
+    )
+    print(f'✓ Re-applied admin.{migration_name}')
+
+print('✓ Admin migration dependencies fixed')
+" 2>&1 || log_error "Failed to fix admin migrations"
+
     log_info "✓ Admin migrations handled"
 
     log_info "Running database migrations..."
