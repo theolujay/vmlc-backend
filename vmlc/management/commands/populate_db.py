@@ -316,7 +316,7 @@ class Command(BaseCommand):
             for _ in range(count):
                 exam = Exam.objects.create(
                     stage=stage,
-                    level=1 if is_screening else random.randint(1, 5),
+                    round=1 if is_screening else random.randint(1, 5),
                     title=fake.catch_phrase(),
                     description=fake.text(),
                     created_by=random.choice(staff_list),

@@ -602,7 +602,7 @@ class ExamAdmin(admin.ModelAdmin):
         "id",
         "title",
         "stage",
-        "level",
+        "round",
         "scheduled_date",
         "get_question_count",
         "is_active",
@@ -611,7 +611,7 @@ class ExamAdmin(admin.ModelAdmin):
         "created_at",
     )
     readonly_fields = ("created_at", "updated_at")
-    list_filter = ("stage", "level", "is_active", "created_by")
+    list_filter = ("stage", "round", "is_active", "created_by")
     search_fields = ("title", "stage")
     date_hierarchy = "created_at"
     filter_horizontal = ("questions",)
