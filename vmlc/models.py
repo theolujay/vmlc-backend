@@ -259,14 +259,6 @@ class Exam(models.Model):
     )
     title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
-    stage = models.CharField(
-        max_length=20, choices=Stages.choices, default=Stages.LEAGUE, db_index=True
-    )
-    round = models.PositiveIntegerField(
-        default=1,
-        db_index=True,
-        help_text="Round within the stage (e.g., 1 for League 1, 2 for League 2)",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "identity.Staff",
@@ -289,19 +281,6 @@ class Exam(models.Model):
 
     questions = models.ManyToManyField(Question, blank=True, related_name="exams")
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        # # Ensure only one exam per stage-round combination can be active at a time
-        # constraints = [
-        #     models.UniqueConstraint(
-        #         fields=['stage', 'round'],
-        #         condition=models.Q(is_active=True),
-        #         name='unique_active_stage_round'
-        #     )
-        # ]
-        indexes = [
-            models.Index(fields=["stage", "round", "is_active"]),
-        ]
 
     def __str__(self):
         """Return a string representation of the exam."""

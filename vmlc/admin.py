@@ -595,14 +595,12 @@ class StaffAdmin(admin.ModelAdmin):
 class ExamAdmin(admin.ModelAdmin):
     """
     Admin interface for the Exam model.
-    Displays exam metadata and allows filtering by stage and publication status.
+    Displays exam metadata and allows filtering by publication status.
     """
 
     list_display = (
         "id",
         "title",
-        "stage",
-        "round",
         "scheduled_date",
         "get_question_count",
         "is_active",
@@ -611,8 +609,8 @@ class ExamAdmin(admin.ModelAdmin):
         "created_at",
     )
     readonly_fields = ("created_at", "updated_at")
-    list_filter = ("stage", "round", "is_active", "created_by")
-    search_fields = ("title", "stage")
+    list_filter = ("is_active", "created_by")
+    search_fields = ("title",)
     date_hierarchy = "created_at"
     filter_horizontal = ("questions",)
 
