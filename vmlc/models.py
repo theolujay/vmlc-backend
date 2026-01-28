@@ -526,3 +526,84 @@ class Event(models.Model):
     def __str__(self):
         """Return a string representation of the event."""
         return f"{self.event_name} at {self.timestamp}"
+
+class ExamAccess(models.Model):
+    """
+    Represents a per-candidate execution contract for an exam on a facilitator.
+
+    Created when an exam is provisioned to an external system (e.g. Esturdi).
+    Stores access URLs, passcodes, and execution state.
+    """
+
+    class Facilitator(models.TextChoices):
+        VMLC = "vmlc", "VMLC"
+        ESTURDI = "esturdi", "Esturdi"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"          # provisioned but not opened
+        ISSUED = "issued", "Issued"              # URL generated
+        STARTED = "started", "Started"
+        SUBMITTED = "submitted", "Submitted"
+        EXPIRED = "expired", "Expired"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    exam = models.ForeignKey(
+        "vmlc.Exam",
+        on_delete=models.CASCADE,
+        related_name="access_records",
+    )
+    candidate = models.ForeignKey(
+        "identity.Candidate",
+        on_delete=models.CASCADE,
+        related_name="exam_accesses",
+    )
+
+    facilitator_system = models.CharField(
+        max_length=20,
+        choices=Facilitator.choices,
+    )
+
+    access_url = models.URLField(
+        null=True,
+        blank=True,
+        help_text="Candidate-specific exam URL on the facilitator."
+    )
+    passcode = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Opaque passcode or token embedded in the URL."
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+
+    issued_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    facilitator_payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Raw request/response metadata exchanged with facilitator."
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["exam", "candidate"],
+                name="unique_exam_access_per_candidate"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["exam", "status"]),
+            models.Index(fields=["candidate", "status"]),
+        ]
