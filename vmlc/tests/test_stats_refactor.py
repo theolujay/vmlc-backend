@@ -2,10 +2,9 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from vmlc.models import Candidate, Staff, PreRegUser, Exam
+from identity.models import Candidate, Staff, PreRegUser, User
+from vmlc.models import Exam
 from vmlc.utils.user import get_user_status_counts
-
-User = get_user_model()
 
 class UserStatsRefactorTest(TestCase):
     def setUp(self):
@@ -83,7 +82,7 @@ class UserStatsRefactorTest(TestCase):
         user = self.create_user("pending@example.com", last_login_days_ago=1)
         candidate = self.create_candidate(user)
         
-        from vmlc.models import UserVerification
+        from identity.models import UserVerification
         UserVerification.objects.create(user=user, is_pending=True)
         
         # Old logic would return "pending"
@@ -115,8 +114,8 @@ class UserStatsRefactorTest(TestCase):
         candidate = self.create_candidate(user)
         
         # Candidate needs to have score in this exam
-        from vmlc.models import CandidateScore
-        CandidateScore.objects.create(candidate=candidate, exam=exam, score=10.0)
+        from vmlc.models import CandidateExamResult
+        CandidateExamResult.objects.create(candidate=candidate, exam=exam, score=10.0)
 
         counts = get_user_status_counts(Candidate.objects.all(), "candidate")
         self.assertEqual(counts["active"], 1)

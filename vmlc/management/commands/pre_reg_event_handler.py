@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from vmlc.models import PreRegUser, User, Event
+from identity.models import PreRegUser, User
+from vmlc.models import Event
 from vmlc.utils.events import log_event
 
 

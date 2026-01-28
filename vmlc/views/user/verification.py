@@ -16,11 +16,11 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
-from vmlc.models import User, UserVerification
+from identity.models import User, UserVerification
 from vmlc.permissions import (
     AuthenticatedUser,
-    IsObjectOwnerOrVerifiedAdmin,
-    VerifiedManagerPermissions,
+    IsObjectOwnerOrActiveAdmin,
+    ActiveManagerPermissions,
 )
 from vmlc.serializers import (
     UserVerificationActionSerializer,
@@ -85,7 +85,7 @@ class UserVerificationStatusView(APIView):
                 raise NotFound("User not found.")
             if (
                 request.user.id != target_user.id
-                and not IsObjectOwnerOrVerifiedAdmin().has_object_permission(
+                and not IsObjectOwnerOrActiveAdmin().has_object_permission(
                     self.request, self, target_user
                 )
             ):
@@ -507,7 +507,7 @@ class UserVerificationDocumentView(APIView):
             # Check permissions: only the user themselves or superadmin can access
             if str(request.user.id) != str(
                 user_id
-            ) and not IsObjectOwnerOrVerifiedAdmin().has_object_permission(  # Convert both to string for comparison
+            ) and not IsObjectOwnerOrActiveAdmin().has_object_permission(  # Convert both to string for comparison
                 request, self, target_user
             ):
                 logger.warning(
@@ -570,7 +570,7 @@ class UserVerificationDocumentView(APIView):
 class UserVerificationListView(ListAPIView):
     """List all verification requests for superadmin review."""
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = UserVerificationListSerializer
     queryset = UserVerification.objects.select_related("user").all()
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -588,7 +588,7 @@ class UserVerificationActionView(APIView):
     Handle user verification actions (approve/reject).
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
 
     @swagger_auto_schema(
         operation_summary="Perform Verification Action",

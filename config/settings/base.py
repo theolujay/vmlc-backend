@@ -26,7 +26,7 @@ INTERNAL_IPS = [
 ]
 ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
 
-AUTH_USER_MODEL = "vmlc.User"
+AUTH_USER_MODEL = "identity.User"
 APPEND_SLASH = True
 
 INSTALLED_APPS = [
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "django_celery_results",
     "django_celery_beat",
     "channels",
+    "identity",
     "vmlc",
     "comms",
 ]
@@ -322,10 +323,10 @@ CELERY_TASK_ROUTES = {
     "send_mail_task": {"queue": "emails", "priority": 9},
     "send_broadcast_task": {"queue": "comms", "priority": 8},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
-    "calculate_and_save_auto_score_task": {"queue": "scoring", "priority": 6},
+    "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
     "validate_user_verification_files_task": {"queue": "files", "priority": 5},
     "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
-    "generate_scores_snapshot_task": {"queue": "reports", "priority": 3},
+    "generate_results_snapshot_task": {"queue": "reports", "priority": 3},
     "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
     "update_candidate_dashboard_cache_task": {"queue": "cache", "priority": 2},
     "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},

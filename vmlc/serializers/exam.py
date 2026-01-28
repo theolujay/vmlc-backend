@@ -2,8 +2,9 @@ from django.db.models import Avg
 
 from rest_framework import serializers
 
+from identity.models import Staff
 from ..models import (
-    CandidateScore,
+    CandidateExamResult,
     Question,
     Exam,
 )
@@ -93,7 +94,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
         Returns average score, using annotated value if available.
         """
         avg = getattr(
-            obj, "average_score", obj.scores.aggregate(avg=Avg("score"))["avg"]
+            obj, "average_score", obj.results.aggregate(avg=Avg("score"))["avg"]
         )
         return float(avg or 0.0)
 
@@ -141,7 +142,7 @@ class ExamResultSerializer(serializers.ModelSerializer):
     candidate_school_name = serializers.CharField(source="candidate.school_name", read_only=True)
 
     class Meta:
-        model = CandidateScore
+        model = CandidateExamResult
         fields = [
             "candidate_name",
             "candidate_school_name",

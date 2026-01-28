@@ -3,8 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 
-from vmlc.models import Staff, UserVerification
-from vmlc.models import Staff, UserVerification
+from identity.models import Staff, UserVerification
 
 User = get_user_model()
 

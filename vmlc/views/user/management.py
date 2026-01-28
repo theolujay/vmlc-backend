@@ -29,15 +29,13 @@ from vmlc.serializers import (
     CandidateListSerializer,
     UserProfileListSerializer,
 )
-from vmlc.models import PreRegUser, User, UserVerification, Staff, Candidate
+from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     staff_registration_request_body,
     candidate_registration_request_body,
-    candidate_invite_response_schema,
-    staff_invite_response_schema,
     account_management_response_schema,
     error_response_401,
     error_response_403,
@@ -47,21 +45,17 @@ from vmlc.utils.swagger_schemas import (
 from vmlc.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
-    IsObjectOwnerOrVerifiedAdmin,
-    VerifiedAdminPermissions,
-    VerifiedManagerPermissions,
-    VerifiedModeratorPermissions,
+    IsObjectOwnerOrActiveAdmin,
+    ActiveAdminPermissions,
+    ActiveManagerPermissions,
+    ActiveModeratorPermissions,
 )
 from vmlc.serializers import (
-    CandidateDetailSerializer,
-    StaffDetailSerializer,
     StaffInviteSerializer,
     CandidateInviteSerializer,
-    UserSerializer,
     UserProfileDetailSerializer,
 )
 from vmlc.tasks import (
-    generate_stats_overview_task,
     send_mail_task,
     revoke_user_invite_task,
 )
@@ -204,7 +198,7 @@ class AccountCacheManager:
     @classmethod
     def invalidate_user_cache(cls, user):
         """Invalidate all caches related to a user."""
-        from vmlc.models import Staff
+        from identity.models import Staff
         
         cache.delete(cls.get_cache_key(user.id))
         
@@ -239,7 +233,7 @@ class AccountManagementView(APIView):
         
         target_user = get_object_or_404(User, id=user_id)
         
-        if not IsObjectOwnerOrVerifiedAdmin().has_object_permission(request, self, target_user):
+        if not IsObjectOwnerOrActiveAdmin().has_object_permission(request, self, target_user):
             logger.warning(
                 f"User {request.user.id} lacks permission to manage user {user_id}"
             )
@@ -431,7 +425,7 @@ class BaseInviteView(CreateAPIView):
     Base API view to create a new user invite.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = None
     profile_type = ""
 
@@ -544,7 +538,7 @@ class StaffInviteView(BaseInviteView):
     API view to create a new staff member.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
 
@@ -568,7 +562,7 @@ class CandidateInviteView(BaseInviteView):
     API view to create a new candidate.
     """
 
-    permission_classes = VerifiedManagerPermissions
+    permission_classes = ActiveManagerPermissions
     serializer_class = CandidateInviteSerializer
     profile_type = "candidate"
 
@@ -603,7 +597,7 @@ class UserListView(ListAPIView):
     Level of detail depends on role.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def list(self, request, *args, **kwargs):
@@ -775,7 +769,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     """
 
     serializer_class = UserProfileDetailSerializer
-    permission_classes = VerifiedAdminPermissions + [IsManagerForStaffDetail]
+    permission_classes = ActiveAdminPermissions + [IsManagerForStaffDetail]
     http_method_names = ["get", "patch", "delete"]
     profile = ""
 
@@ -839,7 +833,7 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         if self.profile == "candidate":
             return (
                 Candidate.objects.select_related("user", "user__verification")
-                .prefetch_related("scores__exam", "scores__score_submitted_by__user")
+                .prefetch_related("results__exam", "results__score_submitted_by__user")
                 .all()
             )
         if self.profile == "staff":

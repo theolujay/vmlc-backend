@@ -20,7 +20,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from ..models import User
+from identity.models import User
 from ..permissions import HasXAPIKey
 from ..serializers import (
     PasswordChangeOTPConfirmSerializer,

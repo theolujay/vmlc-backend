@@ -16,7 +16,8 @@ from rest_framework.generics import (
 )
 
 from vmlc.utils.helpers import invalidate_all_dashboard_caches
-from ..models import Exam, CandidateScore, Candidate, Question
+from identity.models import Candidate
+from ..models import Exam, Question, CandidateExamResult
 from ..serializers import (
     ExamListSerializer,
     ExamDetailSerializer,
@@ -26,7 +27,7 @@ from ..serializers import (
     CandidateExamScoreSerializer,
 )
 from ..permissions import (
-    VerifiedAdminPermissions,
+    ActiveAdminPermissions,
     CandidatePermissions,
 )
 from ..utils.swagger_schemas import (
@@ -37,7 +38,7 @@ from ..utils.swagger_schemas import (
     exam_detail_response_schema,
     exam_result_response_schema,
     question_detail_list_response_schema,
-    candidate_exam_score_list_response_schema,
+    candidate_exam_result_list_response_schema,
     candidate_exam_response_schema,
     error_response_400,
     error_response_401,
@@ -90,7 +91,7 @@ class ExamListView(ListCreateAPIView):
     """
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamListSerializer
     filterset_class = ExamFilter
 
@@ -248,7 +249,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
     - DELETE: Remove the exam.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamDetailSerializer
     lookup_url_kwarg = "exam_id"
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -262,7 +263,7 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
             f"ExamDetailView: request from user {self.request.user.id} for exam {self.kwargs.get(self.lookup_url_kwarg)}"
         )
         return (
-            Exam.objects.annotate(average_score=Avg("scores__score"))
+            Exam.objects.annotate(average_score=Avg("results__score"))
             .select_related("created_by__user", "updated_by__user")
             .prefetch_related("questions")
         )
@@ -336,8 +337,8 @@ class ExamDetailView(RetrieveUpdateDestroyAPIView):
         invalidate_all_dashboard_caches()
 
         # Invalidate account management cache for all candidates who have taken this exam
-        for score in instance.scores.all():
-            cache.delete(f"account_management_{score.candidate.user.id}")
+        for result in instance.results.all():
+            cache.delete(f"account_management_{result.candidate.user.id}")
 
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
@@ -375,7 +376,7 @@ class ExamResultsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = ExamResultSerializer
     lookup_url_kwarg = "exam_id"
 
@@ -398,7 +399,7 @@ class ExamResultsView(ListAPIView):
 
     def get_queryset(self):
         """
-        Returns a queryset of scores for the specified exam,
+        Returns a queryset of results for the specified exam,
         optimized with prefetching.
         """
         exam_id = self.kwargs[self.lookup_url_kwarg]
@@ -411,7 +412,7 @@ class ExamResultsView(ListAPIView):
             logger.error(f"Exam with id {exam_id} not found.")
             raise NotFound("Exam not found.")
         return (
-            CandidateScore.objects.filter(exam_id=exam_id)
+            CandidateExamResult.objects.filter(exam_id=exam_id)
             .select_related("candidate__user")
             .order_by("-score")
         )
@@ -439,7 +440,7 @@ class ExamQuestionsView(ListAPIView):
     Requires exam_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = QuestionListSerializer
 
     def list(self, request, *args, **kwargs):
@@ -480,7 +481,7 @@ class ExamQuestionsView(ListAPIView):
         operation_summary="Get Exam History",
         operation_description="Get exam history for a candidate.",
         responses={
-            200: candidate_exam_score_list_response_schema,
+            200: candidate_exam_result_list_response_schema,
             401: error_response_401,
             403: error_response_403,
             404: error_response_404,
@@ -491,12 +492,12 @@ class ExamQuestionsView(ListAPIView):
 )
 class ExamHistoryView(ListAPIView):
     """
-    API view to retrieve the exam history and scores of a specific candidate.
+    API view to retrieve the exam history and results of a specific candidate.
 
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = CandidateExamScoreSerializer
     lookup_url_kwarg = "candidate_id"
 
@@ -515,7 +516,7 @@ class ExamHistoryView(ListAPIView):
 
     def get_queryset(self):
         """
-        Returns a queryset of scores for the specified candidate,
+        Returns a queryset of results for the specified candidate,
         optimized with prefetching.
         """
         candidate_id = self.kwargs[self.lookup_url_kwarg]
@@ -528,7 +529,7 @@ class ExamHistoryView(ListAPIView):
             logger.error(f"Candidate with id {candidate_id} not found.")
             raise NotFound("Candidate not found.")
         return (
-            CandidateScore.objects.filter(candidate_id=candidate_id)
+            CandidateExamResult.objects.filter(candidate_id=candidate_id)
             .select_related("exam")
             .order_by("-recorded_at")
         )
@@ -563,11 +564,11 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not candidate.is_user_verified:
+    if not candidate.is_active:
         logger.warning(
-            f"Unverified candidate {candidate.id} attempted to take exam {exam_id}"
+            f"Deactivated candidate {candidate.id} attempted to take exam {exam_id}"
         )
-        raise PermissionDenied("Candidate must be verified to take this exam.")
+        raise PermissionDenied("Candidate is deactivaated and cannot take this exam.")
 
     if candidate.role != exam.stage:
         logger.warning(

@@ -56,8 +56,8 @@ def send_otp_on_registration_task(self, user_id):
     """
     Celery task to send OTP to user on registration.
     """
-    from .models import User
-    from .utils.auth import send_otp_to_email
+    from identity.models import User
+    from vmlc.utils.auth import send_otp_to_email
 
     try:
         user = User.objects.get(pk=user_id)
@@ -70,14 +70,14 @@ def send_otp_on_registration_task(self, user_id):
         raise self.retry(exc=exc, countdown=60)
 
 
-@shared_task(name="calculate_and_save_auto_score_task")
-def calculate_and_save_auto_score_task(candidate_score_id):
+@shared_task(name="compute_candidate_result_task")
+def compute_candidate_result_task(candidate_result_id):
     """
     Celery task to calculate and save the auto score for a candidate's exam submission.
     """
-    from vmlc.utils.functions import calculate_and_save_auto_score
+    from vmlc.utils.functions import compute_candidate_result
 
-    calculate_and_save_auto_score(candidate_score_id)
+    compute_candidate_result(candidate_result_id)
 
 
 @shared_task(name="generate_leaderboard_snapshot_task")
@@ -90,14 +90,14 @@ def generate_leaderboard_snapshot_task(staff_id=None):
     return generate_leaderboard_snapshot(staff_id)
 
 
-@shared_task(name="generate_scores_snapshot_task")
-def generate_scores_snapshot_task(staff_id=None):
+@shared_task(name="generate_results_snapshot_task")
+def generate_results_snapshot_task(staff_id=None):
     """
-    Celery task to generate and publish the scores snapshot.
+    Celery task to generate and publish the results snapshot.
     """
-    from vmlc.utils.functions import generate_scores_snapshot
+    from vmlc.utils.functions import generate_results_snapshot
 
-    generate_scores_snapshot(staff_id)
+    generate_results_snapshot(staff_id)
 
 
 @shared_task(name="validate_user_verification_files_task")
@@ -249,7 +249,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
 @shared_task(name="clear_pre_reg_user")
 def clear_pre_reg_user(user_email, user_type="candidate"):
 
-    from vmlc.models import Staff, Candidate, PreRegUser
+    from identity.models import PreRegUser
     from vmlc.utils.events import log_event
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)
@@ -273,7 +273,7 @@ def revoke_user_invite_task(user_id):
     """
     Celery task to revoke user credentials if they haven't logged in within a week since invite.
     """
-    from .models import User
+    from identity.models import User
 
     try:
         user = User.objects.get(pk=user_id)
@@ -320,7 +320,8 @@ def send_system_email_task(
         build_support_confirmation_email,
         build_support_notification_email,
     )
-    from .models import User, PreRegUser, SupportInquiry
+    from identity.models import User, PreRegUser
+    from vmlc.models import SupportInquiry
 
     if not obj_id:
         logger.error("No object ID provided for email task")
@@ -387,7 +388,7 @@ def send_system_email_task(
 def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
-    from .models import User, PreRegUser
+    from identity.models import User, PreRegUser
 
     if is_pre_reg:
         user = PreRegUser.objects.get(pk=user_id)
@@ -435,7 +436,7 @@ def upload_user_documents_task(self, user_id, file_mappings):
         user_id: ID of the user
         file_mappings: List of dicts with keys: temp_path, field_name, original_name
     """
-    from .models import User, UserVerification
+    from identity.models import User, UserVerification
     
     uploaded_files = []
     failed_files = []

@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from ..models import Exam, Question
-from ..permissions import VerifiedAdminPermissions, VerifiedModeratorPermissions
+from ..permissions import ActiveModeratorPermissions, ActiveAdminPermissions
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.query_filters import filter_questions
 from ..utils.swagger_schemas import (
@@ -70,10 +70,10 @@ class QuestionListView(ListCreateAPIView):
     - POST: Creates a new question from provided data.
 
     Permissions:
-        - Only accessible to verified staff with role: moderator, admin, or superadmin.
+        - Only accessible to non-deactivated staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     def list(self, request, *args, **kwargs):
@@ -277,7 +277,7 @@ class QuestionDetailView(RetrieveUpdateDestroyAPIView):
         - Only accessible to staff with role: moderator, admin, or superadmin.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = QuestionDetailSerializer
     queryset = (
         Question.objects.filter(is_archived=False)
@@ -358,10 +358,10 @@ class QuestionExamAssociationView(APIView):
     POST: Add or remove question from specified exams.
 
     Permissions:
-        - Only accessible to verified staff with role: admin or superadmin.
+        - Only accessible to non-deactivated staff with role: admin, manager or superadmin.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
 
     def post(self, request, question_id):
         """
@@ -584,10 +584,10 @@ class BulkAddQuestionsToExamsView(APIView):
     POST: Add multiple questions to multiple exams in one operation.
 
     Permissions:
-        - Only accessible to verified staff with role: admin or superadmin.
+        - Only accessible to non-deactivated staff with role: admin or superadmin.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
 
     def post(self, request):
         """
@@ -844,10 +844,10 @@ class BulkQuestionArchiveView(APIView):
     POST: Archive multiple questions in one operation.
 
     Permissions:
-        - Only accessible to verified staff with role: admin or superadmin.
+        - Only accessible to non-deactivated staff with role: admin or superadmin.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
 
     def post(self, request):
         """

@@ -3,13 +3,15 @@ from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-from .models import (
+from identity.models import (
     PreRegUser,
     User,
     Candidate,
     Staff,
     UserVerification,
-    CandidateScore,
+)
+from vmlc.models import (
+    CandidateExamResult,
     Exam,
 )
 from .tasks import (
@@ -45,7 +47,7 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     Handles post-login tasks:
     - Invalidates stats cache.
     - Sets email as verified on login if not already verified.
-    - Updates dashboard caches for verified users.
+    - Updates dashboard caches for non-deactivated users.
     """
     refresh_stats_overview_cache()
 
@@ -65,21 +67,21 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     if (
         hasattr(user, "staff_profile")
         and user.is_email_verified
-        and user.staff_profile.is_user_verified
+        and user.staff_profile.is_active
     ):
         update_staff_dashboard_cache_task.delay(user.id)
 
     if (
         hasattr(user, "candidate_profile")
         and user.is_email_verified
-        and user.candidate_profile.is_user_verified
+        and user.candidate_profile.is_active
     ):
         update_candidate_dashboard_cache_task.delay(user.id)
 
 
 # Invalidate stats cache on changes to relevant models.
 # This is a broad approach, but ensures data freshness for the overview.
-models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateScore, Exam]
+models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateExamResult, Exam]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
     post_delete.connect(refresh_stats_overview_cache, sender=model)

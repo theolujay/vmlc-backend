@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 import django.db.models.deletion
 import django.utils.timezone
 import uuid
-import vmlc.models
+import identity.models
 import vmlc.storage_backends
 from django.conf import settings
 from django.db import migrations, models
@@ -485,7 +485,7 @@ class Migration(migrations.Migration):
                         null=True,
                         storage=vmlc.storage_backends.PrivateMediaStorage(),
                         upload_to="id_cards/",
-                        validators=[vmlc.models.validate_id_card_file],
+                        validators=[identity.models.validate_id_card_file],
                     ),
                 ),
                 (
@@ -495,7 +495,7 @@ class Migration(migrations.Migration):
                         null=True,
                         storage=vmlc.storage_backends.PrivateMediaStorage(),
                         upload_to="verification_docs/",
-                        validators=[vmlc.models.validate_document_file],
+                        validators=[identity.models.validate_document_file],
                     ),
                 ),
                 ("date_created", models.DateTimeField(auto_now_add=True)),

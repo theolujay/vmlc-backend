@@ -10,12 +10,15 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
-from vmlc.models import (
+from identity.models import (
     Candidate,
-    Exam,
-    Question,
     Staff,
     UserVerification,
+)
+
+from vmlc.models import (
+    Exam,
+    Question,
     FeatureFlag,
 )
 

@@ -66,6 +66,17 @@ LOGGING = {
     },
 }
 
+# Speed up tests and avoid migration issues by building DB from models
+class DisableMigrations:
+    def __contains__(self, item):
+        return True
+
+    def __getitem__(self, item):
+        return None
+
+
+MIGRATION_MODULES = DisableMigrations()
+
 # Override sensitive/service-related settings for tests
 TWILIO_ACCOUNT_SID = "test_twilio_sid"
 TWILIO_AUTH_TOKEN = "test_twilio_token"

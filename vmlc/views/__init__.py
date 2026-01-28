@@ -51,7 +51,7 @@ from .registration import (
     ToggleCandidateRegistrationView,
     ToggleStaffRegistrationView,
 )
-from .score import (
+from .exam_result import (
     SubmitScoreView,
     PublishScoresView,
 )
@@ -126,8 +126,8 @@ __all__ = [
     "health_check",
     "stats_overview",
     "registration_status",
-    # score
-    # "CandidateScoreListView",
+    # result
+    # "CandidateExamResultListView",
     "SubmitScoreView",
     "PublishScoresView",
     # staff

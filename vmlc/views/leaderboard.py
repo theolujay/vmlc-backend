@@ -12,12 +12,12 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.settings import api_settings
 
-
-from vmlc.models import Candidate, LeaderboardSnapshot
+from identity.models import Candidate
+from vmlc.models import LeaderboardSnapshot
 from vmlc.permissions import (
     AuthenticatedUser,
-    IsVerifiedModeratorOrCandidate,
-    VerifiedAdminPermissions,
+    IsActiveModeratorOrCandidate,
+    ActiveAdminPermissions,
 )
 from vmlc.serializers.leaderboard import (
     PublishLeaderboardSerializer,
@@ -38,7 +38,7 @@ class PublishLeaderboardView(APIView):
     Admin role required.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
 
     @swagger_auto_schema(
         operation_summary="Publish Exam Leaderboard",
@@ -62,7 +62,7 @@ class PublishLeaderboardView(APIView):
         staff_id = request.user.staff_profile.pk
         from vmlc.utils.helpers import invalidate_all_candidate_records
         from vmlc.tasks import (
-            generate_scores_snapshot_task,
+            generate_results_snapshot_task,
             generate_leaderboard_snapshot_task,
         )
 
@@ -75,7 +75,7 @@ class PublishLeaderboardView(APIView):
         logger.info("Leaderboard cache invalidated.")
 
         invalidate_all_candidate_records()
-        generate_scores_snapshot_task.delay(staff_id)
+        generate_results_snapshot_task.delay(staff_id)
         generate_leaderboard_snapshot_task.delay(staff_id)
 
         logger.info(f"Leaderboard generation triggered by staff {staff_id}")
@@ -106,7 +106,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
     Filters leaderboards based on the user's role.
     """
 
-    permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
+    permission_classes = AuthenticatedUser + [IsActiveModeratorOrCandidate]
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
     @swagger_auto_schema(
@@ -169,10 +169,10 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
 
         if (
             hasattr(user, "candidate_profile")
-            and not user.candidate_profile.is_user_verified
+            and not user.candidate_profile.is_active
         ):
             return Response(
-                {"detail": "Candidate must be verified to view the leaderboard."},
+                {"detail": "Candidate is deactivated and cannot view leaderboard."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -203,7 +203,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
     def _get_user_role_key(self, user):
         """Helper to generate a cache key based on user role."""
         if hasattr(user, "candidate_profile"):
-            return f"candidate_{user.candidate_profile.role}_{user.candidate_profile.is_user_verified}"
+            return f"candidate_{user.candidate_profile.role}_{user.candidate_profile.is_active}"
         return "staff"
 
     def _handle_specific_leaderboard_request(
@@ -331,7 +331,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
     Example: leaderboard/league/2/candidate/123/
     """
 
-    permission_classes = AuthenticatedUser + [IsVerifiedModeratorOrCandidate]
+    permission_classes = AuthenticatedUser + [IsActiveModeratorOrCandidate]
 
     @swagger_auto_schema(
         operation_summary="Get Candidate Leaderboard Details",

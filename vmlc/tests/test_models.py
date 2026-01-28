@@ -1,8 +1,8 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from vmlc.models import Candidate, Staff, Question, Exam
 
-User = get_user_model()
+from identity.models import Candidate, Staff, User
+from vmlc.models import Question, Exam
 
 
 class UserModelTest(TestCase):

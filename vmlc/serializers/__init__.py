@@ -45,8 +45,8 @@ from .role import (
     CandidateRoleSerializer,
     StaffRoleSerializer,
 )
-from .score import (
-    CandidateScoreSerializer,
+from .exam_result import (
+    CandidateExamResultSerializer,
     SubmitScoreSerializer,
     CandidateExamScoreSerializer,
 )
@@ -102,8 +102,8 @@ __all__ = [
     # role
     "CandidateRoleSerializer",
     "StaffRoleSerializer",
-    # score
-    "CandidateScoreSerializer",
+    # result
+    "CandidateExamResultSerializer",
     "SubmitScoreSerializer",
     "CandidateExamScoreSerializer",
     # staff

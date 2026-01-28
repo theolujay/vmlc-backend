@@ -18,7 +18,7 @@ from ..utils.swagger_schemas import (
 )
 from ..permissions import (
     CandidatePermissions,
-    VerifiedModeratorPermissions,
+    ActiveModeratorPermissions,
 )
 from ..tasks import (
     update_staff_dashboard_cache_task,
@@ -83,7 +83,7 @@ class StaffDashboardView(APIView):
     Retrieve dashboard data for the currently authenticated staff member.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
 
     @swagger_auto_schema(
         operation_summary="Get Staff Dashboard",

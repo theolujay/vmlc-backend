@@ -7,13 +7,16 @@ from django.db.models import Window
 from django.db.models.functions import Rank
 from django.utils import timezone
 
-from ..models import (
+from identity.models import (
     Candidate,
-    CandidateScore,
-    CandidateScoreSnapshot,
+    Staff,
+)
+
+from vmlc.models import (
+    CandidateExamResult,
+    CandidateExamResultSnapshot,
     Exam,
     Question,
-    Staff,
 )
 
 
@@ -24,32 +27,32 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     Includes:
         - Candidate profile information
         - Exam statistics (taken, available, latest, average, min/max)
-        - Recent scores and available exams
+        - Recent results and available exams
         - Candidate ranking (if role is 'league')
 
     Args:
         candidate (Candidate): The candidate for whom the dashboard is being generated.
 
     Returns:
-        dict: A dictionary containing candidate info, exam stats, ranking, recent scores, and upcoming exams.
+        dict: A dictionary containing candidate info, exam stats, ranking, recent results, and upcoming exams.
     """
 
     candidate = Candidate.objects.select_related("user").get(pk=candidate.pk)
 
-    latest_snapshot: Optional[CandidateScoreSnapshot] = (
-        CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
+    latest_snapshot: Optional[CandidateExamResultSnapshot] = (
+        CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
         .order_by("-published_at")
         .first()
     )
 
-    score_stats, recent_scores_list = _get_candidate_score_stats(
+    result_stats, recent_results_list = _get_candidate_performance_stats(
         candidate, latest_snapshot
     )
     available_exams_list = _get_candidate_available_exams(
-        candidate, score_stats["taken_exam_ids"]
+        candidate, result_stats["taken_exam_ids"]
     )
     concluded_exams_list = _get_candidate_concluded_exams(
-        candidate, score_stats["taken_exam_ids"]
+        candidate, result_stats["taken_exam_ids"]
     )
     candidate_rank, total_league_candidates = _get_candidate_leaderboard_ranking(
         candidate, latest_snapshot
@@ -64,17 +67,17 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "last_name": candidate.user.last_name,
         },
         "exam_stats": {
-            "total_exams_taken": score_stats["total_exams_taken"],
+            "total_exams_taken": result_stats["total_exams_taken"],
             "available_exams_count": len(available_exams_list),
-            "average_score": round(float(score_stats["average_score"] or 0), 2),
-            "highest_score": float(score_stats["highest_score"] or 0),
-            "lowest_score": float(score_stats["lowest_score"] or 0),
+            "average_score": round(float(result_stats["average_score"] or 0), 2),
+            "highest_score": float(result_stats["highest_score"] or 0),
+            "lowest_score": float(result_stats["lowest_score"] or 0),
             "latest_score": (
-                score_stats["latest_score_data"]["score"]
-                if score_stats["latest_score_data"]
+                result_stats["latest_score_data"]["score"]
+                if result_stats["latest_score_data"]
                 else 0
             ),
-            "latest_score_info": score_stats["latest_score_data"],
+            "latest_score_info": result_stats["latest_score_data"],
         },
         "stage_progress": {
             "current_stage": candidate.role,
@@ -82,9 +85,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             "has_taken_exam": (
                 available_exams_list[0]["participation"] == "done"
                 if available_exams_list
-                else score_stats["total_exams_taken"] > 0
+                else result_stats["total_exams_taken"] > 0
             ),
-            "qualification_threshold_score": None,
+            "qualification_threshold_range": None,
         },
         "league_leaderboard_ranking": (
             {
@@ -104,15 +107,15 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             if screening_rank is not None
             else None
         ),
-        "recent_scores": [
+        "recent_results": [
             {
-                "exam": score["exam__title"],
-                "exam_title": score["exam__title"],
-                "score": float(score["score"]),
-                "date": score["recorded_at"],
-                "exam_stage": score["exam__stage"],
+                "exam": result["exam__title"],
+                "exam_title": result["exam__title"],
+                "score": float(result["score"]),
+                "date": result["recorded_at"],
+                "exam_stage": result["exam__stage"],
             }
-            for score in recent_scores_list
+            for result in recent_results_list
         ],
         "available_exams": available_exams_list,
         "concluded_exams": concluded_exams_list,
@@ -124,53 +127,53 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     return dashboard_data
 
 
-def _get_candidate_score_stats(
-    candidate: Candidate, latest_snapshot: Optional[CandidateScoreSnapshot]
+def _get_candidate_performance_stats(
+    candidate: Candidate, latest_snapshot: Optional[CandidateExamResultSnapshot]
 ) -> tuple[dict, list]:
-    """Helper to get score statistics for a candidate."""
-    all_scores_qs = CandidateScore.objects.filter(candidate=candidate)
-    taken_exam_ids = set(all_scores_qs.values_list("exam_id", flat=True))
+    """Helper to get performance statistics for a candidate."""
+    all_results_qs = CandidateExamResult.objects.filter(candidate=candidate)
+    taken_exam_ids = set(all_results_qs.values_list("exam_id", flat=True))
 
-    scores_qs_for_snapshot_stats = all_scores_qs
+    results_qs_for_snapshot_stats = all_results_qs
     if latest_snapshot:
-        scores_qs_for_snapshot_stats = all_scores_qs.filter(
+        results_qs_for_snapshot_stats = all_results_qs.filter(
             recorded_at__lte=latest_snapshot.published_at
         )
 
-    score_stats = scores_qs_for_snapshot_stats.aggregate(
+    result_stats = results_qs_for_snapshot_stats.aggregate(
         average_score=Avg("score"),
         highest_score=Max("score"),
         lowest_score=Min("score"),
     )
-    total_exams_taken = all_scores_qs.count()
+    total_exams_taken = all_results_qs.count()
 
-    recent_scores_list = list(
-        all_scores_qs.order_by("-recorded_at")
+    recent_results_list = list(
+        all_results_qs.order_by("-recorded_at")
         .select_related("exam")
         .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
     )
 
     latest_score_data = None
-    if recent_scores_list:
+    if recent_results_list:
         latest_score_data = {
-            "score": float(recent_scores_list[0]["score"]),
-            "exam_title": recent_scores_list[0]["exam__title"],
-            "date": recent_scores_list[0]["recorded_at"],
+            "score": float(recent_results_list[0]["score"]),
+            "exam_title": recent_results_list[0]["exam__title"],
+            "date": recent_results_list[0]["recorded_at"],
         }
     return {
-        "average_score": score_stats["average_score"],
-        "highest_score": score_stats["highest_score"],
-        "lowest_score": score_stats["lowest_score"],
+        "average_score": result_stats["average_score"],
+        "highest_score": result_stats["highest_score"],
+        "lowest_score": result_stats["lowest_score"],
         "total_exams_taken": total_exams_taken,
         "latest_score_data": latest_score_data,
         "taken_exam_ids": taken_exam_ids,
-    }, recent_scores_list
+    }, recent_results_list
 
 
 def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) -> list:
     """Helper to get available exams for a candidate."""
     available_exams_list = []
-    if candidate.is_user_verified:
+    if candidate.is_active:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role.lower(), is_active=True)
             .annotate(
@@ -206,7 +209,7 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
 def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) -> list:
     """Helper to get concluded exams for a candidate."""
     concluded_exams_list = []
-    if candidate.is_user_verified:
+    if candidate.is_active:
         all_relevant_exams = (
             Exam.objects.filter(stage=candidate.role, is_active=True)
             .annotate(
@@ -238,7 +241,7 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
 
 
 def _get_candidate_leaderboard_ranking(
-    candidate: Candidate, latest_snapshot: Optional[CandidateScoreSnapshot]
+    candidate: Candidate, latest_snapshot: Optional[CandidateExamResultSnapshot]
 ) -> tuple[Optional[int], int]:
     """Helper to get leaderboard ranking for a candidate."""
     candidate_rank: Optional[int] = None
@@ -246,8 +249,8 @@ def _get_candidate_leaderboard_ranking(
     if candidate.role == "league" and latest_snapshot:
         league_candidates_qs = Candidate.candidates_by_role("league").annotate(
             total_score=Sum(
-                "scores__score",
-                filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
+                "results__score",
+                filter=Q(results__recorded_at__lte=latest_snapshot.published_at),
                 default=0.0,
             )
         )
@@ -275,24 +278,24 @@ def _get_candidate_screening_ranking(
     if not screening_exam:
         return None, 0
 
-    scores_qs = CandidateScore.objects.filter(exam=screening_exam)
-    total_participants = scores_qs.count()
+    results_qs = CandidateExamResult.objects.filter(exam=screening_exam)
+    total_participants = results_qs.count()
 
     if total_participants == 0:
         return None, 0
 
-    ranked_qs = scores_qs.annotate(
+    ranked_qs = results_qs.annotate(
         rank=Window(
             expression=Rank(),
             order_by=F("score").desc(),
         )
     )
 
-    target_score = ranked_qs.filter(candidate=candidate).first()
-    if not target_score:
+    target_result = ranked_qs.filter(candidate=candidate).first()
+    if not target_result:
         return None, total_participants
 
-    return target_score.rank, total_participants
+    return target_result.rank, total_participants
 
 
 def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
@@ -311,7 +314,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         staff (Staff): The staff user for whom the dashboard is being generated.
 
     Returns:
-        dict: A dictionary containing candidate stats, exams, scores, recent activity, and upcoming exams.
+        dict: A dictionary containing candidate stats, exams, results, recent activity, and upcoming exams.
     """
     cache_key = f"staff_dashboard_{staff.pk}"
     cached_data = cache.get(cache_key)
@@ -327,7 +330,7 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
     candidate_stats_data = _get_staff_candidate_stats(last_week)
     exam_stats_data = _get_staff_exam_stats(last_week)
     question_stats_data = _get_staff_question_stats()
-    score_stats_data = _get_staff_score_stats(last_week)
+    result_stats_data = _get_staff_score_submission_stats(last_week)
     recent_activity_list = _get_staff_recent_activity()
     upcoming_exams_list = _get_staff_upcoming_exams(now)
     funnel_metrics = get_funnel_metrics()
@@ -337,7 +340,6 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "email": staff.user.email,
         "role": staff.get_role_display(),
         "occupation": staff.occupation,
-        "is_user_verified": staff.is_user_verified,
         "is_email_verified": staff.user.is_email_verified,
         "is_active": staff.user.is_active,
         "date_joined": staff.created_at,
@@ -349,21 +351,8 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
         "candidates": {
             "total": candidate_stats_data["total_candidates"],
             "active": candidate_stats_data["active_candidates"],
-            "verified": candidate_stats_data["verified_candidates"],
             "recent_registrations": candidate_stats_data["recent_registrations"],
             "by_role": candidate_stats_data["candidates_by_role"],
-            "verification_rate": (
-                round(
-                    (
-                        candidate_stats_data["verified_candidates"]
-                        / candidate_stats_data["total_candidates"]
-                        * 100
-                    ),
-                    1,
-                )
-                if candidate_stats_data["total_candidates"] > 0
-                else 0
-            ),
         },
         "registration_funnel": funnel_metrics,
         "exams": {
@@ -374,11 +363,11 @@ def get_staff_dashboard_data(staff: Staff) -> Dict[str, Any]:
             "total": question_stats_data["total_questions"],
             "by_difficulty": question_stats_data["questions_by_difficulty"],
         },
-        "scores": {
-            "total_submissions": score_stats_data["total_submissions"],
-            "recent_submissions": score_stats_data["recent_submissions"],
-            "average_score": round(float(score_stats_data["average_score"]), 2),
-            "highest_score": float(score_stats_data["highest_score"]),
+        "results": {
+            "total_submissions": result_stats_data["total_submissions"],
+            "recent_submissions": result_stats_data["recent_submissions"],
+            "average_score": round(float(result_stats_data["average_score"]), 2),
+            "highest_score": float(result_stats_data["highest_score"]),
         },
         "recent_activity": [
             {
@@ -413,9 +402,6 @@ def _get_staff_candidate_stats(last_week: timedelta) -> Dict[str, Any]:
     candidate_stats = Candidate.objects.aggregate(
         total_candidates=Count("user_id"),
         active_candidates=Count("user_id", filter=Q(user__is_active=True)),
-        verified_candidates=Count(
-            "user_id", filter=Q(user__verification__is_approved=True)
-        ),
         recent_registrations=Count("user_id", filter=Q(created_at__gte=last_week)),
     )
 
@@ -450,23 +436,23 @@ def _get_staff_question_stats() -> Dict[str, Any]:
     return question_stats
 
 
-def _get_staff_score_stats(last_week: timedelta) -> Dict[str, Any]:
+def _get_staff_score_submission_stats(last_week: timedelta) -> Dict[str, Any]:
     """Helper to get score submission statistics for staff dashboard."""
-    score_stats = CandidateScore.objects.aggregate(
+    result_stats = CandidateExamResult.objects.aggregate(
         total_submissions=Count("id"),
         recent_submissions=Count("id", filter=Q(recorded_at__gte=last_week)),
         average_score=Avg("score"),
         highest_score=Max("score"),
     )
-    score_stats["average_score"] = score_stats["average_score"] or 0
-    score_stats["highest_score"] = score_stats["highest_score"] or 0
-    return score_stats
+    result_stats["average_score"] = result_stats["average_score"] or 0
+    result_stats["highest_score"] = result_stats["highest_score"] or 0
+    return result_stats
 
 
 def _get_staff_recent_activity() -> list:
     """Helper to get recent candidate activity for staff dashboard."""
     recent_activity_list = list(
-        CandidateScore.objects.select_related("candidate__user", "exam")
+        CandidateExamResult.objects.select_related("candidate__user", "exam")
         .order_by("-recorded_at")
         .values(
             "score",

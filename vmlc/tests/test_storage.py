@@ -4,7 +4,7 @@
 # from django.test import TestCase, override_settings
 # from moto import mock_aws
 
-# from vmlc.models import User, UserVerification
+# from identity.models import User, UserVerification
 # from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 

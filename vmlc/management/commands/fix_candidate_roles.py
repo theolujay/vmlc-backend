@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from vmlc.models import Candidate
+from identity.models import Candidate
 import logging
 
 logger = logging.getLogger(__name__)

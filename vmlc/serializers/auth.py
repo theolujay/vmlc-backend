@@ -11,7 +11,7 @@ from vmlc.utils.auth import (
     send_password_change_otp,
 )
 
-from ..models import EmailOTP, User
+from identity.models import EmailOTP, User
 from .. import utils
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
         otp_obj.save()
 
         # Create user verification object
-        from ..models import UserVerification
+        from identity.models import UserVerification
 
         UserVerification.objects.get_or_create(user=user)
 

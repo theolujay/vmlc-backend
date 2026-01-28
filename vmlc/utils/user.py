@@ -1,7 +1,8 @@
 from datetime import timedelta
 from django.db.models import Q, QuerySet, F, ExpressionWrapper, DateTimeField
 from django.utils import timezone
-from ..models import Exam, PreRegUser
+from identity.models import PreRegUser
+from ..models import Exam
 
 def normalize_title(name):
     return name.lower().title()
@@ -34,7 +35,7 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
         # - Have participated in the last concluded exam
         last_concluded_exam = get_last_concluded_exam()
         if last_concluded_exam:
-            active_filter &= Q(scores__exam=last_concluded_exam)
+            active_filter &= Q(results__exam=last_concluded_exam)
             active = base_queryset.filter(active_filter).distinct().count()
         else:
             # No concluded exam = no candidates can be "active" based on this rule

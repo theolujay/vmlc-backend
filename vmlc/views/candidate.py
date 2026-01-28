@@ -13,11 +13,11 @@ from rest_framework.settings import api_settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..models import Candidate
+from identity.models import Candidate
 from ..permissions import (
     CandidatePermissions,
-    VerifiedModeratorPermissions,
-    VerifiedAdminPermissions,
+    ActiveModeratorPermissions,
+    ActiveAdminPermissions,
 )
 from ..serializers import (
     CandidateDetailSerializer,
@@ -103,7 +103,7 @@ class CandidateListView(ListAPIView):
     Supports pagination and query param filtering.
     """
 
-    permission_classes = VerifiedModeratorPermissions
+    permission_classes = ActiveModeratorPermissions
     serializer_class = CandidateListSerializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
 
@@ -143,7 +143,7 @@ class AssignCandidateRoleView(UpdateAPIView):
     Only staff with 'owner' or 'admin' roles are permitted.
     """
 
-    permission_classes = VerifiedAdminPermissions
+    permission_classes = ActiveAdminPermissions
     serializer_class = CandidateRoleSerializer
     queryset = Candidate.objects.all()
     lookup_url_kwarg = "candidate_id"
@@ -153,11 +153,11 @@ class AssignCandidateRoleView(UpdateAPIView):
         """
         Update candidate role and log the action.
         """
-        if not serializer.instance.is_user_verified:
+        if not serializer.instance.is_active:
             logger.warning(
-                f"Attempted to assign role to unverified candidate {serializer.instance.pk} by user {self.request.user.id}"
+                f"Attempted to assign role to deactivated candidate {serializer.instance.pk} by user {self.request.user.id}"
             )
-            raise ValidationError("Cannot assign role to unverified candidate.")
+            raise ValidationError("Cannot assign role to deactivated candidate.")
 
         old_role = serializer.instance.role
         super().perform_update(serializer)

@@ -13,9 +13,9 @@ This directory serves as a collection of utility functions, helper classes, and 
     -   `send_password_change_otp`, `verify_otp_for_password_change`: Specific functions for password change OTP flows.
     -   `send_welcome_email`: Sends welcome emails to newly registered users (both full and pre-registered).
 -   **`dashboard.py`**: Provides logic for fetching and structuring data displayed on user dashboards.
-    -   `get_candidate_dashboard_data`: Gathers comprehensive data for a candidate's dashboard (scores, exams, rankings).
+    -   `get_candidate_dashboard_data`: Gathers comprehensive data for a candidate's dashboard (results, exams, rankings).
     -   `get_staff_dashboard_data`: Gathers various statistics and recent activities for a staff member's dashboard.
-    -   Includes helper functions for internal calculations like score stats, available/concluded exams, and leaderboard ranking.
+    -   Includes helper functions for internal computations like score submission stats, available/concluded exams, and leaderboard ranking.
 -   **`email.py`**: Centralizes functions for building and sending various system-generated emails.
     -   `send_system_email`: Generic function to send an email using Celery tasks.
     -   `build_registration_welcome_email`: Constructs the content for welcome emails after registration.
@@ -32,8 +32,8 @@ This directory serves as a collection of utility functions, helper classes, and 
     -   `ToggleFeatureFlagView`: A Django REST Framework API view for toggling the state of a boolean feature flag, often used for enabling/disabling features dynamically.
 -   **`functions.py`**: A module for general-purpose, reusable functions that don't fit into more specific utility categories.
     -   `generate_leaderboard_snapshot`: Orchestrates the creation and publishing of the competition leaderboard.
-    -   `calculate_and_save_auto_score`: Calculates scores for candidate exam submissions.
-    -   `generate_scores_snapshot`: Creates snapshots of candidate scores.
+    -   `compute_candidate_result`: Computes results for candidate exam submissions.
+    -   `generate_results_snapshot`: Creates snapshots of candidate results.
     -   `_validate_file_size`, `_validate_image_file`, `_validate_file_type`: Helpers for file validation, used in user verification processes.
     -   `validate_user_verification_files`: Validates uploaded documents for user verification.
     -   `update_staff_dashboard_cache`, `update_candidate_dashboard_cache`, `update_candidate_ranking_cache`: Functions to update and invalidate cache entries for dashboards and rankings.

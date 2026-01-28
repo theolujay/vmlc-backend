@@ -6,7 +6,7 @@ from vmlc.serializers import (
     MinimalUserSerializer,
 )
 
-from vmlc.models import User, Staff, Candidate
+from identity.models import User
 
 
 class UserProfileDetailSerializer(serializers.Serializer):
@@ -19,7 +19,7 @@ class UserProfileDetailSerializer(serializers.Serializer):
         """
         Dynamically serialize the instance based on whether it's a Candidate or Staff.
         """
-        from vmlc.models import Candidate, Staff
+        from identity.models import Candidate, Staff
 
         if isinstance(instance, Candidate):
             return CandidateDetailSerializer(instance).data
@@ -48,7 +48,6 @@ class UserProfileListSerializer(serializers.Serializer):
     school_name = serializers.SerializerMethodField()
     school_type = serializers.SerializerMethodField()
     current_class = serializers.SerializerMethodField()
-    is_user_verified = serializers.SerializerMethodField()
 
     class Meta:
         fields = [
@@ -60,7 +59,6 @@ class UserProfileListSerializer(serializers.Serializer):
             "school_name",
             "school_type",
             "current_class",
-            "is_user_verified",
         ]
 
     def get_profile_type(self, obj: User):
@@ -103,12 +101,3 @@ class UserProfileListSerializer(serializers.Serializer):
         if hasattr(obj, "candidate_profile"):
             return obj.candidate_profile.current_class
         return None
-
-    def get_is_user_verified(self, obj: User):
-        if hasattr(obj, "staff_profile"):
-            return obj.staff_profile.is_user_verified
-        if hasattr(obj, "candidate_profile"):
-            return obj.candidate_profile.is_user_verified
-        if hasattr(obj, "verification"):
-            return obj.verification.is_approved
-        return False

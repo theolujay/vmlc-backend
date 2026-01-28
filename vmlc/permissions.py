@@ -4,7 +4,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_MET
 from rest_framework_api_key.permissions import HasAPIKey
 
 
-from .models import Candidate, Staff
+from identity.models import Candidate, Staff
 
 
 def _is_api_key_valid(key):
@@ -179,18 +179,18 @@ class ReadOnly(BasePermission):
         return request.method in SAFE_METHODS
 
 
-class IsVerifiedStaff(BasePermission):
+class IsActiveStaff(BasePermission):
     """
-    Grants access only to staff members whose accounts are verified.
+    Grants access only to staff members whose accounts are non-deactivated.
     """
 
-    message = "User is not a verified staff member."
+    message = "User is a deactivated staff member."
 
     def has_permission(self, request, view):
         if settings.DEBUG:
             return True
         staff_profile = _get_staff_profile(request)
-        return staff_profile is not None and staff_profile.is_user_verified
+        return staff_profile is not None and staff_profile.is_active
 
 
 class IsManagerForStaffDetail(BasePermission):
@@ -214,11 +214,11 @@ class IsManagerForStaffDetail(BasePermission):
         return staff_profile.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
 
 
-class IsObjectOwnerOrVerifiedAdmin(BasePermission):
+class IsObjectOwnerOrActiveAdmin(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object (e.g., `request.user == obj.user`).
-    2. A verified staff member with a 'admin' role or higher.
+    2. A non-deactivated staff member with a 'admin' role or higher.
     """
 
     message = "You do not have permission to perform this action on this object."
@@ -237,11 +237,11 @@ class IsObjectOwnerOrVerifiedAdmin(BasePermission):
         if is_owner:
             return True
 
-        # 2. Check if the user is a verified moderator or higher
+        # 2. Check if the user is a non-deactivated moderator or higher
         staff_profile = _get_staff_profile(request)
         is_admin = (
             staff_profile is not None
-            and (settings.DEBUG or staff_profile.is_user_verified)
+            and (settings.DEBUG or staff_profile.is_active)
             and StaffRoleHierarchy.has_minimum_role(
                 staff_profile.role, Staff.Roles.ADMIN
             )
@@ -250,17 +250,17 @@ class IsObjectOwnerOrVerifiedAdmin(BasePermission):
         return is_admin
 
 
-class IsVerifiedModeratorOrCandidate(BasePermission):
+class IsActiveModeratorOrCandidate(BasePermission):
     """
-    Grants access to verified staff with at least a Moderator role, or any user with a candidate profile.
+    Grants access to non-deactivated staff with at least a Moderator role, or any user with a candidate profile.
     """
 
     def has_permission(self, request, view):
-        # Check for verified moderator role
+        # Check for active moderator role
         staff_profile = _get_staff_profile(request)
-        is_verified_moderator = (
+        is_active_moderator = (
             staff_profile is not None
-            and staff_profile.is_user_verified
+            and staff_profile.is_active
             and StaffRoleHierarchy.has_minimum_role(
                 staff_profile.role, Staff.Roles.MODERATOR
             )
@@ -269,7 +269,7 @@ class IsVerifiedModeratorOrCandidate(BasePermission):
         # Check for candidate profile
         is_candidate = _get_candidate_profile(request) is not None
 
-        return is_verified_moderator or is_candidate
+        return is_active_moderator or is_candidate
 
 
 AuthenticatedUser = [
@@ -289,23 +289,23 @@ StaffPermissions = [
     IsStaff,
 ]
 
-VerifiedModeratorPermissions = [
+ActiveModeratorPermissions = [
     HasXAPIKey,
     IsAuthenticated,
-    IsVerifiedStaff,
+    IsActiveStaff,
     HasMinimumStaffRole(Staff.Roles.MODERATOR),
 ]
 
-VerifiedAdminPermissions = [
+ActiveAdminPermissions = [
     HasXAPIKey,
     IsAuthenticated,
-    IsVerifiedStaff,
+    IsActiveStaff,
     HasMinimumStaffRole(Staff.Roles.ADMIN),
 ]
 
-VerifiedManagerPermissions = [
+ActiveManagerPermissions = [
     HasXAPIKey,
     IsAuthenticated,
-    IsVerifiedStaff,
+    IsActiveStaff,
     HasMinimumStaffRole(Staff.Roles.MANAGER),
 ]

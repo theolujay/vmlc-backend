@@ -1,9 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model, login
 from django.test import RequestFactory
-from vmlc.models import Candidate
-
-User = get_user_model()
+from identity.models import Candidate, User
 
 class FirstLoginTest(TestCase):
     def setUp(self):

@@ -10,22 +10,24 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from vmlc.models import (
+from identity.models import (
     Candidate,
+    PreRegUser,
+    Staff,
+    User,
+    UserVerification,
+)
+from vmlc.models import (
     CandidateAnswer,
-    CandidateScore,
-    CandidateScoreSnapshot,
+    CandidateExamResult,
+    CandidateExamResultSnapshot,
     Exam,
     FeatureFlag,
     LeaderboardSnapshot,
-    PreRegUser,
     Question,
-    Staff,
     SupportInquiry,
     SupportMessage,
     Event,
-    User,
-    UserVerification,
 )
 from vmlc.serializers.candidate import MinimalCandidateSerializer
 from vmlc.utils.functions import generate_leaderboard_snapshot
@@ -90,11 +92,11 @@ class Command(BaseCommand):
         # Clear existing data
         self.stdout.write("Clearing existing data...")
         CandidateAnswer.objects.all().delete()
-        CandidateScore.objects.all().delete()
+        CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
         Question.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
-        CandidateScoreSnapshot.objects.all().delete()
+        CandidateExamResultSnapshot.objects.all().delete()
         PreRegUser.objects.all().delete()
         SupportMessage.objects.all().delete()
         SupportInquiry.objects.all().delete()
@@ -335,8 +337,8 @@ class Command(BaseCommand):
         create_exams("screening", 3, is_screening=True)
         create_exams("league", 10, is_screening=False)
 
-        # Create Candidate scores and answers
-        self.stdout.write("Creating candidate scores and answers...")
+        # Create Candidate results and answers
+        self.stdout.write("Creating candidate results and answers...")
         for candidate in candidate_list:
             exams_to_take = []
             if candidate.role == "screening" and screening_exams:
@@ -349,7 +351,7 @@ class Command(BaseCommand):
                 )
 
             for exam in exams_to_take:
-                score = CandidateScore.objects.create(
+                result = CandidateExamResult.objects.create(
                     candidate=candidate,
                     exam=exam,
                     score=round(random.uniform(30.0, 100.0), 2),
@@ -358,7 +360,7 @@ class Command(BaseCommand):
                 # Create answers for each question in the exam
                 for question in exam.questions.all():
                     CandidateAnswer.objects.create(
-                        candidate_score=score,
+                        candidate_exam_result=result,
                         question=question,
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
@@ -366,14 +368,14 @@ class Command(BaseCommand):
         # Generate Candidate Score Snapshot
         self.stdout.write("Generating candidate score snapshot...")
         all_candidates = Candidate.objects.annotate(
-            total_score=Sum("scores__score"),
-            average_score=Avg("scores__score"),
-            exams_taken=Count("scores"),
+            total_score=Sum("results__score"),
+            average_score=Avg("results__score"),
+            exams_taken=Count("results"),
         )
 
-        scores_data = []
+        results_data = []
         for candidate in all_candidates:
-            scores_data.append(
+            results_data.append(
                 {
                     "candidate": MinimalCandidateSerializer(candidate).data,
                     "total_score": float(candidate.total_score or 0.0),
@@ -382,8 +384,8 @@ class Command(BaseCommand):
                 }
             )
 
-        CandidateScoreSnapshot.objects.create(
-            data=scores_data,
+        CandidateExamResultSnapshot.objects.create(
+            data=results_data,
             published_by=random.choice(staff_list),
             published_at=timezone.now(),
         )

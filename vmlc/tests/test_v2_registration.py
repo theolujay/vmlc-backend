@@ -4,7 +4,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-from vmlc.models import FeatureFlag, User, Candidate, Staff
+from identity.models import User, Candidate, Staff
+from vmlc.models import FeatureFlag
 
 def generate_photo_file(name='test.jpg'):
     file = io.BytesIO()

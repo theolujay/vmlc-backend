@@ -9,20 +9,22 @@ from django.db.models import Count, Sum
 from django import forms
 from django.template.response import TemplateResponse
 from vmlc.tasks import send_mail_task
-from .models import (
+from identity.models import (
     Candidate,
     Staff,
+    User,
+    UserVerification,
+    PreRegUser,
+)
+from .models import (
     Exam,
     Question,
-    CandidateScore,
+    CandidateExamResult,
     CandidateAnswer,
     LeaderboardSnapshot,
     FeatureFlag,
-    User,
-    CandidateScoreSnapshot,
-    UserVerification,
+    CandidateExamResultSnapshot,
     SupportInquiry,
-    PreRegUser,
 )
 
 from .utils.email import create_email_html
@@ -477,8 +479,8 @@ class CandidateAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         return queryset.annotate(
-            total_score=Sum("scores__score"),
-            exams_taken_count=Count("scores", distinct=True),
+            total_score=Sum("results__score"),
+            exams_taken_count=Count("results", distinct=True),
         )
 
     @admin.display(description="Total Score", ordering="total_score")
@@ -632,8 +634,8 @@ class ExamAdmin(admin.ModelAdmin):
         cache.delete(f"exam_results_{exam.id}")
         cache.delete(f"exam_questions_{exam.id}")
         invalidate_all_dashboard_caches()
-        for score in exam.scores.all():
-            cache.delete(f"account_management_{score.candidate.user.id}")
+        for result in exam.results.all():
+            cache.delete(f"account_management_{result.candidate.user.id}")
 
     @admin.display(description="Question Count", ordering="question_count")
     def get_question_count(self, obj):
@@ -648,7 +650,7 @@ class ExamAdmin(admin.ModelAdmin):
     @admin.display(description="Results")
     def view_results_link(self, obj):
         url = (
-            reverse("admin:vmlc_candidatescore_changelist")
+            reverse("admin:vmlc_candidateresult_changelist")
             + f"?exam__id__exact={obj.pk}"
         )
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
@@ -703,11 +705,11 @@ class QuestionAdmin(admin.ModelAdmin):
         return None
 
 
-@admin.register(CandidateScore)
-class CandidateScoreAdmin(admin.ModelAdmin):
+@admin.register(CandidateExamResult)
+class CandidateExamResultAdmin(admin.ModelAdmin):
     """
-    Admin interface for the CandidateScore model.
-    Displays score details per candidate and exam.
+    Admin interface for the CandidateExamResult model.
+    Displays result details per candidate and exam.
     """
 
     list_display = (
@@ -731,20 +733,20 @@ class CandidateScoreAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        self._invalidate_score_cache(obj)
+        self._invalidate_result_cache(obj)
 
     def delete_model(self, request, obj):
-        self._invalidate_score_cache(obj)
+        self._invalidate_result_cache(obj)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
         for obj in queryset:
-            self._invalidate_score_cache(obj)
+            self._invalidate_result_cache(obj)
         super().delete_queryset(request, queryset)
 
-    def _invalidate_score_cache(self, score):
-        candidate = score.candidate
-        exam = score.exam
+    def _invalidate_result_cache(self, result):
+        candidate = result.candidate
+        exam = result.exam
         cache.delete(f"account_management_{candidate.user.id}")
         cache.delete(f"exam_history_{candidate.user.id}")
         cache.delete(f"exam_results_{exam.id}")
@@ -784,25 +786,25 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
         "answered_at",
     )
     readonly_fields = ("answered_at",)
-    list_filter = ("candidate_score__exam", "answered_at")
-    search_fields = ("candidate_score__candidate__user__email", "question__text")
-    autocomplete_fields = ("question", "candidate_score")
+    list_filter = ("candidate_exam_result__exam", "answered_at")
+    search_fields = ("candidate_exam_result__candidate__user__email", "question__text")
+    autocomplete_fields = ("question", "candidate_exam_result")
     list_select_related = (
-        "candidate_score__candidate__user",
-        "candidate_score__exam",
+        "candidate_exam_result__candidate__user",
+        "candidate_exam_result__exam",
         "question",
     )
     date_hierarchy = "answered_at"
 
     @admin.display(
-        description="Candidate", ordering="candidate_score__candidate__user__email"
+        description="Candidate", ordering="candidate_exam_result__candidate__user__email"
     )
     def candidate_email(self, obj):
-        return obj.candidate_score.candidate.user.email
+        return obj.candidate_exam_result.candidate.user.email
 
-    @admin.display(description="Exam", ordering="candidate_score__exam__title")
+    @admin.display(description="Exam", ordering="candidate_exam_result__exam__title")
     def exam_title(self, obj):
-        return obj.candidate_score.exam.title
+        return obj.candidate_exam_result.exam.title
 
     @admin.display(description="Question", ordering="question__text")
     def question_text(self, obj):
@@ -880,11 +882,11 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
         return summary
 
 
-@admin.register(CandidateScoreSnapshot)
-class CandidateScoreSnapshotAdmin(admin.ModelAdmin):
+@admin.register(CandidateExamResultSnapshot)
+class CandidateExamResultSnapshotAdmin(admin.ModelAdmin):
     """
-    Admin interface for the CandidateScoreSnapshot model.
-    Displays key details about each snapshot for the candidate scores.
+    Admin interface for the CandidateExamResultSnapshot model.
+    Displays key details about each snapshot for the candidate results.
     """
 
     list_display = (

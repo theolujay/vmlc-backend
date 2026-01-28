@@ -17,16 +17,18 @@ from PIL import Image
 import magic
 import mimetypes
 
-from vmlc.models import (
+from identity.models import (
     Candidate,
-    LeaderboardSnapshot,
     Staff,
-    Exam,
-    CandidateScore,
-    CandidateAnswer,
-    CandidateScoreSnapshot,
     User,
     UserVerification,
+)
+from vmlc.models import (
+    LeaderboardSnapshot,
+    Exam,
+    CandidateExamResult,
+    CandidateAnswer,
+    CandidateExamResultSnapshot,
 )
 from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,
@@ -88,7 +90,7 @@ def _get_concluded_exams(now):
             )
         )
         .filter(is_active=True, conclusion_time__lte=now)
-        .annotate(average_score=Avg("scores__score"))
+        .annotate(average_score=Avg("results__score"))
         .order_by("stage", "level")
     )
 
@@ -96,17 +98,17 @@ def _get_concluded_exams(now):
 def _build_leaderboard_entries(exam):
     """Helper to build leaderboard entries for a given exam."""
 
-    scores = (
-        CandidateScore.objects.filter(exam=exam)
+    results = (
+        CandidateExamResult.objects.filter(exam=exam)
         .select_related("candidate__user")
         .prefetch_related("answers__question")
         .order_by("-score")
     )
 
     leaderboard_entries = []
-    for index, score in enumerate(scores):
-        candidate_data = CandidateLeaderboardPerfSerializer(score.candidate).data
-        answers = score.answers.all()
+    for index, result in enumerate(results):
+        candidate_data = CandidateLeaderboardPerfSerializer(result.candidate).data
+        answers = result.answers.all()
         submission_list = []
         for answer in answers:
             submission_list.append(
@@ -128,13 +130,13 @@ def _build_leaderboard_entries(exam):
         leaderboard_entries.append(
             {
                 "rank": index + 1,
-                "score": float(score.score),
+                "score": float(result.score),
                 "percentage": (
-                    round((float(score.score) / exam.questions.count() * 100), 2)
+                    round((float(result.score) / exam.questions.count() * 100), 2)
                     if exam.questions.count() > 0
                     else 0
                 ),
-                "participated_at": str(score.recorded_at),
+                "participated_at": str(result.recorded_at),
                 "candidate": candidate_data,
             }
         )
@@ -160,22 +162,22 @@ def _create_exam_leaderboard_data(exam, leaderboard_entries, stage_display):
     }
 
 
-def calculate_and_save_auto_score(candidate_score_id):
+def compute_candidate_result(candidate_result_id):
     """
-    Calculate and save the auto score for a candidate's exam submission.
+    Calculate and save the auto-score for a candidate's exam submission.
     """
 
     try:
-        candidate_score = CandidateScore.objects.get(pk=candidate_score_id)
+        candidate_exam_result = CandidateExamResult.objects.get(pk=candidate_result_id)
         submitted_answers = CandidateAnswer.objects.filter(
-            candidate_score=candidate_score
+            candidate_exam_result=candidate_exam_result
         )
 
-        total_questions = candidate_score.exam.questions.filter(
+        total_questions = candidate_exam_result.exam.questions.filter(
             is_archived=False
         ).count()
         if not total_questions:
-            candidate_score.score = 0
+            candidate_exam_result.score = 0
         else:
             correct_count = sum(
                 1
@@ -183,27 +185,27 @@ def calculate_and_save_auto_score(candidate_score_id):
                 if answer.selected_option == answer.question.correct_answer
             )
             score = (correct_count / total_questions) * 100
-            candidate_score.score = round(score, 2)
+            candidate_exam_result.score = round(score, 2)
 
-        candidate_score.auto_score = True
-        candidate_score.score_submitted_by = None
-        candidate_score.recorded_at = timezone.now()
-        candidate_score.save()
-        cache.delete(f"candidate_dashboard_{candidate_score.candidate.pk}")
+        candidate_exam_result.auto_score = True
+        candidate_exam_result.score_submitted_by = None
+        candidate_exam_result.recorded_at = timezone.now()
+        candidate_exam_result.save()
+        cache.delete(f"candidate_dashboard_{candidate_exam_result.candidate.pk}")
         logger.info(
-            f"Successfully calculated score for CandidateScore {candidate_score_id}"
+            f"Successfully computed result for CandidateExamResult {candidate_result_id}"
         )
-    except CandidateScore.DoesNotExist:
-        logger.error(f"CandidateScore with id {candidate_score_id} does not exist.")
+    except CandidateExamResult.DoesNotExist:
+        logger.error(f"CandidateExamResult with id {candidate_result_id} does not exist.")
     except Exception as e:
         logger.error(
-            f"Failed to calculate score for CandidateScore {candidate_score_id}: {e}"
+            f"Failed to compute result for CandidateExamResult {candidate_result_id}: {e}"
         )
 
 
-def generate_scores_snapshot(staff_id=None):
+def generate_results_snapshot(staff_id=None):
     """
-    Generate and publish the scores snapshot.
+    Generate and publish the results snapshot.
     """
 
     try:
@@ -213,14 +215,14 @@ def generate_scores_snapshot(staff_id=None):
             # If no staff_id is provided, use the first superadmin
             superadmin_user = User.objects.filter(is_superuser=True).first()
             if not superadmin_user:
-                logger.error("No superadmin user found to publish the scores snapshot.")
+                logger.error("No superadmin user found to publish the results snapshot.")
                 return
             staff = superadmin_user.staff_profile
-        candidates = Candidate.objects.with_scores().filter(user__is_active=True)
+        candidates = Candidate.objects.with_results().filter(user__is_active=True)
 
-        scores_data = []
+        results_data = []
         for candidate in candidates:
-            scores_data.append(
+            results_data.append(
                 {
                     "candidate": MinimalCandidateSerializer(candidate).data,
                     "total_score": float(candidate.total_score or 0.0),
@@ -229,8 +231,8 @@ def generate_scores_snapshot(staff_id=None):
                 }
             )
 
-        snapshot = CandidateScoreSnapshot.objects.create(
-            data=scores_data,
+        snapshot = CandidateExamResultSnapshot.objects.create(
+            data=results_data,
             published_by=staff,
             published_at=timezone.now(),
         )
@@ -239,7 +241,7 @@ def generate_scores_snapshot(staff_id=None):
     except Staff.DoesNotExist:
         logger.error(f"Staff with id {staff_id} does not exist.")
     except Exception as e:
-        logger.error(f"Failed to generate scores snapshot: {e}")
+        logger.error(f"Failed to generate results snapshot: {e}")
 
 
 def _validate_file_size(value, max_size_mb, field_name):
@@ -423,7 +425,7 @@ def update_candidate_ranking_cache():
     try:
         league_candidates = Candidate.objects.filter(role=Candidate.Roles.LEAGUE)
         latest_snapshot = (
-            CandidateScoreSnapshot.objects.filter(published_at__isnull=False)
+            CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
             .order_by("-published_at")
             .first()
         )
@@ -431,8 +433,8 @@ def update_candidate_ranking_cache():
         if latest_snapshot:
             ranked_candidates = league_candidates.annotate(
                 total_score=Sum(
-                    "scores__score",
-                    filter=Q(scores__recorded_at__lte=latest_snapshot.published_at),
+                    "results__score",
+                    filter=Q(results__recorded_at__lte=latest_snapshot.published_at),
                     default=0.0,
                 ),
                 rank=Window(

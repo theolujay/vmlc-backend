@@ -8,7 +8,8 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from ..models import EmailOTP, PreRegUser, User, FeatureFlag
+from identity.models import EmailOTP, PreRegUser, User
+from vmlc.models import FeatureFlag
 from .email import create_email_html
 
 
