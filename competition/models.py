@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.db.models import Q
 
 class Competition(models.Model):
     """
@@ -142,11 +143,134 @@ class CandidateStageProgress(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     discontinued_at = models.DateTimeField(null=True, blank=True)
-    
+
+    @property
+    def is_terminal(self):
+        return self.status in {
+            self.Status.COMPLETED,
+            self.Status.DISCONTINUED,
+        }
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate_competition", "stage"],
                 name="unique_stage_progress_per_candidate"
             )
+        ]
+
+class Standings(models.Model):
+    """
+    Represents the official standings produced from a single exam within a competition.
+
+    Standings are presentation artifacts derived from authoritative exam results.
+    Exactly one Standings record exists per exam.
+
+    - Screening: standings from the screening exam
+    - League: weekly standings (one exam per round/week)
+    - Final: standings from the final exam
+    """
+
+    competition = models.ForeignKey(
+        "competition.Competition",
+        on_delete=models.PROTECT,
+        related_name="standings",
+    )
+    stage = models.CharField(
+        max_length=20,
+        choices=Stage.Type.choices,
+        help_text="Competition stage this standings belongs to (screening, league, final).",
+    )
+    round = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="League round/week number. Null for screening and final.",
+    )
+    exam = models.ForeignKey(
+            "vmlc.Exam",
+            on_delete=models.PROTECT,
+            help_text="Exam from which this standings was generated.",
+        )
+    is_published = models.BooleanField(
+            default=False,
+            db_index=True,
+            help_text="Whether this standings is visible to candidates.",
+        )
+    published_at = models.DateTimeField(
+            null=True,
+            blank=True,
+            db_index=True,
+        )
+    meta = models.JSONField(
+            default=dict,
+            blank=True,
+            help_text="Auxiliary metadata (e.g. exam engine used: vmlc or esturdi).",
+        )
+    data_json = models.JSONField(
+            null=True,
+            blank=True,
+            help_text="Optional denormalized export for caching or external consumption.",
+        )
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["competition", "stage", "round"],
+                condition=Q(is_published=True),
+                name="one_published_standings_per_stage_round"
+            )
+        ]
+
+class StandingsEntry(models.Model):
+    """
+    Represents a candidate's ranked outcome within a single standings.
+
+    This model is authoritative for competition display and progression logic,
+    but not for raw exam evaluation.
+    """
+
+    standings = models.ForeignKey(
+            Standings,
+            related_name="entries",
+            on_delete=models.PROTECT,
+        )
+    candidate = models.ForeignKey(
+            "identity.Candidate",
+            on_delete=models.CASCADE,
+            related_name="standings_entries",
+        )
+    candidate_competition = models.ForeignKey(
+            "competition.CandidateCompetition",
+            null=True,
+            blank=True,
+            on_delete=models.SET_NULL,
+            related_name="standings_entries",
+        )
+    exam_score = models.DecimalField(
+            max_digits=5,
+            decimal_places=2,
+            help_text="Candidate's exam score used for ranking.",
+        )
+    rank = models.PositiveIntegerField(
+            null=True,
+            blank=True,
+            db_index=True,
+        )
+    percentile = models.FloatField(
+            null=True,
+            blank=True,
+        )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["standings", "candidate"],
+                name="unique_candidate_per_standings"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["standings", "rank"]),
+            models.Index(fields=["standings", "candidate"]),
         ]
