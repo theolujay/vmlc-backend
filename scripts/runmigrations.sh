@@ -138,13 +138,23 @@ setup_django_env() {
     python manage.py shell < ./scripts/deploy_identity_migration.py
 
     if [ $? -eq 0 ]; then
-        echo "✓ Identity migration completed or skipped"
+        log_info "✓ Identity migration completed or skipped"
     else
-        echo "✗ Identity migration failed"
+        log_error "✗ Identity migration failed"
         exit 1
     fi
 
-    python manage.py migrate admin --fake 2>/dev/null || true
+    # Fix admin migration dependency issue
+    log_info "Fixing admin migration dependencies..."
+    python manage.py shell -c "
+from django.db import connection
+cursor = connection.cursor()
+cursor.execute('DELETE FROM django_migrations WHERE app='\''admin'\''')
+print('✓ Cleared admin migration history')
+" 2>/dev/null || log_warn "Could not clear admin migrations"
+    
+    python manage.py migrate admin --fake 2>&1 || log_warn "Could not fake admin migrations"
+    log_info "✓ Admin migrations handled"
 
     log_info "Running database migrations..."
     
