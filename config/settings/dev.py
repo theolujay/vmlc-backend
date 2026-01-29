@@ -71,7 +71,13 @@ CACHES = {
     "async": {
         "BACKEND": "django_async_redis.cache.RedisCache",
         "LOCATION": "redis://localhost:6379/2",
-        "OPTIONS": {"CLIENT_CLASS": "django_async_redis.client.DefaultClient"},
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_async_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "retry_on_timeout": True,
+                "health_check_interval": 30,
+            },
+        },
         "KEY_PREFIX": "vmlc_dev_async",
         "TIMEOUT": 300,
     },

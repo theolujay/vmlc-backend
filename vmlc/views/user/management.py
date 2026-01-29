@@ -1,8 +1,10 @@
 import logging
+import itertools
 from datetime import timedelta
 
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q, QuerySet
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -59,6 +61,7 @@ from vmlc.tasks import (
     send_mail_task,
     revoke_user_invite_task,
 )
+from vmlc.utils.stats import generate_stats_overview_data
 from vmlc.utils.query_filters import (
     filter_pre_reg_users,
     filter_staffs,
@@ -616,9 +619,13 @@ class UserListView(ListAPIView):
 
         stats_overview = self._get_stats_overview(staff.role)
 
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset_or_list = self.get_queryset()
+        
+        # Only call filter_queryset if it's a real QuerySet
+        if isinstance(queryset_or_list, QuerySet):
+            queryset_or_list = self.filter_queryset(queryset_or_list)
 
-        page = self.paginate_queryset(queryset)
+        page = self.paginate_queryset(queryset_or_list)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
@@ -627,22 +634,24 @@ class UserListView(ListAPIView):
             cache.set(cache_key, response.data, 43200)  # Cache for 12 hours
             return response
 
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset_or_list, many=True)
         response_data = {"stats_overview": stats_overview, "results": serializer.data}
         cache.set(cache_key, response_data, 43200)  # Cache for 12 hour
         return Response(response_data)
 
     def _get_stats_overview(self, staff_role):
-        """Helper to get the stats overview from cache."""
+        """Helper to get the stats overview from cache, regenerating if necessary."""
         stats_overview = cache.get("stats_overview")
 
-        if stats_overview is not None:
-            # Make a copy to avoid modifying the cached object.
-            stats_overview = stats_overview.copy()
-            if staff_role not in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
-                stats_overview.pop("staff", None)
-        # If stats_overview is None, it is returned as is.
-        # The regeneration is handled by signals.
+        if stats_overview is None:
+            stats_overview = generate_stats_overview_data()
+            cache.set("stats_overview", stats_overview, timeout=3600)
+
+        # Make a copy to avoid modifying the cached object.
+        stats_overview = stats_overview.copy()
+        if staff_role not in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
+            stats_overview.pop("staff", None)
+
         return stats_overview
 
     def get_serializer_class(self):
@@ -665,7 +674,7 @@ class UserListView(ListAPIView):
         return kwargs
 
     def get_queryset(self):
-        """Returns a filtered queryset of users"""
+        """Returns a filtered queryset or combined list of users"""
 
         requested_profile = self.request.query_params.get("profile")
         logger.info(
@@ -681,10 +690,33 @@ class UserListView(ListAPIView):
             queryset = PreRegUser.objects.order_by("-created_at")
             return filter_pre_reg_users(queryset, self.request.query_params)
 
-        queryset = User.objects.prefetch_related(
+        # Combined view: fully registered and pre-registered users
+        users_qs = User.objects.prefetch_related(
             "staff_profile", "candidate_profile", "verification"
         ).order_by("-date_joined")
-        return filter_users(queryset, self.request.query_params)
+        users_qs = filter_users(users_qs, self.request.query_params)
+
+        # Pre-registered users should also be filtered by common params like search
+        pre_reg_qs = PreRegUser.objects.order_by("-created_at")
+        search = self.request.query_params.get("search")
+        if search:
+            pre_reg_qs = pre_reg_qs.filter(
+                Q(full_name__icontains=search) | Q(email__icontains=search)
+            )
+        
+        # Don't show pre-registered users if filtering by role/school since they don't have them
+        role = self.request.query_params.get("role")
+        school = self.request.query_params.get("school_name")
+        if role or school:
+            return users_qs
+
+        # Merge and sort by join/creation date
+        combined = sorted(
+            itertools.chain(users_qs, pre_reg_qs),
+            key=lambda x: x.date_joined if isinstance(x, User) else x.created_at,
+            reverse=True,
+        )
+        return combined
 
 
 @method_decorator(

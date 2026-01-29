@@ -26,7 +26,7 @@ class StaffListSerializer(serializers.ModelSerializer):
 
     user = MinimalUserSerializer(read_only=True)
     status = serializers.SerializerMethodField()
-
+    profile_type = serializers.SerializerMethodField()
     class Meta:
         model = Staff
         fields = [
@@ -34,10 +34,14 @@ class StaffListSerializer(serializers.ModelSerializer):
             "role",
             "status",
             "occupation",
+            "profile_type",
         ]
 
     def get_status(self, obj: Staff):
         return obj.status
+
+    def get_profile_type(self, obj):
+        return "staff"
 
 
 class StaffDetailSerializer(serializers.ModelSerializer):

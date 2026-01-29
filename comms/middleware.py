@@ -27,7 +27,7 @@ class DualAuthMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        close_old_connections()
+        await database_sync_to_async(close_old_connections)()
 
         scope["user"] = AnonymousUser()
         scope["api_key_authenticated"] = False

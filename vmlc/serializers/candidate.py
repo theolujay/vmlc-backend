@@ -35,6 +35,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
 
     user = UserSerializer(read_only=True)
     status = serializers.SerializerMethodField()
+    profile_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Candidate
@@ -45,10 +46,13 @@ class CandidateListSerializer(serializers.ModelSerializer):
             "current_class",
             "role",
             "status",
+            "profile_type",
         ]
 
     def get_status(self, obj: Candidate):
         return obj.status
+    def get_profile_type(self, obj):
+        return "candidate"
 
 
 class CandidateDetailSerializer(serializers.ModelSerializer):
