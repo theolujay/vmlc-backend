@@ -99,7 +99,7 @@ services:
     <<: *app-base
     container_name: vmlc-django
     entrypoint: "./scripts/entrypoint.sh"
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --lifespan off
     ports:
       - "8000:8000"
     depends_on:
@@ -118,11 +118,11 @@ services:
     deploy:
       resources:
         limits:
+          memory: 1024M
+          cpus: '0.5'
+        reservations:
           memory: 512M
           cpus: '0.25'
-        reservations:
-          memory: 256M
-          cpus: '0.2'
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -160,11 +160,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.15'
+          memory: 768M
+          cpus: '0.3'
         reservations:
-          memory: 256M
-          cpus: '0.075'
+          memory: 512M
+          cpus: '0.15'
 
 
   celery_beat:
