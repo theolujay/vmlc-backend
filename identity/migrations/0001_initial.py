@@ -3,7 +3,6 @@
 import django.core.validators
 import django.db.models.deletion
 import django.utils.timezone
-import identity.models
 import uuid
 import vmlc.storage_backends
 from django.conf import settings
@@ -129,7 +128,7 @@ class Migration(migrations.Migration):
                                 null=True,
                                 storage=vmlc.storage_backends.PublicMediaStorage(),
                                 upload_to="profile_pictures/",
-                                validators=[identity.models.validate_profile_picture],
+                                validators=[],
                             ),
                         ),
                         ("username", models.CharField(max_length=255, unique=True)),
@@ -293,7 +292,7 @@ class Migration(migrations.Migration):
                                 null=True,
                                 storage=vmlc.storage_backends.PrivateMediaStorage(),
                                 upload_to="face_ids/",
-                                validators=[identity.models.validate_face_id],
+                                validators=[],
                             ),
                         ),
                         (
@@ -303,7 +302,7 @@ class Migration(migrations.Migration):
                                 null=True,
                                 storage=vmlc.storage_backends.PrivateMediaStorage(),
                                 upload_to="id_cards/",
-                                validators=[identity.models.validate_id_card_file],
+                                validators=[],
                             ),
                         ),
                         (
@@ -313,7 +312,7 @@ class Migration(migrations.Migration):
                                 null=True,
                                 storage=vmlc.storage_backends.PrivateMediaStorage(),
                                 upload_to="verification_docs/",
-                                validators=[identity.models.validate_document_file],
+                                validators=[],
                             ),
                         ),
                         ("verification_document_type", models.CharField(blank=True, max_length=50, null=True)),
