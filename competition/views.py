@@ -5,11 +5,17 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from vmlc.permissions import ActiveAdminPermissions
+from vmlc.permissions import ActiveAdminPermissions, AuthenticatedUser
 from vmlc.utils.swagger_schemas import api_key, bearer_auth, error_response_401, error_response_403
-from competition.models import Standings
-from competition.serializers import PublishStandingsSerializer, StandingsSerializer
+from competition.models import Standings, AggregateLeaderboard, Competition, Stage
+from competition.serializers import (
+    PublishStandingsSerializer, 
+    StandingsSerializer, 
+    AggregateLeaderboardSerializer,
+    AggregateLeaderboardEntrySerializer
+)
 from competition.tasks import generate_standings_task
+from competition.services.leaderboard import LeaderboardService
 
 class PublishStandingsView(APIView):
     """
@@ -83,3 +89,46 @@ class RetrieveStandingsView(RetrieveAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+
+class LeagueLeaderboardView(APIView):
+    """
+    View to retrieve the cumulative league leaderboard.
+    """
+    permission_classes = [AuthenticatedUser] # TODO: Add stricter permission (e.g., IsLeagueCandidate)
+
+    @swagger_auto_schema(
+        operation_summary="Get League Leaderboard",
+        operation_description="Retrieves the latest cumulative leaderboard for the active competition's league stage.",
+        responses={
+            200: AggregateLeaderboardSerializer,
+            401: error_response_401,
+            403: error_response_403,
+            404: "No active league leaderboard found."
+        },
+        manual_parameters=[api_key, bearer_auth],
+        tags=["Competition Leaderboard"]
+    )
+    def get(self, request):
+        # TODO: Implement stricter access control.
+        # Only candidates in the 'league' stage (or staff) should view this.
+        
+        leaderboard = LeaderboardService.get_latest_league_leaderboard()
+        
+        if not leaderboard:
+            return Response(
+                {"detail": "No active league leaderboard found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = AggregateLeaderboardSerializer(leaderboard)
+        data = serializer.data
+        
+        # Replace entries with the processed list from the service
+        # (which includes rank_change annotations)
+        data['entries'] = AggregateLeaderboardEntrySerializer(
+            leaderboard.processed_entries, 
+            many=True
+        ).data
+        
+        return Response(data)
