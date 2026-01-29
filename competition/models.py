@@ -17,6 +17,7 @@ class Competition(models.Model):
         ACTIVE = "active", "Active"
         CONCLUDED = "concluded", "Concluded"
 
+    name = models.CharField(max_length=64, blank=True)
     year = models.PositiveIntegerField(db_index=True)
     start_date = models.DateTimeField(null=True, blank=True, db_index=True)
     end_date = models.DateTimeField(null=True, blank=True)
