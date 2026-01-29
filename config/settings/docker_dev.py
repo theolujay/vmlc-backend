@@ -85,8 +85,9 @@ CACHES = {
             "CONNECTION_POOL_KWARGS": {
                 "retry_on_timeout": True,
                 "health_check_interval": 30,
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
+                "socket_connect_timeout": 20,
+                "socket_timeout": 20,
+                "socket_keepalive": True,
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",

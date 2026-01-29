@@ -2717,14 +2717,14 @@ wheels = [
 
 [[package]]
 name = "redis"
-version = "5.0.7"
+version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "async-timeout", marker = "python_full_version < '3.11.3'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/e9/cf42d89e68dbfa23bd534177e06c745164f7b694edae0029f6eee57704b6/redis-5.0.7.tar.gz", hash = "sha256:8f611490b93c8109b50adc317b31bfd84fff31def3475b92e7e80bf39f48175b", size = 4583000, upload-time = "2024-06-26T13:20:15.995Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/c8/983d5c6579a411d8a99bc5823cc5712768859b5ce2c8afe1a65b37832c81/redis-7.1.0.tar.gz", hash = "sha256:b1cc3cfa5a2cb9c2ab3ba700864fb0ad75617b41f01352ce5779dabf6d5f9c3c", size = 4796669, upload-time = "2025-11-19T15:54:39.961Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/3b/db091387f25c202a34030de8f7fee26a69c11b83797eecaef5b06e261966/redis-5.0.7-py3-none-any.whl", hash = "sha256:0e479e24da960c690be5d9b96d21f7b918a98c0cf49af3b6fafaa0753f93a0db", size = 252055, upload-time = "2024-06-26T13:20:12.714Z" },
+    { url = "https://files.pythonhosted.org/packages/89/f0/8956f8a86b20d7bb9d6ac0187cf4cd54d8065bc9a1a09eb8011d4d326596/redis-7.1.0-py3-none-any.whl", hash = "sha256:23c52b208f92b56103e17c5d06bdc1a6c2c0b3106583985a76a18f83b265de2b", size = 354159, upload-time = "2025-11-19T15:54:38.064Z" },
 ]
 
 [[package]]
@@ -3474,7 +3474,7 @@ requires-dist = [
     { name = "django-db-connection-pool", specifier = ">=1.2.6" },
     { name = "django-filter", specifier = "==25.1" },
     { name = "django-health-check", specifier = "==3.20.0" },
-    { name = "django-redis", specifier = "==6.0.0" },
+    { name = "django-redis", specifier = ">=6.0.0" },
     { name = "django-storages", specifier = "==1.14.6" },
     { name = "django-timezone-field", specifier = "==7.1" },
     { name = "djangochannelsrestframework", specifier = "==1.3.0" },
@@ -3535,7 +3535,7 @@ requires-dist = [
     { name = "python-magic", specifier = "==0.4.27" },
     { name = "python3-openid", specifier = "==3.2.0" },
     { name = "pytz", specifier = "==2025.2" },
-    { name = "redis", specifier = "==5.0.7" },
+    { name = "redis", specifier = ">=5.2.1" },
     { name = "requests", specifier = "==2.32.4" },
     { name = "requests-oauthlib", specifier = "==2.0.0" },
     { name = "rich", specifier = "==14.1.0" },
