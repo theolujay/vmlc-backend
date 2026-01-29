@@ -9,6 +9,7 @@ from datetime import timedelta
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from django.apps import apps
 from django.db import models
 from django.db.models import Avg, Count, F, Max, Min, Q, Sum, Window
 from django.db.models.functions import Rank
@@ -453,14 +454,22 @@ class CandidateManager(models.Manager):
 
         return self.annotate(
             total_score=Sum(
-                "results__score", filter=Q(results__exam__stage="league")
+                "results__score",
+                filter=Q(
+                    results__exam__competition_contexts__competition_stage__type="league"
+                ),
             ),
             average_score=Avg(
-                "results__score", filter=Q(results__exam__stage="league")
+                "results__score",
+                filter=Q(
+                    results__exam__competition_contexts__competition_stage__type="league"
+                ),
             ),
             exams_taken=Count(
                 "results",
-                filter=Q(results__exam__stage="league"),
+                filter=Q(
+                    results__exam__competition_contexts__competition_stage__type="league"
+                ),
                 distinct=True,
             ),
         )
@@ -683,7 +692,7 @@ class Candidate(models.Model):
         """Helper to compute performance statistics for the candidate."""
 
         latest_snapshot = (
-            models.get_model("vmlc", "CandidateExamResultSnapshot").objects.filter(published_at__isnull=False)
+            apps.get_model("vmlc", "CandidateExamResultSnapshot").objects.filter(published_at__isnull=False)
             .order_by("-published_at")
             .first()
         )
@@ -769,7 +778,7 @@ class Candidate(models.Model):
         """Helper to get a list of available exams for the candidate."""
 
         all_relevant_exams = (
-            models.get_model("vmlc", "Exam").objects.filter(stage=self.role, is_active=True)
+            apps.get_model("vmlc", "Exam").objects.filter(stage=self.role, is_active=True)
             .annotate(question_count=Count("questions"))
             .order_by("scheduled_date")[:5]
         )
