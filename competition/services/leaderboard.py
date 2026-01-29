@@ -1,6 +1,15 @@
+import uuid
 from typing import Optional, List, Dict
-from django.db.models import Prefetch
-from competition.models import Competition, AggregateLeaderboard, AggregateLeaderboardEntry, Stage
+from django.db import transaction
+from django.db.models import Sum, Prefetch
+from competition.models import (
+    Competition, 
+    AggregateLeaderboard, 
+    AggregateLeaderboardEntry, 
+    Stage, 
+    Standings, 
+    StandingsEntry
+)
 
 class LeaderboardService:
     """
@@ -79,3 +88,68 @@ class LeaderboardService:
         
         # Attach the processed list to the instance for easy access by views/serializers
         leaderboard.processed_entries = entries
+
+    @staticmethod
+    @transaction.atomic
+    def update_league_leaderboard(competition_id: uuid.UUID, as_of_round: int):
+        """
+        Aggregates all published league standings up to 'as_of_round' 
+        and updates the AggregateLeaderboard.
+        """
+        competition = Competition.objects.get(id=competition_id)
+        
+        # 1. Fetch all published league standings up to as_of_round
+        published_standings = Standings.objects.filter(
+            competition=competition,
+            stage=Stage.Type.LEAGUE,
+            round__lte=as_of_round,
+            is_published=True
+        ).values_list('id', flat=True)
+
+        if not published_standings:
+            return None
+
+        # 2. Aggregate scores by candidate
+        candidate_totals = StandingsEntry.objects.filter(
+            standings_id__in=published_standings
+        ).values('candidate_id', 'candidate_competition_id').annotate(
+            total_score=Sum('exam_score')
+        ).order_by('-total_score')
+
+        if not candidate_totals:
+            return None
+
+        # 3. Create or update AggregateLeaderboard for this round
+        leaderboard, _ = AggregateLeaderboard.objects.get_or_create(
+            competition=competition,
+            stage=Stage.Type.LEAGUE,
+            as_of_round=as_of_round
+        )
+
+        # 4. Prepare and bulk create entries
+        # Calculate ranks (dense rank)
+        entries_to_create = []
+        previous_score = None
+        current_rank = 0
+        
+        for idx, item in enumerate(candidate_totals):
+            score = item['total_score']
+            if score != previous_score:
+                current_rank = idx + 1
+            
+            entries_to_create.append(
+                AggregateLeaderboardEntry(
+                    leaderboard=leaderboard,
+                    candidate_id=item['candidate_id'],
+                    candidate_competition_id=item['candidate_competition_id'],
+                    total_score=score,
+                    overall_rank=current_rank
+                )
+            )
+            previous_score = score
+
+        # Clear existing entries for this leaderboard if any
+        leaderboard.entries.all().delete()
+        AggregateLeaderboardEntry.objects.bulk_create(entries_to_create)
+
+        return leaderboard
