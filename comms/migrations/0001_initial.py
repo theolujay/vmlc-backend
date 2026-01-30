@@ -9,10 +9,6 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ("vmlc", "0002_alter_staff_role"),
-    ]
-
     operations = [
         migrations.CreateModel(
             name="Broadcast",
@@ -78,7 +74,7 @@ class Migration(migrations.Migration):
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="broadcasts",
-                        to="vmlc.staff",
+                        to="identity.staff",
                     ),
                 ),
             ],
