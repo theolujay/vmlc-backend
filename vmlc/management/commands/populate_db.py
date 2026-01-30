@@ -29,8 +29,13 @@ from vmlc.models import (
     SupportMessage,
     Event,
 )
-from vmlc.serializers.candidate import MinimalCandidateSerializer
-from vmlc.utils.functions import generate_leaderboard_snapshot
+from competition.models import (
+    Competition,
+    Stage,
+    StageExam,
+    CandidateCompetition,
+)
+# from vmlc.utils.functions import generate_leaderboard_snapshot
 
 
 load_dotenv(".env")
@@ -94,6 +99,10 @@ class Command(BaseCommand):
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
+        StageExam.objects.all().delete()
+        CandidateCompetition.objects.all().delete()
+        Stage.objects.all().delete()
+        Competition.objects.all().delete()
         Question.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
         CandidateExamResultSnapshot.objects.all().delete()
@@ -154,6 +163,26 @@ class Command(BaseCommand):
                 "Please create at least one staff user before running this command."
             )
 
+        # Create Competition & Stages first
+        self.stdout.write("Creating competition and stages...")
+        competition = Competition.objects.create(
+            name="VMLC Edition 1",
+            edition=1,
+            start_date=timezone.now() - timezone.timedelta(days=30),
+            end_date=timezone.now() + timezone.timedelta(days=60),
+            status=Competition.Status.ACTIVE,
+        )
+
+        stages = {}
+        for order, (st_type, st_label) in enumerate(Stage.Type.choices, start=1):
+            stage = Stage.objects.create(
+                competition=competition,
+                type=st_type,
+                order=order,
+                description=f"{st_label} Stage",
+            )
+            stages[st_type] = stage
+
         # Create candidate users
         self.stdout.write("Creating candidate users...")
         candidate_list = []
@@ -174,13 +203,29 @@ class Command(BaseCommand):
                 phone=generate_nigerian_phone_number(),
                 state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
             )
+            
+            role = random.choice(["screening", "league", "final", "winner"])
             candidate = Candidate.objects.create(
                 user=user,
                 school_name=fake.company()[:140] + " High",
                 school_type=random.choice(["public", "private"]),
                 current_class=random.choice(["SS1", "SS2", "SS3"]),
-                role=random.choice(["screening", "league", "final", "winner"]),
+                role=role,
                 created_by=random.choice(staff_list),
+            )
+
+            # Enroll in competition
+            current_stage = stages[Stage.Type.SCREENING]
+            if role == "league":
+                current_stage = stages[Stage.Type.LEAGUE]
+            elif role in ["final", "winner"]:
+                current_stage = stages[Stage.Type.FINAL]
+
+            CandidateCompetition.objects.create(
+                candidate=candidate,
+                competition=competition,
+                status=CandidateCompetition.Status.ACTIVE,
+                current_stage=current_stage,
             )
 
             update_verification(user, staff_list)
@@ -307,50 +352,63 @@ class Command(BaseCommand):
             question_list.append(question)
 
         # Create exams
-        self.stdout.write("Creating exams...")
+        self.stdout.write("Creating exams (linked to competition stages)...")
         league_exams = []
         screening_exams = []
 
-        # Helper for creating exams
-        def create_exams(stage, count, is_screening=False):
-            for _ in range(count):
-                exam = Exam.objects.create(
-                    stage=stage,
-                    round=1 if is_screening else random.randint(1, 5),
-                    title=fake.catch_phrase(),
-                    description=fake.text(),
-                    created_by=random.choice(staff_list),
-                    is_active=True,
-                    scheduled_date=timezone.now()
-                    - timezone.timedelta(days=random.randint(1, 30)),
-                    open_duration_hours=12 if is_screening else random.randint(1, 24),
-                    countdown_minutes=60 if is_screening else random.randint(30, 120),
-                )
-                exam.questions.set(
-                    random.sample(question_list, k=random.randint(5, 20))
-                )
-                if is_screening:
-                    screening_exams.append(exam)
-                else:
-                    league_exams.append(exam)
+        # 1. Screening Exam
+        screening_slot = StageExam.objects.create(
+            competition_stage=stages[Stage.Type.SCREENING],
+            round=None
+        )
+        screening_exam = Exam.objects.create(
+            competition_slot=screening_slot,
+            description=fake.text(),
+            created_by=random.choice(staff_list),
+            is_active=True,
+            scheduled_date=timezone.now() - timezone.timedelta(days=10),
+            open_duration_hours=48,
+            countdown_minutes=60,
+        )
+        screening_exam.questions.set(random.sample(question_list, k=10))
+        screening_exams.append(screening_exam)
 
-        create_exams("screening", 3, is_screening=True)
-        create_exams("league", 10, is_screening=False)
+        # 2. League Exams (10 Rounds)
+        league_stage = stages[Stage.Type.LEAGUE]
+        for r in range(1, 11):
+            slot = StageExam.objects.create(
+                competition_stage=league_stage,
+                round=r
+            )
+            exam = Exam.objects.create(
+                competition_slot=slot,
+                description=fake.text(),
+                created_by=random.choice(staff_list),
+                is_active=True,
+                scheduled_date=timezone.now() + timezone.timedelta(weeks=r-4),
+                open_duration_hours=24,
+                countdown_minutes=60,
+            )
+            exam.questions.set(random.sample(question_list, k=15))
+            league_exams.append(exam)
 
         # Create Candidate results and answers
         self.stdout.write("Creating candidate results and answers...")
         for candidate in candidate_list:
             exams_to_take = []
             if candidate.role == "screening" and screening_exams:
-                exams_to_take = random.sample(
-                    screening_exams, k=random.randint(1, len(screening_exams))
-                )
-            elif candidate.role == "league" and league_exams:
-                exams_to_take = random.sample(
+                exams_to_take = screening_exams
+            elif candidate.role in ["league", "final", "winner"] and league_exams:
+                # Take all screening exams + some league exams
+                exams_to_take = screening_exams + random.sample(
                     league_exams, k=random.randint(1, min(5, len(league_exams)))
                 )
 
             for exam in exams_to_take:
+                # Check if exam is in the past (only take past/ongoing exams)
+                if exam.scheduled_date > timezone.now():
+                    continue
+
                 result = CandidateExamResult.objects.create(
                     candidate=candidate,
                     exam=exam,
@@ -375,9 +433,21 @@ class Command(BaseCommand):
 
         results_data = []
         for candidate in all_candidates:
+            # Manually constructing data dict since serializer might be incompatible or missing
+            candidate_data = {
+                "user": {
+                    "first_name": candidate.user.first_name,
+                    "last_name": candidate.user.last_name,
+                    "email": candidate.user.email,
+                },
+                "school_name": candidate.school_name,
+                "school_type": candidate.school_type,
+                "current_class": candidate.current_class,
+                "role": candidate.role,
+            }
             results_data.append(
                 {
-                    "candidate": MinimalCandidateSerializer(candidate).data,
+                    "candidate": candidate_data,
                     "total_score": float(candidate.total_score or 0.0),
                     "average_score": float(candidate.average_score or 0.0),
                     "exams_taken": candidate.exams_taken or 0,
@@ -389,8 +459,10 @@ class Command(BaseCommand):
             published_by=random.choice(staff_list),
             published_at=timezone.now(),
         )
-        self.stdout.write("Generating leaderboard snapshot...")
-        generate_leaderboard_snapshot(random.choice(staff_list).pk)
+        
+        # Leaderboard generation is currently disabled as it relies on legacy Exam fields
+        self.stdout.write("Skipping leaderboard snapshot (requires update to utils/functions.py)...")
+        # generate_leaderboard_snapshot(random.choice(staff_list).pk)
 
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with comprehensive test data!")
