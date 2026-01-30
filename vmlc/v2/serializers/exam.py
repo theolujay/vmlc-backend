@@ -1,0 +1,218 @@
+
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
+from vmlc.serializers.staff import MinimalStaffSerializer
+from vmlc.models import (
+    CandidateExamResult,
+    Exam,
+)
+from vmlc.serializers.question import CandidateQuestionSerializer
+
+
+class ExamListV2Serializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Exam
+        fields = [
+            "id",
+            "title",
+            "status",
+            "competition_edition",
+            "question_count",
+            "scheduled_date",
+            "concluded_at",
+            "created_at",
+        ]
+
+    question_count = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    competition_edition = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+
+    def get_title(self, obj):
+        return obj.title
+
+    def get_question_count(self, obj):
+        return getattr(obj, "question_count", obj.questions.count())
+
+    def get_status(self, obj):
+        return obj.status
+
+    def get_competition_edition(self, obj):
+        if not obj.competition_slot:
+            return None
+        return obj.competition_slot.competition_stage.competition.edition
+
+class ExamDetailV2Serializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Exam
+        fields = [
+            "id",
+            "title",
+            "description",
+            "status",
+            "is_active",
+            "is_currently_open",
+            "competition_edition",
+            "questions",
+            "open_duration_hours",
+            "countdown_minutes",
+            "scheduled_date",
+            "concluded_at",
+            "created_at",
+            "created_by",
+            "updated_by",
+            "stage_id",
+            "round",
+        ]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "created_by",
+            "updated_by",
+            "status",
+        ]
+
+    created_by = MinimalStaffSerializer(read_only=True)
+    updated_by = MinimalStaffSerializer(read_only=True)
+    competition_edition = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    stage_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    round = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
+    def get_title(self, obj):
+        return obj.title
+
+    def get_competition_edition(self, obj):
+        if not obj.competition_slot:
+            return None
+        return obj.competition_slot.competition_stage.competition.edition
+
+    def validate(self, attrs):
+        if self.instance:
+            status = self.instance.status
+            if status in [
+                Exam.Status.ONGOING,
+                Exam.Status.CONCLUDED,
+                # TODO: revisit and decide on CONCLUSION status
+                Exam.Status.CANCELLED,
+            ]:
+                raise serializers.ValidationError(
+                    f"Cannot update an exam that is {status}."
+                )
+        return attrs
+
+    def create(self, validated_data):
+        stage_id = validated_data.pop("stage_id", None)
+        round = validated_data.pop("round", None)
+        exam = super().create(validated_data)
+        self._handle_competition_slot(exam, stage_id, round)
+        return exam
+
+    def update(self, instance, validated_data):
+        stage_id = validated_data.pop("stage_id", None)
+        round = validated_data.pop("round", None)
+        instance = super().update(instance, validated_data)
+        self._handle_competition_slot(instance, stage_id, round)
+        return instance
+
+    def _handle_competition_slot(self, exam, stage_id, round):
+        from django.utils import timezone
+        from competition.models import Competition, Stage, StageExam
+
+        stage = None
+        if stage_id:
+            stage = Stage.objects.filter(id=stage_id).first()
+
+        # Default to active competition's first stage if scheduled in the future
+        # and no specific stage_id was provided, and no slot exists yet.
+        if (
+            not stage
+            and exam.scheduled_date
+            and (exam.scheduled_date > timezone.now())
+            and not exam.competition_slot
+        ):
+            active_comp = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
+            if active_comp:
+                stage = active_comp.stages.order_by("order").first()
+
+        if stage:
+            if stage.type != Stage.Type.LEAGUE:
+                round = None
+
+            current_slot = exam.competition_slot
+
+            if round is not None:
+                slot, _ = StageExam.objects.get_or_create(
+                    competition_stage=stage, round=round
+                )
+                if hasattr(slot, "exam") and slot.exam != exam:
+                    # Throw a validation error so the user knows that the slot isn't available
+                    raise serializers.ValidationError(
+                        {"competition_slot": _("Slot already occupied by another exam")}
+                    )
+                exam.competition_slot = slot
+            else:
+                if (
+                    not current_slot
+                    or current_slot.competition_stage != stage
+                    or current_slot.round is not None
+                ):
+                    exam.competition_slot = StageExam.objects.create(
+                        competition_stage=stage, round=None
+                    )
+
+            exam.save(update_fields=["competition_slot"])
+
+
+
+class CandidateTakeExamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Exam
+        fields = [
+            "id",
+            "title",
+            "description",
+            "open_duration_hours",
+            "scheduled_date",
+            "countdown_minutes",
+            "questions",
+        ]
+
+    questions = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+
+    def get_title(self, obj):
+        return obj.title
+
+    def get_questions(self, obj):
+        questions = obj.questions.filter(is_archived=False)
+        return CandidateQuestionSerializer(
+            questions, many=True, context=self.context
+        ).data
+
+
+class ExamResultV2Serializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying the results of an exam.
+    """
+
+    candidate_name = serializers.CharField(
+        source="candidate.user.get_full_name", read_only=True
+    )
+    candidate_school_name = serializers.CharField(source="candidate.school_name", read_only=True)
+
+    class Meta:
+        model = CandidateExamResult
+        fields = [
+            "candidate_name",
+            "candidate_school_name",
+            "score",
+            "auto_score",
+            "score_submitted_by",
+            "recorded_at",
+        ]

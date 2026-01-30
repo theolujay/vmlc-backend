@@ -18,7 +18,7 @@ class Competition(models.Model):
         CONCLUDED = "concluded", "Concluded"
 
     name = models.CharField(max_length=64, blank=True)
-    year = models.PositiveIntegerField(db_index=True)
+    edition = models.PositiveIntegerField(db_index=True)
     start_date = models.DateTimeField(null=True, blank=True, db_index=True)
     end_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
@@ -48,7 +48,7 @@ class Stage(models.Model):
     )
     type = models.CharField(choices=Type.choices, max_length=32)
     order = models.PositiveSmallIntegerField()
-    description = models.TextField()
+    description = models.TextField(blank=True)
     config = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -58,7 +58,7 @@ class Stage(models.Model):
         return self.get_type_display()
 
     def __str__(self):
-        return f"{self.competition.year} - {self.get_type_display()}"
+        return f"{self.competition.edition} - {self.get_type_display()}"
 
     class Meta:
         ordering = ["order"]
@@ -82,15 +82,10 @@ class StageExam(models.Model):
     competition_stage = models.ForeignKey(
         Stage, on_delete=models.CASCADE, related_name="stage_exams"
     )
-    exam = models.ForeignKey(
-        "vmlc.Exam",
-        on_delete=models.PROTECT,  # Protect exam from deletion if linked
-        related_name="competition_contexts",
-    )
     round = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text="Round number within this stage (e.g., Week 1, Week 2 for League stages).",
+        help_text="Round within this stage (e.g., Week 1, Week 2 for League stages).",
     )
     is_active = models.BooleanField(
         default=True,
@@ -102,17 +97,14 @@ class StageExam(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["competition_stage", "exam"], name="unique_exam_per_stage"
-            ),
-            # If a stage has rounds, ensure unique round per stage
+            # Ensures a specific round in a stage only has ONE StageExam entry.
+            # Example: You can't have two "Round 1" entries for the "Screening" or "Final" stage.
             models.UniqueConstraint(
                 fields=["competition_stage", "round"],
                 name="unique_round_per_stage",
                 condition=models.Q(round__isnull=False),
             ),
         ]
-
 
 class CandidateCompetition(models.Model):
     """

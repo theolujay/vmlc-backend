@@ -186,10 +186,10 @@ class Question(models.Model):
         HARD = "hard", "Hard"
 
     text = models.TextField()
-    option_a = models.CharField(max_length=255, blank=True)
-    option_b = models.CharField(max_length=255, blank=True)
-    option_c = models.CharField(max_length=255, blank=True)
-    option_d = models.CharField(max_length=255, blank=True)
+    option_a = models.TextField(blank=True)
+    option_b = models.TextField(blank=True)
+    option_c = models.TextField(blank=True)
+    option_d = models.TextField(blank=True)
     correct_answer = models.CharField(max_length=1, choices=Options.choices)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -236,15 +236,16 @@ class Question(models.Model):
 
 class Exam(models.Model):
     """
-    Represents a collection of questions scheduled at a specific date for a stage of competition.
+    Defines the content and delivery configuration for an assessment.
+    
+    This model serves as the 'Blueprint' for an exam. It is linked to a 
+    specific Competition Stage via a 'competition_slot', which 
+    dictates where and when this exam occurs within the tournament logic.
     """
 
-    # class Stages(models.TextChoices):
-    #     """Stages of an exam."""
-
-    #     SCREENING = "screening", "Screening"
-    #     LEAGUE = "league", "League"
-
+    def __str__(self):
+        return self.get_title()
+    
     class ExamDeliveryMode(models.TextChoices):
         ONLINE = "online", "Online (Remote)"
         IN_PERSON = "in_person", "In-Person (CBT Venue)"
@@ -261,8 +262,25 @@ class Exam(models.Model):
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
-    title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
+    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
+    delivery_mode = models.CharField(
+        max_length=20,
+        choices=ExamDeliveryMode.choices,
+        default=ExamDeliveryMode.ONLINE,
+        db_index=True,
+    )
+    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
+    open_duration_hours = models.PositiveIntegerField(default=12)
+    countdown_minutes = models.PositiveIntegerField(default=60)
+    competition_slot = models.OneToOneField(
+        "competition.StageExam",
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="exam" 
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         "identity.Staff",
@@ -271,6 +289,7 @@ class Exam(models.Model):
         related_name="exams_created",
         on_delete=models.SET_NULL,
     )
+    updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         "identity.Staff",
         blank=True,
@@ -278,38 +297,12 @@ class Exam(models.Model):
         related_name="exams_updated",
         on_delete=models.SET_NULL,
     )
-    open_duration_hours = models.PositiveIntegerField(default=12)
-    countdown_minutes = models.PositiveIntegerField(default=60)
-    scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
-    is_active = models.BooleanField(default=True, db_index=True)
-    delivery_mode = models.CharField(
-        max_length=20,
-        choices=ExamDeliveryMode.choices,
-        default=ExamDeliveryMode.ONLINE,
-        db_index=True,
-    )
 
-    questions = models.ManyToManyField(Question, blank=True, related_name="exams")
-    updated_at = models.DateTimeField(auto_now=True)
-
-    # def __str__(self):
-    #     """Return a string representation of the exam."""
-    #     if self.stage == self.Stages.SCREENING:
-    #         return f"Screening {self.round}: {self.title} ({self.id})"
-    #     return f"League {self.round}: {self.title} ({self.id})"
-
-    # @property
-    # def stage_display(self):
-    #     """Returns a formatted stage display like 'screening_1' or 'league_2'"""
-    #     return f"{self.stage}_{self.round}"
-
-    @classmethod
-    def active_exams(cls):
-        """
-        Returns only exams marked as active.
-        """
-        return cls.objects.filter(is_active=True)
-
+    @property
+    def title(self):
+        """Inferred title from StageExam context"""
+        return self.get_title()
+    
     @property
     def is_currently_open(self):
         """
@@ -368,6 +361,31 @@ class Exam(models.Model):
             if end_time < now:
                 return end_time
         return None
+
+    @classmethod
+    def active_exams(cls):
+        """
+        Returns only exams marked as active.
+        """
+        return cls.objects.filter(is_active=True)
+
+    def get_title(self):
+        if not self.competition_slot:
+            return self.title or f"Exam {self.id}"
+
+        slot = self.competition_slot
+        stage = slot.competition_stage
+        stage_type = stage.type
+        stage_label = stage.get_type_display()
+
+        if stage_type == "league" and slot.round is not None:
+            stage_part = f"League Round {slot.round}"
+        else:
+            stage_part = stage_label
+
+        competition_part = f"{stage.competition.edition}"
+
+        return f"{competition_part} | {stage_part}"
 
     def get_question_count(self):
         """
