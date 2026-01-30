@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("competition", "0002_standings_standingsentry_and_more"),
         ("identity", "0001_initial"),
-        ("vmlc", "0040_rename_exam_vmlc_exam_stage_91a198_idx_and_more"),
+        ("vmlc", "0039_remove_candidate_created_by_remove_candidate_user_and_more"),
     ]
 
     operations = [

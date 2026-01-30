@@ -3,6 +3,7 @@
 import django.core.validators
 import django.db.models.deletion
 import django.utils.timezone
+import uuid
 from django.conf import settings
 from django.db import migrations, models
 
@@ -41,15 +42,37 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name="Event",
+            fields=[
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        unique=True,
+                    ),
+                ),
+                ("event_name", models.CharField(db_index=True, max_length=255)),
+                ("metadata", models.JSONField(blank=True, default=dict)),
+                ("timestamp", models.DateTimeField(auto_now_add=True, db_index=True)),
+            ],
+            options={
+                "ordering": ["-timestamp"],
+                "verbose_name": "Event",
+                "verbose_name_plural": "Events",
+            },
+        ),
+        migrations.CreateModel(
             name="Exam",
             fields=[
                 (
                     "id",
-                    models.BigAutoField(
-                        auto_created=True,
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
                         primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
+                        unique=True,
                     ),
                 ),
                 (
@@ -62,7 +85,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "level",  # This will be renamed to "round" in 0040
+                    "round",
                     models.PositiveIntegerField(
                         db_index=True,
                         default=1,
@@ -73,23 +96,15 @@ class Migration(migrations.Migration):
                 ("description", models.TextField(blank=True, null=True)),
                 ("is_active", models.BooleanField(db_index=True, default=False)),
                 (
-                    "exam_date",
+                    "scheduled_date",
                     models.DateTimeField(blank=True, db_index=True, null=True),
                 ),
                 ("open_duration_hours", models.PositiveIntegerField(default=12)),
                 ("countdown_minutes", models.PositiveIntegerField(default=60)),
-                ("date_created", models.DateTimeField(auto_now_add=True)),
-                ("date_updated", models.DateTimeField(auto_now=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
-            options={
-                "indexes": [
-                    models.Index(
-                        fields=["stage", "level"],  # Return the old index
-                        name="vmlc_exam_stage_91a198_idx",
-                    ),
-                ],
-            },
-),
+        ),
         migrations.CreateModel(
             name="FeatureFlag",
             fields=[
@@ -104,6 +119,7 @@ class Migration(migrations.Migration):
                 ),
                 ("key", models.CharField(max_length=50, unique=True)),
                 ("value", models.BooleanField(default=True)),
+                ("auto_off_date", models.DateTimeField(blank=True, null=True)),
             ],
         ),
         migrations.CreateModel(
@@ -120,6 +136,7 @@ class Migration(migrations.Migration):
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("data", models.JSONField()),
+                ("is_published", models.BooleanField(default=False)),
             ],
             options={
                 "ordering": ["-created_at"],
@@ -154,8 +171,8 @@ class Migration(migrations.Migration):
                         max_length=1,
                     ),
                 ),
-                ("date_created", models.DateTimeField(auto_now_add=True)),
-                ("date_updated", models.DateTimeField(auto_now=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "difficulty",
                     models.CharField(
@@ -168,8 +185,104 @@ class Migration(migrations.Migration):
                         max_length=10,
                     ),
                 ),
-                ("is_active", models.BooleanField(db_index=True, default=True)),
+                ("archived_at", models.DateTimeField(blank=True, null=True)),
+                ("is_archived", models.BooleanField(default=False, db_index=True)),
             ],
+        ),
+        migrations.CreateModel(
+            name="SupportInquiry",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("full_name", models.CharField(max_length=255)),
+                ("email", models.EmailField(max_length=254)),
+                (
+                    "phone",
+                    models.CharField(
+                        blank=True,
+                        help_text="Nigerian phone number",
+                        max_length=17,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+                                regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+                            )
+                        ],
+                    ),
+                ),
+                (
+                    "support_type",
+                    models.CharField(
+                        choices=[
+                            ("sponsorship", "Sponsorship"),
+                            ("partnership", "Partnership"),
+                            ("media_publiciy", "Media/Publicity"),
+                            ("other", "Other"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("message", models.TextField(help_text="Initial message from the user.")),
+                ("organization", models.CharField(blank=True, max_length=255)),
+                ("consent", models.BooleanField(default=False)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("open", "Open"),
+                            ("in_progress", "In Progress"),
+                            ("resolved", "Resolved"),
+                        ],
+                        db_index=True,
+                        default="open",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+            ],
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Support Inquiry",
+                "verbose_name_plural": "Support Inquiries",
+            },
+        ),
+        migrations.CreateModel(
+            name="SupportMessage",
+            fields=[
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "sender_profile",
+                    models.CharField(
+                        help_text="The role of the sender at the time the message was sent.",
+                        max_length=50,
+                    ),
+                ),
+                ("text", models.TextField()),
+                ("is_read_by_staff", models.BooleanField(db_index=True, default=False)),
+                ("is_read_by_user", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+            ],
+            options={
+                "ordering": ["created_at"],
+                "verbose_name": "Support Message",
+                "verbose_name_plural": "Support Messages",
+            },
         ),
         migrations.CreateModel(
             name="CandidateExamResult",
@@ -188,10 +301,10 @@ class Migration(migrations.Migration):
                     models.DecimalField(decimal_places=2, default=0.0, max_digits=5),
                 ),
                 (
-                    "date_recorded",
+                    "recorded_at",
                     models.DateTimeField(default=django.utils.timezone.now),
                 ),
-                ("date_updated", models.DateTimeField(auto_now=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
                 ("auto_score", models.BooleanField(db_index=True, default=False)),
                 (
                     "exam",
@@ -211,13 +324,13 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "ordering": ["-date_recorded"],
+                "ordering": ["-recorded_at"],
             },
         ),
         migrations.AddField(
             model_name="exam",
             name="questions",
-            field=models.ManyToManyField(blank=True, to="vmlc.question"),
+            field=models.ManyToManyField(blank=True, related_name="exams", to="vmlc.question"),
         ),
         migrations.CreateModel(
             name="CandidateAnswer",
@@ -247,9 +360,9 @@ class Migration(migrations.Migration):
                 ),
                 ("answered_at", models.DateTimeField(auto_now=True)),
                 (
-                    "candidate_result",
+                    "candidate_exam_result",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
+                        on_delete=django.db.models.deletion.PROTECT,
                         related_name="answers",
                         to="vmlc.candidateexamresult",
                     ),
@@ -257,7 +370,8 @@ class Migration(migrations.Migration):
                 (
                     "question",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to="vmlc.question"
+                        on_delete=django.db.models.deletion.PROTECT, 
+                        to="vmlc.question"
                     ),
                 ),
             ],
@@ -338,15 +452,66 @@ class Migration(migrations.Migration):
                 to="identity.staff",
             ),
         ),
+        migrations.AddField(
+            model_name="event",
+            name="actor",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="events",
+                to=settings.AUTH_USER_MODEL,
+                help_text="User who triggered the event, if applicable.",
+            ),
+        ),
+        migrations.AddField(
+            model_name="supportinquiry",
+            name="user",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="support_inquiries",
+                to=settings.AUTH_USER_MODEL,
+                help_text="Authenticated user who submitted the inquiry, if applicable.",
+            ),
+        ),
+        migrations.AddField(
+            model_name="supportmessage",
+            name="inquiry",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="messages",
+                to="vmlc.supportinquiry",
+            ),
+        ),
+        migrations.AddField(
+            model_name="supportmessage",
+            name="sender",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="sent_support_messages",
+                to=settings.AUTH_USER_MODEL,
+            ),
+        ),
         migrations.AddConstraint(
             model_name="candidateanswer",
             constraint=models.UniqueConstraint(
-                fields=("candidate_result", "question"),
-                name="unique_answer_per_candidate_result",
+                fields=("candidate_exam_result", "question"),
+                name="unique_answer_per_candidate_exam_result",
             ),
         ),
         migrations.AlterUniqueTogether(
             name="candidateexamresult",
             unique_together={("candidate", "exam")},
+        ),
+        migrations.AddIndex(
+            model_name="exam",
+            index=models.Index(
+                fields=["stage", "round", "is_active"],
+                name="vmlc_exam_stage_ece6e5_idx",
+            ),
         ),
     ]

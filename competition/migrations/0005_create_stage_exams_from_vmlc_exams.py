@@ -91,7 +91,7 @@ class Migration(migrations.Migration):
         ("competition", "0004_stageexam"),  # update as appropriate
         (
             "vmlc",
-            "0040_rename_exam_vmlc_exam_stage_91a198_idx_and_more",
+            "0039_remove_candidate_created_by_remove_candidate_user_and_more",
         ),  # adjust to your vmlc migrations
     ]
 

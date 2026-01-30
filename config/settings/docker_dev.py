@@ -31,7 +31,7 @@ if "test" not in sys.argv:
 
 # Database configuration for Docker (PostgreSQL with connection pooling)
 DATABASE_URL = read_secret(
-    "DATABASE_URL",
+    "LOCAL_DATABASE_URL",
     f"postgresql://{read_secret('POSTGRES_USER', 'postgres')}:{read_secret('POSTGRES_PASSWORD', 'password')}@db:5432/{read_secret('POSTGRES_DB', 'vmlc_dev')}",
 )
 db_config = dj_database_url.config(
