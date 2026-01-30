@@ -371,7 +371,7 @@ class Exam(models.Model):
 
     def get_title(self):
         if not self.competition_slot:
-            return self.title or f"Exam {self.id}"
+            return f"Exam {str(self.id)[:8]}"
 
         slot = self.competition_slot
         stage = slot.competition_stage
@@ -383,9 +383,7 @@ class Exam(models.Model):
         else:
             stage_part = stage_label
 
-        competition_part = f"{stage.competition.edition}"
-
-        return f"{competition_part} | {stage_part}"
+        return stage_part
 
     def get_question_count(self):
         """

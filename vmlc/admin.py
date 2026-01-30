@@ -648,7 +648,7 @@ class ExamAdmin(admin.ModelAdmin):
     @admin.display(description="Results")
     def view_results_link(self, obj):
         url = (
-            reverse("admin:vmlc_candidateresult_changelist")
+            reverse("admin:vmlc_candidateexamresult_changelist")
             + f"?exam__id__exact={obj.pk}"
         )
         return format_html('<a href="{}" target="_blank">View Results</a>', url)
