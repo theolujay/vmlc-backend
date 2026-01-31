@@ -2,7 +2,6 @@ import os
 import random
 from typing import Any
 
-import django
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Avg, Count, Sum
 from django.utils import timezone
@@ -34,14 +33,17 @@ from competition.models import (
     Stage,
     StageExam,
     CandidateCompetition,
+    CandidateStageProgress,
+    Standings,
+    StandingsEntry,
+    AggregateLeaderboard,
+    AggregateLeaderboardEntry,
 )
-# from vmlc.utils.functions import generate_leaderboard_snapshot
+from competition.services.standings import StandingsGenerator
+from competition.services.leaderboard import LeaderboardService
 
 
 load_dotenv(".env")
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.docker_dev")
-django.setup()
 
 
 class Command(BaseCommand):
@@ -99,7 +101,12 @@ class Command(BaseCommand):
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
+        StandingsEntry.objects.all().delete()
+        Standings.objects.all().delete()
+        AggregateLeaderboardEntry.objects.all().delete()
+        AggregateLeaderboard.objects.all().delete()
         StageExam.objects.all().delete()
+        CandidateStageProgress.objects.all().delete()
         CandidateCompetition.objects.all().delete()
         Stage.objects.all().delete()
         Competition.objects.all().delete()
@@ -221,12 +228,27 @@ class Command(BaseCommand):
             elif role in ["final", "winner"]:
                 current_stage = stages[Stage.Type.FINAL]
 
-            CandidateCompetition.objects.create(
+            cc = CandidateCompetition.objects.create(
                 candidate=candidate,
                 competition=competition,
                 status=CandidateCompetition.Status.ACTIVE,
                 current_stage=current_stage,
             )
+
+            # Create progress records for all stages
+            for st_type, st_obj in stages.items():
+                if st_obj.order < current_stage.order:
+                    status = CandidateStageProgress.Status.COMPLETED
+                elif st_obj.order == current_stage.order:
+                    status = CandidateStageProgress.Status.IN_PROGRESS
+                else:
+                    status = CandidateStageProgress.Status.PENDING
+                
+                CandidateStageProgress.objects.create(
+                    candidate_competition=cc,
+                    stage=st_obj,
+                    status=status
+                )
 
             update_verification(user, staff_list)
             candidate_list.append(candidate)
@@ -423,8 +445,31 @@ class Command(BaseCommand):
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
 
-        # Generate Candidate Score Snapshot
-        self.stdout.write("Generating candidate score snapshot...")
+        # Generate Standings and Leaderboards
+        self.stdout.write("Generating standings and aggregate leaderboards...")
+        concluded_exams = [e for e in screening_exams + league_exams if e.status == Exam.Status.CONCLUDED]
+        
+        for exam in concluded_exams:
+            try:
+                generator = StandingsGenerator(stage_exam_id=exam.competition_slot.id)
+                standings = generator.generate_and_save_standings(
+                    published_by_staff_id=random.choice(staff_list).pk
+                )
+                # Publish them
+                standings.is_published = True
+                standings.published_at = timezone.now()
+                standings.save()
+                
+                if standings.stage == Stage.Type.LEAGUE:
+                    LeaderboardService.update_league_leaderboard(
+                        competition_id=competition.id,
+                        as_of_round=standings.round
+                    )
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Could not generate standings for exam {exam.id}: {e}"))
+
+        # Generate Candidate Score Snapshot (Legacy support)
+        self.stdout.write("Generating candidate score snapshot (legacy)...")
         all_candidates = Candidate.objects.annotate(
             total_score=Sum("results__score"),
             average_score=Avg("results__score"),
@@ -433,7 +478,6 @@ class Command(BaseCommand):
 
         results_data = []
         for candidate in all_candidates:
-            # Manually constructing data dict since serializer might be incompatible or missing
             candidate_data = {
                 "user": {
                     "first_name": candidate.user.first_name,
@@ -460,10 +504,6 @@ class Command(BaseCommand):
             published_at=timezone.now(),
         )
         
-        # Leaderboard generation is currently disabled as it relies on legacy Exam fields
-        self.stdout.write("Skipping leaderboard snapshot (requires update to utils/functions.py)...")
-        # generate_leaderboard_snapshot(random.choice(staff_list).pk)
-
         self.stdout.write(
             self.style.SUCCESS("Database populated successfully with comprehensive test data!")
         )

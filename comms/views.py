@@ -21,7 +21,7 @@ from comms.serializers import (
 )
 from comms.tasks import send_broadcast_task
 from comms.utils import send_backup_status_to_slack
-from vmlc.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
+from identity.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.swagger_schemas import (
     api_key,

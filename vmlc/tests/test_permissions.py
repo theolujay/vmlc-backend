@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 
 from identity.models import Staff
-from vmlc.permissions import IsStaff
+from identity.permissions import IsStaff
 
 User = get_user_model()
 
