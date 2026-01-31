@@ -2,25 +2,48 @@ from rest_framework.views import APIView
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from drf_yasg.utils import swagger_auto_schema
+from django.shortcuts import get_object_or_404
 
 from identity.permissions import (
-    ActiveAdminPermissions, 
+    ActiveAdminPermissions,
+    ActiveModeratorPermissions,
     HasXAPIKey, 
     IsLeagueParticipantOrStaff
 )
 from rest_framework.permissions import IsAuthenticated
 from vmlc.models import Exam
-from vmlc.utils.swagger_schemas import api_key, bearer_auth, error_response_401, error_response_403
-from competition.models import Standings
+from competition.models import Standings, StandingsEntry
 from competition.serializers import (
     PublishStandingsSerializer, 
     StandingsSerializer, 
+    CandidateResultDetailSerializer,
     AggregateLeaderboardSerializer,
-    AggregateLeaderboardEntrySerializer
+    AggregateLeaderboardEntrySerializer,
+    CompetitionDashboardSerializer
 )
 from competition.tasks import generate_standings_task
 from competition.services.leaderboard import LeaderboardService
+from competition.services.dashboard import CompetitionDashboardService
+from vmlc.models import Exam, CandidateExamResult
+
+
+class CompetitionDashboardView(APIView):
+    """
+    Provides an aggregated view of competition statistics and progress.
+    """
+    permission_classes = ActiveModeratorPermissions
+
+    def get(self, request):
+        data = CompetitionDashboardService.get_dashboard_data()
+        if not data:
+            return Response(
+                {"detail": "No active competition found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = CompetitionDashboardSerializer(data)
+        return Response(serializer.data)
+
 
 class PublishStandingsView(APIView):
     """
@@ -28,19 +51,6 @@ class PublishStandingsView(APIView):
     """
     permission_classes = ActiveAdminPermissions
 
-    @swagger_auto_schema(
-        operation_summary="Generate/Publish Standings",
-        operation_description="Triggers async generation of standings for a specific Exam.",
-        request_body=PublishStandingsSerializer,
-        responses={
-            202: "Standings generation started.",
-            400: "Invalid request",
-            401: error_response_401,
-            403: error_response_403
-        },
-        manual_parameters=[api_key, bearer_auth],
-        tags=["Competition Leaderboard"]
-    )
     def post(self, request):
         serializer = PublishStandingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -91,7 +101,7 @@ class PublishStandingsView(APIView):
 
 class RetrieveStandingsView(RetrieveAPIView):
     """
-    View to retrieve a specific standing.
+    View to retrieve a specific standing using Exam ID.
     """
     queryset = Standings.objects.prefetch_related(
         'entries',
@@ -101,18 +111,6 @@ class RetrieveStandingsView(RetrieveAPIView):
     permission_classes = [ActiveAdminPermissions]
     lookup_field = 'exam_id'
 
-    @swagger_auto_schema(
-        operation_summary="Get Specific Standing",
-        operation_description="Retrieves the details and entries of a specific standing using Exam ID.",
-        responses={
-            200: StandingsSerializer,
-            401: error_response_401,
-            403: error_response_403,
-            404: "Not Found"
-        },
-        manual_parameters=[api_key, bearer_auth],
-        tags=["Competition Leaderboard"]
-    )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
@@ -123,18 +121,6 @@ class LeagueLeaderboardView(APIView):
     """
     permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueParticipantOrStaff]
 
-    @swagger_auto_schema(
-        operation_summary="Get League Leaderboard",
-        operation_description="Retrieves the latest cumulative leaderboard for the active competition's league stage.",
-        responses={
-            200: AggregateLeaderboardSerializer,
-            401: error_response_401,
-            403: error_response_403,
-            404: "No active league leaderboard found."
-        },
-        manual_parameters=[api_key, bearer_auth],
-        tags=["Competition Leaderboard"]
-    )
     def get(self, request):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
@@ -158,3 +144,82 @@ class LeagueLeaderboardView(APIView):
         ).data
         
         return Response(data)
+
+
+class RetrieveCandidateStandingView(APIView):
+    """
+    Retrieves detailed performance for a specific candidate in a specific exam standing.
+    """
+    permission_classes = [HasXAPIKey, IsAuthenticated] # IsActiveModeratorOrCandidate is more appropriate
+
+    def get(self, request, exam_id, candidate_id):
+        standing = get_object_or_404(Standings, exam_id=exam_id)
+        
+        # Access control
+        if hasattr(request.user, "candidate_profile"):
+            if str(request.user.candidate_profile.id) != str(candidate_id):
+                # If they are a candidate, they can only see their own detail unless they are staff
+                if not request.user.is_staff:
+                    return Response(
+                        {"detail": "You can only view your own performance."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+        entry = get_object_or_404(StandingsEntry, standings=standing, candidate_id=candidate_id)
+        
+        result = get_object_or_404(
+            CandidateExamResult.objects.prefetch_related('answers__question'), 
+            exam_id=exam_id, 
+            candidate_id=candidate_id
+        )
+        
+        # Manually attach rank/percentile from StandingsEntry to result object for serialization
+        result.rank = entry.rank
+        result.percentile = entry.percentile
+
+        exam = standing.exam
+        exam_details = {
+            "id": exam.id,
+            "title": exam.get_title(),
+            "stage": standing.stage,
+            "round": standing.round,
+            "scheduled_date": exam.scheduled_date,
+            "concluded_at": exam.concluded_at,
+            "total_questions": exam.get_question_count(),
+            "total_candidates": standing.entries.count(),
+            "average_score": float(exam.get_average_score() or 0),
+        }
+
+        return Response({
+            "exam_details": exam_details,
+            "candidate_performance": CandidateResultDetailSerializer(result).data
+        })
+
+
+class LeagueCandidateLeaderboardView(APIView):
+    """
+    Retrieves cumulative performance for a specific candidate in the league leaderboard.
+    """
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueParticipantOrStaff]
+
+    def get(self, request, candidate_id):
+        leaderboard = LeaderboardService.get_latest_league_leaderboard()
+        if not leaderboard:
+            return Response({"detail": "No active leaderboard found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Access control
+        if hasattr(request.user, "candidate_profile"):
+            if str(request.user.candidate_profile.id) != str(candidate_id):
+                if not request.user.is_staff:
+                    return Response(
+                        {"detail": "You can only view your own performance."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+        # The service already annotated rank_change on processed_entries
+        entry = next((e for e in leaderboard.processed_entries if str(e.candidate_id) == str(candidate_id)), None)
+        
+        if not entry:
+            return Response({"detail": "Candidate not found in leaderboard."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(AggregateLeaderboardEntrySerializer(entry).data)

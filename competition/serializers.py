@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from competition.models import Standings, StandingsEntry, AggregateLeaderboard, AggregateLeaderboardEntry
+from vmlc.serializers.question import QuestionListSerializer
+from vmlc.models import CandidateAnswer, CandidateExamResult, Exam
 
 class PublishStandingsSerializer(serializers.Serializer):
     """
@@ -70,10 +72,43 @@ class StandingsSerializer(serializers.ModelSerializer):
         ]
 
 
+class CandidateAnswerDetailSerializer(serializers.ModelSerializer):
+    question = QuestionListSerializer(read_only=True)
+
+    class Meta:
+        model = CandidateAnswer
+        fields = ['question', 'selected_option', 'answered_at']
+
+
+class CandidateResultDetailSerializer(serializers.ModelSerializer):
+    candidate_name = serializers.CharField(source='candidate.user.get_full_name', read_only=True)
+    candidate_email = serializers.CharField(source='candidate.user.email', read_only=True)
+    school_name = serializers.CharField(source='candidate.school_name', read_only=True)
+    submissions = CandidateAnswerDetailSerializer(source='answers', many=True, read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    percentile = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = CandidateExamResult
+        fields = [
+            'candidate',
+            'candidate_name',
+            'candidate_email',
+            'school_name',
+            'score',
+            'rank',
+            'percentile',
+            'recorded_at',
+            'auto_score',
+            'submissions'
+        ]
+
+
 class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(source='candidate.user.get_full_name', read_only=True)
     candidate_email = serializers.CharField(source='candidate.user.email', read_only=True)
     school_name = serializers.CharField(source='candidate.school_name', read_only=True)
+    state = serializers.CharField(source='candidate.state', read_only=True)
     rank_change = serializers.IntegerField(default=0, read_only=True)
 
     class Meta:
@@ -83,6 +118,7 @@ class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
             'candidate_name',
             'candidate_email',
             'school_name',
+            'state',
             'total_score',
             'overall_rank',
             'rank_change',
@@ -90,18 +126,115 @@ class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
 
 
 class AggregateLeaderboardSerializer(serializers.ModelSerializer):
+
+
     entries = AggregateLeaderboardEntrySerializer(many=True, read_only=True)
+
+
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
 
+
+
+
+
     class Meta:
+
+
         model = AggregateLeaderboard
+
+
         fields = [
+
+
             'id',
+
+
             'competition',
+
+
             'stage',
+
+
             'stage_display',
+
+
             'as_of_round',
+
+
             'created_at',
+
+
             'updated_at',
+
+
             'entries',
+
+
         ]
+
+
+
+
+
+
+
+
+class CompetitionDashboardExamSerializer(serializers.Serializer):
+
+
+    id = serializers.UUIDField()
+
+
+    title = serializers.CharField()
+
+
+    stage = serializers.CharField()
+
+
+    status = serializers.CharField()
+
+
+    standings_status = serializers.CharField()
+
+
+    stats = serializers.DictField()
+
+
+
+
+
+
+
+
+class CompetitionDashboardSerializer(serializers.Serializer):
+
+
+    stats = serializers.DictField()
+
+
+    progress = serializers.DictField()
+
+
+    exams = CompetitionDashboardExamSerializer(many=True)
+
+
+    leaderboard_summary = AggregateLeaderboardEntrySerializer(many=True)
+
+
+    latest_standings_summary = serializers.DictField(allow_null=True)
+
+
+
+
+
+
+
+
+class CandidateStandingsDetailSerializer(serializers.Serializer):
+
+
+    exam_details = serializers.DictField()
+
+
+    candidate_performance = serializers.DictField()
+

@@ -108,7 +108,7 @@ class SubmitAnswersView(APIView):
         serializer.is_valid(raise_exception=True)
         answers_data = serializer.validated_data["answers"]
 
-        # 4. Atomic Bulk Creation and Scoring
+        # 4. Atomic Bulk Creation
         with transaction.atomic():
             answers_to_create = [
                 CandidateAnswer(
@@ -119,11 +119,6 @@ class SubmitAnswersView(APIView):
                 for answer_data in answers_data
             ]
             CandidateAnswer.objects.bulk_create(answers_to_create)
-
-            # Asynchronously computes the result
-            from ..tasks import compute_candidate_result_task
-
-            compute_candidate_result_task.delay(candidate_exam_result.id)
 
         logger.info(
             "Candidate %s successfully submitted answers for exam %s.",

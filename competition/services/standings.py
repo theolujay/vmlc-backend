@@ -23,11 +23,11 @@ class StandingsGenerator:
 
     def __init__(self, stage_exam_id: uuid.UUID):
         self.stage_exam = StageExam.objects.select_related(
-            "competition_stage__competition", "vmlc_exam"
+            "competition_stage__competition", "exam"
         ).get(id=stage_exam_id)
         self.competition = self.stage_exam.competition_stage.competition
         self.stage = self.stage_exam.competition_stage
-        self.exam = self.stage_exam.vmlc_exam
+        self.exam = self.stage_exam.exam
 
     @transaction.atomic
     def generate_and_save_standings(
@@ -53,6 +53,10 @@ class StandingsGenerator:
             StandingsGenerationError: If validation fails or no results are found.
         """
         self._validate_preconditions()
+
+        # Perform auto-scoring for all submissions before generating standings
+        from vmlc.utils.functions import score_exam_submissions
+        score_exam_submissions(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
         raw_results = CandidateExamResult.objects.filter(exam=self.exam).select_related(
@@ -135,11 +139,11 @@ class StandingsGenerator:
         standings = Standings.objects.create(
             competition=self.competition,
             stage=self.stage.type,  # Use the string type, as Standings takes string
-            round=self.stage_exam.round_number,  # Assuming StageExam has round_number
+            round=self.stage_exam.round,  # Using 'round' as defined in StageExam
             exam=self.exam,
             is_published=False,  # Must be explicitly published
             meta={
-                "generated_by": published_by_staff_id,
+                "generated_by": str(published_by_staff_id) if published_by_staff_id else None,
                 "policy": ranking_policy,
                 "tie_break": tie_break_strategy,
             },
@@ -152,6 +156,7 @@ class StandingsGenerator:
         StandingsEntry.objects.bulk_create(standings_entries_to_create)
 
         return standings
+
 
     def _validate_preconditions(self):
         """Internal validation before generating standings."""

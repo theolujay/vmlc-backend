@@ -109,11 +109,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ),
         "recent_results": [
             {
-                "exam": result["exam__title"],
-                "exam_title": result["exam__title"],
-                "score": float(result["score"]),
-                "date": result["recorded_at"],
-                "exam_stage": result["exam__stage"],
+                "exam": result.exam.get_title(),
+                "exam_title": result.exam.get_title(),
+                "score": float(result.score),
+                "date": result.recorded_at,
+                "exam_stage": result.exam.competition_slot.competition_stage.type if result.exam.competition_slot else "N/A",
             }
             for result in recent_results_list
         ],
@@ -148,17 +148,16 @@ def _get_candidate_performance_stats(
     total_exams_taken = all_results_qs.count()
 
     recent_results_list = list(
-        all_results_qs.order_by("-recorded_at")
-        .select_related("exam")
-        .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
+        all_results_qs.select_related("exam", "exam__competition_slot", "exam__competition_slot__competition_stage")
+        .order_by("-recorded_at")[:5]
     )
 
     latest_score_data = None
     if recent_results_list:
         latest_score_data = {
-            "score": float(recent_results_list[0]["score"]),
-            "exam_title": recent_results_list[0]["exam__title"],
-            "date": recent_results_list[0]["recorded_at"],
+            "score": float(recent_results_list[0].score),
+            "exam_title": recent_results_list[0].exam.get_title(),
+            "date": recent_results_list[0].recorded_at,
         }
     return {
         "average_score": result_stats["average_score"],
@@ -451,35 +450,44 @@ def _get_staff_score_submission_stats(last_week: timedelta) -> Dict[str, Any]:
 
 def _get_staff_recent_activity() -> list:
     """Helper to get recent candidate activity for staff dashboard."""
-    recent_activity_list = list(
+    recent_activity = (
         CandidateExamResult.objects.select_related("candidate__user", "exam")
-        .order_by("-recorded_at")
-        .values(
-            "score",
-            "recorded_at",
-            "candidate__user__first_name",
-            "candidate__user__last_name",
-            "exam__title",
-            "candidate__school_name",
-        )[:10]
+        .order_by("-recorded_at")[:10]
     )
+    
+    recent_activity_list = [
+        {
+            "score": result.score,
+            "recorded_at": result.recorded_at,
+            "candidate__user__first_name": result.candidate.user.first_name,
+            "candidate__user__last_name": result.candidate.user.last_name,
+            "exam__title": result.exam.get_title(),
+            "candidate__school_name": result.candidate.school_name,
+        }
+        for result in recent_activity
+    ]
     return recent_activity_list
 
 
 def _get_staff_upcoming_exams(now: Any) -> list:
     """Helper to get upcoming exams for staff dashboard."""
-    upcoming_exams_list = list(
+    upcoming_exams = (
         Exam.objects.filter(scheduled_date__gte=now, is_active=True)
         .order_by("scheduled_date")
-        .values(
-            "id",
-            "title",
-            "scheduled_date",
-            "is_active",
-            "stage",
-            "round",
-            "countdown_minutes",
-        )
         .annotate(question_count=Count("questions"))[:5]
     )
+    
+    upcoming_exams_list = [
+        {
+            "id": exam.id,
+            "title": exam.get_title(),
+            "scheduled_date": exam.scheduled_date,
+            "is_active": exam.is_active,
+            "stage": exam.competition_slot.competition_stage.type if exam.competition_slot else "N/A",
+            "round": exam.competition_slot.round if exam.competition_slot else None,
+            "countdown_minutes": exam.countdown_minutes,
+            "question_count": exam.question_count,
+        }
+        for exam in upcoming_exams
+    ]
     return upcoming_exams_list

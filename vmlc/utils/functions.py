@@ -169,29 +169,7 @@ def compute_candidate_result(candidate_result_id):
 
     try:
         candidate_exam_result = CandidateExamResult.objects.get(pk=candidate_result_id)
-        submitted_answers = CandidateAnswer.objects.filter(
-            candidate_exam_result=candidate_exam_result
-        )
-
-        total_questions = candidate_exam_result.exam.questions.filter(
-            is_archived=False
-        ).count()
-        if not total_questions:
-            candidate_exam_result.score = 0
-        else:
-            correct_count = sum(
-                1
-                for answer in submitted_answers
-                if answer.selected_option == answer.question.correct_answer
-            )
-            score = (correct_count / total_questions) * 100
-            candidate_exam_result.score = round(score, 2)
-
-        candidate_exam_result.auto_score = True
-        candidate_exam_result.score_submitted_by = None
-        candidate_exam_result.recorded_at = timezone.now()
-        candidate_exam_result.save()
-        cache.delete(f"candidate_dashboard_{candidate_exam_result.candidate.pk}")
+        _compute_and_save_result(candidate_exam_result)
         logger.info(
             f"Successfully computed result for CandidateExamResult {candidate_result_id}"
         )
@@ -201,6 +179,58 @@ def compute_candidate_result(candidate_result_id):
         logger.error(
             f"Failed to compute result for CandidateExamResult {candidate_result_id}: {e}"
         )
+
+
+def score_exam_submissions(exam_id):
+    """
+    Calculate and save auto-scores for all submissions of a specific exam.
+    """
+    try:
+        exam = Exam.objects.get(pk=exam_id)
+        results = CandidateExamResult.objects.filter(exam=exam)
+        
+        count = 0
+        for result in results:
+            _compute_and_save_result(result)
+            count += 1
+            
+        logger.info(f"Successfully computed results for {count} submissions of exam {exam_id}")
+        return count
+    except Exam.DoesNotExist:
+        logger.error(f"Exam with id {exam_id} does not exist.")
+        return 0
+    except Exception as e:
+        logger.error(f"Failed to score submissions for exam {exam_id}: {e}")
+        raise
+
+
+def _compute_and_save_result(candidate_exam_result):
+    """Internal helper to compute and save result for a single CandidateExamResult."""
+    submitted_answers = CandidateAnswer.objects.filter(
+        candidate_exam_result=candidate_exam_result
+    ).select_related("question")
+
+    total_questions = candidate_exam_result.exam.questions.filter(
+        is_archived=False
+    ).count()
+    
+    if not total_questions:
+        candidate_exam_result.score = 0
+    else:
+        correct_count = sum(
+            1
+            for answer in submitted_answers
+            if answer.selected_option == answer.question.correct_answer
+        )
+        score = (correct_count / total_questions) * 100
+        candidate_exam_result.score = round(score, 2)
+
+    candidate_exam_result.auto_score = True
+    candidate_exam_result.score_submitted_by = None
+    candidate_exam_result.recorded_at = timezone.now()
+    candidate_exam_result.save()
+    cache.delete(f"candidate_dashboard_{candidate_exam_result.candidate.pk}")
+
 
 
 def generate_results_snapshot(staff_id=None):

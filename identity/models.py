@@ -636,18 +636,14 @@ class Candidate(models.Model):
             total_score=Sum("score"),
         )
 
-        recent_results_list = list(
-            results_qs.order_by("-recorded_at")
-            .select_related("exam")
-            .values("score", "exam__title", "recorded_at")[:1]
-        )
+        recent_result = results_qs.order_by("-recorded_at").select_related("exam").first()
 
         latest_score_data = None
-        if recent_results_list:
+        if recent_result:
             latest_score_data = {
-                "score": float(recent_results_list[0]["score"]),
-                "exam_title": recent_results_list[0]["exam__title"],
-                "date": recent_results_list[0]["recorded_at"],
+                "score": float(recent_result.score),
+                "exam_title": recent_result.exam.get_title(),
+                "date": recent_result.recorded_at,
             }
 
         candidate_rank, total_league_candidates = self._get_leaderboard_ranking(

@@ -546,7 +546,7 @@ class ExamAccess(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"          # provisioned but not opened
-        ISSUED = "issued", "Issued"              # URL generated
+        ISSUED = "issued", "Issued"             # URL generated
         STARTED = "started", "Started"
         SUBMITTED = "submitted", "Submitted"
         EXPIRED = "expired", "Expired"

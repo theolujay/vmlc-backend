@@ -1,8 +1,10 @@
 from datetime import timedelta
+import re
 from django.db.models import F, Count, Q, ExpressionWrapper, DateTimeField
 from django.utils import timezone
 from django.db.models.functions import Now
 from identity.models import Candidate, Staff, User
+from competition.models import Competition, Stage
 from ..models import Exam
 from .user import get_user_status_counts
 from .metrics import get_funnel_metrics
@@ -17,10 +19,52 @@ def generate_stats_overview_data():
         "candidates": _get_candidate_stats(),
         "staff": _get_staff_stats(),
         "exams": _get_exam_stats(),
+        "competition": _get_competition_stats(),
         "funnel": get_funnel_metrics(),
         "geographics": _get_geographic_stats(),
     }
     return data
+
+
+def _get_competition_stats() -> dict:
+    """Helper to get active competition statistics."""
+    # Only one active competition should exist
+    active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+    
+    if not active_comp:
+        return None
+
+    stages_data = []
+    # Get all stages for the active competition
+    stages = active_comp.stages.all().order_by('order')
+    
+    for stage in stages:
+        stage_info = {
+            "id": stage.id,
+            "name": re.sub(r'^\d+\s-\s', '', str(stage)),
+            "type": stage.type,
+        }
+        
+        # If stage is LEAGUE, get available rounds
+        if stage.type == Stage.Type.LEAGUE:
+            # Rounds are defined in StageExam associated with this stage
+            # We filter for active StageExams that have a round number
+            rounds = (
+                stage.stage_exams
+                .filter(is_active=True, round__isnull=False)
+                .values_list('round', flat=True)
+                .distinct()
+                .order_by('round')
+            )
+            stage_info["rounds"] = list(rounds)
+            
+        stages_data.append(stage_info)
+
+    return {
+        "active_competition": str(active_comp),
+        "active_competition_id": active_comp.id,
+        "stages": stages_data
+    }
 
 
 def _get_candidate_stats() -> dict:
