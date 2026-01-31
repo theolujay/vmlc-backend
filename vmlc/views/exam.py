@@ -26,7 +26,7 @@ from ..serializers import (
     CandidateExamSerializer,
     CandidateExamScoreSerializer,
 )
-from ..permissions import (
+from identity.permissions import (
     ActiveAdminPermissions,
     CandidatePermissions,
 )
@@ -554,6 +554,8 @@ def candidate_take_exam(request, exam_id):
     """
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
+    from competition.services.eligibility import EligibilityService
+    
     logger.info(
         f"candidate_take_exam: request from user {request.user.id} for exam {exam_id}"
     )
@@ -564,23 +566,11 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not candidate.is_active:
+    if not EligibilityService.can_take_exam(candidate, exam):
         logger.warning(
-            f"Deactivated candidate {candidate.id} attempted to take exam {exam_id}"
+            f"Candidate {candidate.id} failed eligibility check for exam {exam_id}"
         )
-        raise PermissionDenied("Candidate is deactivaated and cannot take this exam.")
-
-    if candidate.role != exam.stage:
-        logger.warning(
-            f"Candidate {candidate.id} with role {candidate.role} attempted to take exam {exam_id} with stage {exam.stage}"
-        )
-        raise PermissionDenied("Not allowed.")
-
-    if not exam.is_currently_open:
-        logger.warning(
-            f"Candidate {candidate.id} attempted to take exam {exam_id} which is not open."
-        )
-        raise PermissionDenied("Exam is not currently open.")
+        raise PermissionDenied("You are not eligible to take this exam at this time.")
 
     serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)

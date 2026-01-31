@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from vmlc.models import FeatureFlag
-from vmlc.permissions import (
+from identity.permissions import (
     ActiveModeratorPermissions,
 )
 from ..tasks import generate_stats_overview_task

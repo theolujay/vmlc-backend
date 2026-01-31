@@ -44,7 +44,7 @@ from vmlc.utils.swagger_schemas import (
     error_response_404,
     error_response_400,
 )
-from vmlc.permissions import (
+from identity.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
     IsObjectOwnerOrActiveAdmin,

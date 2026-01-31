@@ -15,7 +15,7 @@ from identity.models import Candidate
 from vmlc.utils.helpers import invalidate_all_dashboard_caches
 
 from vmlc.models import Exam, Question, CandidateExamResult
-from vmlc.permissions import ActiveAdminPermissions, CandidatePermissions
+from identity.permissions import ActiveAdminPermissions, CandidatePermissions
 from vmlc.v2.serializers.exam import (
     ExamListV2Serializer,
     ExamDetailV2Serializer,
@@ -303,6 +303,7 @@ class ExamHistoryV2View(ListAPIView):
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
+    from competition.services.eligibility import EligibilityService
     candidate = request.user.candidate_profile
 
     try:
@@ -310,19 +311,10 @@ def candidate_take_exam_V2(request, exam_id):
     except Exam.DoesNotExist:
         raise NotFound("Exam not found.")
 
-    if not candidate.is_active:
+    if not EligibilityService.can_take_exam(candidate, exam):
         logger.warning(
-            f"Deactivated candidate {candidate.id} attempted to take exam {exam_id}"
+            f"Candidate {candidate.id} failed eligibility check for exam {exam_id}"
         )
-        raise PermissionDenied("Candidate is deactivated.")
-
-    if candidate.role != exam.stage:
-        raise PermissionDenied("Not allowed.")
-
-    if not exam.is_currently_open:
-        logger.warning(
-            f"Candidate {candidate.id} attempted to take exam {exam_id} which is not open."
-        )
-        raise PermissionDenied("Exam is not currently open.")
+        raise PermissionDenied("You are not eligible to take this exam at this time.")
 
     return Response(CandidateTakeExamSerializer(exam).data)

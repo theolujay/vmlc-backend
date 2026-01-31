@@ -14,7 +14,7 @@ from rest_framework.settings import api_settings
 
 from identity.models import Candidate
 from vmlc.models import LeaderboardSnapshot
-from vmlc.permissions import (
+from identity.permissions import (
     AuthenticatedUser,
     IsActiveModeratorOrCandidate,
     ActiveAdminPermissions,
