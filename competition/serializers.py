@@ -5,8 +5,8 @@ class PublishStandingsSerializer(serializers.Serializer):
     """
     Serializer for triggering the standings generation/publish process.
     """
-    stage_exam_id = serializers.UUIDField(
-        help_text="UUID of the StageExam to generate standings for."
+    exam_id = serializers.UUIDField(
+        help_text="UUID of the Exam to generate standings for."
     )
     publish_now = serializers.BooleanField(
         default=False,

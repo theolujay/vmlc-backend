@@ -3,11 +3,16 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
-from vmlc.permissions import ActiveAdminPermissions, AuthenticatedUser
+from identity.permissions import (
+    ActiveAdminPermissions, 
+    HasXAPIKey, 
+    IsLeagueParticipantOrStaff
+)
+from rest_framework.permissions import IsAuthenticated
+from vmlc.models import Exam
 from vmlc.utils.swagger_schemas import api_key, bearer_auth, error_response_401, error_response_403
-from competition.models import Standings, AggregateLeaderboard, Competition, Stage
+from competition.models import Standings
 from competition.serializers import (
     PublishStandingsSerializer, 
     StandingsSerializer, 
@@ -25,7 +30,7 @@ class PublishStandingsView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Generate/Publish Standings",
-        operation_description="Triggers async generation of standings for a specific StageExam.",
+        operation_description="Triggers async generation of standings for a specific Exam.",
         request_body=PublishStandingsSerializer,
         responses={
             202: "Standings generation started.",
@@ -41,8 +46,29 @@ class PublishStandingsView(APIView):
         serializer.is_valid(raise_exception=True)
         
         data = serializer.validated_data
-        stage_exam_id = data['stage_exam_id']
+        exam_id = data['exam_id']
         publish_now = data['publish_now']
+
+        try:
+            exam = Exam.objects.get(id=exam_id)
+        except Exam.DoesNotExist:
+             return Response({"detail": "Exam not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not exam.competition_slot:
+            return Response(
+                {"detail": "This exam is not linked to any competition stage round."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not exam.status == Exam.Status.CONCLUDED:
+            return Response(
+                {
+                    "detail": "This exam isn't yet concluded"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        stage_exam_id = exam.competition_slot.id
         
         # Pass user ID if available
         staff_id = None
@@ -73,11 +99,11 @@ class RetrieveStandingsView(RetrieveAPIView):
     ).all()
     serializer_class = StandingsSerializer
     permission_classes = [ActiveAdminPermissions]
-    lookup_field = 'pk'
+    lookup_field = 'exam_id'
 
     @swagger_auto_schema(
         operation_summary="Get Specific Standing",
-        operation_description="Retrieves the details and entries of a specific standing.",
+        operation_description="Retrieves the details and entries of a specific standing using Exam ID.",
         responses={
             200: StandingsSerializer,
             401: error_response_401,
@@ -95,7 +121,7 @@ class LeagueLeaderboardView(APIView):
     """
     View to retrieve the cumulative league leaderboard.
     """
-    permission_classes = [AuthenticatedUser] # TODO: Add stricter permission (e.g., IsLeagueCandidate)
+    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueParticipantOrStaff]
 
     @swagger_auto_schema(
         operation_summary="Get League Leaderboard",

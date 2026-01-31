@@ -5,6 +5,6 @@ app_name = "competition"
 
 urlpatterns = [
     path("standings/publish/", PublishStandingsView.as_view(), name="publish-standings"),
-    path("standings/<int:pk>/", RetrieveStandingsView.as_view(), name="retrieve-standings"),
+    path("standings/<uuid:exam_id>/", RetrieveStandingsView.as_view(), name="retrieve-standings"),
     path("leaderboard/league/", LeagueLeaderboardView.as_view(), name="league-leaderboard"),
 ]

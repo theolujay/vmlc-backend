@@ -1,5 +1,5 @@
 
-from django.utils.translation import gettext_lazy as _
+# from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
@@ -23,12 +23,25 @@ class ExamListV2Serializer(serializers.ModelSerializer):
             "scheduled_date",
             "concluded_at",
             "created_at",
+            "has_standings",
+            "is_standings_published",
         ]
 
     question_count = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     competition_edition = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
+    has_standings = serializers.SerializerMethodField()
+    is_standings_published = serializers.SerializerMethodField()
+
+    def get_has_standings(self, obj):
+        from competition.models import Standings
+        return Standings.objects.filter(exam=obj).exists()
+
+    def get_is_standings_published(self, obj):
+        from competition.models import Standings
+        standing = Standings.objects.filter(exam=obj).first()
+        return standing.is_published if standing else False
 
     def get_title(self, obj):
         return obj.title
@@ -66,6 +79,8 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
             "updated_by",
             "stage_id",
             "round",
+            "has_standings",
+            "is_standings_published",
         ]
         read_only_fields = [
             "id",
@@ -81,6 +96,17 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     title = serializers.SerializerMethodField()
     stage_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     round = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    has_standings = serializers.SerializerMethodField()
+    is_standings_published = serializers.SerializerMethodField()
+
+    def get_has_standings(self, obj):
+        from competition.models import Standings
+        return Standings.objects.filter(exam=obj).exists()
+
+    def get_is_standings_published(self, obj):
+        from competition.models import Standings
+        standing = Standings.objects.filter(exam=obj).first()
+        return standing.is_published if standing else False
 
     def get_title(self, obj):
         return obj.title
@@ -153,7 +179,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                 if hasattr(slot, "exam") and slot.exam != exam:
                     # Throw a validation error so the user knows that the slot isn't available
                     raise serializers.ValidationError(
-                        {"competition_slot": _("Slot already occupied by another exam")}
+                        {"competition_slot": ("Slot already occupied by another exam")}
                     )
                 exam.competition_slot = slot
             else:
