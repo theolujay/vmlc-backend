@@ -23,7 +23,7 @@ from competition.serializers import (
 )
 from competition.tasks import generate_standings_task
 from competition.services.leaderboard import LeaderboardService
-from competition.services.dashboard import CompetitionDashboardService
+from competition.services.competition_dashboard import CompetitionDashboardService
 from vmlc.models import Exam, CandidateExamResult
 
 
