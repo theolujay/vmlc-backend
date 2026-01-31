@@ -21,8 +21,11 @@ class BroadcastAdmin(admin.ModelAdmin):
         "task_status_display",
     ]
     list_filter = ["status", "created_at", "mediums", "created_by"]
+    search_fields = ["subject", "message", "created_by__email", "created_by__user__first_name"]
     readonly_fields = ["task_result_display"]
     autocomplete_fields = ["created_by"]
+    list_select_related = ["created_by", "created_by__user"]
+    date_hierarchy = "created_at"
 
     def task_status_display(self, obj):
         if not obj.task_id:
@@ -92,6 +95,8 @@ class BroadcastLogAdmin(admin.ModelAdmin):
     list_filter = ["status", "medium", "role_type", "attempted_at"]
     search_fields = ["broadcast__subject", "message"]
     readonly_fields = ["attempted_at"]
+    list_select_related = ["broadcast"]
+    date_hierarchy = "attempted_at"
 
 
 @admin.register(Notification)
@@ -100,6 +105,8 @@ class NotificationAdmin(admin.ModelAdmin):
     list_filter = ["read", "created_at"]
     search_fields = ["recipient__email", "recipient__first_name", "subject", "message"]
     readonly_fields = ["created_at"]
+    list_select_related = ["recipient"]
+    date_hierarchy = "created_at"
 
 
 @admin.register(BackupLog)
@@ -107,3 +114,4 @@ class BackupLogAdmin(admin.ModelAdmin):
     list_display = ["environment", "status", "timestamp", "backup_filename"]
     list_filter = ["environment", "status", "created_at"]
     readonly_fields = ["created_at"]
+    date_hierarchy = "created_at"
