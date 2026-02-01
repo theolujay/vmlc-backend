@@ -47,6 +47,8 @@ from ..utils.swagger_schemas import (
 )
 from ..utils.query_filters import ExamFilter
 from ..utils.exceptions import PermissionDenied, NotFound
+from ..services.candidate_records import CandidateRecordService
+from ..v2.utils import get_or_set_cache
 
 
 logger = logging.getLogger(__name__)
@@ -497,42 +499,33 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = ActiveAdminPermissions
-    serializer_class = CandidateExamScoreSerializer
+    permission_classes = ActiveAdminPermissions # This was originally ActiveAdminPermissions
+    serializer_class = None
     lookup_url_kwarg = "candidate_id"
 
-    def list(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
-        cache_key = f"exam_history_{candidate_id}"
+        
+        # Access Control: Allow if staff OR if it's the candidate themselves
+        is_staff = hasattr(request.user, 'staff_profile')
+        is_self = hasattr(request.user, 'candidate_profile') and str(request.user.candidate_profile.pk) == str(candidate_id)
+        
+        if not (is_staff or is_self):
+            raise PermissionDenied("You do not have permission to view this candidate's history.")
 
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
-
-        response = super().list(request, *args, **kwargs)
-        if response.status_code == 200:
-            cache.set(cache_key, response.data, 86400)  # Cache for 24 hours
-        return response
-
-    def get_queryset(self):
-        """
-        Returns a queryset of results for the specified candidate,
-        optimized with prefetching.
-        """
-        candidate_id = self.kwargs[self.lookup_url_kwarg]
-        logger.info(
-            f"ExamHistoryView: request from user {self.request.user.id} for candidate {candidate_id}"
-        )
+        cache_key = f"candidate_exam_history_v2_{candidate_id}"
+        
         try:
-            Candidate.objects.get(pk=candidate_id)
+            candidate = Candidate.objects.get(pk=candidate_id)
         except Candidate.DoesNotExist:
-            logger.error(f"Candidate with id {candidate_id} not found.")
             raise NotFound("Candidate not found.")
-        return (
-            CandidateExamResult.objects.filter(candidate_id=candidate_id)
-            .select_related("exam")
-            .order_by("-recorded_at")
+
+        data = get_or_set_cache(
+            cache_key,
+            lambda: CandidateRecordService.get_exams_taken(candidate),
+            ttl=3600
         )
+        return Response(data)
 
 
 @swagger_auto_schema(

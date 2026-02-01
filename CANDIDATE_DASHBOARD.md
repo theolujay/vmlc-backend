@@ -46,6 +46,7 @@ Provides a comprehensive overview for the student, including their current stand
     "title": "League Round 3",
     "stage": "league",
     "round": 3,
+    "question_count": 30,
     "starts_at": "2026-01-31T08:00:00Z",
     "ends_at": "2026-01-31T20:00:00Z",
     "duration_minutes": 60,

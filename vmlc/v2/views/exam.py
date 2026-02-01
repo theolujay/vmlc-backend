@@ -12,10 +12,11 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from identity.models import Candidate
-from vmlc.utils.helpers import invalidate_all_dashboard_caches
+from identity.permissions import ActiveAdminPermissions, CandidatePermissions
 
 from vmlc.models import Exam, Question, CandidateExamResult
-from identity.permissions import ActiveAdminPermissions, CandidatePermissions
+from vmlc.services.candidate_records import CandidateRecordService
+from vmlc.utils.helpers import invalidate_all_dashboard_caches
 from vmlc.v2.serializers.exam import (
     ExamListV2Serializer,
     ExamDetailV2Serializer,
@@ -24,9 +25,12 @@ from vmlc.v2.serializers.exam import (
 )
 from vmlc.serializers import (
     QuestionListSerializer,
-    CandidateExamScoreSerializer,
 )
-from vmlc.v2.utils import get_or_set_cache, delete_many_cache, question_pool_aggregate
+from vmlc.v2.utils import (
+    get_or_set_cache, 
+    delete_many_cache,
+    question_pool_aggregate
+)
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 from vmlc.utils.swagger_schemas import *
@@ -265,22 +269,26 @@ class ExamHistoryV2View(ListAPIView):
     """
 
     permission_classes = ActiveAdminPermissions
-    serializer_class = CandidateExamScoreSerializer
+    serializer_class = None
     lookup_url_kwarg = "candidate_id"
 
-    def list(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
-        cache_key = f"exam_history_{candidate_id}"
 
-        def fetch_history():
-            response = super().list(request, *args, **kwargs)
-            return response.data
+        cache_key = f"candidate_exam_history_v2_{candidate_id}"
 
-        cached_data = get_or_set_cache(cache_key, fetch_history, ttl=86400)
-        logger.info(
-            f"ExamHistoryView: request from user {self.request.user.id} for candidate {candidate_id}"
+        try:
+            candidate = Candidate.objects.get(pk=candidate_id)
+        except Candidate.DoesNotExist:
+            raise NotFound("Candidate not found.")
+
+        data = get_or_set_cache(
+            cache_key, lambda: CandidateRecordService.get_exams_taken(candidate), ttl=3600
         )
-        return Response(cached_data)
+        logger.info(
+            f"ExamHistoryV2View: request from user {self.request.user.id} for candidate {candidate_id}"
+        )
+        return Response(data)
 
     def get_queryset(self):
         """
