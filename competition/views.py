@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from identity.permissions import (
     ActiveAdminPermissions,
     ActiveModeratorPermissions,
+    CandidatePermissions,
     HasXAPIKey, 
     IsLeagueParticipantOrStaff
 )
@@ -23,8 +24,30 @@ from competition.serializers import (
 )
 from competition.tasks import generate_standings_task
 from competition.services.leaderboard import LeaderboardService
-from competition.services.competition_dashboard import CompetitionDashboardService
+from competition.services.staff_dashboard import CompetitionDashboardService
+from competition.services.candidate_dashboard import CandidateDashboardService
+
 from vmlc.models import Exam, CandidateExamResult
+from vmlc.v2.utils import get_or_set_cache
+
+
+
+class CandidateDashboardView(APIView):
+    """
+    Retrieve comprehensive dashboard data for the currently authenticated candidate.
+    """
+    permission_classes = [HasXAPIKey, IsAuthenticated, CandidatePermissions]
+
+    def get(self, request):
+        candidate = request.user.candidate_profile
+        cache_key = f"candidate_dashboard_v2_{candidate.pk}"
+        
+        data = get_or_set_cache(
+            cache_key,
+            lambda: CandidateDashboardService.get_dashboard_data(candidate),
+            ttl=3600
+        )
+        return Response(data)
 
 
 class CompetitionDashboardView(APIView):

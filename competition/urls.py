@@ -5,13 +5,15 @@ from competition.views import (
     LeagueLeaderboardView,
     CompetitionDashboardView,
     RetrieveCandidateStandingView,
-    LeagueCandidateLeaderboardView
+    LeagueCandidateLeaderboardView,
+    CandidateDashboardView,
 )
 
 app_name = "competition"
 
 urlpatterns = [
     path("dashboard/", CompetitionDashboardView.as_view(), name="competition-dashboard"),
+    path("dashboard/candidate/", CandidateDashboardView.as_view(), name="candidate-dashboard"),
     path("standings/publish/", PublishStandingsView.as_view(), name="publish-standings"),
     path("standings/<uuid:exam_id>/", RetrieveStandingsView.as_view(), name="retrieve-standings"),
     path("standings/<uuid:exam_id>/candidate/<uuid:candidate_id>/", RetrieveCandidateStandingView.as_view(), name="candidate-standing-detail"),

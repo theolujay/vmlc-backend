@@ -139,8 +139,9 @@ class Notification(models.Model):
     )
     subject = models.CharField(max_length=100)
     message = models.TextField()
+    # type = models.CharField(max_length=17) # TODO: figure out its implementation, lie 'alert' for Candidate's InfoBoard
     created_at = models.DateTimeField(auto_now_add=True)
-    read = models.BooleanField(default=False)
+    read = models.BooleanField(default=False) # TODO: rename this to is_read_by_recipient
 
     class Meta:
         ordering = ["-created_at"]

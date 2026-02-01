@@ -89,6 +89,8 @@ class StageExam(models.Model):
         blank=True,
         help_text="Round within this stage (e.g., Week 1, Week 2 for League stages).",
     )
+    # This is an developer-admin flag to for internal control,
+    # defaults to true for normal conditions
     is_active = models.BooleanField(
         default=True,
         help_text="Is this exam currently part of the active competition flow?",

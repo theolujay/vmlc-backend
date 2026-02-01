@@ -43,7 +43,7 @@ class CompetitionDashboardService:
         
         total_rounds = 0
         published_rounds = 0
-        if current_stage_type == Stage.Type.LEAGUE:
+        if current_stage_type is not None:
              total_rounds = StageExam.objects.filter(
                  competition_stage__competition=active_comp,
                  competition_stage__type=current_stage_type
@@ -54,10 +54,7 @@ class CompetitionDashboardService:
                  stage=current_stage_type,
                  is_published=True
              ).count()
-        else:
-            total_rounds = 0
-            current_round = 0
-            published_rounds = 0
+
         progress = {
             "current_stage": current_stage_type,
             "current_round": current_round,
