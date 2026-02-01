@@ -18,30 +18,15 @@ class ExamListV2Serializer(serializers.ModelSerializer):
             "id",
             "title",
             "status",
-            "competition_edition",
             "question_count",
             "scheduled_date",
             "concluded_at",
             "created_at",
-            "has_standings",
-            "is_standings_published",
         ]
 
     question_count = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
-    competition_edition = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
-    has_standings = serializers.SerializerMethodField()
-    is_standings_published = serializers.SerializerMethodField()
-
-    def get_has_standings(self, obj):
-        from competition.models import Standings
-        return Standings.objects.filter(exam=obj).exists()
-
-    def get_is_standings_published(self, obj):
-        from competition.models import Standings
-        standing = Standings.objects.filter(exam=obj).first()
-        return standing.is_published if standing else False
 
     def get_title(self, obj):
         return obj.title
@@ -68,7 +53,8 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
             "status",
             "is_active",
             "is_currently_open",
-            "competition_edition",
+            "competition_title",
+            "stage",
             "questions",
             "open_duration_hours",
             "countdown_minutes",
@@ -79,11 +65,11 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
             "updated_by",
             "stage_id",
             "round",
-            "has_standings",
-            "is_standings_published",
+            "standings",
         ]
         read_only_fields = [
             "id",
+            "competition_title",
             "is_active",
             "created_at",
             "created_by",
@@ -93,29 +79,30 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
     created_by = MinimalStaffSerializer(read_only=True)
     updated_by = MinimalStaffSerializer(read_only=True)
-    competition_edition = serializers.SerializerMethodField()
+    competition_title= serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
     stage_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     round = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    has_standings = serializers.SerializerMethodField()
-    is_standings_published = serializers.SerializerMethodField()
+    stage = serializers.ReadOnlyField()
+    standings = serializers.SerializerMethodField()
 
-    def get_has_standings(self, obj):
-        from competition.models import Standings
-        return Standings.objects.filter(exam=obj).exists()
-
-    def get_is_standings_published(self, obj):
+    def get_standings(self, obj):
         from competition.models import Standings
         standing = Standings.objects.filter(exam=obj).first()
-        return standing.is_published if standing else False
+        return {
+            "exists": standing is not None,
+            "is_published": standing.is_published if standing else False,
+            "created_at": standing.created_at if standing else None,
+            "published_at": standing.published_at if standing else None,
+        }
 
     def get_title(self, obj):
         return obj.title
 
-    def get_competition_edition(self, obj):
+    def get_competition_title(self, obj):
         if not obj.competition_slot:
             return None
-        return obj.competition_slot.competition_stage.competition.edition
+        return str(obj.competition_slot.competition_stage.competition)
 
     def validate(self, attrs):
         if self.instance:
