@@ -221,14 +221,6 @@ class Question(models.Model):
         self.archived_at = timezone.now()
         self.save()
 
-    def get_related_exams(self):
-        """Get a list of exams a question has been added to."""
-        exams = self.exams.values(
-            "id", "title", "description", "stage", "scheduled_date"
-        )
-
-        return {"count": self.exams.count(), "list": list(exams)}
-
     def __str__(self):
         """Return a string representation of the question."""
         return f"Q{self.id}: {self.text[:50]}..."
@@ -302,7 +294,22 @@ class Exam(models.Model):
     def title(self):
         """Inferred title from StageExam context"""
         return self.get_title()
-    
+
+    @property
+    def stage(self):
+        """Inferred stage type from StageExam context"""
+        return self.competition_slot.competition_stage.type if self.competition_slot else None
+
+    @property
+    def round(self):
+        """Inferred round from StageExam context"""
+        return self.competition_slot.round if self.competition_slot else None
+
+    @property
+    def stage_display(self):
+        """Inferred stage display label from StageExam context"""
+        return self.competition_slot.competition_stage.get_type_display() if self.competition_slot else None
+
     @property
     def is_currently_open(self):
         """

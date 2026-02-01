@@ -2,9 +2,26 @@ from rest_framework import serializers
 
 from ..models import (
     Question,
+    Exam,
 )
 
 from .staff import MinimalStaffSerializer
+
+
+class RelatedExamSerializer(serializers.ModelSerializer):
+    """
+    Serializer for exams related to a question.
+    """
+
+    class Meta:
+        model = Exam
+        fields = [
+            "id",
+            "title",
+            "description",
+            "stage",
+            "scheduled_date",
+        ]
 
 
 class QuestionListSerializer(serializers.ModelSerializer):
@@ -13,6 +30,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
     """
 
     created_by = MinimalStaffSerializer(read_only=True)
+    related_exams_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
@@ -25,15 +43,16 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "option_d",
             "correct_answer",
             "difficulty",
+            "related_exams_count",
             "created_at",
             "created_by",
             "updated_at",
             "updated_by",
         ]
-        read_only_fields = ["id", "created_at", "created_by", "created_at"]
+        read_only_fields = ["id", "created_at", "created_by", "related_exams_count"]
 
     def get_related_exams_count(self, obj):
-        return obj.get_related_exams()["count"]
+        return obj.exams.count()
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
@@ -72,10 +91,11 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_related_exams(self, obj):
-        return obj.get_related_exams()
+        exams = obj.exams.all().select_related("competition_slot__competition_stage")
+        return RelatedExamSerializer(exams, many=True).data
 
     def get_related_exams_count(self, obj):
-        return obj.get_related_exams()["count"]
+        return obj.exams.count()
 
 
 class CandidateQuestionSerializer(serializers.ModelSerializer):
