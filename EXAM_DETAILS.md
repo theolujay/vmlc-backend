@@ -31,13 +31,20 @@ This document outlines the API endpoints related to exams, prioritizing V2 over 
       "id": "uuid",
       "title": "League Round 1",
       "status": "scheduled",
-      "competition_edition": 2024,
+      "competition_edition": 3,
+      "competition_title": "Verboheit MLC 3.0",
+      "stage": "league",
+      "stage_display": "League",
       "question_count": 50,
       "scheduled_date": "2024-05-01T10:00:00Z",
       "concluded_at": "2024-05-01T22:00:00Z",
       "created_at": "2024-04-01T12:00:00Z",
-      "has_standings": true,
-      "is_standings_published": false
+      "standings": {
+        "exists": true,
+        "is_published": false,
+        "created_at": "2024-05-02T08:00:00Z",
+        "published_at": null
+      }
     }
   ]
 }
@@ -57,6 +64,7 @@ This document outlines the API endpoints related to exams, prioritizing V2 over 
 | `open_duration_hours` | Integer | **Optional.** (Default: 12) Duration the exam window stays open. |
 | `countdown_minutes` | Integer | **Optional.** (Default: 60) Time limit once a candidate starts. |
 | `scheduled_date` | String (ISO) | **Optional.** When the exam window begins. |
+| `is_active` | Boolean | **Optional.** (Default: true) Whether the exam is active. |
 | `stage_id` | Integer | **Optional.** ID of the competition stage to link to. |
 | `round` | Integer | **Optional.** Round number (required for League stages). |
 | `questions` | Array (UUID) | **Optional.** List of question IDs to include. |
@@ -67,6 +75,7 @@ This document outlines the API endpoints related to exams, prioritizing V2 over 
   "open_duration_hours": 12,
   "countdown_minutes": 60,
   "scheduled_date": "2024-05-01T10:00:00Z",
+  "is_active": true,
   "stage_id": 1, 
   "round": 1,
   "questions": ["uuid1", "uuid2"]
@@ -93,6 +102,9 @@ Returns the full exam object (see **Get Exam Details**).
   "is_active": true,
   "is_currently_open": false,
   "competition_edition": 2024,
+  "competition_name": "VMLC 2024",
+  "stage": "league",
+  "stage_display": "League",
   "open_duration_hours": 12,
   "countdown_minutes": 60,
   "scheduled_date": "2024-05-01T10:00:00Z",
@@ -100,8 +112,12 @@ Returns the full exam object (see **Get Exam Details**).
   "created_at": "2024-04-01T12:00:00Z",
   "created_by": { "id": "uuid", "full_name": "Staff Name", "email": "staff@vmlc.com" },
   "updated_by": null,
-  "has_standings": true,
-  "is_standings_published": false,
+  "standings": {
+    "exists": true,
+    "is_published": false,
+    "created_at": "2024-05-02T08:00:00Z",
+    "published_at": null
+  },
   "questions": {
     "question_pool_data": { ... },
     "results": [

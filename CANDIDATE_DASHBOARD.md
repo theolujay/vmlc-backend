@@ -95,6 +95,69 @@ Provides a comprehensive overview for the student, including their current stand
 }
 ```
 
+## Take Exam
+`GET /v1/exams/<uuid:exam_id>/take-exam/`
+
+Returns the exam details and questions for a candidate to start the exam. Supports LaTeX for mathematical content.
+
+### Response Body (`200 OK`)
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "League Round 3",
+  "description": "This is the third round of the league stage.",
+  "open_duration_hours": 12,
+  "scheduled_date": "2026-01-31T08:00:00Z",
+  "countdown_minutes": 60,
+  "questions": [
+    {
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "text": "What is the value of $x$ in the equation $2x + 5 = 15$?",
+      "option_a": "$5$",
+      "option_b": "$10$",
+      "option_c": "$7.5$",
+      "option_d": "$20$"
+    },
+    {
+      "id": "678bc10b-58cc-4372-a567-0e02b2c3d480",
+      "text": "Identify the integral: $\\int_{0}^{1} x^2 \\, dx$",
+      "option_a": "$1/3$",
+      "option_b": "$1/2$",
+      "option_c": "$1$",
+      "option_d": "$0$"
+    }
+  ]
+}
+```
+
+## Submit Exam Answers
+`POST /v1/exams/<uuid:exam_id>/submit-exam-answers/`
+
+Submit all answers for a specific exam in bulk.
+
+### Request Body
+```json
+{
+  "answers": [
+    {
+      "question": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "selected_option": "a"
+    },
+    {
+      "question": "678bc10b-58cc-4372-a567-0e02b2c3d480",
+      "selected_option": "a"
+    }
+  ]
+}
+```
+
+### Response Body (`201 Created`)
+```json
+{
+  "message": "Answers submitted successfully!"
+}
+```
+
 ### Architectural Benefits:
 1.  **Unified State**: Consolidates `candidate_info`, `stage_progress`, and `active_exam` into a single call to prevent waterfall loading.
 2.  **Backend-Driven Logic**: The `qualification_status` and `notifications` objects allow the backend to manage business rules and messaging dynamically.
