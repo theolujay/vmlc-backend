@@ -9,6 +9,7 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
+from comms.models import Notification
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -444,6 +445,30 @@ class Command(BaseCommand):
                         question=question,
                         selected_option=random.choice(["A", "B", "C", "D"]),
                     )
+
+        # Create Notifications for Candidates
+        self.stdout.write("Creating notifications for candidates...")
+        for candidate in candidate_list:
+            # Create 1-3 unread notifications for each candidate
+            for _ in range(random.randint(1, 3)):
+                Notification.objects.create(
+                    recipient=candidate.user,
+                    subject=fake.sentence(nb_words=5),
+                    message=fake.text(),
+                    read=False
+                )
+
+        # Create Notifications for Candidates
+        self.stdout.write("Creating notifications for candidates...")
+        for candidate in candidate_list:
+            # Create 1-3 unread notifications for each candidate
+            for _ in range(random.randint(1, 3)):
+                Notification.objects.create(
+                    recipient=candidate.user,
+                    subject=fake.sentence(nb_words=5),
+                    message=fake.text(),
+                    read=False
+                )
 
         # Generate Standings and Leaderboards
         self.stdout.write("Generating standings and aggregate leaderboards...")
