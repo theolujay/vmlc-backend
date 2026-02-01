@@ -188,7 +188,7 @@ class CandidateDashboardService:
             StageExam.objects.filter(
                 competition_stage=participation.current_stage, is_active=True
             )
-            .select_related("exam")
+            .select_related("exam", "exam__questions")
             .order_by("round")
         )
 
@@ -209,6 +209,7 @@ class CandidateDashboardService:
                         "title": exam.get_title(),
                         "stage": participation.current_stage.type,
                         "round": slot.round,
+                        "question_count": exam.get_question_count(),
                         "starts_at": exam.scheduled_date,
                         "ends_at": (
                             exam.scheduled_date
