@@ -69,9 +69,16 @@ class StageAdmin(admin.ModelAdmin):
 
 @admin.register(StageExam)
 class StageExamAdmin(admin.ModelAdmin):
-    list_display = ("competition_stage", "round", "is_active")
+    list_display = ("competition_stage", "round", "get_exam", "is_active")
     list_filter = ("competition_stage__competition", "is_active")
-    list_select_related = ("competition_stage", "competition_stage__competition")
+    list_select_related = ("competition_stage", "competition_stage__competition", "exam")
+
+    @admin.display(description="Exam")
+    def get_exam(self, obj):
+        if hasattr(obj, "exam"):
+            url = f"/admin/vmlc/exam/{obj.exam.id}/change/"
+            return format_html('<a href="{}">{}</a>', url, obj.exam)
+        return "-"
 
 
 @admin.register(CandidateCompetition)
@@ -136,6 +143,7 @@ class StandingsAdmin(admin.ModelAdmin):
 class StandingsEntryAdmin(admin.ModelAdmin):
     list_display = ("standings", "candidate", "exam_score", "rank", "percentile")
     list_filter = ("standings__competition", "standings__stage")
+    search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
     raw_id_fields = ("standings", "candidate", "candidate_competition")
     list_select_related = ("standings", "candidate", "candidate__user", "candidate_competition")
 
@@ -153,5 +161,6 @@ class AggregateLeaderboardAdmin(admin.ModelAdmin):
 class AggregateLeaderboardEntryAdmin(admin.ModelAdmin):
     list_display = ("leaderboard", "candidate", "total_score", "overall_rank")
     list_filter = ("leaderboard__competition", "leaderboard__stage")
+    search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
     raw_id_fields = ("leaderboard", "candidate", "candidate_competition")
     list_select_related = ("leaderboard", "candidate", "candidate__user", "candidate_competition")
