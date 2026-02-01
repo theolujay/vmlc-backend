@@ -84,6 +84,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "is_active",
             "created_at",
             "created_by",
             "updated_by",
