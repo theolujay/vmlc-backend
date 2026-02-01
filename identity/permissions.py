@@ -257,7 +257,7 @@ class IsActiveModeratorOrCandidate(BasePermission):
         return is_active_moderator or is_candidate
 
 
-class IsLeagueParticipantOrStaff(BasePermission):
+class IsLeagueParticipantOrStaffBase(BasePermission):
     """
     Grants access if the user is an active Staff (Moderator+) OR 
     an active League candidate in the current competition.
@@ -329,3 +329,8 @@ ActiveManagerPermissions = [
     HasMinimumStaffRole(Staff.Roles.MANAGER),
 ]
 
+IsLeagueParticipantOrStaff = [
+    HasXAPIKey,
+    IsAuthenticated,
+    IsLeagueParticipantOrStaffBase,
+]

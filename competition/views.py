@@ -36,7 +36,7 @@ class CandidateDashboardView(APIView):
     """
     Retrieve comprehensive dashboard data for the currently authenticated candidate.
     """
-    permission_classes = [HasXAPIKey, IsAuthenticated, CandidatePermissions]
+    permission_classes = CandidatePermissions
 
     def get(self, request):
         candidate = request.user.candidate_profile
@@ -131,7 +131,7 @@ class RetrieveStandingsView(RetrieveAPIView):
         'entries__candidate__user'
     ).all()
     serializer_class = StandingsSerializer
-    permission_classes = [ActiveAdminPermissions]
+    permission_classes = ActiveAdminPermissions
     lookup_field = 'exam_id'
 
     def get(self, request, *args, **kwargs):
@@ -142,7 +142,7 @@ class LeagueLeaderboardView(APIView):
     """
     View to retrieve the cumulative league leaderboard.
     """
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueParticipantOrStaff]
+    permission_classes = IsLeagueParticipantOrStaff
 
     def get(self, request):
         # TODO: Implement stricter access control.
@@ -173,7 +173,7 @@ class RetrieveCandidateStandingView(APIView):
     """
     Retrieves detailed performance for a specific candidate in a specific exam standing.
     """
-    permission_classes = [HasXAPIKey, IsAuthenticated] # IsActiveModeratorOrCandidate is more appropriate
+    permission_classes = ActiveAdminPermissions
 
     def get(self, request, exam_id, candidate_id):
         standing = get_object_or_404(Standings, exam_id=exam_id)
@@ -223,7 +223,7 @@ class LeagueCandidateLeaderboardView(APIView):
     """
     Retrieves cumulative performance for a specific candidate in the league leaderboard.
     """
-    permission_classes = [HasXAPIKey, IsAuthenticated, IsLeagueParticipantOrStaff]
+    permission_classes = IsLeagueParticipantOrStaff
 
     def get(self, request, candidate_id):
         leaderboard = LeaderboardService.get_latest_league_leaderboard()
