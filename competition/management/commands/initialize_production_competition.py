@@ -25,12 +25,6 @@ class Command(BaseCommand):
             help="Competition name",
         )
         parser.add_argument(
-            "--league-rounds",
-            type=int,
-            default=6,
-            help="Number of rounds in the League stage",
-        )
-        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Show what would be created without saving",
@@ -39,7 +33,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         edition = options["edition"]
         name = options["name"]
-        league_rounds = options["league_rounds"]
         dry_run = options["dry_run"]
 
         self.stdout.write(f"Setting up Competition Edition {edition}: {name}")
@@ -50,7 +43,7 @@ class Command(BaseCommand):
             )
 
         with transaction.atomic():
-            # 1. Competition
+            # Competition
             competition, created = Competition.objects.get_or_create(
                 edition=edition,
                 defaults={
@@ -66,7 +59,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"Competition already exists: {competition}")
 
-            # 2. Stages
+            # Stages
             stage_configs = [
                 (
                     Stage.Type.SCREENING,
@@ -98,37 +91,8 @@ class Command(BaseCommand):
                 stages[st_type] = stage
                 if created:
                     self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
-
-            # 3. StageExam Slots
-            # Screening slot
-            se, created = StageExam.objects.get_or_create(
-                competition_stage=stages[Stage.Type.SCREENING],
-                round=None,
-                defaults={"is_active": True},
-            )
-            if created:
-                self.stdout.write(f"    - Created Screening Exam slot")
-
-            # League slots
-            for r in range(1, league_rounds + 1):
-                _, created = StageExam.objects.get_or_create(
-                    competition_stage=stages[Stage.Type.LEAGUE],
-                    round=r,
-                    defaults={"is_active": True},
-                )
-                if created:
-                    self.stdout.write(f"    - Created League Round {r} slot")
-
-            # Final slot
-            _, created = StageExam.objects.get_or_create(
-                competition_stage=stages[Stage.Type.FINAL],
-                round=None,
-                defaults={"is_active": True},
-            )
-            if created:
-                self.stdout.write(f"    - Created Final Exam slot")
-
-            # 4. Feature Flags
+          
+            # Feature Flags
             FeatureFlag.objects.get_or_create(
                 key="candidate_registration", defaults={"value": True}
             )
