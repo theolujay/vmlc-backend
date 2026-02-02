@@ -82,14 +82,19 @@ class ExamListV2View(ListCreateAPIView):
         logger.info(
             f"ExamListV2View: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
-        response = super().list(request, *args, **kwargs)
-
+        
+        # Question Pool Data (Staff Dashboard context)
         question_pool_data = get_or_set_cache(
             "question_pool_data",
             lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
             ttl=3600,
         )
 
+        # Exam List Cache
+        # Note: Listing is hard to cache per-query-params without a versioning key or complex key.
+        # For now, we rely on the queryset's efficiency and cache the pool data.
+        # TODO: Look into this
+        response = super().list(request, *args, **kwargs)
         response.data["question_pool_data"] = question_pool_data
         return response
 
@@ -99,7 +104,10 @@ class ExamListV2View(ListCreateAPIView):
         Also records the staff member who created the exam
         """
         serializer.save(created_by=self.request.user.staff_profile)
-        invalidate_all_dashboard_caches()
+        
+        from vmlc.v2.utils import invalidate_staff_dashboard
+        invalidate_staff_dashboard()
+        
         logger.info(
             f"Exam created by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -172,21 +180,22 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
 
-        delete_many_cache(
-            [
-                f"exam_detail:{instance.id}",
-                *[
-                    f"account_management_{r.candidate.user.id}"
-                    for r in instance.results.all()
-                ],
-            ]
-        )
-
-        invalidate_all_dashboard_caches()
+        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_candidate_cache
+        from django.core.cache import cache
+        
+        cache.delete(f"exam_detail:{instance.id}")
+        invalidate_staff_dashboard()
+        
+        # Clear caches for candidates who took this exam
+        for result in instance.results.all():
+            invalidate_candidate_cache(result.candidate_id, user_id=result.candidate.user_id)
 
     def perform_destroy(self, instance):
-        delete_many_cache([f"exam_detail:{instance.id}"])
-        invalidate_all_dashboard_caches()
+        from vmlc.v2.utils import invalidate_staff_dashboard
+        from django.core.cache import cache
+        
+        cache.delete(f"exam_detail:{instance.id}")
+        invalidate_staff_dashboard()
         instance.delete()
 
 

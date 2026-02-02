@@ -41,6 +41,25 @@ def invalidate_user_list_cache(sender=None, _instance=None, **kwargs):
         cache.set("user_list_version", 2)
 
 
+# Specific invalidations for dashboards when data changes.
+def invalidate_dashboard_on_change(sender, instance, **kwargs):
+    """Specific invalidations for dashboards when data changes."""
+    from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard, invalidate_league_leaderboard
+    from competition.models import Competition, Stage, Standings, CandidateCompetition
+    
+    if isinstance(instance, Candidate):
+        invalidate_candidate_cache(instance.pk, user_id=instance.user_id)
+        invalidate_staff_dashboard()
+    elif isinstance(instance, Staff):
+        invalidate_staff_dashboard()
+    elif isinstance(instance, CandidateExamResult):
+        invalidate_candidate_cache(instance.candidate_id, user_id=instance.candidate.user_id)
+        invalidate_staff_dashboard()
+    elif isinstance(instance, (Competition, Stage, Standings, CandidateCompetition)):
+        invalidate_staff_dashboard()
+        invalidate_league_leaderboard()
+
+
 @receiver(user_logged_in, sender=User)
 def user_logged_in_receiver(sender, request, user, **kwargs):
     """
@@ -81,12 +100,18 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
 # Invalidate stats cache on changes to relevant models.
 # This is a broad approach, but ensures data freshness for the overview.
-models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateExamResult, Exam]
+from competition.models import Competition, Stage, Standings, CandidateCompetition
+models_to_watch = [User, Candidate, Staff, UserVerification, PreRegUser, CandidateExamResult, Exam, Competition, Stage, Standings, CandidateCompetition]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
     post_delete.connect(refresh_stats_overview_cache, sender=model)
 
     # Connect user list invalidation for relevant models
-    if model in [User, Staff, Candidate, PreRegUser, UserVerification, Exam]:
+    if model in [User, Staff, Candidate, PreRegUser, UserVerification, Exam, Competition]:
         post_save.connect(invalidate_user_list_cache, sender=model)
         post_delete.connect(invalidate_user_list_cache, sender=model)
+
+    # Dashboard-specific invalidation
+    if model in [Candidate, Staff, CandidateExamResult, Competition, Stage, Standings, CandidateCompetition]:
+        post_save.connect(invalidate_dashboard_on_change, sender=model)
+        post_delete.connect(invalidate_dashboard_on_change, sender=model)

@@ -1,0 +1,116 @@
+import logging
+from django.db import transaction
+from django.db.models import Count, Q
+from rest_framework import status
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+
+from identity.permissions import ActiveModeratorPermissions, ActiveAdminPermissions
+from vmlc.models import Question, Exam
+from vmlc.v2.serializers.question import QuestionV2Serializer, QuestionBulkActionSerializer
+from vmlc.v2.utils import delete_many_cache, get_or_set_cache, question_pool_aggregate, invalidate_staff_dashboard
+from vmlc.utils.query_filters import filter_questions
+
+logger = logging.getLogger(__name__)
+
+class QuestionListCreateV2View(ListCreateAPIView):
+    """
+    V2 view for listing and creating questions with enhanced caching and filtering.
+    """
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = QuestionV2Serializer
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+
+    def get_queryset(self):
+        queryset = Question.objects.filter(is_archived=False).select_related(
+            "created_by__user", "updated_by__user"
+        ).order_by("-created_at")
+        return filter_questions(queryset, self.request.query_params)
+
+    def list(self, request, *args, **kwargs):
+        # Handle Question Pool Data Caching
+        pool_data = get_or_set_cache(
+            "question_pool_data",
+            lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
+            ttl=3600
+        )
+
+        response = super().list(request, *args, **kwargs)
+        response.data["question_pool_data"] = pool_data
+        return response
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user.staff_profile)
+        # Clear pool cache
+        from django.core.cache import cache
+        cache.delete("question_pool_data")
+        invalidate_staff_dashboard()
+
+class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
+    """
+    V2 detail view for questions.
+    """
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = QuestionV2Serializer
+    lookup_url_kwarg = "question_id"
+    queryset = Question.objects.filter(is_archived=False).select_related(
+        "created_by__user", "updated_by__user"
+    )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['include_related_exams'] = True
+        return context
+
+    def perform_update(self, serializer):
+        instance = serializer.save(updated_by=self.request.user.staff_profile)
+        # Invalidate related exam caches
+        for exam in instance.exams.all():
+            delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+        invalidate_staff_dashboard()
+
+    def perform_destroy(self, instance):
+        instance.archive()
+        invalidate_staff_dashboard()
+
+class QuestionBulkActionV2View(APIView):
+    """
+    Handles bulk operations: archive, assign to exams, unassign from exams.
+    """
+    permission_classes = ActiveAdminPermissions
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = QuestionBulkActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        data = serializer.validated_data
+        action = data['action']
+        question_ids = data['question_ids']
+        exam_ids = data.get('exam_ids', [])
+
+        questions = Question.objects.filter(id__in=question_ids)
+        
+        if action == "archive":
+            for q in questions:
+                q.archive()
+            msg = f"Archived {questions.count()} questions."
+            
+        elif action == "assign":
+            exams = Exam.objects.filter(id__in=exam_ids)
+            for exam in exams:
+                exam.questions.add(*questions)
+                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+            msg = f"Assigned {questions.count()} questions to {exams.count()} exams."
+            
+        elif action == "unassign":
+            exams = Exam.objects.filter(id__in=exam_ids)
+            for exam in exams:
+                exam.questions.remove(*questions)
+                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+            msg = f"Unassigned {questions.count()} questions from {exams.count()} exams."
+
+        invalidate_staff_dashboard()
+        return Response({"status": "success", "message": msg})

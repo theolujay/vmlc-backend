@@ -218,7 +218,7 @@ class CompetitionDashboardSerializer(serializers.Serializer):
     exams = CompetitionDashboardExamSerializer(many=True)
 
 
-    leaderboard_summary = AggregateLeaderboardEntrySerializer(many=True)
+    leaderboard_summary = serializers.ListField()
 
 
     latest_standings_summary = serializers.DictField(allow_null=True)

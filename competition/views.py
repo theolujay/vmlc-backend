@@ -59,15 +59,14 @@ class StaffCompetitionDashboardView(APIView):
     permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
-        data = StaffCompetitionDashboardService.get_dashboard_data()
-        if not data:
-            return Response(
-                {"detail": "No active competition found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
+        from vmlc.v2.utils import CacheKeys
+        data = get_or_set_cache(
+            CacheKeys.STAFF_DASHBOARD,
+            lambda: StaffCompetitionDashboardService.get_dashboard_data(),
+            ttl=3600
+        )
         serializer = CompetitionDashboardSerializer(data)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PublishStandingsView(APIView):
@@ -149,25 +148,37 @@ class LeagueLeaderboardView(APIView):
     def get(self, request):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
+        from vmlc.v2.utils import CacheKeys
+        from competition.serializers import AggregateLeaderboardSerializer, AggregateLeaderboardEntrySerializer
+
+        def fetch_and_serialize_leaderboard():
+            leaderboard = LeaderboardService.get_latest_league_leaderboard()
+            if not leaderboard:
+                return None
+            
+            serializer = AggregateLeaderboardSerializer(leaderboard)
+            data = serializer.data
+            
+            # Replace entries with the processed list from the service
+            # (which includes rank_change annotations)
+            data['entries'] = AggregateLeaderboardEntrySerializer(
+                leaderboard.processed_entries, 
+                many=True
+            ).data
+            return data
         
-        leaderboard = LeaderboardService.get_latest_league_leaderboard()
+        data = get_or_set_cache(
+            CacheKeys.LEADERBOARD_LEAGUE,
+            fetch_and_serialize_leaderboard,
+            ttl=86400
+        )
         
-        if not leaderboard:
+        if not data:
             return Response(
                 {"detail": "No active league leaderboard found."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = AggregateLeaderboardSerializer(leaderboard)
-        data = serializer.data
-        
-        # Replace entries with the processed list from the service
-        # (which includes rank_change annotations)
-        data['entries'] = AggregateLeaderboardEntrySerializer(
-            leaderboard.processed_entries, 
-            many=True
-        ).data
-        
         return Response(data)
 
 

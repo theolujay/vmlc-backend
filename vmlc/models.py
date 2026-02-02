@@ -434,7 +434,10 @@ class CandidateAnswer(models.Model):
     """Model for a candidate's answer to a question."""
 
     candidate_exam_result = models.ForeignKey(
-        CandidateExamResult, related_name="answers", on_delete=models.PROTECT
+        CandidateExamResult,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="answers",
     )
     question = models.ForeignKey(Question, on_delete=models.PROTECT)
     selected_option = models.CharField(

@@ -161,6 +161,13 @@ class StandingsGenerator:
             entry.standings = standings
         StandingsEntry.objects.bulk_create(standings_entries_to_create)
 
+        # Invalidate Caches
+        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_league_leaderboard
+        def clear_standings_cache():
+            invalidate_staff_dashboard()
+            invalidate_league_leaderboard()
+        transaction.on_commit(clear_standings_cache)
+
         return standings
 
 

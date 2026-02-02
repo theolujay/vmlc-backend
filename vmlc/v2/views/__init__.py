@@ -8,7 +8,11 @@ from .exam import (
     ExamHistoryV2View,
     candidate_take_exam_V2,
 )
-
+from .question import (
+    QuestionListCreateV2View,
+    QuestionDetailV2View,
+    QuestionBulkActionV2View,
+)
 
 __all__ = [
     "RegistrationV2View",
@@ -20,4 +24,7 @@ __all__ = [
     "ExamQuestionsV2View",
     "ExamHistoryV2View",
     "candidate_take_exam_V2",
+    "QuestionListCreateV2View",
+    "QuestionDetailV2View",
+    "QuestionBulkActionV2View",
 ]

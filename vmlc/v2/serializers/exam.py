@@ -107,15 +107,18 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if self.instance:
             status = self.instance.status
-            if status in [
-                Exam.Status.ONGOING,
-                Exam.Status.CONCLUDED,
-                # TODO: revisit and decide on CONCLUSION status
-                Exam.Status.CANCELLED,
-            ]:
+            if status in [Exam.Status.CONCLUDED, Exam.Status.CANCELLED]:
                 raise serializers.ValidationError(
                     f"Cannot update an exam that is {status}."
                 )
+            
+            # For ONGOING exams, only allow certain fields if necessary, or block all
+            if status == Exam.Status.ONGOING:
+                allowed_ongoing_updates = ['is_active'] # Example: only allow cancellation
+                if any(k for k in attrs if k not in allowed_ongoing_updates):
+                     raise serializers.ValidationError(
+                        "Cannot update core details of an ONGOING exam. You can only deactivate it."
+                    )
         return attrs
 
     def create(self, validated_data):
@@ -140,47 +143,39 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         if stage_id:
             stage = Stage.objects.filter(id=stage_id).first()
 
-        # Default to active competition's first stage if scheduled in the future
-        # and no specific stage_id was provided, and no slot exists yet.
-        if (
-            not stage
-            and exam.scheduled_date
-            and (exam.scheduled_date > timezone.now())
-            and not exam.competition_slot
-        ):
-            active_comp = Competition.objects.filter(
-                status=Competition.Status.ACTIVE
-            ).first()
+        # If no stage provided but exam is scheduled, try to find current active stage
+        if not stage and exam.scheduled_date and not exam.competition_slot:
+            active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
             if active_comp:
+                # Place in Screening if no round, or current stage by order
                 stage = active_comp.stages.order_by("order").first()
 
         if stage:
+            # Ensure round is only set for League stage
             if stage.type != Stage.Type.LEAGUE:
                 round = None
 
-            current_slot = exam.competition_slot
-
-            if round is not None:
-                slot, _ = StageExam.objects.get_or_create(
-                    competition_stage=stage, round=round
-                )
-                if hasattr(slot, "exam") and slot.exam != exam:
-                    # Throw a validation error so the user knows that the slot isn't available
-                    raise serializers.ValidationError(
-                        {"competition_slot": ("Slot already occupied by another exam")}
+            with transaction.atomic():
+                if round is not None:
+                    # Look for existing slot or create
+                    slot, created = StageExam.objects.get_or_create(
+                        competition_stage=stage, round=round
                     )
-                exam.competition_slot = slot
-            else:
-                if (
-                    not current_slot
-                    or current_slot.competition_stage != stage
-                    or current_slot.round is not None
-                ):
-                    exam.competition_slot = StageExam.objects.create(
-                        competition_stage=stage, round=None
-                    )
-
-            exam.save(update_fields=["competition_slot"])
+                    if not created and hasattr(slot, "exam") and slot.exam != exam:
+                        raise serializers.ValidationError(
+                            {"round": f"Round {round} in {stage.type} is already assigned to another exam."}
+                        )
+                    exam.competition_slot = slot
+                else:
+                    # Create a new slot for screening/final (these usually don't have multiple rounds)
+                    # or reuse existing if same stage
+                    current_slot = exam.competition_slot
+                    if not current_slot or current_slot.competition_stage != stage:
+                        exam.competition_slot = StageExam.objects.create(
+                            competition_stage=stage, round=None
+                        )
+                
+                exam.save(update_fields=["competition_slot"])
 
 
 
