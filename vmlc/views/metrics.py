@@ -68,12 +68,27 @@ class RegistrationMetricsView(APIView):
             return Response(cached_data)
         
         try:
-            metrics_data = get_registration_metrics()
-            metrics_data["funnel"] = get_funnel_metrics(days=query_params.get("days"))
+            days = query_params.get("days")
+            weeks = query_params.get("weeks")
+            
+            kwargs = {}
+            if days:
+                kwargs["days"] = int(days)
+            if weeks:
+                kwargs["weeks"] = int(weeks)
+
+            metrics_data = get_registration_metrics(**kwargs)
+            metrics_data["funnel"] = get_funnel_metrics()
             
             # Cache for 10 minutes
             cache.set(cache_key, metrics_data, 600)
             return Response(metrics_data)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid query parameters for registration metrics: {str(e)}")
+            return Response(
+                {"error": "Invalid days or weeks parameter. Must be integers."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.error(f"Error computing registration metrics: {str(e)}", exc_info=True)
             return Response(
