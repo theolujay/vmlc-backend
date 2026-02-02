@@ -143,6 +143,17 @@ class ProgressionService:
             to_stage_type=to_stage_type
         )
 
+        # Invalidate Caches
+        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+        all_affected_ids = candidate_ids_to_promote + candidate_ids_to_eliminate
+        
+        def clear_batch_cache():
+            for c_id in all_affected_ids:
+                invalidate_candidate_cache(c_id)
+            invalidate_staff_dashboard()
+            
+        transaction.on_commit(clear_batch_cache)
+
         logger.info(f"Successfully promoted {len(candidate_ids_to_promote)} candidates from {from_stage_type} to {to_stage_type}.")
         return len(candidate_ids_to_promote)
 

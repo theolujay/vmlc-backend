@@ -59,7 +59,12 @@ class StaffCompetitionDashboardView(APIView):
     permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
-        data = StaffCompetitionDashboardService.get_dashboard_data()
+        from vmlc.v2.utils import CacheKeys
+        data = get_or_set_cache(
+            CacheKeys.STAFF_DASHBOARD,
+            lambda: StaffCompetitionDashboardService.get_dashboard_data(),
+            ttl=3600
+        )
         if not data:
             return Response(
                 {"detail": "No active competition found."},
@@ -149,8 +154,13 @@ class LeagueLeaderboardView(APIView):
     def get(self, request):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
+        from vmlc.v2.utils import CacheKeys
         
-        leaderboard = LeaderboardService.get_latest_league_leaderboard()
+        leaderboard = get_or_set_cache(
+            CacheKeys.LEADERBOARD_LEAGUE,
+            lambda: LeaderboardService.get_latest_league_leaderboard(),
+            ttl=86400
+        )
         
         if not leaderboard:
             return Response(
