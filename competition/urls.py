@@ -3,7 +3,7 @@ from competition.views import (
     PublishStandingsView, 
     RetrieveStandingsView, 
     LeagueLeaderboardView,
-    CompetitionDashboardView,
+    StaffCompetitionDashboardView,
     RetrieveCandidateStandingView,
     LeagueCandidateLeaderboardView,
     CandidateDashboardView,
@@ -13,7 +13,7 @@ from competition.views import (
 app_name = "competition"
 
 urlpatterns = [
-    path("dashboard/staff", CompetitionDashboardView.as_view(), name="competition-dashboard"),
+    path("dashboard/staff", StaffCompetitionDashboardView.as_view(), name="competition-dashboard"),
     path("dashboard/candidate/", CandidateDashboardView.as_view(), name="candidate-dashboard"),
     path("standings/publish/", PublishStandingsView.as_view(), name="publish-standings"),
     path("standings/<uuid:exam_id>/", RetrieveStandingsView.as_view(), name="retrieve-standings"),

@@ -51,7 +51,7 @@ class CandidateDashboardView(APIView):
         return Response(data)
 
 
-class CompetitionDashboardView(APIView):
+class StaffCompetitionDashboardView(APIView):
     """
     Provides an aggregated view of competition statistics and progress.
     """
