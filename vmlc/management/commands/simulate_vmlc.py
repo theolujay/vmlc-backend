@@ -201,22 +201,23 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            user, created = User.objects.get_or_create(
-                email=f"staff{i+1}@mail.com",
-                defaults={
-                    "password": os.getenv("ANON_PASSWORD", "SecurePass123!"),
-                    "first_name": self.fake.first_name()[:29],
-                    "last_name": self.fake.last_name()[:29],
-                    "is_email_verified": True,
-                    "phone": self._generate_nigerian_phone(),
-                    "state": random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
-                }
-            )
-            if not created:
-                staff = Staff.objects.filter(user=user).first()
+            email = f"staff{i+1}@mail.com"
+            if User.objects.filter(email=email).exists():
+                staff = Staff.objects.filter(user__email=email).first()
                 if staff:
                     staff_list.append(staff)
                 continue
+
+            user = User.objects.create_user(
+                email=email,
+                password=os.getenv("ANON_PASSWORD", "SecurePass123!"),
+                first_name=self.fake.first_name()[:29],
+                last_name=self.fake.last_name()[:29],
+                is_email_verified=random.choice([True, False]),
+                phone=self._generate_nigerian_phone(),
+                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+            )
+
             staff = Staff.objects.create(
                 user=user,
                 occupation=self.fake.job()[:49],
@@ -251,28 +252,28 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} candidate users...")
         candidates = []
         for i in range(count):
-            user, created = User.objects.get_or_create(
-                email=f"candidate{i+1}@mail.com",
-                defaults={
-                    "password": os.getenv("ANON_PASSWORD", "password123"),
-                    "first_name": self.fake.first_name()[:29],
-                    "last_name": self.fake.last_name()[:29],
-                    "is_email_verified": random.choice([True, False]),
-                    "phone": self._generate_nigerian_phone(),
-                    "state": random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
-                }
-            )
-            if not created:
-                candidate = Candidate.objects.filter(user=user).first()
+            email = f"candidate{i+1}@mail.com"
+            if User.objects.filter(email=email).exists():
+                candidate = Candidate.objects.filter(user__email=email).first()
                 if candidate:
                     candidates.append(candidate)
                 continue
+
+            user = User.objects.create_user(
+                email=email,
+                password=os.getenv("ANON_PASSWORD", "password123"),
+                first_name=self.fake.first_name()[:29],
+                last_name=self.fake.last_name()[:29],
+                is_email_verified=random.choice([True, False]),
+                phone=self._generate_nigerian_phone(),
+                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+            )
             candidate = Candidate.objects.create(
                 user=user,
                 school_name=self.fake.company()[:140] + " High",
                 school_type=random.choice(["public", "private"]),
                 current_class=random.choice(["SS1", "SS2", "SS3"]),
-                role=Candidate.Roles.SCREENING,
+                role=random.choice(["screening", "league", "final", "winner"]),
                 created_by=random.choice(staff_pool),
             )
             # self._update_verification(user, staff_pool)
