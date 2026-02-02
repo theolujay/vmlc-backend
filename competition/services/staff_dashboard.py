@@ -1,4 +1,5 @@
 import logging
+import math
 from django.db.models import Count, Avg, Q
 from competition.models import (
     Competition,
@@ -9,6 +10,7 @@ from competition.models import (
 )
 from vmlc.models import Exam, CandidateExamResult
 from competition.services.leaderboard import LeaderboardService
+from competition.serializers import AggregateLeaderboardEntrySerializer
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class StaffCompetitionDashboardService:
     def get_dashboard_data():
         active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
         if not active_comp:
-            return None
+            return {}
         
         # TODO: set registered candidate to CandidateCompetition.Status.DISQUALIFIED
         # when set to candidate.user.is_active=False in order to count them out of the
@@ -69,6 +71,13 @@ class StaffCompetitionDashboardService:
             competition_stage__competition=active_comp
         ).select_related('competition_stage').order_by('competition_stage__order', 'round')
 
+        def truncate_float(val):
+            """
+            Truncates a float to a specified number 
+            of decimal places without rounding
+            """
+            factor = 10.0**2
+            return math.trunc(val * factor) / factor
         for slot in slots:
             try:
                 # OneToOneField backref
@@ -80,7 +89,7 @@ class StaffCompetitionDashboardService:
             curr_status = exam.status
             if curr_status in [Exam.Status.DRAFT, Exam.Status.CANCELLED]:
                 continue
-
+            
             # Calculate stats for this exam
             res_stats = CandidateExamResult.objects.filter(exam=exam).aggregate(
                 sat=Count('id'),
@@ -95,7 +104,7 @@ class StaffCompetitionDashboardService:
 
             # TODO: calculate absent count when eligibility logic is adequate
             # For now, keep it simple as per SAT stats
-            
+            avg_score = float(res_stats['avg'] or 0)
             exams_list.append({
                 "id": exam.id,
                 "title": str(exam),
@@ -104,16 +113,19 @@ class StaffCompetitionDashboardService:
                 "standings_status": standings_status,
                 "stats": {
                     "candidates_sat": res_stats['sat'],
-                    "avg_score": float(res_stats['avg'] or 0)
+                    "avg_score": truncate_float(avg_score)
                 }
             })
 
         # Leaderboard Summary (Top 3)
-        leaderboard_summary = []
+        leaderboard_summary_data = []
         latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
         if latest_leaderboard:
             # The service annotates processed_entries
-            leaderboard_summary = latest_leaderboard.processed_entries[:3]
+            leaderboard_summary_data = AggregateLeaderboardEntrySerializer(
+                latest_leaderboard.processed_entries[:3], 
+                many=True
+            ).data
 
         # Latest Standings Summary (Top 3)
         latest_standings_summary = None
@@ -135,6 +147,6 @@ class StaffCompetitionDashboardService:
             "stats": stats,
             "progress": progress,
             "exams": exams_list,
-            "leaderboard_summary": leaderboard_summary,
+            "leaderboard_summary": leaderboard_summary_data,
             "latest_standings_summary": latest_standings_summary
         }

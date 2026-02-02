@@ -3,23 +3,21 @@ from vmlc.models import Question, Exam
 from vmlc.serializers.staff import MinimalStaffSerializer
 
 class RelatedExamV2Serializer(serializers.ModelSerializer):
-    competition_name = serializers.SerializerMethodField()
-    stage_display = serializers.CharField(source='stage_display', read_only=True)
+    competition_title = serializers.SerializerMethodField()
 
     class Meta:
         model = Exam
         fields = [
             "id",
             "title",
-            "competition_name",
+            "competition_title",
             "stage",
-            "stage_display",
             "round",
             "scheduled_date",
             "status",
         ]
 
-    def get_competition_name(self, obj):
+    def get_competition_title(self, obj):
         if obj.competition_slot:
             return str(obj.competition_slot.competition_stage.competition)
         return None
@@ -54,7 +52,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "created_by", "related_exams_count"]
 
     def get_related_exams(self, obj):
-        # Only show related exams if explicitly requested in context (optimization)
+        # Only show related exams if explicitly requested in context
         if self.context.get('include_related_exams', False):
             exams = obj.exams.all().select_related("competition_slot__competition_stage__competition")
             return RelatedExamV2Serializer(exams, many=True).data

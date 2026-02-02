@@ -83,16 +83,17 @@ class ExamListV2View(ListCreateAPIView):
             f"ExamListV2View: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
         
-        # 1. Question Pool Data (Staff Dashboard context)
+        # Question Pool Data (Staff Dashboard context)
         question_pool_data = get_or_set_cache(
             "question_pool_data",
             lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
             ttl=3600,
         )
 
-        # 2. Exam List Cache
+        # Exam List Cache
         # Note: Listing is hard to cache per-query-params without a versioning key or complex key.
         # For now, we rely on the queryset's efficiency and cache the pool data.
+        # TODO: Look into this
         response = super().list(request, *args, **kwargs)
         response.data["question_pool_data"] = question_pool_data
         return response

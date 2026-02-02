@@ -69,7 +69,7 @@ class RegistrationMetricsView(APIView):
         
         try:
             metrics_data = get_registration_metrics()
-            metrics_data["funnel"] = get_funnel_metrics(days=query_params.get("days"))
+            metrics_data["funnel"] = get_funnel_metrics()
             
             # Cache for 10 minutes
             cache.set(cache_key, metrics_data, 600)
