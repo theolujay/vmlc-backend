@@ -2,6 +2,7 @@ import os
 import random
 from typing import Any, List, Dict
 
+from django.core.cache import cache
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Avg, Count, Sum
 from django.utils import timezone
@@ -122,6 +123,7 @@ class Command(BaseCommand):
         self._create_support_data(candidates, staff_list)
         self._create_candidate_notifications(candidates)
         self._generate_legacy_snapshot(staff_list)
+        self._clear_cache()
 
         self.stdout.write(self.style.SUCCESS("Database populated successfully!"))
 
@@ -361,3 +363,7 @@ class Command(BaseCommand):
     def _generate_legacy_snapshot(self, staff_list):
         # Implementation of legacy snapshot generation
         pass
+
+    def _clear_cache(self):
+        self.stdout.write("Clearing cache...")
+        cache.clear()
