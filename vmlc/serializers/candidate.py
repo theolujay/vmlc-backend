@@ -7,6 +7,7 @@ from identity.models import (
 )
 
 from .user import UserSerializer
+from vmlc.services.candidate_records import CandidateRecordService
 
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):
@@ -24,7 +25,7 @@ class MinimalCandidateSerializer(serializers.ModelSerializer):
             "school_type",
             "current_class",
             "role",
-            "verifiction_document",
+            "verification_document",
         ]
 
 
@@ -98,7 +99,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         cache_key = f"candidate_records_{obj.pk}"
         records = cache.get(cache_key)
         if records is None:
-            records = obj.get_records()
+            records = CandidateRecordService.get_candidate_records(obj)
             # Cache for 24 hours.
             cache.set(cache_key, records, timeout=86400)
         return records
