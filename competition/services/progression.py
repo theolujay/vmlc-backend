@@ -88,26 +88,29 @@ class ProgressionService:
 
         now = timezone.now()
         
-        # 1. Update CandidateCompetition
+        # Update CandidateCompetition
+        # Promote meeting cutoff
         CandidateCompetition.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_promote,
             status=CandidateCompetition.Status.ACTIVE
         ).update(current_stage=to_stage, last_active_at=now)
 
+        # Eliminate below cutoff
         CandidateCompetition.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_eliminate,
-            status=CandidateCompetition.Status.ELIMINATED
-        ).update(current_stage=to_stage, last_active_at=now)
+            status=CandidateCompetition.Status.ACTIVE
+        ).update(status=CandidateCompetition.Status.ELIMINATED, last_active_at=now)
 
-        # 2. Update Candidate Roles (for permissions)
+        # Update Candidate Roles (for permissions)
         from identity.models import Candidate
         Candidate.objects.filter(pk__in=candidate_ids_to_promote).update(role=to_stage_type)
-        # Note: We don't typically change the role for eliminated candidates unless there's an 'eliminated' role.
-        # Usually, they retain their last active role or we move them to a 'screening' (base) role if preferred.
-
-        # 3. Update Old StageProgress
+        # Not sure if we should also move eliminated candidates back to 'screening' or just keep them.
+        # For now, let's just keep their role as is, or we could explicitly set it to screening.
+        # Candidate.objects.filter(pk__in=candidate_ids_to_eliminate).update(role=Candidate.Roles.SCREENING)
+        # TODO: decide on 'base' role or something other than screening, league... for candidates not in active competition
+        # Update Old StageProgress
         from_stage = Stage.objects.filter(competition=competition, type=from_stage_type).first()
         if from_stage:
             CandidateStageProgress.objects.filter(
@@ -116,7 +119,7 @@ class ProgressionService:
                 stage=from_stage
             ).update(status=CandidateStageProgress.Status.COMPLETED, completed_at=now)
 
-        # 3. Create/Update New StageProgress
+        # Create/Update New StageProgress
         participations = CandidateCompetition.objects.filter(
             competition=competition, 
             candidate_id__in=candidate_ids_to_promote
@@ -132,7 +135,7 @@ class ProgressionService:
                  }
              )
 
-        # 4. Send Notifications
+        # Send Notifications
         ProgressionService._send_notifications(
             competition=competition,
             promoted_ids=candidate_ids_to_promote,
