@@ -1,10 +1,16 @@
 import logging
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from competition.models import Competition, CandidateCompetition, CandidateStageProgress, Stage
+from competition.models import (
+    Competition,
+    CandidateCompetition,
+    CandidateStageProgress,
+    Stage,
+)
 from identity.models import Candidate
 
 logger = logging.getLogger(__name__)
+
 
 class Command(BaseCommand):
     help = "Enrolls all existing candidates into the current active competition."
@@ -29,10 +35,16 @@ class Command(BaseCommand):
             try:
                 competition = Competition.objects.get(id=competition_id)
             except Competition.DoesNotExist:
-                self.stderr.write(self.style.ERROR(f"Competition with ID {competition_id} does not exist."))
+                self.stderr.write(
+                    self.style.ERROR(
+                        f"Competition with ID {competition_id} does not exist."
+                    )
+                )
                 return
         else:
-            competition = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            competition = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
             if not competition:
                 self.stderr.write(self.style.ERROR("No active competition found."))
                 return
@@ -41,7 +53,9 @@ class Command(BaseCommand):
 
         first_stage = competition.stages.order_by("order").first()
         if not first_stage:
-            self.stderr.write(self.style.ERROR(f"No stages found for competition {competition}."))
+            self.stderr.write(
+                self.style.ERROR(f"No stages found for competition {competition}.")
+            )
             return
 
         self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
@@ -55,13 +69,17 @@ class Command(BaseCommand):
         total_to_enroll = candidates_to_enroll.count()
 
         if total_to_enroll == 0:
-            self.stdout.write(self.style.SUCCESS("All candidates are already enrolled."))
+            self.stdout.write(
+                self.style.SUCCESS("All candidates are already enrolled.")
+            )
             return
 
         self.stdout.write(f"Found {total_to_enroll} candidates to enroll.")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("Dry run enabled. No changes will be saved."))
+            self.stdout.write(
+                self.style.WARNING("Dry run enabled. No changes will be saved.")
+            )
             return
 
         with transaction.atomic():
@@ -72,14 +90,16 @@ class Command(BaseCommand):
                     candidate=candidate,
                     competition=competition,
                     current_stage=first_stage,
-                    status=CandidateCompetition.Status.ACTIVE
+                    status=CandidateCompetition.Status.ACTIVE,
                 )
                 # Create progress
                 CandidateStageProgress.objects.create(
                     candidate_competition=participation,
                     stage=first_stage,
-                    status=CandidateStageProgress.Status.IN_PROGRESS
+                    status=CandidateStageProgress.Status.IN_PROGRESS,
                 )
                 created_count += 1
 
-            self.stdout.write(self.style.SUCCESS(f"Successfully enrolled {created_count} candidates."))
+            self.stdout.write(
+                self.style.SUCCESS(f"Successfully enrolled {created_count} candidates.")
+            )
