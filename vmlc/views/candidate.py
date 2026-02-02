@@ -14,7 +14,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from identity.models import Candidate
-from ..permissions import (
+from identity.permissions import (
     CandidatePermissions,
     ActiveModeratorPermissions,
     ActiveAdminPermissions,

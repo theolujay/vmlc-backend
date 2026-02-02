@@ -16,7 +16,7 @@ from ..utils.swagger_schemas import (
     error_response_401,
     error_response_403,
 )
-from ..permissions import (
+from identity.permissions import (
     CandidatePermissions,
     ActiveModeratorPermissions,
 )

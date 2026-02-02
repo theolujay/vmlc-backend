@@ -261,42 +261,17 @@ AuthenticatedUser = [
     IsAuthenticated,
 ]
 
-CandidatePermissions = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsCandidate,
-]
 
-# Advanced version of CandidatePermissions that ensures they are in the active competition flow
-ActiveParticipantPermissions = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsActiveCompetitionParticipant,
-]
+CandidatePermissions = [IsCandidate] + AuthenticatedUser
+ActiveParticipantPermissions = [IsActiveCompetitionParticipant] + AuthenticatedUser
+IsLeagueParticipantOrStaff = [IsLeagueParticipantOrStaffBase] + AuthenticatedUser
 
-ActiveModeratorPermissions = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsActiveStaff,
-    HasMinimumStaffRole(Staff.Roles.MODERATOR),
-]
+ActiveStaff = AuthenticatedUser + [IsActiveStaff]
+ActiveVolunteerPermissions = [HasMinimumStaffRole(Staff.Roles.VOLUNTEER)] + ActiveStaff
+ActiveModeratorPermissions = [HasMinimumStaffRole(Staff.Roles.MODERATOR)] + ActiveStaff
+ActiveAdminPermissions = [HasMinimumStaffRole(Staff.Roles.ADMIN)] + ActiveStaff
+ActiveManagerPermissions = [HasMinimumStaffRole(Staff.Roles.MANAGER)] + ActiveStaff
 
-ActiveAdminPermissions = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsActiveStaff,
-    HasMinimumStaffRole(Staff.Roles.ADMIN),
-]
 
-ActiveManagerPermissions = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsActiveStaff,
-    HasMinimumStaffRole(Staff.Roles.MANAGER),
-]
 
-IsLeagueParticipantOrStaff = [
-    HasXAPIKey,
-    IsAuthenticated,
-    IsLeagueParticipantOrStaffBase,
-]
+

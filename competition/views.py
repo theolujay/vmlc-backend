@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
-    ActiveModeratorPermissions,
+    ActiveVolunteerPermissions,
     CandidatePermissions,
     IsLeagueParticipantOrStaff
 )
@@ -55,7 +55,7 @@ class StaffCompetitionDashboardView(APIView):
     """
     Provides an aggregated view of competition statistics and progress.
     """
-    permission_classes = ActiveModeratorPermissions
+    permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
         data = StaffCompetitionDashboardService.get_dashboard_data()

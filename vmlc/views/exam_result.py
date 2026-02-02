@@ -16,7 +16,7 @@ from ..models import (
     Exam,
     CandidateExamResult,
 )
-from ..permissions import (
+from identity.permissions import (
     ActiveAdminPermissions,
 )
 from ..serializers import (

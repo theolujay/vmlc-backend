@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import CandidateAnswer, CandidateExamResult, Exam
-from ..permissions import CandidatePermissions
+from identity.permissions import CandidatePermissions
 from ..serializers import CandidateAnswerBulkSerializer
 from ..utils.swagger_schemas import (
     api_key,

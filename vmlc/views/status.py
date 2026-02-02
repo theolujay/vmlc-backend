@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from vmlc.models import FeatureFlag
 from identity.permissions import (
     ActiveModeratorPermissions,
+    ActiveVolunteerPermissions,
 )
 from ..tasks import generate_stats_overview_task
 
@@ -96,7 +97,7 @@ def registration_status(request):
     tags=["Status"],
 )
 @api_view(["GET"])
-@permission_classes(ActiveModeratorPermissions)
+@permission_classes(ActiveVolunteerPermissions)
 def stats_overview(request):
     """
     Retrieve overall statistics for candidates and staff.

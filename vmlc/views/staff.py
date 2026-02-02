@@ -14,8 +14,8 @@ from rest_framework.settings import api_settings
 
 
 from identity.models import Staff
-from ..permissions import (
-    StaffPermissions,
+from identity.permissions import (
+    ActiveStaff,
     ActiveModeratorPermissions,
     ActiveManagerPermissions,
 )
@@ -61,7 +61,7 @@ class StaffMeView(RetrieveAPIView):
     Retrieve the authenticated staff member's own profile.
     """
 
-    permission_classes = StaffPermissions
+    permission_classes = ActiveStaff
     serializer_class = MinimalStaffSerializer
 
     def get_object(self):

@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from vmlc.utils.helpers import invalidate_all_staff_dashboards
 from ..models import Exam, Question
-from ..permissions import ActiveModeratorPermissions, ActiveAdminPermissions
+from identity.permissions import ActiveModeratorPermissions, ActiveAdminPermissions
 from ..serializers import QuestionListSerializer, QuestionDetailSerializer
 from ..utils.query_filters import filter_questions
 from ..utils.swagger_schemas import (
