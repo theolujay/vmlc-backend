@@ -5,7 +5,6 @@ from rest_framework_api_key.permissions import HasAPIKey
 
 from identity.models import Candidate, Staff
 
-SAFE_METHODS
 def _is_api_key_valid(key):
     from rest_framework_api_key.models import APIKey
     return APIKey.objects.is_valid(key)
@@ -32,7 +31,6 @@ def get_candidate_profile(request):
     """Helper to get and cache candidate profile on the request object."""
     if not hasattr(request, "_candidate_profile"):
         try:
-            # Use the explicit related_name from the model for clarity.
             request._candidate_profile = request.user.candidate_profile
         except (AttributeError, ObjectDoesNotExist):
             request._candidate_profile = None
@@ -106,48 +104,26 @@ def HasMinimumStaffRole(minimum_role):
 
 
 # =============================================================================
-# COMPETITION AWARE PERMISSIONS (Advanced)
+# COMPETITION AWARE PERMISSIONS
 # =============================================================================
 
-class CompetitionAwarePermission(BasePermission):
-    """
-    Base class for permissions that need to know about a candidate's
-    participation in the active competition.
-    """
-    def get_active_participation(self, request):
-        from competition.models import Competition, CandidateCompetition
-        
-        candidate = get_candidate_profile(request)
-        if not candidate:
-            return None
-            
-        active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
-        if not active_comp:
-            return None
-            
-        return CandidateCompetition.objects.filter(
-            candidate=candidate,
-            competition=active_comp
-        ).select_related('current_stage').first()
-
-
-class IsActiveCompetitionParticipant(CompetitionAwarePermission):
+class IsActiveCompetitionParticipant(BasePermission):
     """
     Grants access if the candidate is ACTIVE in the current competition edition.
+    Uses context from CompetitionContextMiddleware.
     """
     def has_permission(self, request, view):
-        part = self.get_active_participation(request)
+        part = getattr(request, 'participation', None)
         if not part:
             return False
         from competition.models import CandidateCompetition
         return part.status == CandidateCompetition.Status.ACTIVE
 
 
-class CanAccessStageResource(CompetitionAwarePermission):
+class IsInStage(BasePermission):
     """
     Grants access if the candidate is ACTIVE and in one of the allowed stages.
-    
-    Usage: CanAccessStageResource('league', 'final')
+    Usage: IsInStage('league') or IsInStage('league', 'final')
     """
     def __init__(self, *allowed_stages):
         self.allowed_stages = allowed_stages
@@ -156,7 +132,7 @@ class CanAccessStageResource(CompetitionAwarePermission):
         return self
 
     def has_permission(self, request, view):
-        part = self.get_active_participation(request)
+        part = getattr(request, 'participation', None)
         if not part:
             return False
             
@@ -170,17 +146,38 @@ class CanAccessStageResource(CompetitionAwarePermission):
         return part.current_stage.type in self.allowed_stages
 
 
-class IsLeagueCandidate(BasePermission):
-    """
-    Grants access only to candidates whose role is 'league'.
-    DEPRECATED: Use CanAccessStageResource('league') instead for competition-aware checks.
-    """
-    message = "User is not a league candidate."
+class CanAccessStageResource(IsInStage):
+    """Alias for IsInStage for backward compatibility."""
+    pass
 
+
+class IsLeagueParticipantOrStaffBase(BasePermission):
+    """
+    Grants access if the user is an active Staff (Moderator+) OR 
+    an active League candidate in the current competition.
+    """
     def has_permission(self, request, view):
-        candidate = get_candidate_profile(request)
-        return candidate and candidate.role == Candidate.Roles.LEAGUE
+        # Staff check
+        staff = get_staff_profile(request)
+        if staff and (settings.DEBUG or staff.is_active) and StaffRoleHierarchy.has_minimum_role(staff.role, Staff.Roles.MODERATOR):
+            return True
+            
+        # League Participant check
+        part = getattr(request, 'participation', None)
+        if not part:
+            return False
+            
+        from competition.models import CandidateCompetition, Stage
+        return (
+            part.status == CandidateCompetition.Status.ACTIVE and
+            part.current_stage and 
+            part.current_stage.type == Stage.Type.LEAGUE
+        )
 
+
+# =============================================================================
+# GENERAL UTILITY PERMISSIONS
+# =============================================================================
 
 class ReadOnly(BasePermission):
     """
@@ -198,11 +195,9 @@ class IsManagerForStaffDetail(BasePermission):
     message = "Only 'superadmin' or 'manager' has permission to manage staff members."
 
     def has_permission(self, request, view):
-        # If we are not accessing a staff detail page, this permission does not apply.
         if "staff_id" not in view.kwargs:
             return True
 
-        # If we are on a staff detail page, check the user's role.
         staff_profile = get_staff_profile(request)
         if not staff_profile:
             return False
@@ -255,35 +250,6 @@ class IsActiveModeratorOrCandidate(BasePermission):
         )
         is_candidate = get_candidate_profile(request) is not None
         return is_active_moderator or is_candidate
-
-
-class IsLeagueParticipantOrStaffBase(BasePermission):
-    """
-    Grants access if the user is an active Staff (Moderator+) OR 
-    an active League candidate in the current competition.
-    """
-    def has_permission(self, request, view):
-        # 1. Staff check
-        staff = get_staff_profile(request)
-        if staff and (settings.DEBUG or staff.is_active) and StaffRoleHierarchy.has_minimum_role(staff.role, Staff.Roles.MODERATOR):
-            return True
-            
-        # 2. League Participant check
-        candidate = get_candidate_profile(request)
-        if not candidate:
-            return False
-            
-        from competition.models import Competition, CandidateCompetition, Stage
-        active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
-        if not active_comp:
-            return False
-            
-        return CandidateCompetition.objects.filter(
-            candidate=candidate,
-            competition=active_comp,
-            status=CandidateCompetition.Status.ACTIVE,
-            current_stage__type=Stage.Type.LEAGUE
-        ).exists()
 
 
 # =============================================================================

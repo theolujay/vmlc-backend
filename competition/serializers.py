@@ -233,8 +233,119 @@ class CompetitionDashboardSerializer(serializers.Serializer):
 class CandidateStandingsDetailSerializer(serializers.Serializer):
 
 
+
+
+
+
+
+
     exam_details = serializers.DictField()
 
 
+
+
+
+
+
+
     candidate_performance = serializers.DictField()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class PromoteCandidatesSerializer(serializers.Serializer):
+
+
+
+
+
+
+
+
+    """
+
+
+
+
+
+
+
+
+    Serializer for promoting candidates from one stage to another.
+
+
+
+
+
+
+
+
+    """
+
+
+
+
+
+
+
+
+    from_stage = serializers.ChoiceField(choices=["screening", "league"])
+
+
+
+
+
+
+
+
+    to_stage = serializers.ChoiceField(choices=["league", "final"])
+
+
+
+
+
+
+
+
+    cutoff_rank = serializers.IntegerField(required=False, min_value=1)
+
+
+
+
+
+
+
+
+    competition_id = serializers.IntegerField(required=False)
+
+
+
+
+
+
+
+
+
 

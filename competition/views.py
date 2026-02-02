@@ -5,13 +5,12 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 
 from identity.permissions import (
+    ActiveManagerPermissions,
     ActiveAdminPermissions,
     ActiveModeratorPermissions,
     CandidatePermissions,
-    HasXAPIKey, 
     IsLeagueParticipantOrStaff
 )
-from rest_framework.permissions import IsAuthenticated
 from vmlc.models import Exam
 from competition.models import Standings, StandingsEntry
 from competition.serializers import (
@@ -20,12 +19,14 @@ from competition.serializers import (
     CandidateResultDetailSerializer,
     AggregateLeaderboardSerializer,
     AggregateLeaderboardEntrySerializer,
-    CompetitionDashboardSerializer
+    CompetitionDashboardSerializer,
+    PromoteCandidatesSerializer
 )
 from competition.tasks import generate_standings_task
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import CompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
+from competition.services.progression import ProgressionService, ProgressionError
 
 from vmlc.models import Exam, CandidateExamResult
 from vmlc.v2.utils import get_or_set_cache
@@ -60,7 +61,7 @@ class CompetitionDashboardView(APIView):
         data = CompetitionDashboardService.get_dashboard_data()
         if not data:
             return Response(
-                {"detail": "No active competition found."}, 
+                {"detail": "No active competition found."},
                 status=status.HTTP_404_NOT_FOUND
             )
         
@@ -89,7 +90,7 @@ class PublishStandingsView(APIView):
 
         if not exam.competition_slot:
             return Response(
-                {"detail": "This exam is not linked to any competition stage round."}, 
+                {"detail": "This exam is not linked to any competition stage round."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -152,7 +153,7 @@ class LeagueLeaderboardView(APIView):
         
         if not leaderboard:
             return Response(
-                {"detail": "No active league leaderboard found."}, 
+                {"detail": "No active league leaderboard found."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -246,3 +247,39 @@ class LeagueCandidateLeaderboardView(APIView):
             return Response({"detail": "Candidate not found in leaderboard."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(AggregateLeaderboardEntrySerializer(entry).data)
+
+
+class PromoteCandidatesView(APIView):
+    """
+    Staff-only view to promote candidates from one stage to the next.
+    """
+    permission_classes = ActiveManagerPermissions
+
+    def post(self, request):
+        serializer = PromoteCandidatesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        data = serializer.validated_data
+        
+        try:
+            promoted_count = ProgressionService.promote_candidates(
+                from_stage_type=data['from_stage'],
+                to_stage_type=data['to_stage'],
+                cutoff_rank=data.get('cutoff_rank'),
+                competition_id=data.get('competition_id')
+            )
+            
+            return Response({
+                "status": "success",
+                "message": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}."
+            })
+        except ProgressionError as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+             return Response(
+                {"status": "error", "message": "An unexpected error occurred during promotion."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
