@@ -63,13 +63,13 @@ class RegistrationMetricsView(APIView):
         
         cache_key = "registration_metrics"
         cached_data = cache.get(cache_key)
-        
+        query_params = request.query_params
         if cached_data:
             return Response(cached_data)
         
         try:
             metrics_data = get_registration_metrics()
-            metrics_data["funnel"] = get_funnel_metrics()
+            metrics_data["funnel"] = get_funnel_metrics(days=query_params.get("days"))
             
             # Cache for 10 minutes
             cache.set(cache_key, metrics_data, 600)
