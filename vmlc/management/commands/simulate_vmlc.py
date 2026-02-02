@@ -86,7 +86,7 @@ class Command(BaseCommand):
             stage=stages['screening'], 
             questions=random.sample(questions, 15), 
             staff_pool=staff_list,
-            days_ago=15
+            days_ago=30  # Screening happened a month ago
         )
         self._generate_exam_results(screening_exam, CandidateCompetition.objects.all(), staff_list)
         self._finalize_standings(screening_exam, staff_list)
@@ -101,12 +101,12 @@ class Command(BaseCommand):
         )
 
         self.stdout.write("Simulating League Stage (Rounds 1-6)...")
-        for r in range(1, 6):
+        for r in range(1, 7):
             league_exam = self._create_exam(
                 stage=stages['league'],
                 questions=random.sample(questions, 15),
                 staff_pool=staff_list,
-                days_ago=(10 - r * 2),
+                days_ago=(25 - r * 3), # Round 1: 22 days ago, Round 6: 7 days ago
                 round_num=r
             )
             # Only active participants take the exam
@@ -117,6 +117,30 @@ class Command(BaseCommand):
             )
             self._generate_exam_results(league_exam, active_parts, staff_list)
             self._finalize_standings(league_exam, staff_list, update_leaderboard=True)
+
+        # Promote top 20 to Final
+        self.stdout.write("Promoting top 20 candidates to Final stage...")
+        ProgressionService.promote_candidates(
+            from_stage_type=Stage.Type.LEAGUE,
+            to_stage_type=Stage.Type.FINAL,
+            cutoff_rank=20,
+            competition_id=competition.id
+        )
+
+        self.stdout.write("Simulating Final Stage...")
+        final_exam = self._create_exam(
+            stage=stages['final'],
+            questions=random.sample(questions, 20),
+            staff_pool=staff_list,
+            days_ago=3
+        )
+        active_parts_final = CandidateCompetition.objects.filter(
+            competition=competition,
+            current_stage=stages['final'],
+            status=CandidateCompetition.Status.ACTIVE
+        )
+        self._generate_exam_results(final_exam, active_parts_final, staff_list)
+        self._finalize_standings(final_exam, staff_list)
 
         # 5. Ancillary Data
         self._create_pre_reg_and_events(candidates, staff_list)
@@ -129,19 +153,19 @@ class Command(BaseCommand):
 
     def _clear_data(self):
         self.stdout.write("Clearing existing data...")
+        Standings.objects.all().delete()
+        StandingsEntry.objects.all().delete()
+        AggregateLeaderboard.objects.all().delete()
+        AggregateLeaderboardEntry.objects.all().delete()
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
-        StandingsEntry.objects.all().delete()
-        Standings.objects.all().delete()
-        AggregateLeaderboardEntry.objects.all().delete()
-        AggregateLeaderboard.objects.all().delete()
+        Question.objects.all().delete()
         StageExam.objects.all().delete()
-        CandidateStageProgress.objects.all().delete()
         CandidateCompetition.objects.all().delete()
+        CandidateStageProgress.objects.all().delete()
         Stage.objects.all().delete()
         Competition.objects.all().delete()
-        Question.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
         CandidateExamResultSnapshot.objects.all().delete()
         PreRegUser.objects.all().delete()
@@ -177,15 +201,22 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            user = User.objects.create_user(
+            user, created = User.objects.get_or_create(
                 email=f"staff{i+1}@mail.com",
-                password=os.getenv("ANON_PASSWORD", "SecurePass123!"),
-                first_name=self.fake.first_name()[:29],
-                last_name=self.fake.last_name()[:29],
-                is_email_verified=True,
-                phone=self._generate_nigerian_phone(),
-                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+                defaults={
+                    "password": os.getenv("ANON_PASSWORD", "SecurePass123!"),
+                    "first_name": self.fake.first_name()[:29],
+                    "last_name": self.fake.last_name()[:29],
+                    "is_email_verified": True,
+                    "phone": self._generate_nigerian_phone(),
+                    "state": random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+                }
             )
+            if not created:
+                staff = Staff.objects.filter(user=user).first()
+                if staff:
+                    staff_list.append(staff)
+                continue
             staff = Staff.objects.create(
                 user=user,
                 occupation=self.fake.job()[:49],
@@ -220,15 +251,22 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} candidate users...")
         candidates = []
         for i in range(count):
-            user = User.objects.create_user(
+            user, created = User.objects.get_or_create(
                 email=f"candidate{i+1}@mail.com",
-                password=os.getenv("ANON_PASSWORD", "password123"),
-                first_name=self.fake.first_name()[:29],
-                last_name=self.fake.last_name()[:29],
-                is_email_verified=random.choice([True, False]),
-                phone=self._generate_nigerian_phone(),
-                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+                defaults={
+                    "password": os.getenv("ANON_PASSWORD", "password123"),
+                    "first_name": self.fake.first_name()[:29],
+                    "last_name": self.fake.last_name()[:29],
+                    "is_email_verified": random.choice([True, False]),
+                    "phone": self._generate_nigerian_phone(),
+                    "state": random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
+                }
             )
+            if not created:
+                candidate = Candidate.objects.filter(user=user).first()
+                if candidate:
+                    candidates.append(candidate)
+                continue
             candidate = Candidate.objects.create(
                 user=user,
                 school_name=self.fake.company()[:140] + " High",

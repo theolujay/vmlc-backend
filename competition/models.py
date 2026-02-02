@@ -184,7 +184,7 @@ class CandidateStageProgress(models.Model):
     candidate_competition = models.ForeignKey(
         CandidateCompetition, on_delete=models.CASCADE, related_name="stage_progress"
     )
-    stage = models.ForeignKey(Stage, on_delete=models.CASCADE)
+    stage = models.ForeignKey(Stage, on_delete=models.PROTECT)
     status = models.CharField(choices=Status.choices, default=Status.PENDING)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -305,7 +305,7 @@ class StandingsEntry(models.Model):
     standings = models.ForeignKey(
         Standings,
         related_name="entries",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
     )
     candidate = models.ForeignKey(
         "identity.Candidate",

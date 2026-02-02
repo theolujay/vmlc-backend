@@ -96,16 +96,22 @@ class StandingsGenerator:
             )
 
         # Sort and Rank candidates
+        def sort_key(item):
+            data = item[1]
+            score = data["score"]
+            secondary = 0
+            if tie_break_strategy == "submission_time_asc":
+                if data["recorded_at"]:
+                    # Earlier time (smaller timestamp) -> larger negative value
+                    secondary = -data["recorded_at"].timestamp()
+                else:
+                    # Absentees last -> smallest value
+                    secondary = float("-inf")
+            return (score, secondary)
+
         sorted_candidates = sorted(
             candidate_scores.items(),
-            key=lambda item: (
-                item[1]["score"],
-                (
-                    item[1]["recorded_at"]
-                    if tie_break_strategy == "submission_time_asc"
-                    else None
-                ),
-            ),
+            key=sort_key,
             reverse=True,  # Higher score first, then earlier submission time
         )
 

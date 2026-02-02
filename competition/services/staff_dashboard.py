@@ -12,7 +12,7 @@ from competition.services.leaderboard import LeaderboardService
 
 logger = logging.getLogger(__name__)
 
-class CompetitionDashboardService:
+class StaffCompetitionDashboardService:
     @staticmethod
     def get_dashboard_data():
         active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
@@ -76,9 +76,11 @@ class CompetitionDashboardService:
             except Exam.DoesNotExist:
                 continue
             
-            # skip if exam is in draft or is cancelled
-            if exam.status == Exam.Status.DRAFT or Exam.Status.CANCELLED:
+            # Filter manually since status is a property
+            curr_status = exam.status
+            if curr_status in [Exam.Status.DRAFT, Exam.Status.CANCELLED]:
                 continue
+
             # Calculate stats for this exam
             res_stats = CandidateExamResult.objects.filter(exam=exam).aggregate(
                 sat=Count('id'),
@@ -98,7 +100,7 @@ class CompetitionDashboardService:
                 "id": exam.id,
                 "title": str(exam),
                 "stage": slot.competition_stage.type,
-                "status": exam.status,
+                "status": curr_status,
                 "standings_status": standings_status,
                 "stats": {
                     "candidates_sat": res_stats['sat'],

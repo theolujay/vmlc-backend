@@ -24,7 +24,7 @@ from competition.serializers import (
 )
 from competition.tasks import generate_standings_task
 from competition.services.leaderboard import LeaderboardService
-from competition.services.staff_dashboard import CompetitionDashboardService
+from competition.services.staff_dashboard import StaffCompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
 from competition.services.progression import ProgressionService, ProgressionError
 
@@ -58,7 +58,7 @@ class StaffCompetitionDashboardView(APIView):
     permission_classes = ActiveModeratorPermissions
 
     def get(self, request):
-        data = CompetitionDashboardService.get_dashboard_data()
+        data = StaffCompetitionDashboardService.get_dashboard_data()
         if not data:
             return Response(
                 {"detail": "No active competition found."},

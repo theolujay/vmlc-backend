@@ -65,7 +65,7 @@ class ProgressionService:
 
             candidate_ids_to_eliminate = list(standings.entries.filter(
                 rank__gt=cutoff_rank
-            )).values_list('candidate_id', flat=True)
+            ).values_list('candidate_id', flat=True))
 
         elif from_stage_type == Stage.Type.LEAGUE:
             leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
@@ -101,7 +101,13 @@ class ProgressionService:
             status=CandidateCompetition.Status.ELIMINATED
         ).update(current_stage=to_stage, last_active_at=now)
 
-        # 2. Update Old StageProgress
+        # 2. Update Candidate Roles (for permissions)
+        from identity.models import Candidate
+        Candidate.objects.filter(pk__in=candidate_ids_to_promote).update(role=to_stage_type)
+        # Note: We don't typically change the role for eliminated candidates unless there's an 'eliminated' role.
+        # Usually, they retain their last active role or we move them to a 'screening' (base) role if preferred.
+
+        # 3. Update Old StageProgress
         from_stage = Stage.objects.filter(competition=competition, type=from_stage_type).first()
         if from_stage:
             CandidateStageProgress.objects.filter(
@@ -149,7 +155,7 @@ class ProgressionService:
 
         # Promoted Notifications
         if promoted_ids:
-            candidates = Candidate.objects.filter(id__in=promoted_ids).select_related('user')
+            candidates = Candidate.objects.filter(pk__in=promoted_ids).select_related('user')
             subject = f"Congrats!"
             message = (
                 f"Hii! Based on your performance in the previous stage of {competition.name}, "
@@ -165,7 +171,7 @@ class ProgressionService:
 
         # Eliminated Notifications
         if eliminated_ids:
-            candidates = Candidate.objects.filter(id__in=eliminated_ids).select_related('user')
+            candidates = Candidate.objects.filter(pk__in=eliminated_ids).select_related('user')
             subject = f"Competition Update: {competition.name}"
             message = (
                 f"Thank you for participating in {competition.name}. "
