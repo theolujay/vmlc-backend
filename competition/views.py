@@ -41,11 +41,12 @@ class CandidateDashboardView(APIView):
 
     def get(self, request):
         candidate = request.user.candidate_profile
+        participation = getattr(request, 'participation', None)
         cache_key = f"candidate_dashboard_v2_{candidate.pk}"
         
         data = get_or_set_cache(
             cache_key,
-            lambda: CandidateDashboardService.get_dashboard_data(candidate),
+            lambda: CandidateDashboardService.get_dashboard_data(candidate, participation),
             ttl=3600
         )
         return Response(data)

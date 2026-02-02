@@ -21,26 +21,28 @@ logger = logging.getLogger(__name__)
 
 class CandidateDashboardService:
     @staticmethod
-    def get_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
+    def get_dashboard_data(candidate: Candidate, participation: Optional[CandidateCompetition] = None) -> Dict[str, Any]:
         """
         Main entry point to get all candidate dashboard data.
         """
-        now = timezone.now()
-        active_comp = Competition.objects.filter(
-            status=Competition.Status.ACTIVE
-        ).first()
+        active_comp = None
+        if participation:
+            active_comp = participation.competition
+        else:
+            active_comp = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
 
         context = CandidateDashboardService._get_context(candidate)
 
-        participation = None
-        if active_comp:
+        if active_comp and not participation:
             participation = (
                 CandidateCompetition.objects.filter(
                     candidate=candidate, competition=active_comp
                 )
                 .select_related("current_stage")
                 .first()
-            )  # TODO: how is current_stage set, dynamically? Make more sophisticated if necessary
+            )
 
         progress = CandidateDashboardService._get_stage_progress(
             candidate, active_comp, participation
