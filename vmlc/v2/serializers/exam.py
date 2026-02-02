@@ -169,12 +169,19 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                 else:
                     # Create a new slot for screening/final (these usually don't have multiple rounds)
                     # or reuse existing if same stage
-                    current_slot = exam.competition_slot
-                    if not current_slot or current_slot.competition_stage != stage:
-                        exam.competition_slot = StageExam.objects.create(
+                    slot = exam.competition_slot
+                    if not slot or slot.competition_stage != stage:
+                        slot = StageExam.objects.create(
                             competition_stage=stage, round=None
                         )
-                
+                    exam.competition_slot = slot
+
+                if slot:
+                    is_active = exam.scheduled_date is not None
+                    if slot.is_active != is_active:
+                        slot.is_active = is_active
+                        slot.save(update_fields=["is_active"])
+
                 exam.save(update_fields=["competition_slot"])
 
 
