@@ -22,6 +22,7 @@ from comms.utils import send_bulk_phone_msg
 
 logger = logging.getLogger(__name__)
 
+# TODO: handle emitted events to send notifications
 
 def send_broadcast(broadcast_id):
     """

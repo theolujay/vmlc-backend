@@ -126,5 +126,60 @@ class ProgressionService:
                  }
              )
 
+        # 4. Send Notifications
+        ProgressionService._send_notifications(
+            competition=competition,
+            promoted_ids=candidate_ids_to_promote,
+            eliminated_ids=candidate_ids_to_eliminate,
+            to_stage_type=to_stage_type
+        )
+
         logger.info(f"Successfully promoted {len(candidate_ids_to_promote)} candidates from {from_stage_type} to {to_stage_type}.")
         return len(candidate_ids_to_promote)
+
+    @staticmethod
+    def _send_notifications(competition, promoted_ids, eliminated_ids, to_stage_type):
+        """
+        Sends platform notifications to candidates about their promotion or elimination.
+        """
+        from comms.models import Notification
+        from identity.models import Candidate
+
+        notifications = []
+
+        # Promoted Notifications
+        if promoted_ids:
+            candidates = Candidate.objects.filter(id__in=promoted_ids).select_related('user')
+            subject = f"Congrats!"
+            message = (
+                f"Hii! Based on your performance in the previous stage of {competition.name}, "
+                f"you have successfully advanced to the {to_stage_type.title()} stage. "
+                "Check your dashboard for more information."
+            )
+            for cand in candidates:
+                notifications.append(Notification(
+                    recipient=cand.user,
+                    subject=subject,
+                    message=message
+                ))
+
+        # Eliminated Notifications
+        if eliminated_ids:
+            candidates = Candidate.objects.filter(id__in=eliminated_ids).select_related('user')
+            subject = f"Competition Update: {competition.name}"
+            message = (
+                f"Thank you for participating in {competition.name}. "
+                "Unfortunately, you did not meet the cutoff for the next stage. "
+                "We appreciate your effort and hope to see you in future editions."
+            )
+            for cand in candidates:
+                notifications.append(Notification(
+                    recipient=cand.user,
+                    subject=subject,
+                    message=message
+                ))
+
+        if notifications:
+            Notification.objects.bulk_create(notifications)
+            logger.info(f"Sent {len(notifications)} progression notifications.")
+

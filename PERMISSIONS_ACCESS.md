@@ -47,9 +47,16 @@ A `ProgressionService` and `PromoteCandidatesView` have been implemented to allo
 
 ---
 
+
+
 ## 3. Next Steps & Recommendations
 
-1.  **Migration Script**: Existing candidates who were registered before this change need to be manually enrolled in the current active competition.
+
+
+1.  **Migration Script**: [COMPLETED] Created `enroll_candidates` management command to enroll existing candidates into the active competition.
+
 2.  **UI Integration**: The "Promote Candidates" action should be exposed in the Staff Dashboard UI, perhaps with a "Simulate Promotion" feature to see who would make the cut before finalizing.
+
 3.  **Automated Promotion Policy**: Consider adding a "Finalize and Promote" checkbox to the `PublishStandingsView` to combine these steps for the final round of a stage.
-4.  **Notification**: Trigger a `Notification` (via `comms` app) to candidates when they are promoted or eliminated.
+
+4.  **Notification**: [COMPLETED] Candidates now receive platform notifications when they are promoted or eliminated via `ProgressionService`.
