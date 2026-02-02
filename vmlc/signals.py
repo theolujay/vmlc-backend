@@ -16,7 +16,6 @@ from vmlc.models import (
 )
 from .tasks import (
     generate_stats_overview_task,
-    update_candidate_dashboard_cache_task,
     update_staff_dashboard_cache_task,
 )
 
@@ -89,13 +88,6 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
         and user.staff_profile.is_active
     ):
         update_staff_dashboard_cache_task.delay(user.id)
-
-    if (
-        hasattr(user, "candidate_profile")
-        and user.is_email_verified
-        and user.candidate_profile.is_active
-    ):
-        update_candidate_dashboard_cache_task.delay(user.id)
 
 
 # Invalidate stats cache on changes to relevant models.

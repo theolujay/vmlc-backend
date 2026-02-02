@@ -20,6 +20,8 @@ from vmlc.models import (
 )
 
 
+import warnings
+
 def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     """
     Generate dashboard data for a specific candidate.
@@ -36,6 +38,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent results, and upcoming exams.
     """
+    warnings.warn(
+        "get_candidate_dashboard_data is superseeded by competition.services.candidate_dashboard.CandidateDashboardService.get_dashboard_data",
+        DeprecationWarning,
+        stacklevel=2
+    )
 
     candidate = Candidate.objects.select_related("user").get(pk=candidate.pk)
 
@@ -174,7 +181,11 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
     available_exams_list = []
     if candidate.is_active:
         all_relevant_exams = (
-            Exam.objects.filter(stage=candidate.role.lower(), is_active=True)
+            Exam.objects.select_related("competition_slot__competition_stage")
+            .filter(
+                competition_slot__competition_stage__type=candidate.role.lower(),
+                is_active=True,
+            )
             .annotate(
                 question_count=Count(
                     "questions", filter=Q(questions__is_archived=False)
@@ -210,7 +221,10 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
     concluded_exams_list = []
     if candidate.is_active:
         all_relevant_exams = (
-            Exam.objects.filter(stage=candidate.role, is_active=True)
+            Exam.objects.select_related("competition_slot__competition_stage")
+            .filter(
+                competition_slot__competition_stage__type=candidate.role, is_active=True
+            )
             .annotate(
                 question_count=Count(
                     "questions", filter=Q(questions__is_archived=False)
@@ -273,7 +287,13 @@ def _get_candidate_screening_ranking(
     candidate: Candidate,
 ) -> tuple[Optional[int], int]:
     """Helper to get ranking for the Screening Round 1 exam."""
-    screening_exam = Exam.objects.filter(stage="screening", round=1).first()
+    screening_exam = (
+        Exam.objects.filter(
+            competition_slot__competition_stage__type="screening",
+            competition_slot__round=1,
+        )
+        .first()
+    )
     if not screening_exam:
         return None, 0
 

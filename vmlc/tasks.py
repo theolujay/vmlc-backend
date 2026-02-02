@@ -114,22 +114,10 @@ def validate_user_verification_files_task(user_verification_id):
 def update_staff_dashboard_cache_task(staff_id=None):
     """
     Celery task to update the staff dashboard cache.
-    If a staff_id is provided, it updates the cache for that specific staff member.
-    Otherwise, it updates the cache for all staff members.
     """
     from vmlc.utils.functions import update_staff_dashboard_cache
 
     update_staff_dashboard_cache(staff_id)
-
-
-@shared_task(name="update_candidate_dashboard_cache_task")
-def update_candidate_dashboard_cache_task(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-    from vmlc.utils.functions import update_candidate_dashboard_cache
-
-    update_candidate_dashboard_cache(candidate_id)
 
 
 @shared_task(name="update_candidate_ranking_cache_task")

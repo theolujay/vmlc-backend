@@ -24,7 +24,7 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
 
     # 1. Deactivated (highest priority)
     deactivated = base_queryset.filter(user__is_active=False).count()
-    once_logged_in = base_queryset.filter(user__last_login__lte=timezone.now()).count()
+    has_logged_in = base_queryset.filter(user__last_login__lte=timezone.now()).count()
     # 2. Active users
     # Base requirement: is_active=True, logged in recently
     # Removed verification checks as requested
@@ -78,7 +78,7 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
         "registered": total_registered,
         "active": active,
         "inactive": inactive,
-        "once_logged_in": once_logged_in,
+        "has_logged_in": has_logged_in,
         "pre_registered": pre_registered,
         "deactivated": deactivated,
         "both_entities": both_entities,

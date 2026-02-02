@@ -423,30 +423,6 @@ def update_staff_dashboard_cache(staff_id=None):
         )
 
 
-def update_candidate_dashboard_cache(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-
-    try:
-        if candidate_id:
-            candidates = Candidate.objects.filter(pk=candidate_id)
-            if not candidates.exists():
-                logger.error(f"Candidate with id {candidate_id} does not exist.")
-        else:
-            candidates = Candidate.objects.all()
-        for candidate in candidates:
-            dashboard_data = get_candidate_dashboard_data(candidate)
-            cache.set(
-                f"candidate_dashboard_{candidate.user_id}", dashboard_data, timeout=3600
-            )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for candidate {candidate.user_id}")
-    except Exception as e:
-        logger.error(
-            f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
-        )
-
-
 def update_candidate_ranking_cache():
     """
     Celery task to update the candidate ranking cache for all league candidates.

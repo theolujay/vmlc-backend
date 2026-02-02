@@ -22,8 +22,8 @@ from identity.permissions import (
 )
 from ..tasks import (
     update_staff_dashboard_cache_task,
-    update_candidate_dashboard_cache_task,
 )
+from ..utils.dashboard import get_candidate_dashboard_data
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,9 @@ class CandidateDashboardView(APIView):
         Returns candidate-specific dashboard stats and profile data.
         """
         candidate = request.user.candidate_profile
-        logger.info(
-            f"CandidateDashboardView: request from user {request.user.id} (candidate_id: {candidate.pk})"
+        logger.warning(
+            f"CandidateDashboardView (DEPRECATED): request from user {request.user.id} (candidate_id: {candidate.pk}). "
+            "Please use the competition candidate dashboard instead."
         )
         cache_key = f"candidate_dashboard_{candidate.pk}"
         cached_data = cache.get(cache_key)
@@ -65,17 +66,11 @@ class CandidateDashboardView(APIView):
             return Response(cached_data)
 
         logger.info(
-            f"Dashboard data for candidate {candidate.pk} not found in cache. Triggering background update."
+            f"Dashboard data for candidate {candidate.pk} not found in cache. Generating synchronously (DEPRECATED)."
         )
-        # If not in cache, trigger a background update
-        update_candidate_dashboard_cache_task.delay(candidate.pk)
+        dashboard_data = get_candidate_dashboard_data(candidate)
 
-        return Response(
-            {
-                "message": "Dashboard data is being generated. Please check back in a few moments."
-            },
-            status=status.HTTP_202_ACCEPTED,
-        )
+        return Response(dashboard_data)
 
 
 class StaffDashboardView(APIView):
