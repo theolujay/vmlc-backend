@@ -190,7 +190,8 @@ class CandidateDashboardService:
             StageExam.objects.filter(
                 competition_stage=participation.current_stage, is_active=True
             )
-            .select_related("exam", "exam__questions")
+            .select_related("exam")
+            .prefetch_related("exam__questions")
             .order_by("round")
         )
 
