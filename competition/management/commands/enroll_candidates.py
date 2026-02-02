@@ -51,7 +51,7 @@ class Command(BaseCommand):
             competition=competition
         ).values_list("candidate_id", flat=True)
 
-        candidates_to_enroll = Candidate.objects.exclude(id__in=enrolled_candidate_ids)
+        candidates_to_enroll = Candidate.objects.exclude(pk__in=enrolled_candidate_ids)
         total_to_enroll = candidates_to_enroll.count()
 
         if total_to_enroll == 0:
