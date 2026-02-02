@@ -25,7 +25,7 @@ class StaffCompetitionDashboardService:
 
         # Get Stats
         stats = CandidateCompetition.objects.filter(competition=active_comp).aggregate(
-            enrolled=Count('id', filter=Q(status=CandidateCompetition.Status.ENROLLED)),
+            enrolled=Count('id'),
             active=Count('id', filter=Q(status=CandidateCompetition.Status.ACTIVE)),
             eliminated=Count('id', filter=Q(status=CandidateCompetition.Status.ELIMINATED)),
         )

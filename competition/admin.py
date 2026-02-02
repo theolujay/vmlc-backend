@@ -93,10 +93,9 @@ class CandidateCompetitionAdmin(admin.ModelAdmin):
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
         colors = {
-            CandidateCompetition.Status.ENROLLED: "blue",
             CandidateCompetition.Status.ACTIVE: "green",
             CandidateCompetition.Status.ELIMINATED: "red",
-            CandidateCompetition.Status.WITHDRAWN: "orange",
+            # CandidateCompetition.Status.WITHDRAWN: "orange",
             CandidateCompetition.Status.DISQUALIFIED: "darkred",
         }
         return format_html(

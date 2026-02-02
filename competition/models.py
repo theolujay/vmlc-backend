@@ -119,14 +119,12 @@ class CandidateCompetition(models.Model):
     """
 
     class Status(models.TextChoices):
-        # registered, not started
-        ENROLLED = "enrolled", "Enrolled"
         # currently participating
         ACTIVE = "active", "Active"
         # removed by system rules and is terminal
         ELIMINATED = "eliminated", "Eliminated"
         # left voluntarily
-        WITHDRAWN = "withdrawn", "Withdrawn"
+        # WITHDRAWN = "withdrawn", "Withdrawn"
         # forcibly removed due to violation
         DISQUALIFIED = "disqualified", "Disqualified"
 
@@ -147,7 +145,7 @@ class CandidateCompetition(models.Model):
         help_text="The candidate's current stage in the competition.",
     )
     status = models.CharField(
-        choices=Status.choices, default=Status.ENROLLED, db_index=True
+        choices=Status.choices, default=Status.ACTIVE, db_index=True
     )
     joined_at = models.DateTimeField(auto_now_add=True)
     last_active_at = models.DateTimeField(null=True, blank=True)

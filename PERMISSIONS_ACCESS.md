@@ -8,7 +8,7 @@ This document outlines the improvements made to the candidate journey, automatio
 **Location**: `vmlc/v2/serializers/registration.py`
 
 Candidates are now automatically enrolled in the `ACTIVE` competition upon registration. 
-- A `CandidateCompetition` record is created.
+- A `CandidateCompetition` record is created (the existence of this record implies enrollment).
 - The candidate is placed in the first available `Stage` (usually Screening).
 - A `CandidateStageProgress` record is initialized as `IN_PROGRESS`.
 
