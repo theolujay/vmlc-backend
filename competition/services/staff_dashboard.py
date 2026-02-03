@@ -1,9 +1,7 @@
 import logging
-import math
 from django.db.models import Count, Avg, Q
 from competition.models import (
     Competition,
-    Stage, 
     StageExam, 
     CandidateCompetition, 
     Standings
@@ -70,14 +68,8 @@ class StaffCompetitionDashboardService:
         slots = StageExam.objects.filter(
             competition_stage__competition=active_comp
         ).select_related('competition_stage').order_by('competition_stage__order', 'round')
-
-        def truncate_float(val):
-            """
-            Truncates a float to a specified number 
-            of decimal places without rounding
-            """
-            factor = 10.0**2
-            return math.trunc(val * factor) / factor
+        
+        from vmlc.v2.utils import truncate_float
         for slot in slots:
             try:
                 # OneToOneField backref

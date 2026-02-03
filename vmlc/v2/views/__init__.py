@@ -13,6 +13,7 @@ from .question import (
     QuestionDetailV2View,
     QuestionBulkActionV2View,
 )
+from .answer import SubmitAnswersV2View
 
 __all__ = [
     "RegistrationV2View",
@@ -27,4 +28,5 @@ __all__ = [
     "QuestionListCreateV2View",
     "QuestionDetailV2View",
     "QuestionBulkActionV2View",
+    "SubmitAnswersV2View",
 ]

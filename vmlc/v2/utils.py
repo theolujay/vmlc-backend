@@ -1,3 +1,4 @@
+import math
 from django.core.cache import cache
 
 from django.db.models import Count, Q
@@ -66,3 +67,11 @@ def question_pool_aggregate(qs):
         ),
         easy_questions_count=Count("id", filter=Q(difficulty=Question.Difficulty.EASY)),
     )
+
+def truncate_float(val):
+    """
+    Truncates a float to a specified number 
+    of decimal places without rounding
+    """
+    factor = 10.0**2
+    return math.trunc(val * factor) / factor

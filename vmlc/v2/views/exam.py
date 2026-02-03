@@ -14,7 +14,8 @@ from rest_framework.settings import api_settings
 from identity.models import Candidate
 from identity.permissions import ActiveAdminPermissions, CandidatePermissions
 
-from vmlc.models import Exam, Question, CandidateExamResult
+from django.utils import timezone
+from vmlc.models import Exam, Question, CandidateExamResult, ExamAccess
 from vmlc.services.candidate_records import CandidateRecordService
 from vmlc.utils.helpers import invalidate_all_dashboard_caches
 from vmlc.v2.serializers.exam import (
@@ -333,5 +334,32 @@ def candidate_take_exam_V2(request, exam_id):
             f"Candidate {candidate.id} failed eligibility check for exam {exam_id}"
         )
         raise PermissionDenied("You are not eligible to take this exam at this time.")
+
+    # Manage Exam Access
+    access, created = ExamAccess.objects.get_or_create(
+        candidate=candidate,
+        exam=exam,
+        defaults={
+            "status": ExamAccess.Status.STARTED,
+            "facilitator_system": ExamAccess.Facilitator.VMLC,
+            "started_at": timezone.now(),
+        },
+    )
+
+    if not created:
+        # Check if already submitted or expired
+        if access.status in [
+            ExamAccess.Status.SUBMITTED,
+            ExamAccess.Status.EXPIRED,
+            ExamAccess.Status.FAILED,
+        ]:
+            raise PermissionDenied("You have already completed or attempted this exam.")
+        
+        # If in PENDING or ISSUED (unlikely for VMLC native, but possible), update to STARTED
+        # TODO: revisit this when Esturdi integration is implemented
+        if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:
+            access.status = ExamAccess.Status.STARTED
+            access.started_at = timezone.now()
+            access.save(update_fields=["status", "started_at"])
 
     return Response(CandidateTakeExamSerializer(exam).data)

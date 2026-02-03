@@ -101,8 +101,8 @@ class BroadcastLogAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ["recipient", "subject", "read", "created_at"]
-    list_filter = ["read", "created_at"]
+    list_display = ["recipient", "subject", "type", "is_read_by_recipient", "created_at"]
+    list_filter = ["type", "is_read_by_recipient", "created_at"]
     search_fields = ["recipient__email", "recipient__first_name", "subject", "message"]
     readonly_fields = ["created_at"]
     list_select_related = ["recipient"]

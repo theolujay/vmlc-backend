@@ -134,14 +134,23 @@ class Notification(models.Model):
     Represents a real-time notification sent to a user.
     """
 
+    class Type(models.TextChoices):
+        ALERT = "alert", "Alert"
+        INFO = "info", "Information"
+        SUCCESS = "success", "Success"
+        WARNING = "warning", "Warning"
+        ERROR = "error", "Error"
+
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="notifications"
     )
     subject = models.CharField(max_length=100)
     message = models.TextField()
-    # type = models.CharField(max_length=17) # TODO: figure out its implementation, lie 'alert' for Candidate's InfoBoard
+    type = models.CharField(
+        max_length=20, choices=Type.choices, default=Type.ALERT, db_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    read = models.BooleanField(default=False) # TODO: rename this to is_read_by_recipient
+    is_read_by_recipient = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]

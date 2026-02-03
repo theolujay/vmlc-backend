@@ -355,7 +355,8 @@ def _send_platform_broadcast(broadcast, recipients):
                 "id": notification.id,
                 "subject": notification.subject,
                 "message": notification.message,
-                "read": notification.read,
+                "type": notification.type,
+                "is_read_by_recipient": notification.is_read_by_recipient,
                 "created_at": notification.created_at.isoformat(),
             },
         }

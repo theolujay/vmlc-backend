@@ -180,7 +180,8 @@ class ProgressionService:
                 notifications.append(Notification(
                     recipient=cand.user,
                     subject=subject,
-                    message=message
+                    message=message,
+                    type=Notification.Type.SUCCESS
                 ))
 
         # Eliminated Notifications
@@ -196,7 +197,8 @@ class ProgressionService:
                 notifications.append(Notification(
                     recipient=cand.user,
                     subject=subject,
-                    message=message
+                    message=message,
+                    type=Notification.Type.INFO
                 ))
 
         if notifications:

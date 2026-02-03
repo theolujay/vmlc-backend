@@ -396,7 +396,7 @@ class Command(BaseCommand):
                     recipient=cand.user,
                     subject=self.fake.sentence(nb_words=5),
                     message=self.fake.text(),
-                    read=False
+                    is_read_by_recipient=False
                 )
 
     def _generate_legacy_snapshot(self, staff_list):

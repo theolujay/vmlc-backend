@@ -13,7 +13,7 @@ from competition.models import (
     StandingsEntry,
 )
 from identity.models import Candidate
-from vmlc.models import Exam, CandidateExamResult
+from vmlc.models import Exam, CandidateExamResult, ExamAccess
 from comms.models import Notification
 
 logger = logging.getLogger(__name__)
@@ -74,18 +74,28 @@ class CandidateDashboardService:
         # Fetch last 5 unread notifications
         notifications = Notification.objects.filter(
             recipient=candidate.user,
-            # TODO: use Notification.Type for better handling
-            read=False,  # TODO: implement is_read_by_recipient
+            is_read_by_recipient=False,
         ).order_by("-created_at")[:5]
 
-        notification_list = [
-            {
-                "id": n.id,
-                "type": "alert",  # TODO: improve this temporary placeholder later
-                "message": n.message,
-            }
-            for n in notifications
-        ]
+        notification_map = {
+            "info": [],
+            "success": [],
+            "error": []
+        }
+        n_type_key_map = {
+            Notification.Type.INFO: "info",
+            Notification.Type.SUCCESS: "success",
+            Notification.Type.ERROR: "error",
+
+        }
+        
+        for n in notifications:
+            key = n_type_key_map.get(n.type)
+            if key:
+                notification_map[key].append({
+                    "id": n.id,
+                    "message": n.message,
+                })
 
         return {
             "full_name": candidate.user.get_full_name(),
@@ -97,7 +107,7 @@ class CandidateDashboardService:
             ),
             "is_setup_complete": candidate.user.is_setup_complete,
             "status": candidate.status,
-            "notifications": notification_list,  # TODO: probably rename this to 'alert_notifications'
+            "notifications": notification_map,
         }
 
     @staticmethod
@@ -149,8 +159,10 @@ class CandidateDashboardService:
         if latest_slot:
             try:
                 exam = latest_slot.exam
-                has_taken_current_round = CandidateExamResult.objects.filter(
-                    candidate=candidate, exam=exam
+                has_taken_current_round = ExamAccess.objects.filter(
+                    candidate=candidate,
+                    exam=exam,
+                    status=ExamAccess.Status.SUBMITTED,
                 ).exists()
             except Exam.DoesNotExist:
                 pass
@@ -191,7 +203,6 @@ class CandidateDashboardService:
                 competition_stage=participation.current_stage, is_active=True
             )
             .select_related("exam")
-            .prefetch_related("exam__questions")
             .order_by("round")
         )
 
@@ -202,12 +213,14 @@ class CandidateDashboardService:
                 status = exam.status
 
                 # Check if they already participated
-                has_participated = CandidateExamResult.objects.filter(
-                    candidate=candidate, exam=exam
+                has_participated = ExamAccess.objects.filter(
+                    candidate=candidate,
+                    exam=exam,
+                    status=ExamAccess.Status.SUBMITTED,
                 ).exists()
 
                 if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]:
-                    active_exam_data = {
+                    exam_data = {
                         "id": str(exam.id),
                         "title": exam.get_title(),
                         "stage": participation.current_stage.type,
@@ -227,7 +240,27 @@ class CandidateDashboardService:
                     if status == Exam.Status.ONGOING and not has_participated:
                         # Found our primary target, an ongoing exam
                         # that the candidate hasn't yet participated in
+                        active_exam_data = exam_data
                         break
+                    # Exam is scheduled and on ongoing
+                    if not active_exam_data:
+                        active_exam_data = exam_data
+
+                elif status == Exam.Status.CONCLUDED and has_participated:
+                    # Check if standings are published
+                    is_published = Standings.objects.filter(
+                        exam=exam, is_published=True
+                    ).exists()
+
+                    if not is_published and not active_exam_data:
+                        active_exam_data = {
+                            "id": str(exam.id),
+                            "title": exam.get_title(),
+                            "stage": participation.current_stage.type,
+                            "round": slot.round,
+                            "status": "awaiting_results",
+                            "has_participated": True,
+                        }
             except Exam.DoesNotExist:
                 continue
 
@@ -294,20 +327,32 @@ class CandidateDashboardService:
             .order_by("-recorded_at")
         )
 
+        # Prefetch published standings to avoid N+1
+        published_exam_ids = set(
+            Standings.objects.filter(
+                exam_id__in=[res.exam_id for res in results],
+                is_published=True
+            ).values_list("exam_id", flat=True)
+        )
+
+        from vmlc.v2.utils import truncate_float
         history = []
         for res in results:
             exam = res.exam
             slot = exam.competition_slot
+            is_published = exam.id in published_exam_ids
+            
             history.append(
                 {
                     "exam_id": str(exam.id),
                     "exam_title": exam.get_title(),
                     "stage": slot.competition_stage.type if slot else "N/A",
                     "round": slot.round if slot else None,
-                    "score": float(res.score),
-                    "percentage": float(res.score),
+                    "score": truncate_float(float(res.score)) if is_published else None,
+                    "percentage": truncate_float(float(res.score)) if is_published else None,
                     "date": res.recorded_at,
                     "status": exam.status,
+                    "is_published": is_published,
                 }
             )
         return history

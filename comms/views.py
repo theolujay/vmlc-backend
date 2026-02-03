@@ -338,8 +338,8 @@ class NotificationHistory(ListAPIView):
             )
             stats = Notification.objects.filter(recipient=user).aggregate(
                 total_count=Count("id"),
-                unread_count=Count("id", filter=Q(read=False)),
-                read_count=Count("id", filter=Q(read=True)),
+                unread_count=Count("id", filter=Q(is_read_by_recipient=False)),
+                read_count=Count("id", filter=Q(is_read_by_recipient=True)),
             )
             cache.set(stats_cache_key, stats, timeout=3600)
 
@@ -362,9 +362,9 @@ class NotificationHistory(ListAPIView):
 
         status = self.request.query_params.get("status")
         if status == "read":
-            queryset = queryset.filter(read=True)
+            queryset = queryset.filter(is_read_by_recipient=True)
         elif status == "unread":
-            queryset = queryset.filter(read=False)
+            queryset = queryset.filter(is_read_by_recipient=False)
 
         return queryset
 
@@ -391,8 +391,8 @@ class MarkNotificationAsReadView(APIView):
         user = request.user
         try:
             notification = Notification.objects.get(id=notification_id, recipient=user)
-            if not notification.read:
-                notification.read = True
+            if not notification.is_read_by_recipient:
+                notification.is_read_by_recipient = True
                 notification.save()
                 
                 # Invalidate all notification caches by incrementing version
@@ -429,8 +429,8 @@ class MarkAllNotificationsAsReadView(APIView):
     )
     def patch(self, request):
         user = request.user
-        updated_count = Notification.objects.filter(recipient=user, read=False).update(
-            read=True
+        updated_count = Notification.objects.filter(recipient=user, is_read_by_recipient=False).update(
+            is_read_by_recipient=True
         )
 
         if updated_count > 0:

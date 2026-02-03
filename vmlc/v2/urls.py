@@ -12,6 +12,7 @@ from .views import (
     QuestionListCreateV2View,
     QuestionDetailV2View,
     QuestionBulkActionV2View,
+    SubmitAnswersV2View,
 )
 from vmlc.views.status import registration_status
 
@@ -45,6 +46,7 @@ urlpatterns = [
     # SUBMISSIONS & SCORING
     # =============================================================================
     path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam_V2, name="take-exam"),
+    path("exams/<uuid:exam_id>/submit/", SubmitAnswersV2View.as_view(), name="submit-exam"),
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================
