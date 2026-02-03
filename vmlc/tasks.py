@@ -402,8 +402,9 @@ def generate_stats_overview_task():
     """
     Asynchronously generates and caches the statistics overview.
     """
+    from vmlc.v2.utils import CacheKeys
     data = generate_stats_overview_data()
-    cache.set("stats_overview", data, timeout=3600)  # Cache for 1 hour
+    cache.set(CacheKeys.STATS_OVERVIEW, data, timeout=3600)  # Cache for 1 hour
     logger.info("Successfully generated and cached stats overview.")
 
 

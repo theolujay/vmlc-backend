@@ -23,4 +23,8 @@ app.conf.beat_schedule = {
         "task": "notify_prereg_users_via_whatsapp_task",
         "schedule": crontab(minute=0, hour=10, day_of_month="*/4"),
     },
+    "generate-stats-overview-every-5-minutes": {
+        "task": "generate_stats_overview_task",
+        "schedule": crontab(minute="*/5"),
+    },
 }

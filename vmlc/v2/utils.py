@@ -30,6 +30,11 @@ class CacheKeys:
     # Questions
     QUESTION_POOL = "pool:questions"
 
+    # Metrics & Status
+    REGISTRATION_METRICS = "metrics:registration"
+    REGISTRATION_STATUS = "status:registration"
+    STATS_OVERVIEW = "status:stats:overview"
+
     # Legacy keys (for invalidation during transition)
     _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"
     _LEGACY_CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"

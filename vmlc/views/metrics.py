@@ -61,27 +61,34 @@ class RegistrationMetricsView(APIView):
     def get(self, request):
         logger.info(f"RegistrationMetricsView: request from user {request.user.id}")
         
-        cache_key = "registration_metrics"
-        cached_data = cache.get(cache_key)
+        from vmlc.v2.utils import get_or_set_cache, CacheKeys
         query_params = request.query_params
-        if cached_data:
-            return Response(cached_data)
         
         try:
             days = query_params.get("days")
             weeks = query_params.get("weeks")
             
-            kwargs = {}
-            if days:
-                kwargs["days"] = int(days)
-            if weeks:
-                kwargs["weeks"] = int(weeks)
-
-            metrics_data = get_registration_metrics(**kwargs)
-            metrics_data["funnel"] = get_funnel_metrics()
+            # Since query params can vary, we might want to include them in the cache key
+            # However, the original code used a static "registration_metrics" key
+            # which means it ignored query params if cached. 
+            # For consistency with original logic but new strategy:
             
-            # Cache for 10 minutes
-            cache.set(cache_key, metrics_data, 600)
+            def fetch_metrics():
+                kwargs = {}
+                if days:
+                    kwargs["days"] = int(days)
+                if weeks:
+                    kwargs["weeks"] = int(weeks)
+
+                data = get_registration_metrics(**kwargs)
+                data["funnel"] = get_funnel_metrics()
+                return data
+
+            metrics_data = get_or_set_cache(
+                CacheKeys.REGISTRATION_METRICS,
+                fetch_metrics,
+                ttl=600 # 10 minutes
+            )
             return Response(metrics_data)
         except (ValueError, TypeError) as e:
             logger.error(f"Invalid query parameters for registration metrics: {str(e)}")
