@@ -30,6 +30,10 @@ class QuestionV2Serializer(serializers.ModelSerializer):
     updated_by = MinimalStaffSerializer(read_only=True)
     related_exams = serializers.SerializerMethodField()
     related_exams_count = serializers.SerializerMethodField()
+    exam_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False
+    )
 
     class Meta:
         model = Question
@@ -44,6 +48,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
             "difficulty",
             "related_exams",
             "related_exams_count",
+            "exam_ids",
             "created_at",
             "created_by",
             "updated_at",
@@ -60,6 +65,37 @@ class QuestionV2Serializer(serializers.ModelSerializer):
 
     def get_related_exams_count(self, obj):
         return obj.exams.count()
+
+    def validate_exam_ids(self, value):
+        if not value:
+            return value
+        
+        exams = Exam.objects.filter(id__in=value)
+        invalid_exams = [
+            exam.get_title() for exam in exams 
+            if exam.status not in [Exam.Status.DRAFT, Exam.Status.SCHEDULED]
+        ]
+        
+        if invalid_exams:
+            raise serializers.ValidationError(
+                f"Cannot assign questions to exams that are not in Draft or Scheduled status: {', '.join(invalid_exams)}"
+            )
+        return value
+
+    def create(self, validated_data):
+        exam_ids = validated_data.pop("exam_ids", [])
+        question = super().create(validated_data)
+        
+        if exam_ids:
+            exams = Exam.objects.filter(id__in=exam_ids)
+            question.exams.add(*exams)
+            
+            # Invalidate caches
+            from vmlc.v2.utils import delete_many_cache
+            for exam in exams:
+                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
+                
+        return question
 
 class QuestionBulkActionSerializer(serializers.Serializer):
     """

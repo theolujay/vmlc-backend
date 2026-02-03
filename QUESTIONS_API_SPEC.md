@@ -49,7 +49,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
 
 ## 2. Create Question
 **Endpoint:** `POST /v2/questions/`  
-**Description:** Creates a new question.  
+**Description:** Creates a new question. Optionally assigns the question to one or more exams.  
 **Permissions:** `ActiveModeratorPermissions`
 
 ### Request Body
@@ -62,6 +62,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
 | `option_d` | String | **Required.** |
 | `correct_answer` | String | **Required.** (A, B, C, or D). |
 | `difficulty` | String | Choices: `easy`, `moderate`, `hard`. |
+| `exam_ids` | Array[UUID] | Optional. List of exam IDs to assign the question to. **Constraint:** Exams must be in `draft` or `scheduled` status. |
 
 ---
 
@@ -104,7 +105,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
 | :--- | :--- | :--- |
 | `action` | String | **Required.** `archive`, `assign`, or `unassign`. |
 | `question_ids` | Array[Int] | **Required.** List of question IDs. |
-| `exam_ids` | Array[UUID] | **Required for assign/unassign.** Target exams. |
+| `exam_ids` | Array[UUID] | **Required for assign/unassign.** Target exams. **Constraint:** For `assign`/`unassign`, exams must be in `draft` or `scheduled` status. |
 
 #### Example: Assign Questions to Exams
 ```json

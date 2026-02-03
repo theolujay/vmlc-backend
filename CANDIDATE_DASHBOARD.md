@@ -18,13 +18,16 @@ Provides a comprehensive overview for the student, including their current stand
     "profile_picture": "https://api.vmlc.com/media/profs/john.jpg",
     "is_setup_complete": true,
     "status": "active",
-    "notifications": [
-      {
-        "id": 1,
-        "type": "alert",
-        "message": "Stay sharp! The league round 3 begins tomorrow."
-      }
-    ]
+    "notifications": {
+      "info": [
+        {
+          "id": 1,
+          "message": "Stay sharp! The league round 3 begins tomorrow."
+        }
+      ],
+      "success": [],
+      "error": []
+    }
   },
   "stage_progress": {
     "current_stage": "league", 
@@ -50,10 +53,8 @@ Provides a comprehensive overview for the student, including their current stand
     "starts_at": "2026-01-31T08:00:00Z",
     "ends_at": "2026-01-31T20:00:00Z",
     "duration_minutes": 60,
-    "status": "scheduled",
-    // instead of "participation": "done" or "not_done"
-    // or perhaps the above "has_taken_current_round" suffices
-    "has_participated": false,
+    "status": "scheduled", // Can be "ongoing", "scheduled", or "awaiting_results"
+    "has_participated": false
   },
   "performance_snapshot": {
     "screening_standing": {
@@ -76,10 +77,11 @@ Provides a comprehensive overview for the student, including their current stand
       "exam_title": "Screening Exam",
       "stage": "screening",
       "round": null,
-      "score": 88.5,
-      "percentage": 88.5,
+      "score": 88.5, // Null if not published
+      "percentage": 88.5, // Null if not published
       "date": "2026-01-15T10:00:00Z",
-      "status": "concluded"
+      "status": "concluded",
+      "is_published": true
     },
     {
       "exam_id": "league-r1-uuid",
@@ -89,16 +91,17 @@ Provides a comprehensive overview for the student, including their current stand
       "score": 92.0,
       "percentage": 92.0,
       "date": "2026-01-22T10:00:00Z",
-      "status": "concluded"
+      "status": "concluded",
+      "is_published": true
     }
   ]
 }
 ```
 
-## Take Exam
-`GET /v1/exams/<uuid:exam_id>/take-exam/`
+## Take Exam (V2)
+`GET /v2/exams/<uuid:exam_id>/take-exam/`
 
-Returns the exam details and questions for a candidate to start the exam. Supports LaTeX for mathematical content.
+Returns the exam details and questions for a candidate to start the exam. Supports LaTeX for mathematical content. 
 
 ### Response Body (`200 OK`)
 ```json
@@ -111,7 +114,7 @@ Returns the exam details and questions for a candidate to start the exam. Suppor
   "countdown_minutes": 60,
   "questions": [
     {
-      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "id": 3,
       "text": "What is the value of $x$ in the equation $2x + 5 = 15$?",
       "option_a": "$5$",
       "option_b": "$10$",
@@ -119,8 +122,8 @@ Returns the exam details and questions for a candidate to start the exam. Suppor
       "option_d": "$20$"
     },
     {
-      "id": "678bc10b-58cc-4372-a567-0e02b2c3d480",
-      "text": "Identify the integral: $\\int_{0}^{1} x^2 \\, dx$",
+      "id": 5,
+      "text": "Identify the integral: $\\\\int_{0}^{1} x^2 \\\\, dx$",
       "option_a": "$1/3$",
       "option_b": "$1/2$",
       "option_c": "$1$",
@@ -130,8 +133,8 @@ Returns the exam details and questions for a candidate to start the exam. Suppor
 }
 ```
 
-## Submit Exam Answers
-`POST /v1/exams/<uuid:exam_id>/submit-exam-answers/`
+## Submit Exam Answers (V2)
+`POST /v2/exams/<uuid:exam_id>/submit/`
 
 Submit all answers for a specific exam in bulk.
 
@@ -140,11 +143,11 @@ Submit all answers for a specific exam in bulk.
 {
   "answers": [
     {
-      "question": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "question": 3,
       "selected_option": "a"
     },
     {
-      "question": "678bc10b-58cc-4372-a567-0e02b2c3d480",
+      "question": 5,
       "selected_option": "a"
     }
   ]
@@ -157,6 +160,14 @@ Submit all answers for a specific exam in bulk.
   "message": "Answers submitted successfully!"
 }
 ```
+
+### Behavioral Notes:
+1.  **Dashboard Caching**: The candidate dashboard response is cached for **1 hour** (`ttl=3600`) per candidate. Changes to notifications or status may not be immediate.
+2.  **Exam Access Tracking**: Calling the `take-exam` endpoint marks the exam as `STARTED` for the candidate. This triggers the personal countdown timer. Re-entry is allowed until submission or expiration.
+3.  **Submission Deadlines**: Submissions are accepted if the exam is globally open **OR** if the candidate is within their personal countdown (plus a **5-minute grace period**).
+4.  **Result Visibility**: In the `exam_history`, `score` and `percentage` will be `null` until the standings for that exam are officially **published** by staff.
+5.  **Awaiting Results**: If an exam is concluded and participated in but standings aren't published, the `active_exam` status will show as `awaiting_results`.
+
 
 ### Architectural Benefits:
 1.  **Unified State**: Consolidates `candidate_info`, `stage_progress`, and `active_exam` into a single call to prevent waterfall loading.

@@ -502,3 +502,27 @@ Fields same as **Create Exam** (all optional for PATCH).
     "rank_change": 0
 }
 ```
+
+---
+
+## Frontend Client Logic & Visibility
+
+This section describes the internal logic used to determine which exams are visible to candidates and how the dashboard behaves in edge cases.
+
+### 1. Visibility Toggle (`StageExam.is_active`)
+Visibility on the candidate dashboard is primarily controlled by the `is_active` flag on the `StageExam` (competition slot).
+- **Draft State:** When an exam is created but not yet scheduled, `StageExam.is_active` is `false`. It will not appear on the dashboard.
+- **Published/Scheduled State:** When an admin sets a `scheduled_date` on an exam, the system automatically flips the linked `StageExam.is_active` to `true`.
+- **Deactivation:** If an exam is marked `is_active = false` on the `Exam` model, the competition slot visibility is also revoked.
+
+### 2. Graceful Visibility (Leniency)
+To prevent issues where an exam is live but the visibility flag was manually unset or missed, the **Candidate Dashboard** applies a leniency rule:
+- If an exam's status is `ONGOING` (current time is within the scheduled window), it will be visible to eligible candidates **even if** `StageExam.is_active` is `false`.
+
+### 3. Candidate Enrollment Fallback
+The dashboard requires a `CandidateCompetition` record to determine a candidate's "Current Stage."
+- **Enrolled Candidates:** The dashboard uses `participation.current_stage`.
+- **Unenrolled Candidates:** If a candidate has no enrollment record for the active competition, the dashboard falls back to using the candidate's `role` (e.g., `screening`, `league`) to infer their current stage. This ensures that new registrants see the screening exam immediately even if the background enrollment task hasn't completed.
+
+### 4. Awaiting Results
+Once an exam is `CONCLUDED` and the candidate has participated, the exam remains visible in the "Active Exam" section with a status of `awaiting_results` until the official **Standings** are published by an admin.

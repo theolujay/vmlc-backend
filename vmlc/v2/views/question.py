@@ -68,7 +68,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
         instance = serializer.save(updated_by=self.request.user.staff_profile)
         # Invalidate related exam caches
         for exam in instance.exams.all():
-            delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+            delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
         invalidate_staff_dashboard()
 
     def perform_destroy(self, instance):
@@ -100,16 +100,46 @@ class QuestionBulkActionV2View(APIView):
             
         elif action == "assign":
             exams = Exam.objects.filter(id__in=exam_ids)
+            
+            # Validation: Only allow assignment to Draft or Scheduled exams
+            invalid_exams = [
+                exam.get_title() for exam in exams 
+                if exam.status not in [Exam.Status.DRAFT, Exam.Status.SCHEDULED]
+            ]
+            if invalid_exams:
+                return Response(
+                    {
+                        "status": "error", 
+                        "message": f"Cannot assign questions to exams that are not in Draft or Scheduled status: {', '.join(invalid_exams)}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             for exam in exams:
                 exam.questions.add(*questions)
-                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
             msg = f"Assigned {questions.count()} questions to {exams.count()} exams."
             
         elif action == "unassign":
             exams = Exam.objects.filter(id__in=exam_ids)
+            
+            # Validation: Only allow unassignment from Draft or Scheduled exams
+            invalid_exams = [
+                exam.get_title() for exam in exams 
+                if exam.status not in [Exam.Status.DRAFT, Exam.Status.SCHEDULED]
+            ]
+            if invalid_exams:
+                return Response(
+                    {
+                        "status": "error", 
+                        "message": f"Cannot unassign questions from exams that are not in Draft or Scheduled status: {', '.join(invalid_exams)}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             for exam in exams:
                 exam.questions.remove(*questions)
-                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail_{exam.id}"])
+                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
             msg = f"Unassigned {questions.count()} questions from {exams.count()} exams."
 
         invalidate_staff_dashboard()
