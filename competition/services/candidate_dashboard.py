@@ -116,9 +116,7 @@ class CandidateDashboardService:
         active_comp: Optional[Competition],
         participation: Optional[CandidateCompetition],
     ) -> Dict[str, Any]:
-        if not active_comp or not participation:
-            # Return None instead of candidate.role
-            # (as role is for permissions and no longer stage indication)
+        if not active_comp:
             return {
                 "current_stage": None,
                 "current_round": None,
@@ -128,7 +126,13 @@ class CandidateDashboardService:
                 "qualification_status": None,
             }
 
-        current_stage = participation.current_stage
+        # Determine the current stage - fallback to candidate role if not enrolled
+        current_stage = participation.current_stage if participation else None
+        if not current_stage:
+            current_stage = Stage.objects.filter(
+                competition=active_comp, type=candidate.role
+            ).first()
+
         if not current_stage:
             return {
                 "current_stage": None,
@@ -140,9 +144,17 @@ class CandidateDashboardService:
             }
 
         # Rounds in current stage
-        slots = StageExam.objects.filter(
-            competition_stage=current_stage, is_active=True
-        ).order_by("round")
+        from django.db.models import Q
+        now = timezone.now()
+
+        slots = (
+            StageExam.objects.filter(
+                Q(competition_stage=current_stage)
+                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
+            )
+            .select_related("exam")
+            .order_by("round")
+        )
 
         total_rounds = slots.count()
 
@@ -168,11 +180,20 @@ class CandidateDashboardService:
                 pass
 
         # Qualification Status logic
+        is_qualified = (
+            participation.status == CandidateCompetition.Status.ACTIVE
+            if participation
+            else True  # Assume active if just discovered by role
+        )
+        status_display = (
+            participation.get_status_display() if participation else "Active"
+        )
+
         qualification_status = {
-            "is_qualified": participation.status == CandidateCompetition.Status.ACTIVE,
+            "is_qualified": is_qualified,
             "advancement_policy": current_stage.config.get("advancement_policy", None),
             "message": (
-                f"You are currently {participation.get_status_display()} "
+                f"You are currently {status_display} "
                 f"in the {current_stage.get_type_display()} stage."
             ),
         }
@@ -192,15 +213,29 @@ class CandidateDashboardService:
         active_comp: Optional[Competition],
         participation: Optional[CandidateCompetition],
     ) -> Optional[Dict[str, Any]]:
-        if not active_comp or not participation or not participation.current_stage:
+        if not active_comp:
+            return None
+
+        # Determine the current stage - fallback to candidate role if not enrolled
+        current_stage = participation.current_stage if participation else None
+        if not current_stage:
+            current_stage = Stage.objects.filter(
+                competition=active_comp, type=candidate.role
+            ).first()
+
+        if not current_stage:
             return None
 
         # Look for an ONGOING exam first, then the next SCHEDULED one in the current stage
 
         # Get all active slots for current stage
+        from django.db.models import Q
+        now = timezone.now()
+
         slots = (
             StageExam.objects.filter(
-                competition_stage=participation.current_stage, is_active=True
+                Q(competition_stage=current_stage)
+                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
             )
             .select_related("exam")
             .order_by("round")
@@ -223,7 +258,7 @@ class CandidateDashboardService:
                     exam_data = {
                         "id": str(exam.id),
                         "title": exam.get_title(),
-                        "stage": participation.current_stage.type,
+                        "stage": current_stage.type,
                         "round": slot.round,
                         "question_count": exam.get_question_count(),
                         "starts_at": exam.scheduled_date,
@@ -256,7 +291,7 @@ class CandidateDashboardService:
                         active_exam_data = {
                             "id": str(exam.id),
                             "title": exam.get_title(),
-                            "stage": participation.current_stage.type,
+                            "stage": current_stage.type,
                             "round": slot.round,
                             "status": "awaiting_results",
                             "has_participated": True,

@@ -156,31 +156,40 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                 round = None
 
             with transaction.atomic():
+                old_slot = exam.competition_slot
+                new_slot = None
+
                 if round is not None:
                     # Look for existing slot or create
-                    slot, created = StageExam.objects.get_or_create(
+                    new_slot, created = StageExam.objects.get_or_create(
                         competition_stage=stage, round=round
                     )
-                    if not created and hasattr(slot, "exam") and slot.exam != exam:
+                    if not created and hasattr(new_slot, "exam") and new_slot.exam != exam:
                         raise serializers.ValidationError(
                             {"round": f"Round {round} in {stage.type} is already assigned to another exam."}
                         )
-                    exam.competition_slot = slot
                 else:
-                    # Create a new slot for screening/final (these usually don't have multiple rounds)
-                    # or reuse existing if same stage
-                    slot = exam.competition_slot
-                    if not slot or slot.competition_stage != stage:
-                        slot = StageExam.objects.create(
+                    # For screening/final, reuse existing if same stage, else create/find new
+                    if old_slot and old_slot.competition_stage == stage and old_slot.round is None:
+                        new_slot = old_slot
+                    else:
+                        new_slot = StageExam.objects.create(
                             competition_stage=stage, round=None
                         )
-                    exam.competition_slot = slot
+                
+                # Update is_active based on scheduled_date
+                is_active = exam.scheduled_date is not None
+                
+                # If slot changed, clean up old slot
+                if old_slot and old_slot != new_slot:
+                    old_slot.is_active = False
+                    old_slot.save(update_fields=["is_active"])
 
-                if slot:
-                    is_active = exam.scheduled_date is not None
-                    if slot.is_active != is_active:
-                        slot.is_active = is_active
-                        slot.save(update_fields=["is_active"])
+                # Update new slot
+                if new_slot:
+                    new_slot.is_active = is_active
+                    new_slot.save(update_fields=["is_active"])
+                    exam.competition_slot = new_slot
 
                 exam.save(update_fields=["competition_slot"])
 

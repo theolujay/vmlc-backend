@@ -45,30 +45,46 @@ class EligibilityService:
         # Check competition context
         slot = getattr(exam, 'competition_slot', None)
         if not slot:
-            # If not part of a competition, we might fall back to old role-based logic 
-            # or just allow it if it's a general exam.
-            # For now, let's assume it's allowed if it's active and open.
+            # If not part of a competition, we allow it if it's active and open.
+            # TODO: look the issue where candidates may not be part of a competition
             return True
 
         # Get active participation
         part = EligibilityService.get_active_participation(candidate)
-        if not part:
-            logger.info(f"Candidate {candidate.pk} has no active competition participation.")
+        
+        # Determine the candidate's effective stage for this check
+        candidate_current_stage = part.current_stage if part else None
+        
+        if not candidate_current_stage:
+            # Fallback for unenrolled candidates:
+            # If the exam belongs to the active competition and matches the candidate's role,
+            # we treat them as being in that stage for eligibility purposes.
+            active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            if active_comp and slot.competition_stage.competition == active_comp:
+                if candidate.role == slot.competition_stage.type:
+                    candidate_current_stage = slot.competition_stage
+
+        if not candidate_current_stage:
+            logger.info(f"Candidate {candidate.pk} has no active competition participation or valid role fallback.")
             return False
 
         # Check if candidate's current stage matches the exam's stage
-        if part.current_stage != slot.competition_stage:
+        if candidate_current_stage != slot.competition_stage:
             logger.info(
                 f"Candidate {candidate.pk} stage mismatch. "
-                f"Candidate stage: {part.current_stage.type if part.current_stage else 'None'}, "
+                f"Candidate stage: {candidate_current_stage.type}, "
                 f"Exam stage: {slot.competition_stage.type}"
             )
             return False
 
-        # Optional: check if they have already submitted this exam
-        from vmlc.models import CandidateExamResult
-        if CandidateExamResult.objects.filter(candidate=candidate, exam=exam).exists():
-            logger.info(f"Candidate {candidate.pk} already took exam {exam.pk}.")
+        # Check if they have already submitted this exam
+        from vmlc.models import ExamAccess
+        if ExamAccess.objects.filter(
+            candidate=candidate, 
+            exam=exam, 
+            status=ExamAccess.Status.SUBMITTED
+        ).exists():
+            logger.info(f"Candidate {candidate.pk} already submitted exam {exam.pk}.")
             return False
 
         return True
@@ -80,14 +96,9 @@ class EligibilityService:
         Usually, candidates can only view the leaderboard for their current or past stages.
         """
         part = EligibilityService.get_active_participation(candidate)
-        if not part:
-            return False
-
-        # If they are active and in the requested stage, allow.
-        # If they've passed it, they should also see it.
-        # For simplicity, if they are active in the competition, let them see it
-        # as long as it's not a future stage they haven't reached?
-        # Screening candidates shouldn't see League leaderboard if they haven't reached it.
+        
+        # Determine effective stage type
+        candidate_stage_type = part.current_stage.type if (part and part.current_stage) else candidate.role
         
         stage_order = {
             Stage.Type.SCREENING: 1,
@@ -95,7 +106,12 @@ class EligibilityService:
             Stage.Type.FINAL: 3,
         }
         
-        candidate_stage_level = stage_order.get(part.current_stage.type, 0) if part.current_stage else 0
+        candidate_stage_level = stage_order.get(candidate_stage_type, 0)
         requested_stage_level = stage_order.get(stage_type, 99)
+        
+        # If no participation, only allow viewing if an active competition exists
+        if not part:
+            if not Competition.objects.filter(status=Competition.Status.ACTIVE).exists():
+                return False
         
         return candidate_stage_level >= requested_stage_level

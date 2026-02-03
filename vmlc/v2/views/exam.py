@@ -331,7 +331,7 @@ def candidate_take_exam_V2(request, exam_id):
 
     if not EligibilityService.can_take_exam(candidate, exam):
         logger.warning(
-            f"Candidate {candidate.id} failed eligibility check for exam {exam_id}"
+            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}"
         )
         raise PermissionDenied("You are not eligible to take this exam at this time.")
 

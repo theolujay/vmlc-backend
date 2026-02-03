@@ -263,8 +263,8 @@ class Exam(models.Model):
         db_index=True,
     )
     scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
-    open_duration_hours = models.PositiveIntegerField(default=12)
-    countdown_minutes = models.PositiveIntegerField(default=60)
+    open_duration_hours = models.PositiveIntegerField(null=True, blank=True)
+    countdown_minutes = models.PositiveIntegerField(null=True, blank=True)
     competition_slot = models.OneToOneField(
         "competition.StageExam",
         blank=True,
@@ -403,6 +403,25 @@ class Exam(models.Model):
         Calculates the average score for all submissions tied to this exam.
         """
         return self.results.aggregate(avg_score=Avg("score"))["avg_score"]
+
+    def save(self, *args, **kwargs):
+        """
+        Overridden save to synchronize StageExam visibility.
+        """
+        super().save(*args, **kwargs)
+
+        if self.competition_slot:
+            # StageExam should be active ONLY IF the exam is scheduled AND is_active is True
+            should_be_active = self.scheduled_date is not None and self.is_active
+            
+            if self.competition_slot.is_active != should_be_active:
+                from django.db import transaction
+                
+                def update_slot():
+                    self.competition_slot.is_active = should_be_active
+                    self.competition_slot.save(update_fields=["is_active"])
+                
+                transaction.on_commit(update_slot)
 
 class CandidateExamResult(models.Model):
     """

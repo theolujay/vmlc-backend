@@ -1,21 +1,23 @@
 from django.urls import reverse
 from django.utils import timezone
-from django.core.cache import cache
 from rest_framework.test import APITestCase
 from rest_framework import status
-from django.test import override_settings
+from rest_framework_api_key.models import APIKey
 
-from identity.models import User, Candidate, Staff
-from competition.models import Competition, Stage, StageExam, CandidateCompetition, Standings, StandingsEntry
-from vmlc.models import Exam, CandidateExamResult
-from competition.tasks import cache_candidate_dashboard_task
+from identity.models import User, Candidate
+from competition.models import Competition, Stage, StageExam, CandidateCompetition
+from vmlc.models import Exam
 
 class CandidateDashboardViewTest(APITestCase):
     def setUp(self):
+        # Create API Key
+        self.api_key_obj, self.api_key = APIKey.objects.create_key(name="test-key")
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+
         # Create user and candidate
         self.user = User.objects.create_user(
             email="candidate@example.com", 
-            password="password",
+            password="SecurePass123!",
             first_name="John",
             last_name="Doe",
             phone="+2348012345678",
@@ -24,7 +26,8 @@ class CandidateDashboardViewTest(APITestCase):
         self.candidate = Candidate.objects.create(
             user=self.user,
             school_name="Test School",
-            role=Candidate.Roles.LEAGUE
+            school_type="public",
+            role=Candidate.Roles.SCREENING
         )
         
         # Authenticate
@@ -37,10 +40,10 @@ class CandidateDashboardViewTest(APITestCase):
             status=Competition.Status.ACTIVE
         )
         
-        # Create League Stage
+        # Create Screening Stage
         self.stage = Stage.objects.create(
             competition=self.competition,
-            type=Stage.Type.LEAGUE,
+            type=Stage.Type.SCREENING,
             order=1
         )
         
@@ -52,25 +55,24 @@ class CandidateDashboardViewTest(APITestCase):
             status=CandidateCompetition.Status.ACTIVE
         )
         
-        # Create Exam
-        self.exam = Exam.objects.create(
-            title="League Round 1",
-            scheduled_date=timezone.now() + timezone.timedelta(days=1),
-            open_duration_hours=12,
-            is_active=True
-        )
-        
-        # Link Exam to Stage
+        # Create competition_slot
         self.stage_exam = StageExam.objects.create(
             competition_stage=self.stage,
             round=1,
-            exam=self.exam,
             is_active=True
         )
+        # Create Exam
+        self.exam = Exam.objects.create(
+            scheduled_date=timezone.now() + timezone.timedelta(days=1),
+            open_duration_hours=12,
+            competition_slot=self.stage_exam,
+            is_active=True
+        )
+        
 
     def test_dashboard_flow(self):
         # 1. First call - should calculate data, return 200, and cache it
-        url = reverse("vmlc:candidate-dashboard")
+        url = reverse("competition:candidate-dashboard")
         
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -86,8 +88,8 @@ class CandidateDashboardViewTest(APITestCase):
         
         # Verify Content
         self.assertEqual(data["candidate_context"]["full_name"], "John Doe")
-        self.assertEqual(data["stage_progress"]["current_stage"], "league")
-        self.assertEqual(data["active_exam"]["title"], "League Round 1")
+        self.assertEqual(data["stage_progress"]["current_stage"], "screening")
+        self.assertEqual(data["active_exam"]["title"], "Screening")
 
         # 2. Second call - should return 200 from cache
         response = self.client.get(url)
