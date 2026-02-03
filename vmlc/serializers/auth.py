@@ -258,5 +258,9 @@ class PasswordChangeSerializer(serializers.Serializer):
         user.set_password(new_password)
         user.save()
 
+        # Invalidate cache for the user's account management data
+        from django.core.cache import cache
+        cache.delete(f"account_management_{user.id}")
+
         logger.info(f"Password changed successfully for user {user.id}")
         return user
