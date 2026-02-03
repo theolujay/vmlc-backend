@@ -150,13 +150,14 @@ setup_django_env() {
     log_info "Database migrations completed successfully"
     
     # Static files collection (only in production/staging)
-    if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]] || [[ "${DJANGO_SETTINGS_MODULE}" == *"staging"* ]]; then
-        log_info "Setting up directories..."
-        mkdir -p /home/verboheit/app/staticfiles
-        mkdir -p /home/verboheit/app/media
-        log_info "Directories setup completed"
+    if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
+        log_info "Initializing Verboheit MLC 3.0 Competition..."
+        if ! python manage.py initialize_production_competition; then
+            log_error "Failed to initialize competition"
+            exit 1
+        fi
     else
-        log_info "Skipping static files collection in development mode"
+        log_info "Skipping competition initialization..."
     fi
 }
 
