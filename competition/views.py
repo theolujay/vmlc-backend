@@ -42,7 +42,8 @@ class CandidateDashboardView(APIView):
     def get(self, request):
         candidate = request.user.candidate_profile
         participation = getattr(request, 'participation', None)
-        cache_key = f"candidate_dashboard_v2_{candidate.pk}"
+        from vmlc.v2.utils import CacheKeys
+        cache_key = CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate.pk)
         
         data = get_or_set_cache(
             cache_key,

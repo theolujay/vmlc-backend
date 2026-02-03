@@ -11,17 +11,38 @@ DEFAULT_TTL = 86400  # 24h
 
 class CacheKeys:
     """Centralized cache key patterns."""
+
+    # Dashboards
     CANDIDATE_DASHBOARD = "dash:cand:{candidate_id}"
-    CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"
+    CANDIDATE_DASHBOARD_V2 = "dash:cand:v2:{candidate_id}"
     STAFF_DASHBOARD = "dash:staff:global"
+
+    # Competition
     PARTICIPATION = "part:{user_id}"
     LEADERBOARD_LEAGUE = "lb:league:latest"
+
+    # Exams
+    EXAM_DETAIL = "exam:detail:{exam_id}"
+    EXAM_QUESTIONS = "exam:questions:{exam_id}"
+    EXAM_RESULTS = "exam:results:{exam_id}"
+    CANDIDATE_EXAM_HISTORY = "cand:history:{candidate_id}"
+
+    # Questions
+    QUESTION_POOL = "pool:questions"
+
+    # Legacy keys (for invalidation during transition)
+    _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"
+    _LEGACY_CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"
 
     @classmethod
     def get_candidate_keys(cls, candidate_id, user_id=None):
         keys = [
             cls.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
             cls.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
+            cls.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id),
+            # Include legacy keys to ensure they are cleared
+            cls._LEGACY_CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
+            cls._LEGACY_CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
         ]
         if user_id:
             keys.append(cls.PARTICIPATION.format(user_id=user_id))

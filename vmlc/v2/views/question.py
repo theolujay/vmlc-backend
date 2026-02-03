@@ -10,7 +10,7 @@ from rest_framework.settings import api_settings
 from identity.permissions import ActiveModeratorPermissions, ActiveAdminPermissions
 from vmlc.models import Question, Exam
 from vmlc.v2.serializers.question import QuestionV2Serializer, QuestionBulkActionSerializer
-from vmlc.v2.utils import delete_many_cache, get_or_set_cache, question_pool_aggregate, invalidate_staff_dashboard
+from vmlc.v2.utils import CacheKeys, delete_many_cache, get_or_set_cache, question_pool_aggregate, invalidate_staff_dashboard
 from vmlc.utils.query_filters import filter_questions
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,9 @@ class QuestionListCreateV2View(ListCreateAPIView):
 
     def list(self, request, *args, **kwargs):
         # Handle Question Pool Data Caching
+        from vmlc.v2.utils import CacheKeys
         pool_data = get_or_set_cache(
-            "question_pool_data",
+            CacheKeys.QUESTION_POOL,
             lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
             ttl=3600
         )
@@ -45,7 +46,8 @@ class QuestionListCreateV2View(ListCreateAPIView):
         serializer.save(created_by=self.request.user.staff_profile)
         # Clear pool cache
         from django.core.cache import cache
-        cache.delete("question_pool_data")
+        from vmlc.v2.utils import CacheKeys
+        cache.delete(CacheKeys.QUESTION_POOL)
         invalidate_staff_dashboard()
 
 class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
@@ -67,8 +69,12 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         instance = serializer.save(updated_by=self.request.user.staff_profile)
         # Invalidate related exam caches
+        from vmlc.v2.utils import CacheKeys
         for exam in instance.exams.all():
-            delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
+            delete_many_cache([
+                CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+            ])
         invalidate_staff_dashboard()
 
     def perform_destroy(self, instance):
@@ -117,7 +123,10 @@ class QuestionBulkActionV2View(APIView):
 
             for exam in exams:
                 exam.questions.add(*questions)
-                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
+                delete_many_cache([
+                    CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                    CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                ])
             msg = f"Assigned {questions.count()} questions to {exams.count()} exams."
             
         elif action == "unassign":
@@ -139,7 +148,10 @@ class QuestionBulkActionV2View(APIView):
 
             for exam in exams:
                 exam.questions.remove(*questions)
-                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
+                delete_many_cache([
+                    CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                    CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                ])
             msg = f"Unassigned {questions.count()} questions from {exams.count()} exams."
 
         invalidate_staff_dashboard()

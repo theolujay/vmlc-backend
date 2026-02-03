@@ -56,6 +56,12 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "created_by", "related_exams_count"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Ensure exam_ids is populated in the response
+        data['exam_ids'] = list(instance.exams.values_list('id', flat=True))
+        return data
+
     def get_related_exams(self, obj):
         # Only show related exams if explicitly requested in context
         if self.context.get('include_related_exams', False):
@@ -91,9 +97,12 @@ class QuestionV2Serializer(serializers.ModelSerializer):
             question.exams.add(*exams)
             
             # Invalidate caches
-            from vmlc.v2.utils import delete_many_cache
+            from vmlc.v2.utils import delete_many_cache, CacheKeys
             for exam in exams:
-                delete_many_cache([f"exam_questions_{exam.id}", f"exam_detail:{exam.id}"])
+                delete_many_cache([
+                    CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                    CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                ])
                 
         return question
 

@@ -85,8 +85,9 @@ class ExamListV2View(ListCreateAPIView):
         )
         
         # Question Pool Data (Staff Dashboard context)
+        from vmlc.v2.utils import CacheKeys
         question_pool_data = get_or_set_cache(
-            "question_pool_data",
+            CacheKeys.QUESTION_POOL,
             lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
             ttl=3600,
         )
@@ -145,7 +146,8 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         logger.info(
             f"ExamDetailView: request from user {self.request.user.id} for exam {exam_id}"
         )
-        cache_key = f"exam_detail:{exam_id}"
+        from vmlc.v2.utils import CacheKeys
+        cache_key = CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)
 
         def build():
             instance = self.get_object()
@@ -181,10 +183,10 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
 
-        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_candidate_cache
+        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_candidate_cache, CacheKeys
         from django.core.cache import cache
         
-        cache.delete(f"exam_detail:{instance.id}")
+        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
         invalidate_staff_dashboard()
         
         # Clear caches for candidates who took this exam
@@ -192,10 +194,10 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             invalidate_candidate_cache(result.candidate_id, user_id=result.candidate.user_id)
 
     def perform_destroy(self, instance):
-        from vmlc.v2.utils import invalidate_staff_dashboard
+        from vmlc.v2.utils import invalidate_staff_dashboard, CacheKeys
         from django.core.cache import cache
         
-        cache.delete(f"exam_detail:{instance.id}")
+        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
         invalidate_staff_dashboard()
         instance.delete()
 
@@ -207,7 +209,8 @@ class ExamResultsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs[self.lookup_url_kwarg]
-        cache_key = f"exam_results:{exam_id}"
+        from vmlc.v2.utils import CacheKeys
+        cache_key = CacheKeys.EXAM_RESULTS.format(exam_id=exam_id)
 
         def fetch_results():
             response = super().list(request, *args, **kwargs)
@@ -241,7 +244,8 @@ class ExamQuestionsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs["exam_id"]
-        cache_key = f"exam_questions_{exam_id}"
+        from vmlc.v2.utils import CacheKeys
+        cache_key = CacheKeys.EXAM_QUESTIONS.format(exam_id=exam_id)
 
         def fetch_questions():
             queryset = self.get_queryset()
@@ -285,7 +289,8 @@ class ExamHistoryV2View(ListAPIView):
     def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
 
-        cache_key = f"candidate_exam_history_v2_{candidate_id}"
+        from vmlc.v2.utils import CacheKeys
+        cache_key = CacheKeys.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id)
 
         try:
             candidate = Candidate.objects.get(pk=candidate_id)

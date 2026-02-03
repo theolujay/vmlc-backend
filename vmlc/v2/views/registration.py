@@ -107,10 +107,14 @@ class RegistrationV2View(CreateAPIView):
         
         # 6. Invalidate Caches
         if isinstance(instance, Candidate):
-             cache.delete(f"candidate_dashboard_{instance.pk}")
+             from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+             invalidate_candidate_cache(instance.pk, user_id=instance.user_id)
              invalidate_all_staff_dashboards()
+             invalidate_staff_dashboard()
         elif isinstance(instance, Staff):
+             from vmlc.v2.utils import invalidate_staff_dashboard
              invalidate_all_staff_dashboards()
+             invalidate_staff_dashboard()
 
         logger.info(f"Successfully registered new user (v2) with email: {instance.user.email}")
         

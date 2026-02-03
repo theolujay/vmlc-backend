@@ -35,6 +35,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
       "option_d": "6",
       "correct_answer": "B",
       "difficulty": "easy",
+      "exam_ids": ["uuid-exam-1", "uuid-exam-2"],
       "related_exams_count": 2,
       "created_at": "2026-02-02T12:00:00Z",
       "created_by": { "id": "uuid", "full_name": "Staff Name" },
