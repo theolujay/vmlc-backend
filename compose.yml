@@ -18,13 +18,13 @@ x-app-base: &app-base
     - dev_static:/app/staticfiles
   develop:
     watch:
-      - action: sync+restart
+      - action: sync
         path: ./vmlc
         target: /app/vmlc
-      - action: sync+restart
+      - action: sync
         path: ./comms
         target: /app/comms
-      - action: sync+restart
+      - action: sync
         path: ./config
         target: /app/config
       - action: rebuild

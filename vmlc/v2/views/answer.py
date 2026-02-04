@@ -107,7 +107,7 @@ class SubmitAnswersV2View(APIView):
                 CandidateAnswer(
                     candidate_exam_result=result,
                     question=answer_data["question"],
-                    selected_option=answer_data.get("selected_option", ""),
+                    selected_option=answer_data.get("selected_option", "").strip().upper(),
                 )
                 for answer_data in answers_data
             ]

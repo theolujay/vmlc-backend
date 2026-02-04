@@ -74,10 +74,16 @@ class StandingsSerializer(serializers.ModelSerializer):
 
 class CandidateAnswerDetailSerializer(serializers.ModelSerializer):
     question = QuestionListSerializer(read_only=True)
+    selected_option = serializers.SerializerMethodField()
 
     class Meta:
         model = CandidateAnswer
         fields = ['question', 'selected_option', 'answered_at']
+
+    def get_selected_option(self, obj):
+        if obj.selected_option:
+            return obj.selected_option.strip().upper()
+        return obj.selected_option
 
 
 class CandidateResultDetailSerializer(serializers.ModelSerializer):

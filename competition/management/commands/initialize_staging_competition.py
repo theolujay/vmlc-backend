@@ -128,19 +128,34 @@ class Command(BaseCommand):
                     Stage.Type.SCREENING,
                     1,
                     "One-time qualification assessment for league stage",
-                    {"promotion_cutoff": 80},
+                    {
+                        "advancement_policy": {
+                            "mode": "top_percent",
+                            "value": 0.3,
+                        },
+                    },
                 ),
                 (
                     Stage.Type.LEAGUE,
                     2,
                     "Comprises of six assessments spread across six weeks and a leaderboard ",
-                    {"promotion_cutoff": 20},
+                    {
+                        "advancement_policy": {
+                            "mode": "top_n",
+                            "value": 10,
+                        },
+                    },
                 ),
                 (
                     Stage.Type.FINAL,
                     3,
                     "Zenith assessment to determine top three winners",
-                    {"promotion_cutoff": 3},
+                    {
+                        "advancement_policy": {
+                            "mode": "top_n",
+                            "value": 3,
+                        },
+                    },
                 ),
             ]
 

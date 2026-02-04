@@ -238,12 +238,28 @@ class Command(BaseCommand):
         )
         stages = {}
         for order, (st_type, st_label) in enumerate(Stage.Type.choices, start=1):
+            config = {}
+            if st_type == Stage.Type.SCREENING:
+                config = {
+                    "advancement_policy": {
+                        "mode": "top_percent",
+                        "value": 0.3,
+                    }
+                }
+            else:
+                config = {
+                    "advancement_policy": {
+                        "mode": "top_n",
+                        "value": 20,
+                    }
+                }
+
             stage = Stage.objects.create(
                 competition=competition,
                 type=st_type,
                 order=order,
                 description=f"{st_label} Stage",
-                config={"promotion_cutoff": 80 if st_type == "screening" else 20}
+                config=config
             )
             stages[st_type] = stage
         return competition, stages

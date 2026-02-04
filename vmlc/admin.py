@@ -18,6 +18,14 @@ from .models import (
 from .utils.helpers import (
     invalidate_all_dashboard_caches,
 )
+from vmlc.v2.utils import (
+    invalidate_exam_cache,
+    invalidate_question_pool,
+    invalidate_candidate_cache,
+    invalidate_feature_flag,
+    invalidate_registration_status,
+    invalidate_league_leaderboard,
+)
 
 
 @admin.register(Exam)
@@ -58,12 +66,8 @@ class ExamAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_exam_cache(self, exam):
-        cache.delete(f"exam_detail_{exam.id}")
-        cache.delete(f"exam_results_{exam.id}")
-        cache.delete(f"exam_questions_{exam.id}")
+        invalidate_exam_cache(exam.id)
         invalidate_all_dashboard_caches()
-        for result in exam.results.all():
-            cache.delete(f"account_management_{result.candidate.user.id}")
 
     @admin.display(description="Question Count", ordering="question_count")
     def get_question_count(self, obj):
@@ -120,10 +124,9 @@ class QuestionAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_question_cache(self, question):
-        cache.delete("question_pool_data")
+        invalidate_question_pool()
         for exam in question.exams.all():
-            cache.delete(f"exam_questions_{exam.id}")
-            cache.delete(f"exam_detail_{exam.id}")
+            invalidate_exam_cache(exam.id)
         invalidate_all_dashboard_caches()
 
     @admin.display(description="Text")
@@ -179,9 +182,8 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     def _invalidate_result_cache(self, result):
         candidate = result.candidate
         exam = result.exam
-        cache.delete(f"account_management_{candidate.user.id}")
-        cache.delete(f"exam_history_{candidate.user.id}")
-        cache.delete(f"exam_results_{exam.id}")
+        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_exam_cache(exam.id)
         invalidate_all_dashboard_caches()
 
     @admin.display(description="Candidate", ordering="candidate__user__email")
@@ -228,6 +230,26 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "answered_at"
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_answer_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_answer_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_answer_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_answer_cache(self, answer):
+        if answer.candidate_exam_result:
+            candidate = answer.candidate_exam_result.candidate
+            invalidate_candidate_cache(candidate.id, candidate.user.id)
+            invalidate_exam_cache(answer.candidate_exam_result.exam_id)
+        invalidate_all_dashboard_caches()
+
     @admin.display(
         description="Candidate", ordering="candidate_exam_result__candidate__user__email"
     )
@@ -268,12 +290,16 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     def save_model(self, request, obj, form, change):
-        cache.delete_pattern("leaderboard_*")
+        invalidate_league_leaderboard()
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
-        cache.delete_pattern("leaderboard_*")
+        invalidate_league_leaderboard()
         super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        invalidate_league_leaderboard()
+        super().delete_queryset(request, queryset)
 
     @admin.display(description="Published By", ordering="published_by__user__email")
     def published_by_name(self, obj):
@@ -334,6 +360,18 @@ class CandidateExamResultSnapshotAdmin(admin.ModelAdmin):
     list_select_related = ("published_by__user",)
     date_hierarchy = "created_at"
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        invalidate_all_dashboard_caches()
+
+    def delete_model(self, request, obj):
+        invalidate_all_dashboard_caches()
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        invalidate_all_dashboard_caches()
+        super().delete_queryset(request, queryset)
+
     @admin.display(description="Published By", ordering="published_by__user__email")
     def published_by_name(self, obj):
         if obj.published_by:
@@ -359,8 +397,8 @@ class FeatureFlagAdmin(admin.ModelAdmin):
         from vmlc.tasks import disable_expired_feature_flags_task
 
         super().save_model(request, obj, form, change)
-        cache.delete(f"feature_flag_{obj.key}")
-        cache.delete("registration_status")
+        invalidate_feature_flag(obj.key)
+        invalidate_registration_status()
 
         if obj.auto_off_date:
             time_to_revoke = obj.auto_off_date
@@ -369,14 +407,14 @@ class FeatureFlagAdmin(admin.ModelAdmin):
             )
 
     def delete_model(self, request, obj):
-        cache.delete(f"feature_flag_{obj.key}")
+        invalidate_feature_flag(obj.key)
+        invalidate_registration_status()
         super().delete_model(request, obj)
-        cache.delete("registration_status")
 
     def delete_queryset(self, request, queryset):
         for obj in queryset:
-            cache.delete(f"feature_flag_{obj.key}")
-            cache.delete("registration_status")
+            invalidate_feature_flag(obj.key)
+            invalidate_registration_status()
         super().delete_queryset(request, queryset)
 
 

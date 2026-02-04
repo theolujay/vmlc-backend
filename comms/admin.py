@@ -108,6 +108,24 @@ class NotificationAdmin(admin.ModelAdmin):
     list_select_related = ["recipient"]
     date_hierarchy = "created_at"
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_cache(self, obj):
+        from vmlc.v2.utils import invalidate_candidate_cache
+        if hasattr(obj.recipient, "candidate_profile"):
+            invalidate_candidate_cache(obj.recipient.candidate_profile.id, obj.recipient.id)
+
 
 @admin.register(BackupLog)
 class BackupLogAdmin(admin.ModelAdmin):

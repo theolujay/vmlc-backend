@@ -24,7 +24,7 @@ class ProgressionService:
     @transaction.atomic
     def promote_candidates(from_stage_type, to_stage_type, cutoff_rank=None, competition_id=None):
         """
-        Promotes the top N candidates from one stage to the next.
+        Promotes candidates from one stage to the next based on an advancement policy or explicit cutoff.
         """
         if competition_id:
             competition = Competition.objects.get(id=competition_id)
@@ -34,16 +34,62 @@ class ProgressionService:
         if not competition:
             raise ProgressionError("No active competition found.")
 
-        # Identify the 'to' stage object
+        # Identify the stages
+        from_stage = Stage.objects.filter(competition=competition, type=from_stage_type).first()
         to_stage = Stage.objects.filter(competition=competition, type=to_stage_type).first()
-        if not to_stage:
-            raise ProgressionError(f"Target stage '{to_stage_type}' not found for this competition.")
 
-        # If cutoff_rank not provided, try to get it from stage config
+        if not from_stage:
+            raise ProgressionError(f"Source stage '{from_stage_type}' not found.")
+        if not to_stage:
+            raise ProgressionError(f"Target stage '{to_stage_type}' not found.")
+
+        # Determine the effective cutoff rank
         if cutoff_rank is None:
-            cutoff_rank = to_stage.config.get("promotion_cutoff")
+            # Prefer policy from the stage being exited
+            policy = from_stage.config.get("advancement_policy")
+            
+            # Fallback to target stage config (legacy behavior)
+            # TODO: re-examine this... to avoid unexepected behaviour
+            # We should stick to one
+            if not policy:
+                policy = to_stage.config.get("advancement_policy")
+
+            if policy:
+                mode = policy.get("mode")
+                value = policy.get("value")
+                
+                if mode == "top_n":
+                    cutoff_rank = int(value)
+                elif mode == "top_percent":
+                    # Calculate total participants to apply percentage
+                    total_participants = 0
+                    if from_stage_type == Stage.Type.SCREENING:
+                        standings = Standings.objects.filter(
+                            competition=competition, stage=Stage.Type.SCREENING, is_published=True
+                        ).order_by('-published_at').first()
+                        if standings:
+                            total_participants = standings.entries.count()
+                    elif from_stage_type == Stage.Type.LEAGUE:
+                        leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
+                        if leaderboard:
+                            total_participants = leaderboard.entries.count()
+                    
+                    if total_participants > 0:
+                        import math
+                        cutoff_rank = max(1, math.ceil(total_participants * float(value)))
+                    else:
+                        raise ProgressionError(f"Cannot calculate top_percent: No participants found in {from_stage_type} stage.")
+                else:
+                    raise ProgressionError(f"Unsupported advancement mode: {mode}")
+            else:
+                # Last resort fallback to old promotion_cutoff
+                # TODO: same as above, seek to deprecate this
+                cutoff_rank = from_stage.config.get("promotion_cutoff") or to_stage.config.get("promotion_cutoff")
+                
             if cutoff_rank is None:
-                raise ProgressionError(f"No cutoff_rank provided and 'promotion_cutoff' not found in {to_stage_type} config.")
+                raise ProgressionError(f"No advancement policy or promotion_cutoff found for {from_stage_type} -> {to_stage_type}.")
+
+        logger.info(f"Advancement: Using cutoff_rank={cutoff_rank} for {from_stage_type} -> {to_stage_type}")
 
         # Identify candidate IDs to promote
         candidate_ids_to_promote = []

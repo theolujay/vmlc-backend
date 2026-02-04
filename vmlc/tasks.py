@@ -10,6 +10,7 @@ from celery import shared_task
 from celery.exceptions import Retry
 
 from vmlc.utils import generate_stats_overview_data
+from vmlc.v2 import tasks as v2_tasks
 
 logger = logging.getLogger(__name__)
 

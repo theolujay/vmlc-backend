@@ -63,6 +63,8 @@ class Stage(models.Model):
         return f"{self.competition.edition} - {self.get_type_display()}"
 
     class Meta:
+        verbose_name = "Stage"
+        verbose_name_plural = "Stages"
         ordering = ["order"]
         constraints = [
             models.UniqueConstraint(
@@ -100,6 +102,8 @@ class StageExam(models.Model):
     )
 
     class Meta:
+        verbose_name = "Stage Exam"
+        verbose_name_plural = "Stage Exams"
         constraints = [
             # Ensures a specific round in a stage only has ONE StageExam entry.
             # Example: You can't have two "Round 1" entries for the "Screening" or "Final" stage.
@@ -110,7 +114,7 @@ class StageExam(models.Model):
             ),
         ]
 
-class CandidateCompetition(models.Model):
+class CandidateCompetition(models.Model): # TODO: safely turn this into Enrollment
     """
     Represents a candidate's participation in a specific competition edition.
 
@@ -156,6 +160,8 @@ class CandidateCompetition(models.Model):
     )
 
     class Meta:
+        # verbose_name = "Enrollment"
+        # verbose_name_plural = "Enrollments"
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate", "competition"],
@@ -164,7 +170,7 @@ class CandidateCompetition(models.Model):
         ]
 
 
-class CandidateStageProgress(models.Model):
+class CandidateStageProgress(models.Model): # TODO: safely turn this to EnrollmentStageProgress
     """
     Tracks a candidate's progress and outcome within a specific stage
     of a competition.
@@ -197,6 +203,8 @@ class CandidateStageProgress(models.Model):
         }
 
     class Meta:
+        verbose_name = "Stage Progress"
+        verbose_name_plural = "Stage Progress Records"
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate_competition", "stage"],
@@ -205,7 +213,7 @@ class CandidateStageProgress(models.Model):
         ]
 
 
-class Standings(models.Model):
+class Standings(models.Model): # TODO: rename this to RankingSnapshot
     """
     Official standings generated from a single exam for a competition.
 
@@ -273,6 +281,8 @@ class Standings(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # verbose_name = "Exam Ranking"
+        # verbose_name_plural = "Exam Rankings"
         constraints = [
             models.UniqueConstraint(
                 fields=["exam"],
@@ -290,7 +300,7 @@ class Standings(models.Model):
         ]
 
 
-class StandingsEntry(models.Model):
+class StandingsEntry(models.Model): # TODO: rename this to RankingSnapshotEntry
     """
     A single candidate's standing within a specific Standings for an exam.
 
@@ -341,6 +351,8 @@ class StandingsEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # verbose_name = "Exam Ranking Entry"
+        # verbose_name_plural = "Exam Ranking Entries"
         constraints = [
             models.UniqueConstraint(
                 fields=["standings", "candidate"], name="unique_candidate_per_standings"
@@ -368,10 +380,12 @@ class AggregateLeaderboard(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "League Leaderboard"
+        verbose_name_plural = "League Leaderboards"
         indexes = [models.Index(fields=["competition", "stage", "as_of_round"])]
 
 
-class AggregateLeaderboardEntry(models.Model):
+class AggregateLeaderboardEntry(models.Model): # TODO: rename to LeagueLeaderboardEntry
     """
     A single candidate's entry in a materialized AggregateLeaderboard.
     Tracks cumulative performance across multiple rounds within a stage.
@@ -392,6 +406,8 @@ class AggregateLeaderboardEntry(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "League Leaderboard Entry"
+        verbose_name_plural = "League Leaderboard Entries"
         indexes = [
             models.Index(fields=["leaderboard", "overall_rank"]),
             models.Index(fields=["leaderboard", "candidate"]),

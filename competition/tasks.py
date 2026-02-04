@@ -2,6 +2,7 @@ import uuid
 import logging
 
 from django.utils import timezone
+from django.db import transaction
 from celery import shared_task
 
 from competition.services.standings import StandingsGenerator, StandingsGenerationError
@@ -28,9 +29,20 @@ def generate_standings_task(stage_exam_id, publish_now=False, staff_id=None):
         )
         
         if publish_now:
-            standings.is_published = True
-            standings.published_at = timezone.now()
-            standings.save(update_fields=["is_published", "published_at"])
+            # Enforce the 'one_published_standings_per_stage_round' constraint by
+            # unpublishing any other standings for the same stage/round.
+            with transaction.atomic():
+                Standings.objects.filter(
+                    competition=standings.competition,
+                    stage=standings.stage,
+                    round=standings.round,
+                    is_published=True
+                ).exclude(id=standings.id).update(is_published=False, published_at=None)
+
+                standings.is_published = True
+                standings.published_at = timezone.now()
+                standings.save(update_fields=["is_published", "published_at"])
+                
             logger.info(f"Standings for StageExam {stage_exam_id} generated and published.")
             
             # Trigger leaderboard update if it's a league exam

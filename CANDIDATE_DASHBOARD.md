@@ -1,13 +1,11 @@
 # Candidate Dashboard API Documentation
 
-This document defines the optimal response structure for the student-facing dashboard to ensure efficient rendering and a seamless user experience.
-
-<!-- http://localhost:8000/v1/notifications/2/mark-as-read/ -->
+This document defines the response structure for the student-facing dashboard. It is designed to give the frontend everything it needs in a single request to render the candidate's home screen.
 
 ## Candidate Dashboard
 `GET /v1/competition/dashboard/candidate/`
 
-Provides a comprehensive overview for the student, including their current standing, upcoming tasks, and historical performance.
+Provides a comprehensive overview for the student, including their notifications, current progress, active exam, and historical performance.
 
 ### Response Body (`200 OK`)
 ```json
@@ -39,7 +37,7 @@ Provides a comprehensive overview for the student, including their current stand
       "is_qualified": true,
       "advancement_policy": {
           "mode": "top_percent",
-          "value": 0.3,
+          "value": 0.3
       },
       "message": "You have qualified for the League Stage!"
     }
@@ -53,22 +51,35 @@ Provides a comprehensive overview for the student, including their current stand
     "starts_at": "2026-01-31T08:00:00Z",
     "ends_at": "2026-01-31T20:00:00Z",
     "duration_minutes": 60,
-    "status": "scheduled", // Can be "ongoing", "scheduled", or "awaiting_results"
-    "has_participated": false
+    "status": "ongoing", 
+    "has_participated": false,
+    "is_eligible": true,
+    "access_status": "started" 
   },
   "performance_snapshot": {
     "screening_standing": {
       "rank": 45,
       "total_candidates": 10230,
       "score": 88.5,
-      "percentile": 99.5
+      "percentile": 99.5,
+      "exam_id": "screening-exam-uuid",
+      "exam_title": "Screening Exam 2026"
     },
     "league_leaderboard": {
       "overall_rank": 12,
       "total_candidates": 850,
       "total_score": 175.5,
       "rank_change": 2, 
-      "as_of_round": 2
+      "as_of_round": 2,
+      "is_active": true
+    },
+    "final_standing": {
+      "rank": 5,
+      "total_candidates": 50,
+      "score": 95.0,
+      "percentile": 90.0,
+      "exam_id": "final-exam-uuid",
+      "exam_title": "Grand Finale"
     }
   },
   "exam_history": [
@@ -77,100 +88,63 @@ Provides a comprehensive overview for the student, including their current stand
       "exam_title": "Screening Exam",
       "stage": "screening",
       "round": null,
-      "score": 88.5, // Null if not published
-      "percentage": 88.5, // Null if not published
+      "score": 88.5, 
+      "percentage": 88.5, 
       "date": "2026-01-15T10:00:00Z",
-      "status": "concluded",
-      "is_published": true
-    },
-    {
-      "exam_id": "league-r1-uuid",
-      "exam_title": "League - Round 1",
-      "stage": "league",
-      "round": 1,
-      "score": 92.0,
-      "percentage": 92.0,
-      "date": "2026-01-22T10:00:00Z",
       "status": "concluded",
       "is_published": true
     }
   ]
 }
 ```
+
+### Key Field Definitions:
+
+#### Active Exam Statuses
+The `status` field in `active_exam` tells the frontend what to display:
+- `scheduled`: The exam is coming up but hasn't started yet.
+- `ongoing`: The exam is currently open and can be taken.
+- `awaiting_results`: The student has finished the exam, but the official results aren't out yet.
+- `results_published`: Official results for this specific exam are now available.
+
+#### Access Status
+The `access_status` tracks the student's personal interaction with the exam:
+- `null`: Student hasn't interacted with it yet.
+- `started`: Student has entered the exam and their timer is running.
+- `submitted`: Student has successfully handed in their answers.
+
+#### Performance Snapshot
+- `screening_standing` & `final_standing`: These are "one-off" results for the major entry and exit stages.
+- `league_leaderboard`: This is a cumulative table that updates round-by-round. `is_active` indicates if the candidate currently has a finalized rank for the reported round.
+
+---
 
 ## Take Exam (V2)
 `GET /v2/exams/<uuid:exam_id>/take-exam/`
 
-Returns the exam details and questions for a candidate to start the exam. Supports LaTeX for mathematical content. 
+Returns the exam details and questions for a candidate to start the exam. 
 
-### Response Body (`200 OK`)
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "League Round 3",
-  "description": "This is the third round of the league stage.",
-  "open_duration_hours": 12,
-  "scheduled_date": "2026-01-31T08:00:00Z",
-  "countdown_minutes": 60,
-  "questions": [
-    {
-      "id": 3,
-      "text": "What is the value of $x$ in the equation $2x + 5 = 15$?",
-      "option_a": "$5$",
-      "option_b": "$10$",
-      "option_c": "$7.5$",
-      "option_d": "$20$"
-    },
-    {
-      "id": 5,
-      "text": "Identify the integral: $\\\\int_{0}^{1} x^2 \\\\, dx$",
-      "option_a": "$1/3$",
-      "option_b": "$1/2$",
-      "option_c": "$1$",
-      "option_d": "$0$"
-    }
-  ]
-}
-```
+### Behavioral Note:
+Calling this endpoint marks the exam as **"started"** for the student. The personal countdown begins immediately.
+
+---
 
 ## Submit Exam Answers (V2)
 `POST /v2/exams/<uuid:exam_id>/submit/`
 
-Submit all answers for a specific exam in bulk.
+Submits all answers for a specific exam.
 
-### Request Body
-```json
-{
-  "answers": [
-    {
-      "question": 3,
-      "selected_option": "a"
-    },
-    {
-      "question": 5,
-      "selected_option": "a"
-    }
-  ]
-}
-```
+### Behavioral Note:
+Once submitted, the system automatically triggers a background scoring process. The dashboard cache is cleared immediately so the student sees their updated status.
 
-### Response Body (`201 Created`)
-```json
-{
-  "message": "Answers submitted successfully!"
-}
-```
+---
 
-### Behavioral Notes:
-1.  **Dashboard Caching**: The candidate dashboard response is cached for **1 hour** (`ttl=3600`) per candidate. Changes to notifications or status may not be immediate.
-2.  **Exam Access Tracking**: Calling the `take-exam` endpoint marks the exam as `STARTED` for the candidate. This triggers the personal countdown timer. Re-entry is allowed until submission or expiration.
-3.  **Submission Deadlines**: Submissions are accepted if the exam is globally open **OR** if the candidate is within their personal countdown (plus a **5-minute grace period**).
-4.  **Result Visibility**: In the `exam_history`, `score` and `percentage` will be `null` until the standings for that exam are officially **published** by staff.
-5.  **Awaiting Results**: If an exam is concluded and participated in but standings aren't published, the `active_exam` status will show as `awaiting_results`.
+## Important System Rules for Frontend
 
-
-### Architectural Benefits:
-1.  **Unified State**: Consolidates `candidate_info`, `stage_progress`, and `active_exam` into a single call to prevent waterfall loading.
-2.  **Backend-Driven Logic**: The `qualification_status` and `notifications` objects allow the backend to manage business rules and messaging dynamically.
-3.  **Real-time Indicators**: Includes `rank_change` directly in the snapshot to support "improved/dropped" UI elements without extra client-side calculations.
-4.  **Action-Ready**: `active_exam` provides all necessary metadata to control the "Start Exam" triggers and timers.
+1.  **Cache Invalidation**: The dashboard is cached for 1 hour by default. However, it is **automatically cleared** whenever:
+    - A student submits an exam.
+    - Staff members publish new results/standings.
+    - A student's profile or status is updated.
+2.  **Grace Period**: Students have a **5-minute grace period** after their personal timer ends to account for network latency during submission.
+3.  **Result Visibility**: In the `exam_history`, the `score` and `percentage` will remain `null` until the staff officially publishes the results. This prevents students from seeing unverified or "leaked" scores before they are finalized.
+4.  **Eligibility**: Use the `is_eligible` flag in `active_exam` to enable or disable the "Start Exam" button. The backend handles all the complex rules (role checks, stage placement, etc.) and gives you this simple boolean.

@@ -27,4 +27,8 @@ app.conf.beat_schedule = {
         "task": "generate_stats_overview_task",
         "schedule": crontab(minute="*/5"),
     },
+    "check-exam-status-transitions-every-minute": {
+        "task": "check_exam_status_transitions_task",
+        "schedule": crontab(minute="*"),
+    },
 }

@@ -177,28 +177,13 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         Update the details of an exam instance
         """
 
-        instance = serializer.save(updated_by=self.request.user.staff_profile)
+        serializer.save(updated_by=self.request.user.staff_profile)
 
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
 
-        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_candidate_cache, CacheKeys
-        from django.core.cache import cache
-        
-        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
-        invalidate_staff_dashboard()
-        
-        # Clear caches for candidates who took this exam
-        for result in instance.results.all():
-            invalidate_candidate_cache(result.candidate_id, user_id=result.candidate.user_id)
-
     def perform_destroy(self, instance):
-        from vmlc.v2.utils import invalidate_staff_dashboard, CacheKeys
-        from django.core.cache import cache
-        
-        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
-        invalidate_staff_dashboard()
         instance.delete()
 
 

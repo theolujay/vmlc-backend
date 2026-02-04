@@ -95,7 +95,9 @@ class Broadcast(models.Model):
             invalid = set(self.target_roles["candidate"]) - set(valid_candidate_roles)
             if invalid:
                 raise ValidationError(f"Invalid candidate roles: {invalid}")
-
+    class Meta:
+        verbose_name = "Broadcast"
+        verbose_name_plural = "Broadcasts"
 
 class BroadcastLog(models.Model):
     class MediumStatus(models.TextChoices):
@@ -128,6 +130,9 @@ class BroadcastLog(models.Model):
     def __str__(self):
         return f"{self.broadcast.subject} [{self.medium} -> {self.role_type}:{self.target_role}] {self.status}"
 
+    class Meta:
+        verbose_name = "Broadcast Log"
+        verbose_name_plural = "Broadcast Logs"
 
 class Notification(models.Model):
     """
@@ -153,6 +158,8 @@ class Notification(models.Model):
     is_read_by_recipient = models.BooleanField(default=False, db_index=True)
 
     class Meta:
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -178,6 +185,8 @@ class BackupLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = "Backup Log"
+        verbose_name_plural = "Backup Logs"
         ordering = ["-created_at"]
 
     def __str__(self):

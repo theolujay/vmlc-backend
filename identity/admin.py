@@ -25,6 +25,12 @@ from vmlc.utils.helpers import (
     invalidate_all_dashboard_caches,
     invalidate_all_staff_dashboards,
 )
+from vmlc.v2.utils import (
+    invalidate_user_cache,
+    invalidate_candidate_cache,
+    invalidate_staff_cache,
+    invalidate_staff_dashboard,
+)
 
 
 class CustomUserChangeForm(UserChangeForm):
@@ -215,15 +221,7 @@ class UserAdmin(BaseUserAdmin):
 
     def _invalidate_user_cache(self, user):
         """Invalidate all caches related to a user."""
-        cache.delete(f"account_management_{user.id}")
-        cache.delete(f"user_verification_status_{user.id}")
-        if hasattr(user, "candidate_profile"):
-            cache.delete(f"candidate_profile_{user.id}")
-            cache.delete(f"candidate_detail_{user.id}")
-            cache.delete(f"candidate_dashboard_{user.id}")
-        if hasattr(user, "staff_profile"):
-            cache.delete(f"staff_profile_{user.id}")
-            cache.delete(f"staff_dashboard_data_{user.id}")
+        invalidate_user_cache(user.id)
 
     @admin.display(description="User Profile")
     def user_profile(self, obj):
@@ -334,13 +332,17 @@ class UserVerificationAdmin(admin.ModelAdmin):
         super().delete_model(request, obj)
         self._invalidate_verification_cache(obj)
 
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_verification_cache(obj)
+        super().delete_queryset(request, queryset)
+
     def _invalidate_verification_cache(self, verification):
         user = verification.user
-        cache.delete(f"user_verification_status_{user.id}")
-        cache.delete(f"account_management_{user.id}")
+        invalidate_user_cache(user.id)
         if hasattr(user, "candidate_profile"):
-            cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
-        invalidate_all_staff_dashboards()
+            invalidate_candidate_cache(user.candidate_profile.id, user.id)
+        invalidate_staff_dashboard()
 
     def _invalidate_queryset_cache(self, queryset):
         for verification in queryset:
@@ -467,11 +469,7 @@ class CandidateAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        cache.delete(f"candidate_detail_{candidate.user.id}")
-        cache.delete(f"candidate_profile_{candidate.user.id}")
-
-        cache.delete(f"account_management_{candidate.user.id}")
-        invalidate_all_dashboard_caches()
+        invalidate_candidate_cache(candidate.id, candidate.user.id)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -555,9 +553,7 @@ class StaffAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_staff_cache(self, staff):
-        cache.delete(f"staff_profile_{staff.user.id}")
-        cache.delete(f"staff_dashboard_data_{staff.user.id}")
-        cache.delete(f"account_management_{staff.user.id}")
+        invalidate_staff_cache(staff.user.id)
 
     @admin.display(description="Email", ordering="user__email")
     def email(self, obj):

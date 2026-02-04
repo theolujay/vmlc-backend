@@ -226,10 +226,9 @@ class CandidateDashboardService:
         if not current_stage:
             return None
 
-        # Look for an ONGOING exam first, then the next SCHEDULED one in the current stage
-
         # Get all active slots for current stage
         from django.db.models import Q
+        from competition.services.eligibility import EligibilityService
         now = timezone.now()
 
         slots = (
@@ -247,12 +246,16 @@ class CandidateDashboardService:
                 exam = slot.exam
                 status = exam.status
 
-                # Check if they already participated
-                has_participated = ExamAccess.objects.filter(
+                # Check eligibility
+                is_eligible = EligibilityService.can_take_exam(candidate, exam)
+
+                # Check access status
+                access = ExamAccess.objects.filter(
                     candidate=candidate,
-                    exam=exam,
-                    status=ExamAccess.Status.SUBMITTED,
-                ).exists()
+                    exam=exam
+                ).first()
+                
+                has_participated = access.status == ExamAccess.Status.SUBMITTED if access else False
 
                 if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]:
                     exam_data = {
@@ -271,29 +274,33 @@ class CandidateDashboardService:
                         "duration_minutes": exam.countdown_minutes,
                         "status": status,
                         "has_participated": has_participated,
+                        "is_eligible": is_eligible,
+                        "access_status": access.status if access else None,
                     }
-                    if status == Exam.Status.ONGOING and not has_participated:
+                    if status == Exam.Status.ONGOING and is_eligible and not has_participated:
                         # Found our primary target, an ongoing exam
                         # that the candidate hasn't yet participated in
                         active_exam_data = exam_data
                         break
-                    # Exam is scheduled and on ongoing
+                    
                     if not active_exam_data:
                         active_exam_data = exam_data
 
                 elif status == Exam.Status.CONCLUDED and has_participated:
                     # Check if standings are published
-                    is_published = Standings.objects.filter(
+                    standing = Standings.objects.filter(
                         exam=exam, is_published=True
-                    ).exists()
+                    ).first()
 
-                    if not is_published and not active_exam_data:
+                    is_published = standing is not None
+
+                    if not active_exam_data:
                         active_exam_data = {
                             "id": str(exam.id),
                             "title": exam.get_title(),
                             "stage": current_stage.type,
                             "round": slot.round,
-                            "status": "awaiting_results",
+                            "status": "results_published" if is_published else "awaiting_results",
                             "has_participated": True,
                         }
             except Exam.DoesNotExist:
@@ -305,30 +312,43 @@ class CandidateDashboardService:
     def _get_performance_snapshot(
         candidate: Candidate, active_comp: Optional[Competition]
     ) -> Dict[str, Any]:
-        snapshot = {"screening_standing": None, "league_leaderboard": None}
+        snapshot = {
+            "screening_standing": None,
+            "league_leaderboard": None,
+            "final_standing": None,
+        }
 
-        # Screening Standing
-        screening_standings = Standings.objects.filter(
-            competition=active_comp, stage=Stage.Type.SCREENING, is_published=True
-        ).first()
+        if not active_comp:
+            return snapshot
 
-        if screening_standings:
-            entry = StandingsEntry.objects.filter(
-                # at this point, we should find a relationship, since a standings
-                # table is populated with StandingsEntry entities when generated
-                # in competition/services/standings.py:155
-                standings=screening_standings,
-                candidate=candidate,
-            ).first()
-            if entry:
-                snapshot["screening_standing"] = {
-                    "rank": entry.rank,
-                    "total_candidates": screening_standings.entries.count(),
-                    "score": float(entry.exam_score),
-                    "percentile": entry.percentile,
-                }
+        from django.db.models import Q
 
-        # League Leaderboard
+        # 1. Fetch Screening and Final Standings Entries
+        entries = StandingsEntry.objects.filter(
+            Q(standings__stage=Stage.Type.SCREENING)
+            | Q(standings__stage=Stage.Type.FINAL),
+            standings__competition=active_comp,
+            standings__is_published=True,
+            candidate=candidate,
+        ).select_related("standings")
+
+        for entry in entries:
+            stage_type = entry.standings.stage
+            data = {
+                "rank": entry.rank,
+                "total_candidates": entry.standings.entries.count(),
+                "score": float(entry.exam_score),
+                "percentile": entry.percentile,
+                "exam_id": str(entry.standings.exam_id),
+                "exam_title": entry.standings.exam.get_title(),
+            }
+
+            if stage_type == Stage.Type.SCREENING:
+                snapshot["screening_standing"] = data
+            elif stage_type == Stage.Type.FINAL:
+                snapshot["final_standing"] = data
+
+        # 2. League Leaderboard
         from competition.services.leaderboard import LeaderboardService
 
         leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
@@ -350,6 +370,7 @@ class CandidateDashboardService:
                     "total_score": float(entry.total_score),
                     "rank_change": getattr(entry, "rank_change", 0),
                     "as_of_round": leaderboard.as_of_round,
+                    "is_active": entry.overall_rank is not None,
                 }
 
         return snapshot

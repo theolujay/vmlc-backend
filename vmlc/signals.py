@@ -57,6 +57,10 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
     elif isinstance(instance, (Competition, Stage, Standings, CandidateCompetition)):
         invalidate_staff_dashboard()
         invalidate_league_leaderboard()
+    elif isinstance(instance, Exam):
+        from vmlc.v2.tasks import invalidate_exam_related_caches_task
+        from django.db import transaction
+        transaction.on_commit(lambda: invalidate_exam_related_caches_task.delay(str(instance.id)))
 
 
 @receiver(user_logged_in, sender=User)
@@ -72,6 +76,7 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     # Accurately identify first login by checking the database value
     # before it was potentially updated by Django's update_last_login receiver.
     user_from_db = User.objects.filter(pk=user.pk).values("last_login").first()
+    # TODO: consider using this `is_first_login` to prompt users to change their passwods on the frontend
     is_first_login = user_from_db and user_from_db["last_login"] is None
 
     # Set email as verified on login if not already verified.
@@ -104,6 +109,6 @@ for model in models_to_watch:
         post_delete.connect(invalidate_user_list_cache, sender=model)
 
     # Dashboard-specific invalidation
-    if model in [Candidate, Staff, CandidateExamResult, Competition, Stage, Standings, CandidateCompetition]:
+    if model in [Candidate, Staff, CandidateExamResult, Competition, Stage, Standings, CandidateCompetition, Exam]:
         post_save.connect(invalidate_dashboard_on_change, sender=model)
         post_delete.connect(invalidate_dashboard_on_change, sender=model)

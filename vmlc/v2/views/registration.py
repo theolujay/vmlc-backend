@@ -62,16 +62,6 @@ class RegistrationV2View(CreateAPIView):
         user_type = request.data.get("user_type")
         feature_flag_key = None
 
-        # Note: V1 used "staff_registration" in StaffRegistrationView but "staff_registration_open" in ToggleStaffRegistrationView.
-        # I should check the toggle view in vmlc/views/registration.py (v1) again.
-        # ToggleStaffRegistrationView uses "staff_registration_open".
-        # StaffRegistrationView uses "staff_registration".
-        # FeatureFlag.get_bool uses the key. If they are different, that's a bug in V1 or deliberate.
-        # ToggleCandidateRegistrationView uses "candidate_registration_open".
-        # CandidateRegistrationView uses "candidate_registration".
-        # I suspect the keys are consistent in DB, maybe just inconsistent naming in code or mapped.
-        # Let's look at `FeatureFlag.get_bool`. It just queries by key.
-        # I will use "candidate_registration" and "staff_registration" as used in the Registration Views in V1.
         from vmlc.tasks import clear_pre_reg_user
         if user_type == "candidate":
             feature_flag_key = "candidate_registration"

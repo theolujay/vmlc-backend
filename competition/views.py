@@ -108,7 +108,7 @@ class PublishStandingsView(APIView):
         # Pass user ID if available
         staff_id = None
         if hasattr(request.user, 'staff_profile'):
-             staff_id = str(request.user.staff_profile.id)
+             staff_id = str(request.user.staff_profile.pk)
 
         generate_standings_task.delay(
             stage_exam_id=str(stage_exam_id),
@@ -194,7 +194,7 @@ class RetrieveCandidateStandingView(APIView):
         
         # Access control
         if hasattr(request.user, "candidate_profile"):
-            if str(request.user.candidate_profile.id) != str(candidate_id):
+            if str(request.user.candidate_profile.pk) != str(candidate_id):
                 # If they are a candidate, they can only see their own detail unless they are staff
                 if not request.user.is_staff:
                     return Response(
@@ -246,7 +246,7 @@ class LeagueCandidateLeaderboardView(APIView):
 
         # Access control
         if hasattr(request.user, "candidate_profile"):
-            if str(request.user.candidate_profile.id) != str(candidate_id):
+            if str(request.user.candidate_profile.pk) != str(candidate_id):
                 if not request.user.is_staff:
                     return Response(
                         {"detail": "You can only view your own performance."},

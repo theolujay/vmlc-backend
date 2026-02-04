@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from django.db import transaction
@@ -10,7 +11,7 @@ from competition.models import (
 )
 from vmlc.models import CandidateExamResult, Exam
 
-
+logger = logging.getLogger(__name__)
 class StandingsGenerationError(Exception):
     pass
 
@@ -55,13 +56,14 @@ class StandingsGenerator:
         self._validate_preconditions()
 
         # Perform auto-scoring for all submissions before generating standings
-        from vmlc.utils.functions import score_exam_submissions
-        score_exam_submissions(self.exam.id)
+        from vmlc.utils.functions import compute_exam_results
+        compute_exam_results(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
         raw_results = CandidateExamResult.objects.filter(exam=self.exam).select_related(
             "candidate", "candidate__user"
         )
+        logger.debug(f"StandingsGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}.")
 
         # Identify all eligible candidates for this stage/exam
         eligible_candidate_ids = set(
@@ -70,6 +72,7 @@ class StandingsGenerator:
                 status=CandidateCompetition.Status.ACTIVE,  # Only active participants
             ).values_list("candidate_id", flat=True)
         )
+        logger.debug(f"StandingsGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}.")
 
         # Map results to eligible candidates, handle absentees
         candidate_scores = (
@@ -81,6 +84,7 @@ class StandingsGenerator:
                     "score": float(res.score),
                     "recorded_at": res.recorded_at,
                 }
+        logger.debug(f"StandingsGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check.")
 
         # Add absentees (eligible candidates without a result)
         for cand_id in eligible_candidate_ids:
@@ -141,19 +145,26 @@ class StandingsGenerator:
             # the following applies skips for ties. E.g. [..., 5, 5, 7, ...]
             # current_rank = idx + 1
 
+        # Attempt to get existing standings for this exam with lock to prevent race conditions
+        try:
+            existing_standings = Standings.objects.select_for_update().get(exam=self.exam)
+            # If found, delete it and its entries to ensure a clean regeneration
+            existing_standings.delete()
+        except Standings.DoesNotExist:
+            pass  # No existing standings, proceed with creation
+
         # Create Standings record
         standings = Standings.objects.create(
             competition=self.competition,
-            stage=self.stage.type,  # Use the string type, as Standings takes string
-            round=self.stage_exam.round,  # Using 'round' as defined in StageExam
+            stage=self.stage.type,
+            round=self.stage_exam.round,
             exam=self.exam,
-            is_published=False,  # Must be explicitly published
+            is_published=False,
             meta={
                 "generated_by": str(published_by_staff_id) if published_by_staff_id else None,
                 "policy": ranking_policy,
                 "tie_break": tie_break_strategy,
             },
-            # data_json is for denormalized export, not internal use. Leave blank.
         )
 
         # Assign standings to entries and bulk create
@@ -162,10 +173,22 @@ class StandingsGenerator:
         StandingsEntry.objects.bulk_create(standings_entries_to_create)
 
         # Invalidate Caches
-        from vmlc.v2.utils import invalidate_staff_dashboard, invalidate_league_leaderboard
+        from vmlc.v2.utils import (
+            invalidate_staff_dashboard, 
+            invalidate_league_leaderboard,
+            invalidate_exam_cache,
+            invalidate_candidate_cache
+        )
+        # Capture exam_id and candidate_ids explicitly to avoid closure issues
+        exam_id = self.exam.id
+        candidate_ids = list(candidate_scores.keys())
+        
         def clear_standings_cache():
             invalidate_staff_dashboard()
             invalidate_league_leaderboard()
+            invalidate_exam_cache(exam_id)
+            for cand_id in candidate_ids:
+                invalidate_candidate_cache(cand_id)
         transaction.on_commit(clear_standings_cache)
 
         return standings

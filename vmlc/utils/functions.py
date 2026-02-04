@@ -29,6 +29,7 @@ from vmlc.models import (
     CandidateExamResult,
     CandidateAnswer,
     CandidateExamResultSnapshot,
+    ExamAccess,
 )
 from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,
@@ -121,8 +122,8 @@ def _build_leaderboard_entries(exam):
                     "option_d": answer.question.option_d,
                     "correct_answer": answer.question.correct_answer,
                     "selected_option": answer.selected_option,
-                    "is_correct": answer.selected_option
-                    == answer.question.correct_answer,
+                    "is_correct": (answer.selected_option or "").strip().upper()
+                    == (answer.question.correct_answer or "").strip().upper(),
                     # "answered_at": answer.answered_at.isoformat(),
                 }
             )
@@ -169,7 +170,7 @@ def compute_candidate_result(candidate_result_id):
 
     try:
         candidate_exam_result = CandidateExamResult.objects.get(pk=candidate_result_id)
-        _compute_and_save_result(candidate_exam_result)
+        _compute_and_save_candidate_exam_result(candidate_exam_result)
         logger.info(
             f"Successfully computed result for CandidateExamResult {candidate_result_id}"
         )
@@ -181,30 +182,50 @@ def compute_candidate_result(candidate_result_id):
         )
 
 
-def score_exam_submissions(exam_id):
+def compute_exam_results(exam_id):
     """
-    Calculate and save auto-scores for all submissions of a specific exam.
+    Ensures CandidateExamResult records exist for all submitted ExamAccess records
+    for a specific exam, and then calculates and saves their auto-scores.
     """
     try:
         exam = Exam.objects.get(pk=exam_id)
-        results = CandidateExamResult.objects.filter(exam=exam)
         
-        count = 0
-        for result in results:
-            _compute_and_save_result(result)
-            count += 1
+        # Find all submitted exam accesses for this exam
+        submitted_accesses = ExamAccess.objects.filter(
+            exam=exam, status=ExamAccess.Status.SUBMITTED
+        ).select_related('candidate') # Prefetch candidate to avoid N+1 queries
+        
+        created_count = 0
+        scored_count = 0
+
+        for access in submitted_accesses:
+            # Get or create CandidateExamResult for each submitted access
+            candidate_exam_result, created = CandidateExamResult.objects.get_or_create(
+                candidate=access.candidate,
+                exam=exam
+            )
             
-        logger.info(f"Successfully computed results for {count} submissions of exam {exam_id}")
-        return count
+            if created:
+                created_count += 1
+            
+            # Now compute and save the score for this result
+            _compute_and_save_candidate_exam_result(candidate_exam_result)
+            scored_count += 1
+            
+        logger.info(
+            f"Exam {exam_id}: Created {created_count} new CandidateExamResult records, "
+            f"scored {scored_count} total submissions."
+        )
+        return scored_count
     except Exam.DoesNotExist:
         logger.error(f"Exam with id {exam_id} does not exist.")
         return 0
     except Exception as e:
-        logger.error(f"Failed to score submissions for exam {exam_id}: {e}")
+        logger.error(f"Failed to score submissions for exam {exam_id}: {e}", exc_info=True)
         raise
 
 
-def _compute_and_save_result(candidate_exam_result):
+def _compute_and_save_candidate_exam_result(candidate_exam_result):
     """Internal helper to compute and save result for a single CandidateExamResult."""
     submitted_answers = CandidateAnswer.objects.filter(
         candidate_exam_result=candidate_exam_result
@@ -215,21 +236,35 @@ def _compute_and_save_result(candidate_exam_result):
     ).count()
     
     if not total_questions:
+        logger.warning(f"Exam {candidate_exam_result.exam.id} has no active questions. Scoring 0.")
         candidate_exam_result.score = 0
     else:
-        correct_count = sum(
-            1
-            for answer in submitted_answers
-            if answer.selected_option == answer.question.correct_answer
-        )
+        answer_count = submitted_answers.count()
+        if answer_count == 0:
+             logger.warning(f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.id})")
+        
+        correct_count = 0
+        for answer in submitted_answers:
+            selected = (answer.selected_option or "").strip().upper()
+            correct = (answer.question.correct_answer or "").strip().upper()
+            if selected == correct:
+                correct_count += 1
+        
         score = (correct_count / total_questions) * 100
         candidate_exam_result.score = round(score, 2)
+        
+        logger.debug(
+            f"Scored CandidateExamResult {candidate_exam_result.id}: "
+            f"{correct_count}/{total_questions} correct. Score: {candidate_exam_result.score}"
+        )
 
     candidate_exam_result.auto_score = True
     candidate_exam_result.score_submitted_by = None
     candidate_exam_result.recorded_at = timezone.now()
     candidate_exam_result.save()
-    cache.delete(f"candidate_dashboard_{candidate_exam_result.candidate.pk}")
+
+    from vmlc.v2.utils import invalidate_candidate_cache
+    invalidate_candidate_cache(candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id)
 
 
 
