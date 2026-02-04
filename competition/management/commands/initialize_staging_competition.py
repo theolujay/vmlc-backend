@@ -1,34 +1,16 @@
 import logging
-
-from django.utils import timezone
-from django.db import transaction
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
-from dotenv import load_dotenv
-
-from vmlc.models import (
-    CandidateAnswer,
-    CandidateExamResult,
-    CandidateExamResultSnapshot,
-    Exam,
-    FeatureFlag,
-    LeaderboardSnapshot,
-    Question,
-)
+from django.db import transaction
+from django.utils import timezone
 from competition.models import (
     Competition,
     Stage,
-    StageExam,
     CandidateCompetition,
     CandidateStageProgress,
-    Standings,
-    StandingsEntry,
-    AggregateLeaderboard,
-    AggregateLeaderboardEntry,
 )
-
-load_dotenv(".env")
-
+from identity.models import Candidate
+from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +22,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--edition",
             type=int,
-            default=1,
+            default=3,
             help="Competition edition number (e.g., 3)",
         )
         parser.add_argument(
-            "--name", type=str, default="Staging Verboheit MLC", help="Competition name"
-        )
-        parser.add_argument(
-            "--league-rounds",
-            type=int,
-            default=6,
-            help="Number of rounds in the League stage",
+            "--name",
+            type=str,
+            default="Staging Verboheit MLC",
+            help="Competition name",
         )
         parser.add_argument(
             "--dry-run",
@@ -61,7 +40,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         edition = options["edition"]
         name = options["name"]
-        league_rounds = options["league_rounds"]
         dry_run = options["dry_run"]
 
         self.stdout.write(f"Setting up Competition Edition {edition}: {name}")
@@ -71,40 +49,6 @@ class Command(BaseCommand):
                 self.style.WARNING("Dry run enabled. No changes will be saved.")
             )
 
-        self._clear_data()
-        self._create_feature_flags()
-        self._create_competition_structure(
-            edition=edition, name=name, dry_run=dry_run
-        )
-        self._clear_cache()
-
-        self.stdout.write(
-            self.style.SUCCESS("Staging environment initialized successfully")
-        )
-
-    def _clear_data(self):
-        self.stdout.write("Clearing existing data...")
-        Standings.objects.all().delete()
-        StandingsEntry.objects.all().delete()
-        AggregateLeaderboard.objects.all().delete()
-        AggregateLeaderboardEntry.objects.all().delete()
-        CandidateAnswer.objects.all().delete()
-        CandidateExamResult.objects.all().delete()
-        Exam.objects.all().delete()
-        Question.objects.all().delete()
-        StageExam.objects.all().delete()
-        CandidateCompetition.objects.all().delete()
-        CandidateStageProgress.objects.all().delete()
-        Stage.objects.all().delete()
-        Competition.objects.all().delete()
-        LeaderboardSnapshot.objects.all().delete()
-        CandidateExamResultSnapshot.objects.all().delete()
-
-    def _create_feature_flags(self):
-        FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
-        FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
-
-    def _create_competition_structure(self, edition, name, dry_run):
         with transaction.atomic():
             # Competition
             competition, created = Competition.objects.get_or_create(
@@ -169,6 +113,65 @@ class Command(BaseCommand):
                 stages[st_type] = stage
                 if created:
                     self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
+          
+            # Feature Flags
+            FeatureFlag.objects.get_or_create(
+                key="candidate_registration", defaults={"value": True}
+            )
+            FeatureFlag.objects.get_or_create(
+                key="staff_registration", defaults={"value": True}
+            )
+
+            # Enroll Candidates
+            self.stdout.write("Enrolling candidates...")
+
+            first_stage = competition.stages.order_by("order").first()
+            if not first_stage:
+                self.stderr.write(
+                    self.style.ERROR(f"No stages found for competition {competition}.")
+                )
+            else:
+                self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
+
+                # Find candidates not already in this competition
+                enrolled_candidate_ids = CandidateCompetition.objects.filter(
+                    competition=competition
+                ).values_list("candidate_id", flat=True)
+
+                candidates_to_enroll = Candidate.objects.exclude(
+                    pk__in=enrolled_candidate_ids
+                )
+                total_to_enroll = candidates_to_enroll.count()
+
+                if total_to_enroll == 0:
+                    self.stdout.write(
+                        self.style.SUCCESS("All candidates are already enrolled.")
+                    )
+                else:
+                    self.stdout.write(f"Found {total_to_enroll} candidates to enroll.")
+                    created_count = 0
+                    for candidate in candidates_to_enroll:
+                        # Create participation
+                        participation = CandidateCompetition.objects.create(
+                            candidate=candidate,
+                            competition=competition,
+                            current_stage=first_stage,
+                            status=CandidateCompetition.Status.ACTIVE,
+                        )
+                        # Create progress
+                        CandidateStageProgress.objects.create(
+                            candidate_competition=participation,
+                            stage=first_stage,
+                            status=CandidateStageProgress.Status.IN_PROGRESS,
+                        )
+                        created_count += 1
+
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Successfully enrolled {created_count} candidates."
+                        )
+                    )
+            cache.clear()
 
             if dry_run:
                 transaction.set_rollback(True)
@@ -179,7 +182,3 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS("Staging competition setup complete.")
                 )
-
-    def _clear_cache(self):
-        self.stdout.write("Clearing cache...")
-        cache.clear()
