@@ -1,4 +1,5 @@
 import logging
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -177,6 +178,8 @@ class Command(BaseCommand):
                     self.style.SUCCESS("Dry run complete. No data was committed.")
                 )
             else:
+                self.stdout.write("Clearing cache...")
+                cache.clear()
                 self.stdout.write(
                     self.style.SUCCESS("Production competition setup complete.")
                 )
