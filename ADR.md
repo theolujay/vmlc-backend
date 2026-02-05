@@ -16,7 +16,7 @@
     *   *Responsibility*: Structural metadata and ordering.
     *   *Assessment*: Good. The `config` JSONField is useful for stage-specific rules (e.g., "drop lowest score").
 
-*   **`CandidateCompetition`**: Enrollment record.
+*   **`Enrollment`**: Enrollment record.
     *   *Responsibility*: Links `Identity` to `Competition`. Tracks global status (Eliminated vs Active).
     *   *Assessment*: **Crucial Missing Link**. It currently links `candidate` (from identity) but `vmlc` results link to `candidate` too. This is fine, but we must ensure that when `RankingSnapshot` are generated, we only include candidates who are `ACTIVE` in this model.
 
@@ -25,10 +25,10 @@
     *   *Assessment*: The commented-out `# last_exam` suggests uncertainty.
     *   *Recommendation*: This should track *aggregate* status for the stage (e.g., "Qualified for Next Stage"). It should NOT link to a specific exam; `RankingSnapshot` covers that.
 
-*   **`RankingSnapshot` & `StandingsEntry`**: The core presentation artifacts.
+*   **`RankingSnapshot` & `RankingEntry`**: The core presentation artifacts.
     *   *Responsibility*: Immutable snapshot of performance for a *single exam*.
     *   *Assessment*: Excellent pattern. It decouples "taking the test" (vmlc) from "ranking the users" (competition).
-    *   *Gap*: There is no model for **Aggregate Leaderboards** (e.g., "League Table" summing up 10 weeks). `RankingSnapshot` is per-exam. Relying on summing `StandingsEntry` on the fly is expensive and risky for consistency.
+    *   *Gap*: There is no model for **Aggregate Leaderboards** (e.g., "League Table" summing up 10 weeks). `RankingSnapshot` is per-exam. Relying on summing `RankingEntry` on the fly is expensive and risky for consistency.
 
 ### VMLC App (`vmlc/models.py`)
 
@@ -59,10 +59,10 @@
     *   **Input**: `vmlc.CandidateExamResult` for Exam X.
     *   **Process**:
         *   Fetch all results.
-        *   Filter out disqualified/withdrawn candidates (via `CandidateCompetition`).
+        *   Filter out disqualified/withdrawn candidates (via `Enrollment`).
         *   Sort by Score (DESC), then Time (ASC).
         *   Calculate Rank and Percentile.
-        *   **Write**: Create `RankingSnapshot` (parent) and `StandingsEntry` (rows).
+        *   **Write**: Create `RankingSnapshot` (parent) and `RankingEntry` (rows).
     *   **Output**: A frozen, queryable table in `competition` DB.
 
 4.  **Aggregate Leaderboard Update (Competition)**
@@ -76,8 +76,8 @@
 *   **Hidden Coupling via Strings**: `vmlc.Exam.stage` is a string that mimics `competition.Stage.type`. If we rename "League" to "Regular Season" in one place, the other breaks.
     *   *Fix*: Treat `vmlc.Exam.stage` as a "category" only. `competition` maps it authoritatively.
 *   **Legacy Snapshots**: `vmlc` contains `generate_leaderboard_snapshot` logic that bakes in business rules (formatting, ranking). This logic must move to `competition`.
-*   **Data Leakage**: `StandingsEntry` duplicates `exam_score`.
-    *   *Verdict*: **Acceptable**. This is a snapshot. If the exam is re-graded later, the *published* standing should not change automatically. It requires a "Regenerate" action.
+*   **Data Leakage**: `RankingEntry` duplicates `exam_score`.
+    *   *Verdict*: **Acceptable**. This is a snapshot. If the exam is re-graded later, the *published* ranking should not change automatically. It requires a "Regenerate" action.
 
 ## 4. Recommended Refinements
 
@@ -86,7 +86,7 @@ Move the logic from `vmlc.utils.functions._build_leaderboard_entries` into a new
 
 ```python
 # competition/services.py (Conceptual)
-def generate_standings(exam_id):
+def generate_ranking(exam_id):
     # 1. Get raw results from VMLC
     results = CandidateExamResult.objects.filter(exam_id=exam_id)
     
@@ -94,7 +94,7 @@ def generate_standings(exam_id):
     # (Prevents old/rogue users from appearing)
     
     # 3. Calculate Ranks
-    # 4. Bulk Create StandingsEntry
+    # 4. Bulk Create RankingEntry
 ```
 
 ### Priority 2: Add `AggregateLeaderboard` Model

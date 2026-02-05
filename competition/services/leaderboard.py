@@ -93,26 +93,26 @@ class LeaderboardService:
     @transaction.atomic
     def update_league_leaderboard(competition_id: uuid.UUID, as_of_round: int):
         """
-        Aggregates all published league ranking_snapshot up to 'as_of_round' 
+        Aggregates all published league ranking up to 'as_of_round' 
         and updates the LeagueLeaderboard.
         """
         competition = Competition.objects.get(id=competition_id)
         
-        # 1. Fetch all published league ranking_snapshot up to as_of_round
-        published_ranking_snapshots = RankingSnapshot.objects.filter(
+        # 1. Fetch all published league ranking up to as_of_round
+        published_rankings = RankingSnapshot.objects.filter(
             competition=competition,
             stage=Stage.Type.LEAGUE,
             round__lte=as_of_round,
             is_published=True
         ).values_list('id', flat=True)
 
-        if not published_ranking_snapshots:
+        if not published_rankings:
             return None
 
         # 2. Aggregate scores by candidate
         candidate_totals = RankingSnapshotEntry.objects.filter(
-            ranking_snapshot_id__in=published_ranking_snapshots
-        ).values('candidate_id', 'candidate_competition_id').annotate(
+            ranking_snapshot_id__in=published_rankings
+        ).values('candidate_id', 'enrollment_id').annotate(
             total_score=Sum('exam_score')
         ).order_by('-total_score')
 
@@ -141,7 +141,7 @@ class LeaderboardService:
                 LeagueLeaderboardEntry(
                     leaderboard=leaderboard,
                     candidate_id=item['candidate_id'],
-                    candidate_competition_id=item['candidate_competition_id'],
+                    enrollment_id=item['enrollment_id'],
                     total_score=score,
                     overall_rank=current_rank
                 )

@@ -57,7 +57,7 @@ Provides a comprehensive overview for the student, including their notifications
     "access_status": "started" 
   },
   "performance_snapshot": {
-    "screening_standing": {
+    "screening_ranking": {
       "rank": 45,
       "total_candidates": 10230,
       "score": 88.5,
@@ -73,7 +73,7 @@ Provides a comprehensive overview for the student, including their notifications
       "as_of_round": 2,
       "is_active": true
     },
-    "final_standing": {
+    "final_ranking": {
       "rank": 5,
       "total_candidates": 50,
       "score": 95.0,
@@ -114,7 +114,7 @@ The `access_status` tracks the student's personal interaction with the exam:
 - `submitted`: Student has successfully handed in their answers.
 
 #### Performance Snapshot
-- `screening_standing` & `final_standing`: These are "one-off" results for the major entry and exit stages.
+- `screening_ranking` & `final_ranking`: These are "one-off" results for the major entry and exit stages.
 - `league_leaderboard`: This is a cumulative table that updates round-by-round. `is_active` indicates if the candidate currently has a finalized rank for the reported round.
 
 ---
@@ -143,7 +143,7 @@ Once submitted, the system automatically triggers a background scoring process. 
 
 1.  **Cache Invalidation**: The dashboard is cached for 1 hour by default. However, it is **automatically cleared** whenever:
     - A student submits an exam.
-    - Staff members publish new results/ranking_snapshot.
+    - Staff members publish new results/ranking.
     - A student's profile or status is updated.
 2.  **Grace Period**: Students have a **5-minute grace period** after their personal timer ends to account for network latency during submission.
 3.  **Result Visibility**: In the `exam_history`, the `score` and `percentage` will remain `null` until the staff officially publishes the results. This prevents students from seeing unverified or "leaked" scores before they are finalized.

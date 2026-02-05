@@ -240,7 +240,7 @@ class RankingSnapshot(models.Model):
     competition = models.ForeignKey(
         "competition.Competition",
         on_delete=models.PROTECT,
-        related_name="ranking_snapshots",
+        related_name="rankings",
     )
     stage = models.CharField(
         max_length=20,
@@ -293,12 +293,12 @@ class RankingSnapshot(models.Model):
             models.UniqueConstraint(
                 fields=["exam"],
                 condition=Q(exam__isnull=False),
-                name="unique_standings_per_exam",
+                name="unique_ranking_per_exam",
             ),
             models.UniqueConstraint(
                 fields=["competition", "stage", "round"],
                 condition=Q(is_published=True),
-                name="one_published_standings_per_stage_round",
+                name="one_published_ranking_per_stage_round",
             ),
         ]
         indexes = [
@@ -308,7 +308,7 @@ class RankingSnapshot(models.Model):
 
 class RankingSnapshotEntry(models.Model):
     """
-    A single candidate's standing within a specific Ranking Snapshot for an exam.
+    A single candidate's ranking within a specific Ranking Snapshot for an exam.
 
     This is the canonical table for that exam snapshot. It is authoritative
     for competition display and progression logic, but not for raw exam evaluation.
@@ -324,14 +324,14 @@ class RankingSnapshotEntry(models.Model):
     candidate = models.ForeignKey(
         "identity.Candidate",
         on_delete=models.CASCADE,
-        related_name="ranking_snapshot_entries",
+        related_name="ranking_entries",
     )
     enrollment = models.ForeignKey(
         "competition.Enrollment",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="ranking_snapshot_entries",
+        related_name="ranking_entries",
     )
     exam_score = models.DecimalField(
         max_digits=5,
@@ -361,7 +361,7 @@ class RankingSnapshotEntry(models.Model):
         verbose_name_plural = "Ranking Snapshot Entries"
         constraints = [
             models.UniqueConstraint(
-                fields=["ranking_snapshot", "candidate"], name="unique_candidate_per_ranking_snapshot"
+                fields=["ranking_snapshot", "candidate"], name="unique_candidate_per_ranking"
             ),
         ]
         indexes = [

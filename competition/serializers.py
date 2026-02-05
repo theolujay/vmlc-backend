@@ -203,7 +203,7 @@ class CompetitionDashboardExamSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
-    ranking_snapshot_status = serializers.CharField()
+    ranking_status = serializers.CharField()
 
 
     stats = serializers.DictField()
@@ -230,7 +230,7 @@ class CompetitionDashboardSerializer(serializers.Serializer):
     leaderboard_summary = serializers.ListField()
 
 
-    latest_ranking_snapshot_summary = serializers.DictField(allow_null=True)
+    latest_ranking_summary = serializers.DictField(allow_null=True)
 
 
 

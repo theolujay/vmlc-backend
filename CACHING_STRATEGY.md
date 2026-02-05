@@ -3,16 +3,16 @@
 This document defines the strategy for managing cache consistency across the VMLC backend, ensuring candidates and staff see up-to-date information without overloading the database.
 
 ## 1. Problem Statement
-Active competitions generate frequent data updates (exam submissions, ranking_snapshot, promotions). Using a static TTL (e.g., 24 hours) causes "Stale Data Drift" where a candidate might be promoted in the DB but see a "Screening" dashboard for hours.
+Active competitions generate frequent data updates (exam submissions, ranking, promotions). Using a static TTL (e.g., 24 hours) causes "Stale Data Drift" where a candidate might be promoted in the DB but see a "Screening" dashboard for hours.
 
 ## 2. Key Cache Groups
 
 | Group | Scope | Key Pattern | Main Dependency |
 | :--- | :--- | :--- | :--- |
-| **Candidate Dashboard** | Per User | `dash:cand:{uuid}` | `CandidateCompetition`, `Notification`, `ExamResult` |
-| **Staff Dashboard** | Global | `dash:staff:global` | All `CandidateCompetition`, `Exam` statuses |
+| **Candidate Dashboard** | Per User | `dash:cand:{uuid}` | `Enrollment`, `Notification`, `ExamResult` |
+| **Staff Dashboard** | Global | `dash:staff:global` | All `Enrollment`, `Exam` statuses |
 | **Leaderboards** | Per Stage | `lb:{stage}:{round}` | `RankingSnapshot`, `AggregateLeaderboard` |
-| **Participation** | Per User | `enrollment:{user_id}` | `CandidateCompetition` |
+| **Participation** | Per User | `enrollment:{user_id}` | `Enrollment` |
 
 ---
 
@@ -40,7 +40,7 @@ def invalidate_candidate_cache(candidate_id, user_id=None):
 ```
 
 ### B. Competition-Level Invalidation (Batch)
-When ranking_snapshot are published or candidates are promoted, large groups of users are affected.
+When ranking are published or candidates are promoted, large groups of users are affected.
 
 **Triggering Events:**
 - RankingSnapshot published (Clears all dashboards for that stage).
@@ -49,7 +49,7 @@ When ranking_snapshot are published or candidates are promoted, large groups of 
 
 **Implementation Logic:**
 - If 100 candidates are promoted, clear their individual caches via a background task to prevent request blocking.
-- Clear `dash:staff:global` whenever `CandidateCompetition` is saved or deleted.
+- Clear `dash:staff:global` whenever `Enrollment` is saved or deleted.
 
 ---
 

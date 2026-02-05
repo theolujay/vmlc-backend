@@ -4,7 +4,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from rest_framework_api_key.models import APIKey
 
-from identity.models import User, Candidate
+from identity.models import User, Candidate, Staff
 from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import Exam
 
@@ -94,3 +94,106 @@ class CandidateDashboardViewTest(APITestCase):
         # 2. Second call - should return 200 from cache
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class StaffCompetitionDashboardViewTest(APITestCase):
+    def setUp(self):
+        # Create API Key
+        self.api_key_obj, self.api_key = APIKey.objects.create_key(name="test-key")
+        self.client.credentials(HTTP_X_API_KEY=self.api_key)
+
+        # Create staff user
+        self.staff_user = User.objects.create_user(
+            email="staff@example.com",
+            password="SecurePass123!",
+            first_name="Staff",
+            last_name="User",
+            phone="+2348011111111",
+            state="Lagos"
+        )
+        self.staff_profile = Staff.objects.create(
+            user=self.staff_user,
+            occupation="Admin",
+            role=Staff.Roles.ADMIN
+        )
+        
+        # Authenticate as staff
+        self.client.force_authenticate(user=self.staff_user)
+        
+        # Create active competition
+        self.competition = Competition.objects.create(
+            name="Test Staff Comp",
+            edition=2,
+            status=Competition.Status.ACTIVE
+        )
+        
+        # Create Screening Stage
+        self.screening_stage = Stage.objects.create(
+            competition=self.competition,
+            type=Stage.Type.SCREENING,
+            order=1
+        )
+        
+        # Create League Stage
+        self.league_stage = Stage.objects.create(
+            competition=self.competition,
+            type=Stage.Type.LEAGUE,
+            order=2
+        )
+        
+        # Create a StageExam slot
+        self.stage_exam_screening = StageExam.objects.create(
+            competition_stage=self.screening_stage,
+            round=1,
+            is_active=True
+        )
+        
+        # Create an Exam
+        self.exam_screening = Exam.objects.create(
+            scheduled_date=timezone.now() + timezone.timedelta(days=1),
+            open_duration_hours=12,
+            competition_slot=self.stage_exam_screening,
+            is_active=True
+        )
+
+        # Create another StageExam slot for League
+        self.stage_exam_league = StageExam.objects.create(
+            competition_stage=self.league_stage,
+            round=1,
+            is_active=True
+        )
+
+        # Create another Exam for League
+        self.exam_league = Exam.objects.create(
+            scheduled_date=timezone.now() + timezone.timedelta(days=7), # Future date
+            open_duration_hours=12,
+            competition_slot=self.stage_exam_league,
+            is_active=True
+        )
+
+    def test_staff_dashboard_retrieval(self):
+        url = reverse("competition:staff-competition-dashboard")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.data
+        
+        # Verify top-level structure
+        self.assertIn("stats", data)
+        self.assertIn("progress", data)
+        self.assertIn("exams", data)
+        self.assertIn("leaderboard_summary", data)
+        self.assertIn("latest_ranking_summary", data)
+        
+        # Verify content of 'exams' list
+        self.assertTrue(len(data["exams"]) > 0)
+        first_exam = data["exams"][0]
+        self.assertIn("id", first_exam)
+        self.assertIn("title", first_exam)
+        self.assertIn("stage", first_exam)
+        self.assertIn("status", first_exam)
+        self.assertIn("ranking_status", first_exam) # Key that caused KeyError
+        self.assertIn("stats", first_exam)
+        
+        self.assertEqual(first_exam["id"], str(self.exam_screening.id))
+        self.assertEqual(first_exam["ranking_status"], "pending") # No snapshot created yet

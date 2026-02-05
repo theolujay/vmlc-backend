@@ -42,7 +42,7 @@ from competition.models import (
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
 )
-from competition.services.ranking_snapshot import RankingSnapshotGenerator
+from competition.services.ranking import RankingSnapshotGenerator
 from competition.services.leaderboard import LeaderboardService
 from competition.services.progression import ProgressionService
 
@@ -89,7 +89,7 @@ class Command(BaseCommand):
             days_ago=30  # Screening happened a month ago
         )
         self._generate_exam_results(screening_exam, Enrollment.objects.all(), staff_list)
-        self._finalize_ranking_snapshot(screening_exam, staff_list)
+        self._finalize_ranking(screening_exam, staff_list)
         
         # Promote top 80 to League
         self.stdout.write("Promoting top 80 candidates to League stage...")
@@ -116,7 +116,7 @@ class Command(BaseCommand):
                 status=Enrollment.Status.ACTIVE
             )
             self._generate_exam_results(league_exam, active_parts, staff_list)
-            self._finalize_ranking_snapshot(league_exam, staff_list, update_leaderboard=True)
+            self._finalize_ranking(league_exam, staff_list, update_leaderboard=True)
 
         # Promote top 20 to Final
         self.stdout.write("Promoting top 20 candidates to Final stage...")
@@ -140,7 +140,7 @@ class Command(BaseCommand):
             status=Enrollment.Status.ACTIVE
         )
         self._generate_exam_results(final_exam, active_parts_final, staff_list)
-        self._finalize_ranking_snapshot(final_exam, staff_list)
+        self._finalize_ranking(final_exam, staff_list)
 
         # 5. Ancillary Data
         self._create_pre_reg_and_events(candidates, staff_list)
@@ -359,19 +359,19 @@ class Command(BaseCommand):
                     selected_option=random.choice(["A", "B", "C", "D"]),
                 )
 
-    def _finalize_ranking_snapshot(self, exam, staff_pool, update_leaderboard=False):
+    def _finalize_ranking(self, exam, staff_pool, update_leaderboard=False):
         generator = RankingSnapshotGenerator(stage_exam_id=exam.competition_slot.id)
-        ranking_snapshot = generator.generate_and_save_ranking_snapshot(
+        ranking = generator.generate_and_save_ranking(
             published_by_staff_id=random.choice(staff_pool).pk
         )
-        ranking_snapshot.is_published = True
-        ranking_snapshot.published_at = timezone.now()
-        ranking_snapshot.save()
+        ranking.is_published = True
+        ranking.published_at = timezone.now()
+        ranking.save()
         
-        if update_leaderboard and ranking_snapshot.stage == Stage.Type.LEAGUE:
+        if update_leaderboard and ranking.stage == Stage.Type.LEAGUE:
             LeaderboardService.update_league_leaderboard(
-                competition_id=ranking_snapshot.competition_id,
-                as_of_round=ranking_snapshot.round
+                competition_id=ranking.competition_id,
+                as_of_round=ranking.round
             )
 
     def _create_pre_reg_and_events(self, candidates, staff_pool):

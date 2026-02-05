@@ -17,11 +17,11 @@ The `vmlc` app should remain primarily concerned with the definition, execution,
 
 *   **`vmlc.CandidateExamResult`**:
     *   **Keep as is**: This model correctly captures a candidate's raw performance on a specific exam. It serves as the primary source of truth for raw scores before they are transformed into `RankingSnapshot`.
-    *   **Relationship to `CandidateCompetition`**: `vmlc.CandidateExamResult` does *not* directly relate to `competition.CandidateCompetition`. Eligibility for an exam should be resolved by the `competition` app *before* the exam is presented to the candidate. `competition` will use `CandidateCompetition` to filter eligible participants for `RankingSnapshot` generation.
-    *   **Relationship to `RankingSnapshot`/`StandingsEntry`**: `vmlc.CandidateExamResult` is the *source* for `StandingsEntry` records. There is a 1-to-many relationship where one `CandidateExamResult` can inform one `StandingsEntry`. `StandingsEntry` will copy the `score` from `CandidateExamResult`.
+    *   **Relationship to `Enrollment`**: `vmlc.CandidateExamResult` does *not* directly relate to `competition.Enrollment`. Eligibility for an exam should be resolved by the `competition` app *before* the exam is presented to the candidate. `competition` will use `Enrollment` to filter eligible participants for `RankingSnapshot` generation.
+    *   **Relationship to `RankingSnapshot`/`RankingEntry`**: `vmlc.CandidateExamResult` is the *source* for `RankingEntry` records. There is a 1-to-many relationship where one `CandidateExamResult` can inform one `RankingEntry`. `RankingEntry` will copy the `score` from `CandidateExamResult`.
 
 *   **`vmlc.LeaderboardSnapshot` & `vmlc.CandidateExamResultSnapshot`**:
-    *   **Deprecate**: These models are superseded by `competition.RankingSnapshot`, `competition.StandingsEntry`, `competition.AggregateLeaderboard`, and `competition.AggregateLeaderboardEntry`. The logic for generating these JSON blobs should be migrated to populate the new structured models in `competition`.
+    *   **Deprecate**: These models are superseded by `competition.RankingSnapshot`, `competition.RankingEntry`, `competition.AggregateLeaderboard`, and `competition.AggregateLeaderboardEntry`. The logic for generating these JSON blobs should be migrated to populate the new structured models in `competition`.
 
 ### `vmlc.Exam` Competition-Awareness
 
@@ -39,12 +39,12 @@ Here's the proposed lifecycle, clearly delineating ownership and source of truth
 
 2.  **Competition Configuration & Exam Assignment (Competition)**
     *   **App Owner**: `competition`
-    *   **Source of Truth**: `competition.Competition`, `competition.Stage`, `competition.StageExam` (New Model - see below), `competition.CandidateCompetition`
+    *   **Source of Truth**: `competition.Competition`, `competition.Stage`, `competition.StageExam` (New Model - see below), `competition.Enrollment`
     *   **Description**: An admin links a `vmlc.Exam` to a specific `competition.Stage` and round, and configures eligibility rules.
 
 3.  **Candidate Eligibility Resolution (Competition)**
     *   **App Owner**: `competition`
-    *   **Source of Truth**: `competition.CandidateCompetition`, `competition.CandidateStageProgress`
+    *   **Source of Truth**: `competition.Enrollment`, `competition.CandidateStageProgress`
     *   **Description**: Based on competition rules, `competition` determines which `Candidate`s are eligible to take a specific `Exam` at a given time. This might involve updating `CandidateStageProgress` or a new `ExamAssignment` model.
 
 4.  **Exam Execution (VMLC)**
@@ -59,8 +59,8 @@ Here's the proposed lifecycle, clearly delineating ownership and source of truth
 
 6.  **RankingSnapshot Generation (Competition)**
     *   **App Owner**: `competition`
-    *   **Source of Truth**: `competition.RankingSnapshot`, `competition.StandingsEntry`
-    *   **Description**: An admin manually initiates the "Generate RankingSnapshot" process for a specific `competition.StageExam`. A `competition` service fetches finalized `vmlc.CandidateExamResult`s for that exam, applies competition-specific rules (e.g., active candidates only), ranks them, and populates `RankingSnapshot` and `StandingsEntry`. This is an **immutable snapshot**.
+    *   **Source of Truth**: `competition.RankingSnapshot`, `competition.RankingEntry`
+    *   **Description**: An admin manually initiates the "Generate RankingSnapshot" process for a specific `competition.StageExam`. A `competition` service fetches finalized `vmlc.CandidateExamResult`s for that exam, applies competition-specific rules (e.g., active candidates only), ranks them, and populates `RankingSnapshot` and `RankingEntry`. This is an **immutable snapshot**.
 
 7.  **Admin Publish RankingSnapshot (Competition)**
     *   **App Owner**: `competition`
@@ -77,11 +77,11 @@ Here's the proposed lifecycle, clearly delineating ownership and source of truth
 This should be implemented as a service object or function within `competition.services`.
 
 ```python
-# competition/services/standings_generator.py
+# competition/services/ranking_generator.py
 
 from django.db import transaction
 from competition.models import (
-    Competition, Stage, StageExam, CandidateCompetition, RankingSnapshot, StandingsEntry
+    Competition, Stage, StageExam, Enrollment, RankingSnapshot, RankingEntry
 )
 from vmlc.models import Exam, CandidateExamResult # Source for raw scores
 
@@ -90,7 +90,7 @@ class RankingSnapshotGenerationError(Exception):
 
 class RankingSnapshotGenerator:
     """
-    Service to generate immutable RankingSnapshot and StandingsEntry records
+    Service to generate immutable RankingSnapshot and RankingEntry records
     for a given exam within a competition stage.
     """
 
@@ -103,7 +103,7 @@ class RankingSnapshotGenerator:
         self.exam = self.stage_exam.vmlc_exam
 
     @transaction.atomic
-    def generate_and_save_standings(
+    def generate_and_save_ranking(
         self,
         ranking_policy: str = 'dense_rank', # e.g., 'dense_rank', 'sequential_rank'
         tie_break_strategy: str = 'submission_time_asc', # e.g., 'submission_time_asc', 'random'
@@ -111,7 +111,7 @@ class RankingSnapshotGenerator:
         published_by_staff_id: uuid.UUID = None
     ) -> RankingSnapshot:
         """
-        Generates RankingSnapshot and StandingsEntry records from exam results.
+        Generates RankingSnapshot and RankingEntry records from exam results.
 
         Args:
             ranking_policy: Defines how ranks are assigned (e.g., 'dense_rank').
@@ -134,9 +134,9 @@ class RankingSnapshotGenerator:
 
         # 2. Identify all eligible candidates for this stage/exam
         eligible_candidate_ids = set(
-            CandidateCompetition.objects.filter(
+            Enrollment.objects.filter(
                 competition=self.competition,
-                status=CandidateCompetition.Status.ACTIVE # Only active participants
+                status=Enrollment.Status.ACTIVE # Only active participants
             ).values_list('candidate_id', flat=True)
         )
 
@@ -170,7 +170,7 @@ class RankingSnapshotGenerator:
             reverse=True # Higher score first, then earlier submission time
         )
 
-        standings_entries_to_create = []
+        ranking_entries_to_create = []
         previous_score = None
         current_rank = 0
         for idx, (candidate_id, data) in enumerate(sorted_candidates):
@@ -178,13 +178,13 @@ class RankingSnapshotGenerator:
             if score != previous_score:
                 current_rank = idx + 1 # Dense rank
             
-            # Find CandidateCompetition for FK
-            enrollment = CandidateCompetition.objects.filter(
+            # Find Enrollment for FK
+            enrollment = Enrollment.objects.filter(
                 candidate_id=candidate_id, competition=self.competition
             ).first() # Should always exist if in eligible_candidate_ids
 
-            standings_entries_to_create.append(
-                StandingsEntry(
+            ranking_entries_to_create.append(
+                RankingEntry(
                     candidate_id=candidate_id,
                     enrollment=enrollment,
                     exam_score=score,
@@ -196,7 +196,7 @@ class RankingSnapshotGenerator:
             previous_score = score
 
         # 5. Create RankingSnapshot record
-        ranking_snapshot = RankingSnapshot.objects.create(
+        ranking = RankingSnapshot.objects.create(
             competition=self.competition,
             stage=self.stage.type, # Use the string type, as RankingSnapshot takes string
             round=self.stage_exam.round_number, # Assuming StageExam has round_number
@@ -206,18 +206,18 @@ class RankingSnapshotGenerator:
             # data_json is for denormalized export, not internal use. Leave blank.
         )
         
-        # Assign ranking_snapshot to entries and bulk create
-        for entry in standings_entries_to_create:
-            entry.ranking_snapshot = ranking_snapshot
-        StandingsEntry.objects.bulk_create(standings_entries_to_create)
+        # Assign ranking to entries and bulk create
+        for entry in ranking_entries_to_create:
+            entry.ranking_snapshot = ranking
+        RankingEntry.objects.bulk_create(ranking_entries_to_create)
 
-        return ranking_snapshot
+        return ranking
 
     def _validate_preconditions(self):
-        """Internal validation before generating ranking_snapshot."""
+        """Internal validation before generating ranking."""
         if not self.exam.status == Exam.Status.CONCLUDED:
             raise RankingSnapshotGenerationError(f"Exam {self.exam.id} is not yet concluded.")
-        # Add more validation, e.g., ensure no existing published ranking_snapshot for this stage_exam
+        # Add more validation, e.g., ensure no existing published ranking for this stage_exam
 
 ```
 
@@ -231,11 +231,11 @@ class RankingSnapshotGenerator:
 *   **Tie-breaking**: For candidates with identical scores and thus identical ranks, an optional tie-breaker (e.g., `recorded_at` for `CandidateExamResult`) can be applied to determine their display order within that rank. `submission_time_asc` is the default.
 
 **Handling Absentees:**
-*   Candidates who are `ACTIVE` in `CandidateCompetition` for the relevant `Competition` but do not have a `CandidateExamResult` for the specific `Exam` will be assigned `absentee_score` (defaulting to 0.0) and will appear in the ranking_snapshot. Their `recorded_at` will be `None`.
+*   Candidates who are `ACTIVE` in `Enrollment` for the relevant `Competition` but do not have a `CandidateExamResult` for the specific `Exam` will be assigned `absentee_score` (defaulting to 0.0) and will appear in the ranking. Their `recorded_at` will be `None`.
 
 **Failure Modes & Invariants:**
 *   **Failure**: If `exam` is not concluded, or if required related objects are missing, `RankingSnapshotGenerationError` is raised.
-*   **Invariant**: `RankingSnapshot` and `StandingsEntry` are immutable once created. Any change requires generating *new* ranking_snapshot and marking the old one as superseded (e.g., an `is_superseded` flag on `RankingSnapshot` could be added if re-running is a frequent requirement).
+*   **Invariant**: `RankingSnapshot` and `RankingEntry` are immutable once created. Any change requires generating *new* ranking and marking the old one as superseded (e.g., an `is_superseded` flag on `RankingSnapshot` could be added if re-running is a frequent requirement).
 *   **Invariant**: Raw exam results (`vmlc.CandidateExamResult`) are *never* mutated by this process.
 
 ## 4. What NOT to Do
@@ -249,7 +249,7 @@ class RankingSnapshotGenerator:
     *   **Database write operations without transaction management**: Complex updates spanning multiple models should be encapsulated in services, ensuring atomicity via transactions.
 
 *   **Data that should NOT be denormalized**:
-    *   **Dynamic calculated values**: Values that can be reliably calculated from canonical sources should generally not be denormalized. Example: `StandingsEntry.percentile` is likely better calculated dynamically from `StandingsEntry.rank` and the total number of entries, rather than stored. However, `exam_score` *is* denormalized in `StandingsEntry` because it's enrollment of the immutable snapshot and protects against retroactive changes to the source `CandidateExamResult`.
+    *   **Dynamic calculated values**: Values that can be reliably calculated from canonical sources should generally not be denormalized. Example: `RankingEntry.percentile` is likely better calculated dynamically from `RankingEntry.rank` and the total number of entries, rather than stored. However, `exam_score` *is* denormalized in `RankingEntry` because it's enrollment of the immutable snapshot and protects against retroactive changes to the source `CandidateExamResult`.
 
 ## 5. New Models or Services to Consider
 
@@ -298,13 +298,13 @@ class StageExam(models.Model):
 
 ### Service: `CompetitionEligibilityService`
 *   **Purpose**: Determines which `Candidate`s are eligible to take a specific `StageExam`.
-*   **Justification**: Centralizes complex eligibility rules (e.g., "must have passed Screening," "not eliminated," "is active in competition"). Can query `CandidateCompetition` and `CandidateStageProgress`.
+*   **Justification**: Centralizes complex eligibility rules (e.g., "must have passed Screening," "not eliminated," "is active in competition"). Can query `Enrollment` and `CandidateStageProgress`.
 *   **Example Usage**: `eligibility_service.is_eligible(candidate, stage_exam) -> bool` or `eligibility_service.get_eligible_candidates(stage_exam) -> QuerySet[Candidate]`.
 
 ### Service: `CompetitionProgressionService`
 *   **Purpose**: Manages the advancement or elimination of candidates between stages.
-*   **Justification**: Based on `RankingSnapshot` results and `Stage` rules, this service updates `CandidateStageProgress` and `CandidateCompetition` (e.g., changing status from `ACTIVE` to `ELIMINATED`).
-*   **Example Usage**: `progression_service.process_stage_results(standings_id)`.
+*   **Justification**: Based on `RankingSnapshot` results and `Stage` rules, this service updates `CandidateStageProgress` and `Enrollment` (e.g., changing status from `ACTIVE` to `ELIMINATED`).
+*   **Example Usage**: `progression_service.process_stage_results(ranking_id)`.
 
 ## 6. Migration & Incremental Adoption
 
@@ -365,6 +365,6 @@ Given that no production leaderboard data exists yet, this is an opportune time 
 
 3.  **Deprecate Old Logic**: Remove calls to `generate_leaderboard_snapshot_task` and `generate_results_snapshot_task` from `vmlc/tasks.py` and `vmlc/utils/functions.py`. The `vmlc.LeaderboardSnapshot` and `vmlc.CandidateExamResultSnapshot` models can be removed after confirming no other parts of the system rely on them directly (or keep them for a transition period but stop writing to them).
 
-4.  **Admin UI/API Integration**: Update Django Admin or API endpoints to use the new `competition` models and services for managing exams within competition stages and publishing ranking_snapshot. The "Publish RankingSnapshot" and "Generate RankingSnapshot" actions would be exposed here.
+4.  **Admin UI/API Integration**: Update Django Admin or API endpoints to use the new `competition` models and services for managing exams within competition stages and publishing ranking. The "Publish RankingSnapshot" and "Generate RankingSnapshot" actions would be exposed here.
 
 By following this approach, `vmlc` becomes a cleaner, more focused exam engine, and `competition` gains robust, auditable structures for managing competition results and leaderboards. This makes the system "boringly correct" and ready for future extensions like external facilitator integration.

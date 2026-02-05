@@ -18,7 +18,7 @@ class RankingSnapshotGenerationError(Exception):
 
 class RankingSnapshotGenerator:
     """
-    Service to generate immutable RankingSnapshot and StandingsEntry records
+    Service to generate immutable RankingSnapshot and RankingEntry records
     for a given exam within a competition stage.
     """
 
@@ -31,7 +31,7 @@ class RankingSnapshotGenerator:
         self.exam = self.stage_exam.exam
 
     @transaction.atomic
-    def generate_and_save_standings(
+    def generate_and_save_ranking(
         self,
         ranking_policy: str = "dense_rank",  # e.g., 'dense_rank', 'sequential_rank'
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
@@ -39,7 +39,7 @@ class RankingSnapshotGenerator:
         published_by_staff_id: uuid.UUID = None,
     ) -> RankingSnapshot:
         """
-        Generates RankingSnapshot and StandingsEntry records from exam results.
+        Generates RankingSnapshot and RankingEntry records from exam results.
 
         Args:
             ranking_policy: Defines how ranks are assigned (e.g., 'dense_rank').
@@ -55,7 +55,7 @@ class RankingSnapshotGenerator:
         """
         self._validate_preconditions()
 
-        # Perform auto-scoring for all submissions before generating ranking_snapshot
+        # Perform auto-scoring for all submissions before generating ranking
         from vmlc.utils.functions import compute_exam_results
         compute_exam_results(self.exam.id)
 
@@ -119,7 +119,7 @@ class RankingSnapshotGenerator:
             reverse=True,  # Higher score first, then earlier submission time
         )
 
-        ranking_snapshot_entries_to_create = []
+        ranking_entries_to_create = []
         previous_score = None
         current_rank = 0
         for idx, (candidate_id, data) in enumerate(sorted_candidates):
@@ -127,12 +127,12 @@ class RankingSnapshotGenerator:
             if score != previous_score:
                 current_rank = idx + 1  # Dense rank
 
-            # Find CandidateCompetition for FK
+            # Find Enrollment for FK
             enrollment = Enrollment.objects.filter(
                 candidate_id=candidate_id, competition=self.competition
             ).first()  # Should always exist if in eligible_candidate_ids
 
-            ranking_snapshot_entries_to_create.append(
+            ranking_entries_to_create.append(
                 RankingSnapshotEntry(
                     candidate_id=candidate_id,
                     enrollment=enrollment,
@@ -145,16 +145,16 @@ class RankingSnapshotGenerator:
             # the following applies skips for ties. E.g. [..., 5, 5, 7, ...]
             # current_rank = idx + 1
 
-        # Attempt to get existing ranking_snapshot for this exam with lock to prevent race conditions
+        # Attempt to get existing ranking for this exam with lock to prevent race conditions
         try:
-            existing_standings = RankingSnapshot.objects.select_for_update().get(exam=self.exam)
+            existing_ranking = RankingSnapshot.objects.select_for_update().get(exam=self.exam)
             # If found, delete it and its entries to ensure a clean regeneration
-            existing_standings.delete()
+            existing_ranking.delete()
         except RankingSnapshot.DoesNotExist:
-            pass  # No existing ranking_snapshot, proceed with creation
+            pass  # No existing ranking, proceed with creation
 
         # Create RankingSnapshot record
-        ranking_snapshot = RankingSnapshot.objects.create(
+        ranking = RankingSnapshot.objects.create(
             competition=self.competition,
             stage=self.stage.type,
             round=self.stage_exam.round,
@@ -167,10 +167,10 @@ class RankingSnapshotGenerator:
             },
         )
 
-        # Assign ranking_snapshot to entries and bulk create
-        for entry in ranking_snapshot_entries_to_create:
-            entry.ranking_snapshot = ranking_snapshot
-        RankingSnapshotEntry.objects.bulk_create(ranking_snapshot_entries_to_create)
+        # Assign ranking to entries and bulk create
+        for entry in ranking_entries_to_create:
+            entry.ranking_snapshot = ranking
+        RankingSnapshotEntry.objects.bulk_create(ranking_entries_to_create)
 
         # Invalidate Caches
         from vmlc.v2.utils import (
@@ -183,19 +183,19 @@ class RankingSnapshotGenerator:
         exam_id = self.exam.id
         candidate_ids = list(candidate_scores.keys())
         
-        def clear_standings_cache():
+        def clear_ranking_cache():
             invalidate_staff_dashboard()
             invalidate_league_leaderboard()
             invalidate_exam_cache(exam_id)
             for cand_id in candidate_ids:
                 invalidate_candidate_cache(cand_id)
-        transaction.on_commit(clear_standings_cache)
+        transaction.on_commit(clear_ranking_cache)
 
-        return ranking_snapshot
+        return ranking
 
 
     def _validate_preconditions(self):
-        """Internal validation before generating ranking_snapshot."""
+        """Internal validation before generating ranking."""
         if not self.exam.status == Exam.Status.CONCLUDED:
             raise RankingSnapshotGenerationError(f"Exam {self.exam.id} is not yet concluded.")
-        # TODO: Add more validation, e.g., ensure no existing published ranking_snapshot for this stage_exam
+        # TODO: Add more validation, e.g., ensure no existing published ranking for this stage_exam

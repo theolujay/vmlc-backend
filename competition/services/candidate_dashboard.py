@@ -158,7 +158,7 @@ class CandidateDashboardService:
 
         total_rounds = slots.count()
 
-        # Published ranking_snapshot in current stage
+        # Published ranking in current stage
         published_rounds = RankingSnapshot.objects.filter(
             competition=active_comp, stage=current_stage.type, is_published=True
         ).count()
@@ -287,12 +287,12 @@ class CandidateDashboardService:
                         active_exam_data = exam_data
 
                 elif status == Exam.Status.CONCLUDED and has_participated:
-                    # Check if ranking_snapshot are published
-                    standing = RankingSnapshot.objects.filter(
+                    # Check if ranking are published
+                    ranking = RankingSnapshot.objects.filter(
                         exam=exam, is_published=True
                     ).first()
 
-                    is_published = standing is not None
+                    is_published = ranking is not None
 
                     if not active_exam_data:
                         active_exam_data = {
@@ -313,9 +313,9 @@ class CandidateDashboardService:
         candidate: Candidate, active_comp: Optional[Competition]
     ) -> Dict[str, Any]:
         snapshot = {
-            "screening_standing": None,
+            "screening_ranking": None,
             "league_leaderboard": None,
-            "final_standing": None,
+            "final_ranking": None,
         }
 
         if not active_comp:
@@ -344,9 +344,9 @@ class CandidateDashboardService:
             }
 
             if stage_type == Stage.Type.SCREENING:
-                snapshot["screening_standing"] = data
+                snapshot["screening_ranking"] = data
             elif stage_type == Stage.Type.FINAL:
-                snapshot["final_standing"] = data
+                snapshot["final_ranking"] = data
 
         # 2. League Leaderboard
         from competition.services.leaderboard import LeaderboardService
@@ -383,7 +383,7 @@ class CandidateDashboardService:
             .order_by("-recorded_at")
         )
 
-        # Prefetch published ranking_snapshot to avoid N+1
+        # Prefetch published ranking to avoid N+1
         published_exam_ids = set(
             RankingSnapshot.objects.filter(
                 exam_id__in=[res.exam_id for res in results],

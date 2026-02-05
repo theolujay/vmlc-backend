@@ -10,7 +10,7 @@ def invalidate_exam_related_caches_task(exam_id):
     Invalidates caches related to a specific exam, including candidate dashboards.
     """
     from vmlc.models import Exam
-    from competition.models import CandidateCompetition
+    from competition.models import Enrollment
     from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard
 
     try:
@@ -29,7 +29,7 @@ def invalidate_exam_related_caches_task(exam_id):
     if exam.competition_slot and exam.competition_slot.competition_stage:
         competition = exam.competition_slot.competition_stage.competition
 
-        candidates = CandidateCompetition.objects.filter(
+        candidates = Enrollment.objects.filter(
             competition=competition
         ).values_list("candidate_id", "candidate__user_id")
 

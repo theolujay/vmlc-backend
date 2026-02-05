@@ -354,6 +354,7 @@ CELERY_TASK_IGNORE_RESULT = False
 # ============================================================================
 # FILE UPLOAD AND MISC SETTINGS
 # ============================================================================
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
     read_secret("DATA_UPLOAD_MAX_MEMORY_SIZE", 2 * 1024 * 1024)
 )

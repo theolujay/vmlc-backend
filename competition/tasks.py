@@ -5,14 +5,14 @@ from django.utils import timezone
 from django.db import transaction
 from celery import shared_task
 
-from competition.services.ranking_snapshot import RankingSnapshotGenerator, RankingSnapshotGenerationError
+from competition.services.ranking import RankingSnapshotGenerator, RankingSnapshotGenerationError
 from competition.services.leaderboard import LeaderboardService
 from competition.models import RankingSnapshot, Stage
 
 logger = logging.getLogger(__name__)
 
-@shared_task(name="generate_ranking_snapshot_task")
-def generate_ranking_snapshot_task(stage_exam_id, publish_now=False, staff_id=None):
+@shared_task(name="generate_ranking_task")
+def generate_ranking_task(stage_exam_id, publish_now=False, staff_id=None):
     """
     Celery task to generate (and optionally publish) ranking snapshot for a stage exam.
     """
@@ -24,32 +24,32 @@ def generate_ranking_snapshot_task(stage_exam_id, publish_now=False, staff_id=No
         if staff_id and isinstance(staff_id, str):
             staff_id = uuid.UUID(staff_id)
             
-        ranking_snapshot = generator.generate_and_save_ranking_snapshot(
+        ranking = generator.generate_and_save_ranking(
             published_by_staff_id=staff_id
         )
         
         if publish_now:
-            # Enforce the 'one_published_ranking_snapshot_per_stage_round' constraint by
+            # Enforce the 'one_published_ranking_per_stage_round' constraint by
             # unpublishing any other ranking snapshot for the same stage/round.
             with transaction.atomic():
                 RankingSnapshot.objects.filter(
-                    competition=ranking_snapshot.competition,
-                    stage=ranking_snapshot.stage,
-                    round=ranking_snapshot.round,
+                    competition=ranking.competition,
+                    stage=ranking.stage,
+                    round=ranking.round,
                     is_published=True
-                ).exclude(id=ranking_snapshot.id).update(is_published=False, published_at=None)
+                ).exclude(id=ranking.id).update(is_published=False, published_at=None)
 
-                ranking_snapshot.is_published = True
-                ranking_snapshot.published_at = timezone.now()
-                ranking_snapshot.save(update_fields=["is_published", "published_at"])
+                ranking.is_published = True
+                ranking.published_at = timezone.now()
+                ranking.save(update_fields=["is_published", "published_at"])
                 
             logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated and published.")
             
             # Trigger leaderboard update if it's a league exam
-            if ranking_snapshot.stage == Stage.Type.LEAGUE:
+            if ranking.stage == Stage.Type.LEAGUE:
                 update_leaderboard_task.delay(
-                    competition_id=str(ranking_snapshot.competition_id),
-                    as_of_round=ranking_snapshot.round
+                    competition_id=str(ranking.competition_id),
+                    as_of_round=ranking.round
                 )
         else:
             logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated (unpublished).")

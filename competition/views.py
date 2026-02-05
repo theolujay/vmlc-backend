@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
+    ActiveModeratorPermissions,
+    ActiveParticipantPermissions,
     ActiveVolunteerPermissions,
     CandidatePermissions,
     IsLeagueParticipantOrStaff
@@ -22,7 +24,7 @@ from competition.serializers import (
     CompetitionDashboardSerializer,
     PromoteCandidatesSerializer
 )
-from competition.tasks import generate_ranking_snapshot_task
+from competition.tasks import generate_ranking_task
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import StaffCompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
@@ -110,7 +112,7 @@ class PublishRankingSnapshotView(APIView):
         if hasattr(request.user, 'staff_profile'):
              staff_id = str(request.user.staff_profile.pk)
 
-        generate_ranking_snapshot_task.delay(
+        generate_ranking_task.delay(
             stage_exam_id=str(stage_exam_id),
             publish_now=publish_now,
             staff_id=staff_id
@@ -133,7 +135,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         'entries__candidate__user'
     ).all()
     serializer_class = RankingSnapshotSerializer
-    permission_classes = ActiveAdminPermissions
+    permission_classes = ActiveParticipantPermissions or ActiveModeratorPermissions
     lookup_field = 'exam_id'
 
     def get(self, request, *args, **kwargs):

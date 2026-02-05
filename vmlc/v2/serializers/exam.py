@@ -65,7 +65,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
             "updated_by",
             "stage_id",
             "round",
-            "ranking_snapshot",
+            "ranking",
         ]
         read_only_fields = [
             "id",
@@ -84,16 +84,16 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     stage_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     round = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     stage = serializers.ReadOnlyField()
-    ranking_snapshot = serializers.SerializerMethodField()
+    ranking = serializers.SerializerMethodField()
 
-    def get_ranking_snapshot(self, obj):
+    def get_ranking(self, obj):
         from competition.models import RankingSnapshot
-        ranking_snapshot = RankingSnapshot.objects.filter(exam=obj).first()
+        ranking = RankingSnapshot.objects.filter(exam=obj).first()
         return {
-            "exists": ranking_snapshot is not None,
-            "is_published": ranking_snapshot.is_published if ranking_snapshot else False,
-            "created_at": ranking_snapshot.created_at if ranking_snapshot else None,
-            "published_at": ranking_snapshot.published_at if ranking_snapshot else None,
+            "exists": ranking is not None,
+            "is_published": ranking.is_published if ranking else False,
+            "created_at": ranking.created_at if ranking else None,
+            "published_at": ranking.published_at if ranking else None,
         }
 
     def get_title(self, obj):

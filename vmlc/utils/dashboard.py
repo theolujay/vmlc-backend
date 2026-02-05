@@ -105,7 +105,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             if candidate.role == "league"
             else None
         ),
-        "screening_ranking_snapshot_ranking": (
+        "screening_ranking": (
             {
                 "current_rank": screening_rank,
                 "position": screening_rank,

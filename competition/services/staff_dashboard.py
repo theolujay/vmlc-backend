@@ -88,11 +88,11 @@ class StaffCompetitionDashboardService:
                 avg=Avg('score')
             )
             
-            # check ranking_snapshot status
-            ranking_snapshot = RankingSnapshot.objects.filter(exam=exam).first()
-            standings_status = "pending"
-            if ranking_snapshot:
-                standings_status = "published" if ranking_snapshot.is_published else "ready"
+            # check ranking status
+            ranking = RankingSnapshot.objects.filter(exam=exam).first()
+            ranking_status = "pending"
+            if ranking:
+                ranking_status = "published" if ranking.is_published else "ready"
 
             # TODO: calculate absent count when eligibility logic is adequate
             # For now, keep it simple as per SAT stats
@@ -102,7 +102,7 @@ class StaffCompetitionDashboardService:
                 "title": str(exam),
                 "stage": slot.competition_stage.type,
                 "status": curr_status,
-                "standings_status": standings_status,
+                "ranking_status": ranking_status,
                 "stats": {
                     "candidates_sat": res_stats['sat'],
                     "avg_score": truncate_float(avg_score)
@@ -120,18 +120,18 @@ class StaffCompetitionDashboardService:
             ).data
 
         # Latest RankingSnapshot Summary (Top 3)
-        latest_standings_summary = None
-        latest_published_standings = RankingSnapshot.objects.filter(
+        latest_ranking_summary = None
+        latest_published_ranking = RankingSnapshot.objects.filter(
             competition=active_comp,
             is_published=True
         ).select_related('exam').order_by('-published_at', '-created_at').first()
 
-        if latest_published_standings:
-            entries = latest_published_standings.entries.select_related('candidate__user').order_by('rank')[:3]
+        if latest_published_ranking:
+            entries = latest_published_ranking.entries.select_related('candidate__user').order_by('rank')[:3]
             from competition.serializers import RankingSnapshotEntrySerializer
-            latest_standings_summary = {
-                "exam_id": latest_published_standings.exam_id,
-                "exam_title": str(latest_published_standings.exam),
+            latest_ranking_summary = {
+                "exam_id": latest_published_ranking.exam_id,
+                "exam_title": str(latest_published_ranking.exam),
                 "entries": RankingSnapshotEntrySerializer(entries, many=True).data
             }
 
@@ -140,5 +140,5 @@ class StaffCompetitionDashboardService:
             "progress": progress,
             "exams": exams_list,
             "leaderboard_summary": leaderboard_summary_data,
-            "latest_standings_summary": latest_standings_summary
+            "latest_ranking_summary": latest_ranking_summary
         }

@@ -37,7 +37,7 @@ Already existing in `vmlc/v2/views/exam.py`, but needs the following upgrades:
 ### A. Serializer Upgrades (`vmlc/v2/serializers/exam.py`)
 - **Automatic Slotting**: Improve `_handle_competition_slot` to better support the `StageExam` model.
 - **Validation**: Strict validation to prevent editing `CONCLUDED` or `ONGOING` exams.
-- **RankingSnapshot Integration**: Directly show if ranking_snapshot are generated/published.
+- **RankingSnapshot Integration**: Directly show if ranking are generated/published.
 
 ### B. View Upgrades (`vmlc/v2/views/exam.py`)
 - **Caching**: Wrap all `list()` and `retrieve()` calls in `get_or_set_cache`.

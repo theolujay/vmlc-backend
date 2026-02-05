@@ -50,7 +50,7 @@ Exam.objects.filter(stage=self.role, is_active=True)
 **Proposed Logic (Optimized):**
 The availability of an exam should be determined by the candidate's **active enrollment** in a **current stage** of an **active competition**.
 
-1.  **Fetch Context**: Query `CandidateCompetition` to find the active enrollment for the candidate.
+1.  **Fetch Context**: Query `Enrollment` to find the active enrollment for the candidate.
     *   *Check*: `competition.status == ACTIVE`
     *   *Check*: `participant.status == ACTIVE` (Handles disqualification/elimination automatically).
 2.  **Identify Stage**: Use `participant.current_stage`.
@@ -61,10 +61,10 @@ The availability of an exam should be determined by the candidate's **active enr
 ```python
 def get_available_exams(candidate):
     # 1. Get active context
-    enrollment = CandidateCompetition.objects.filter(
+    enrollment = Enrollment.objects.filter(
         candidate=candidate,
         competition__status=Competition.Status.ACTIVE,
-        status=CandidateCompetition.Status.ACTIVE
+        status=Enrollment.Status.ACTIVE
     ).select_related('current_stage').first()
 
     if not enrollment or not enrollment.current_stage:
@@ -98,11 +98,11 @@ Aggregates `CandidateExamResult` and uses `CandidateExamResultSnapshot` for rank
 1.  **History**: Query `CandidateExamResult` but join with `competition.StageExam` to infer which stage/round the exam belonged to at the time.
 2.  **Ranking**: 
     *   For **League**: Delegate to `competition.services.LeaderboardService` to fetch the `AggregateLeaderboardEntry`.
-    *   For **Screening/Final**: Query `competition.StandingsEntry` for specific exam snapshots.
+    *   For **Screening/Final**: Query `competition.RankingEntry` for specific exam snapshots.
 
 ## 4. Benefits
 
-1.  **Granular Control**: A candidate can be in the "League" role but effectively "Eliminated" in the `CandidateCompetition` model. The new logic respects this immediately (no available exams) without changing the user's global role.
+1.  **Granular Control**: A candidate can be in the "League" role but effectively "Eliminated" in the `Enrollment` model. The new logic respects this immediately (no available exams) without changing the user's global role.
 2.  **Separation of Concerns**: `identity` models remain lightweight. `vmlc` handles content. `competition` handles rules.
 3.  **Scalability**: We can run multiple competitions or test-runs simultaneously. The legacy logic (`stage=candidate.role`) assumes a single global context. The new logic finds the *specific* active competition context.
 

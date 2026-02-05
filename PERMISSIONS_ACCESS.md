@@ -8,7 +8,7 @@ This document outlines the improvements made to the candidate journey, automatio
 **Location**: `vmlc/v2/serializers/registration.py`
 
 Candidates are now automatically enrolled in the `ACTIVE` competition upon registration. 
-- A `CandidateCompetition` record is created (the existence of this record implies enrollment).
+- A `Enrollment` record is created (the existence of this record implies enrollment).
 - The candidate is placed in the first available `Stage` (usually Screening).
 - A `CandidateStageProgress` record is initialized as `IN_PROGRESS`.
 
@@ -16,7 +16,7 @@ Candidates are now automatically enrolled in the `ACTIVE` competition upon regis
 **Location**: `identity/middleware.py`
 
 The `CompetitionContextMiddleware` has been implemented and registered in `config/settings/base.py`. 
-- It attaches `request.enrollment` (the candidate's active `CandidateCompetition` record) to every request.
+- It attaches `request.enrollment` (the candidate's active `Enrollment` record) to every request.
 - This eliminates redundant database queries in views and permission classes.
 
 ### C. Competition-Aware Permissions
@@ -40,7 +40,7 @@ A `ProgressionService` and `PromoteCandidatesView` have been implemented to allo
 ## 2. Updated Candidate Journey Overview
 
 1.  **Registration**: `RegistrationV2View` -> Creates `User`, `Candidate`, and **auto-enrolls** in `Competition`.
-2.  **Screening**: Candidate takes Screening exams. Staff publishes ranking_snapshot.
+2.  **Screening**: Candidate takes Screening exams. Staff publishes ranking.
 3.  **Promotion (Staff Action)**: Staff calls `/api/v1/competition/promote/` with `from_stage="screening", to_stage="league", cutoff_rank=100`.
 4.  **League**: Candidate's `current_stage` is now `league`. Their API access to league resources is **automatically unlocked** via `IsInStage('league')`.
 5.  **Final**: Process repeats for the Final stage.
@@ -57,6 +57,6 @@ A `ProgressionService` and `PromoteCandidatesView` have been implemented to allo
 
 2.  **UI Integration**: The "Promote Candidates" action should be exposed in the Staff Dashboard UI, perhaps with a "Simulate Promotion" feature to see who would make the cut before finalizing.
 
-3.  **Automated Promotion Policy**: Consider adding a "Finalize and Promote" checkbox to the `PublishStandingsView` to combine these steps for the final round of a stage.
+3.  **Automated Promotion Policy**: Consider adding a "Finalize and Promote" checkbox to the `PublishRankingView` to combine these steps for the final round of a stage.
 
 4.  **Notification**: [COMPLETED] Candidates now receive platform notifications when they are promoted or eliminated via `ProgressionService`.

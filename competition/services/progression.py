@@ -64,11 +64,11 @@ class ProgressionService:
                     # Calculate total enrollments to apply percentage
                     total_enrollments = 0
                     if from_stage_type == Stage.Type.SCREENING:
-                        ranking_snapshot = RankingSnapshot.objects.filter(
+                        ranking = RankingSnapshot.objects.filter(
                             competition=competition, stage=Stage.Type.SCREENING, is_published=True
                         ).order_by('-published_at').first()
-                        if ranking_snapshot:
-                            total_enrollments = ranking_snapshot.entries.count()
+                        if ranking:
+                            total_enrollments = ranking.entries.count()
                     elif from_stage_type == Stage.Type.LEAGUE:
                         leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
                         if leaderboard:
@@ -96,20 +96,20 @@ class ProgressionService:
         candidate_ids_to_eliminate = []
         
         if from_stage_type == Stage.Type.SCREENING:
-            ranking_snapshot = RankingSnapshot.objects.filter(
+            ranking = RankingSnapshot.objects.filter(
                 competition=competition, 
                 stage=Stage.Type.SCREENING, 
                 is_published=True
             ).order_by('-published_at').first()
             
-            if not ranking_snapshot:
+            if not ranking:
                 raise ProgressionError("No published Screening ranking snapshot found.")
             
-            candidate_ids_to_promote = list(ranking_snapshot.entries.filter(
+            candidate_ids_to_promote = list(ranking.entries.filter(
                 rank__lte=cutoff_rank
             ).values_list('candidate_id', flat=True))
 
-            candidate_ids_to_eliminate = list(ranking_snapshot.entries.filter(
+            candidate_ids_to_eliminate = list(ranking.entries.filter(
                 rank__gt=cutoff_rank
             ).values_list('candidate_id', flat=True))
 
@@ -134,7 +134,7 @@ class ProgressionService:
 
         now = timezone.now()
         
-        # Update CandidateCompetition
+        # Update Enrollment
         # Promote meeting cutoff
         Enrollment.objects.filter(
             competition=competition,

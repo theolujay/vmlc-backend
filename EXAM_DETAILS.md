@@ -39,7 +39,7 @@ This document outlines the API endpoints related to exams, prioritizing V2 over 
       "scheduled_date": "2024-05-01T10:00:00Z",
       "concluded_at": "2024-05-01T22:00:00Z",
       "created_at": "2024-04-01T12:00:00Z",
-      "ranking_snapshot": {
+      "ranking": {
         "exists": true,
         "is_published": false,
         "created_at": "2024-05-02T08:00:00Z",
@@ -112,7 +112,7 @@ Returns the full exam object (see **Get Exam Details**).
   "created_at": "2024-04-01T12:00:00Z",
   "created_by": { "id": "uuid", "full_name": "Staff Name", "email": "staff@vmlc.com" },
   "updated_by": null,
-  "ranking_snapshot": {
+  "ranking": {
     "exists": true,
     "is_published": false,
     "created_at": "2024-05-02T08:00:00Z",
@@ -348,15 +348,15 @@ Fields same as **Create Exam** (all optional for PATCH).
 ---
 
 ## 13. Publish RankingSnapshot
-**Endpoint:** `POST /v1/competition/ranking_snapshot/publish/`  
-**Description:** Triggers the generation and optional immediate publishing of ranking_snapshot for an exam.  
+**Endpoint:** `POST /v1/competition/ranking/publish/`  
+**Description:** Triggers the generation and optional immediate publishing of ranking for an exam.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Request Body
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `exam_id` | UUID | **Required.** UUID of the Exam to generate ranking_snapshot for. |
-| `publish_now` | Boolean | **Optional.** (Default: false) If true, immediately marks ranking_snapshot as published. |
+| `exam_id` | UUID | **Required.** UUID of the Exam to generate ranking for. |
+| `publish_now` | Boolean | **Optional.** (Default: false) If true, immediately marks ranking as published. |
 
 ```json
 {
@@ -375,8 +375,8 @@ Fields same as **Create Exam** (all optional for PATCH).
 ---
 
 ## 14. Retrieve RankingSnapshot
-**Endpoint:** `GET /v1/competition/ranking_snapshot/{exam_id}/`  
-**Description:** Retrieves the full ranking_snapshot for a specific exam, including all candidate entries.  
+**Endpoint:** `GET /v1/competition/ranking/{exam_id}/`  
+**Description:** Retrieves the full ranking for a specific exam, including all candidate entries.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Response Body
@@ -410,9 +410,9 @@ Fields same as **Create Exam** (all optional for PATCH).
 
 ---
 
-## 15. Retrieve Candidate Standing Detail
-**Endpoint:** `GET /v1/competition/ranking_snapshot/{exam_id}/candidate/{candidate_id}/`  
-**Description:** Retrieves detailed performance for a specific candidate in a specific exam standing.  
+## 15. Retrieve Candidate Ranking Detail
+**Endpoint:** `GET /v1/competition/ranking/{exam_id}/candidate/{candidate_id}/`  
+**Description:** Retrieves detailed performance for a specific candidate in a specific exam ranking.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Response Body
@@ -520,7 +520,7 @@ To prevent issues where an exam is live but the visibility flag was manually uns
 - If an exam's status is `ONGOING` (current time is within the scheduled window), it will be visible to eligible candidates **even if** `StageExam.is_active` is `false`.
 
 ### 3. Candidate Enrollment Fallback
-The dashboard requires a `CandidateCompetition` record to determine a candidate's "Current Stage."
+The dashboard requires a `Enrollment` record to determine a candidate's "Current Stage."
 - **Enrolled Candidates:** The dashboard uses `enrollment.current_stage`.
 - **Unenrolled Candidates:** If a candidate has no enrollment record for the active competition, the dashboard falls back to using the candidate's `role` (e.g., `screening`, `league`) to infer their current stage. This ensures that new registrants see the screening exam immediately even if the background enrollment task hasn't completed.
 
