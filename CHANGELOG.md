@@ -16,14 +16,14 @@
 
 - **2025-11-12**:
   - **New Endpoint**: Added `GET /registration/` to provide public status on whether candidate and staff registrations are open.
-  - **Removed Endpoint**: Removed the `GET /root/` endpoint as part of the URL refactoring.
+  - **Removed Endpoint**: Removed the `GET /root/` endpoint as enrollment of the URL refactoring.
 
 - **2025-11-10**:
   - **User Management**: Updated `GET /user/list/` endpoint with more granular role-based access.
     - `moderator` and `admin` roles can now only view the list of candidates (`profile=candidate`).
     - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
   - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
-  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed`, `not_done`, or `done`.
+  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `enrollment` indicating `missed`, `not_done`, or `done`.
   - **Profile**: Added `status` field to staff and candidate profiles, which is either `active`, `inactive`, `pending`, or `deactivated`.
 
 - **2025-11-09**:

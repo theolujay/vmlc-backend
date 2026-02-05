@@ -1,26 +1,29 @@
 from django.utils.deprecation import MiddlewareMixin
-from competition.services.eligibility import EligibilityService
+
+from competition.models import Enrollment
 from vmlc.v2.utils import get_or_set_cache, CacheKeys
 
 class CompetitionContextMiddleware(MiddlewareMixin):
     """
-    Middleware that attaches the candidate's active competition participation 
+    Middleware that attaches the candidate's active competition enrollment 
     to the request object for easy access in views and permissions.
     """
     def process_request(self, request):
         if request.user.is_authenticated:
             # Check if user has a candidate profile
             if hasattr(request.user, 'candidate_profile'):
-                cache_key = CacheKeys.PARTICIPATION.format(user_id=request.user.id)
-                request.participation = get_or_set_cache(
+                cache_key = CacheKeys.ENROLLMENT.format(user_id=request.user.id)
+                request.enrollment = get_or_set_cache(
                     cache_key,
-                    lambda: EligibilityService.get_active_participation(
-                        request.user.candidate_profile
-                    ),
+                    lambda: Enrollment.objects.filter(
+                        candidate=request.user.candidate_profile,
+                        competition__status=Competition.Status.ACTIVE,
+                        status=Enrollment.Status.ACTIVE
+                    ).select_related('competition', 'current_stage').first(),
                     ttl=300 # 5-minute cache for context
                 )
             else:
-                request.participation = None
+                request.enrollment = None
         else:
-            request.participation = None
+            request.enrollment = None
         return None

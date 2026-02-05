@@ -37,7 +37,7 @@ Already existing in `vmlc/v2/views/exam.py`, but needs the following upgrades:
 ### A. Serializer Upgrades (`vmlc/v2/serializers/exam.py`)
 - **Automatic Slotting**: Improve `_handle_competition_slot` to better support the `StageExam` model.
 - **Validation**: Strict validation to prevent editing `CONCLUDED` or `ONGOING` exams.
-- **Standings Integration**: Directly show if standings are generated/published.
+- **RankingSnapshot Integration**: Directly show if ranking_snapshot are generated/published.
 
 ### B. View Upgrades (`vmlc/v2/views/exam.py`)
 - **Caching**: Wrap all `list()` and `retrieve()` calls in `get_or_set_cache`.
@@ -52,7 +52,7 @@ Already existing in `vmlc/v2/views/exam.py`, but needs the following upgrades:
 | **Create/Update Question** | `question_pool_data`, `exam_questions_{id}`, `dash:staff:global` |
 | **Assign Q to Exam** | `exam_questions_{id}`, `exam_detail:{id}`, `dash:staff:global` |
 | **Conclude Exam** | `exam_detail:{id}`, `dash:staff:global`, `dash:cand:{all}` |
-| **Publish Standings** | `exam_results:{id}`, `lb:league:latest`, `dash:cand:{all}` |
+| **Publish RankingSnapshot** | `exam_results:{id}`, `lb:league:latest`, `dash:cand:{all}` |
 
 ---
 

@@ -6,7 +6,7 @@ from django.db.models import Q
 class Competition(models.Model):
     """
     Represents a single edition of the competition.
-    Acts as the root aggregate for stages, exams, participation,
+    Acts as the root aggregate for stages, exams, enrollment,
     and all competition-scoped configuration.
     """
 
@@ -31,6 +31,12 @@ class Competition(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.status == self.Status.ACTIVE:
+            # If this competition is being set to active, deactivate all others
+            Competition.objects.filter(status=self.Status.ACTIVE).exclude(pk=self.pk).update(status=self.Status.CONCLUDED)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} {self.edition}.0"
@@ -114,9 +120,9 @@ class StageExam(models.Model):
             ),
         ]
 
-class CandidateCompetition(models.Model): # TODO: safely turn this into Enrollment
+class Enrollment(models.Model):
     """
-    Represents a candidate's participation in a specific competition edition.
+    Represents a candidate's enrollment in a specific competition edition.
 
     This model tracks enrollment state, current stage placement,
     and competition-scoped metadata for a candidate.
@@ -139,7 +145,7 @@ class CandidateCompetition(models.Model): # TODO: safely turn this into Enrollme
         "identity.Candidate", on_delete=models.CASCADE, related_name="competitions"
     )
     competition = models.ForeignKey(
-        "Competition", on_delete=models.CASCADE, related_name="participants"
+        "Competition", on_delete=models.CASCADE, related_name="enrollments"
     )
     current_stage = models.ForeignKey(
         "Stage",
@@ -160,8 +166,8 @@ class CandidateCompetition(models.Model): # TODO: safely turn this into Enrollme
     )
 
     class Meta:
-        # verbose_name = "Enrollment"
-        # verbose_name_plural = "Enrollments"
+        verbose_name = "Enrollment"
+        verbose_name_plural = "Enrollments"
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate", "competition"],
@@ -170,7 +176,7 @@ class CandidateCompetition(models.Model): # TODO: safely turn this into Enrollme
         ]
 
 
-class CandidateStageProgress(models.Model): # TODO: safely turn this to EnrollmentStageProgress
+class EnrollmentStageProgress(models.Model):
     """
     Tracks a candidate's progress and outcome within a specific stage
     of a competition.
@@ -185,8 +191,8 @@ class CandidateStageProgress(models.Model): # TODO: safely turn this to Enrollme
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, primary_key=True, editable=False
     )
-    candidate_competition = models.ForeignKey(
-        CandidateCompetition, on_delete=models.CASCADE, related_name="stage_progress"
+    enrollment = models.ForeignKey(
+        Enrollment, on_delete=models.CASCADE, related_name="stage_progress"
     )
     stage = models.ForeignKey(Stage, on_delete=models.PROTECT)
     status = models.CharField(choices=Status.choices, default=Status.PENDING)
@@ -203,27 +209,27 @@ class CandidateStageProgress(models.Model): # TODO: safely turn this to Enrollme
         }
 
     class Meta:
-        verbose_name = "Stage Progress"
-        verbose_name_plural = "Stage Progress Records"
+        verbose_name = "Enrollment Stage Progress"
+        verbose_name_plural = "Enrollment Stage Progress Records"
         constraints = [
             models.UniqueConstraint(
-                fields=["candidate_competition", "stage"],
+                fields=["enrollment", "stage"],
                 name="unique_stage_progress_per_candidate",
             )
         ]
 
 
-class Standings(models.Model): # TODO: rename this to RankingSnapshot
+class RankingSnapshot(models.Model):
     """
-    Official standings generated from a single exam for a competition.
+    Official ranking generated from a single exam for a competition.
 
-    A Standings object is a presentation artifact derived from exam results.
-    Exactly one Standings record should exist for a given published (competition, stage, round).
+    A RankingSnapshot object is a presentation artifact derived from exam results.
+    Exactly one RankingSnapshot record should exist for a given published (competition, stage, round).
     The record should only point to a local vmlc.Exam (native execution) AND should be
     associated with an external facilitator via `facilitator_system`.
 
-    Immutable principle: `StandingsEntry.exam_score` is the canonical score for the snapshot.
-    Changes to the underlying exam results do not automatically mutate published standings.
+    Immutable principle: `RankingSnapshotEntry.exam_score` is the canonical score for the snapshot.
+    Changes to the underlying exam results do not automatically mutate published ranking.
     Regeneration must be explicit.
     """
 
@@ -234,12 +240,12 @@ class Standings(models.Model): # TODO: rename this to RankingSnapshot
     competition = models.ForeignKey(
         "competition.Competition",
         on_delete=models.PROTECT,
-        related_name="standings",
+        related_name="ranking_snapshots",
     )
     stage = models.CharField(
         max_length=20,
         choices=Stage.Type.choices,
-        help_text="Competition stage this standings belongs to (screening, league, final).",
+        help_text="Competition stage this ranking snapshot belongs to (screening, league, final).",
     )
     round = models.PositiveSmallIntegerField(
         null=True,
@@ -250,7 +256,7 @@ class Standings(models.Model): # TODO: rename this to RankingSnapshot
     exam = models.ForeignKey(
         "vmlc.Exam",
         on_delete=models.PROTECT,
-        help_text="Exam from which this standings was generated.",
+        help_text="Exam from which this ranking snapshot was generated.",
     )
     # provenance field
     facilitator_system = models.CharField(
@@ -261,7 +267,7 @@ class Standings(models.Model): # TODO: rename this to RankingSnapshot
     is_published = models.BooleanField(
         default=False,
         db_index=True,
-        help_text="Whether this standings is visible to candidates.",
+        help_text="Whether this ranking snapshot is visible to candidates.",
     )
     published_at = models.DateTimeField(
         null=True,
@@ -281,8 +287,8 @@ class Standings(models.Model): # TODO: rename this to RankingSnapshot
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # verbose_name = "Exam Ranking"
-        # verbose_name_plural = "Exam Rankings"
+        verbose_name = "Ranking Snapshot"
+        verbose_name_plural = "Ranking Snapshots"
         constraints = [
             models.UniqueConstraint(
                 fields=["exam"],
@@ -300,9 +306,9 @@ class Standings(models.Model): # TODO: rename this to RankingSnapshot
         ]
 
 
-class StandingsEntry(models.Model): # TODO: rename this to RankingSnapshotEntry
+class RankingSnapshotEntry(models.Model):
     """
-    A single candidate's standing within a specific Standings for an exam.
+    A single candidate's standing within a specific Ranking Snapshot for an exam.
 
     This is the canonical table for that exam snapshot. It is authoritative
     for competition display and progression logic, but not for raw exam evaluation.
@@ -310,22 +316,22 @@ class StandingsEntry(models.Model): # TODO: rename this to RankingSnapshotEntry
     - exam_score: the snapshot score used for ranking (copied at generation time).
     """
 
-    standings = models.ForeignKey(
-        Standings,
+    ranking_snapshot = models.ForeignKey(
+        RankingSnapshot,
         related_name="entries",
         on_delete=models.CASCADE,
     )
     candidate = models.ForeignKey(
         "identity.Candidate",
         on_delete=models.CASCADE,
-        related_name="standings_entries",
+        related_name="ranking_snapshot_entries",
     )
-    candidate_competition = models.ForeignKey(
-        "competition.CandidateCompetition",
+    enrollment = models.ForeignKey(
+        "competition.Enrollment",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="standings_entries",
+        related_name="ranking_snapshot_entries",
     )
     exam_score = models.DecimalField(
         max_digits=5,
@@ -351,24 +357,24 @@ class StandingsEntry(models.Model): # TODO: rename this to RankingSnapshotEntry
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # verbose_name = "Exam Ranking Entry"
-        # verbose_name_plural = "Exam Ranking Entries"
+        verbose_name = "Ranking Snapshot Entry"
+        verbose_name_plural = "Ranking Snapshot Entries"
         constraints = [
             models.UniqueConstraint(
-                fields=["standings", "candidate"], name="unique_candidate_per_standings"
+                fields=["ranking_snapshot", "candidate"], name="unique_candidate_per_ranking_snapshot"
             ),
         ]
         indexes = [
-            models.Index(fields=["standings", "rank"]),
-            models.Index(fields=["standings", "candidate"]),
-            models.Index(fields=["standings", "exam_score"]),
+            models.Index(fields=["ranking_snapshot", "rank"]),
+            models.Index(fields=["ranking_snapshot", "candidate"]),
+            models.Index(fields=["ranking_snapshot", "exam_score"]),
         ]
 
 
-class AggregateLeaderboard(models.Model):
+class LeagueLeaderboard(models.Model):
     """
     Materialized leaderboard for a stage across rounds (e.g., League table).
-    Created/updated when Standings are published.
+    Created/updated when RankingSnapshots are published.
     """
 
     competition = models.ForeignKey("Competition", on_delete=models.PROTECT)
@@ -385,18 +391,18 @@ class AggregateLeaderboard(models.Model):
         indexes = [models.Index(fields=["competition", "stage", "as_of_round"])]
 
 
-class AggregateLeaderboardEntry(models.Model): # TODO: rename to LeagueLeaderboardEntry
+class LeagueLeaderboardEntry(models.Model):
     """
     A single candidate's entry in a materialized AggregateLeaderboard.
     Tracks cumulative performance across multiple rounds within a stage.
     """
 
     leaderboard = models.ForeignKey(
-        AggregateLeaderboard, related_name="entries", on_delete=models.CASCADE
+        LeagueLeaderboard, related_name="entries", on_delete=models.CASCADE
     )
     candidate = models.ForeignKey("identity.Candidate", on_delete=models.CASCADE)
-    candidate_competition = models.ForeignKey(
-        "competition.CandidateCompetition",
+    enrollment = models.ForeignKey(
+        "competition.Enrollment",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

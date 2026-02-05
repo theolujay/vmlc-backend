@@ -3,8 +3,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from competition.models import (
     Competition,
-    CandidateCompetition,
-    CandidateStageProgress,
+    Enrollment,
+    EnrollmentStageProgress,
     Stage,
 )
 from identity.models import Candidate
@@ -61,7 +61,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
 
         # Find candidates not already in this competition
-        enrolled_candidate_ids = CandidateCompetition.objects.filter(
+        enrolled_candidate_ids = Enrollment.objects.filter(
             competition=competition
         ).values_list("candidate_id", flat=True)
 
@@ -85,18 +85,18 @@ class Command(BaseCommand):
         with transaction.atomic():
             created_count = 0
             for candidate in candidates_to_enroll:
-                # Create participation
-                participation = CandidateCompetition.objects.create(
+                # Create enrollment
+                enrollment = Enrollment.objects.create(
                     candidate=candidate,
                     competition=competition,
                     current_stage=first_stage,
-                    status=CandidateCompetition.Status.ACTIVE,
+                    status=Enrollment.Status.ACTIVE,
                 )
                 # Create progress
-                CandidateStageProgress.objects.create(
-                    candidate_competition=participation,
+                EnrollmentStageProgress.objects.create(
+                    enrollment=enrollment,
                     stage=first_stage,
-                    status=CandidateStageProgress.Status.IN_PROGRESS,
+                    status=EnrollmentStageProgress.Status.IN_PROGRESS,
                 )
                 created_count += 1
 

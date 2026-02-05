@@ -198,21 +198,21 @@ class RegistrationV2Serializer(serializers.Serializer):
                 role=Candidate.Roles.SCREENING,
             )
             # Auto-enroll in active competition if one exists
-            from competition.models import Competition, CandidateCompetition, Stage, CandidateStageProgress
+            from competition.models import Competition, Enrollment, Stage, EnrollmentStageProgress
             active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
             if active_comp:
                 first_stage = active_comp.stages.order_by('order').first()
                 if first_stage:
-                    participation = CandidateCompetition.objects.create(
+                    enrollment = Enrollment.objects.create(
                         candidate=profile,
                         competition=active_comp,
                         current_stage=first_stage,
-                        status=CandidateCompetition.Status.ACTIVE
+                        status=Enrollment.Status.ACTIVE
                     )
-                    CandidateStageProgress.objects.create(
-                        candidate_competition=participation,
+                    EnrollmentStageProgress.objects.create(
+                        enrollment=enrollment,
                         stage=first_stage,
-                        status=CandidateStageProgress.Status.IN_PROGRESS
+                        status=EnrollmentStageProgress.Status.IN_PROGRESS
                     )
         else:
             profile = Staff.objects.create(

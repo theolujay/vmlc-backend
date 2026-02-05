@@ -143,7 +143,7 @@ Once submitted, the system automatically triggers a background scoring process. 
 
 1.  **Cache Invalidation**: The dashboard is cached for 1 hour by default. However, it is **automatically cleared** whenever:
     - A student submits an exam.
-    - Staff members publish new results/standings.
+    - Staff members publish new results/ranking_snapshot.
     - A student's profile or status is updated.
 2.  **Grace Period**: Students have a **5-minute grace period** after their personal timer ends to account for network latency during submission.
 3.  **Result Visibility**: In the `exam_history`, the `score` and `percentage` will remain `null` until the staff officially publishes the results. This prevents students from seeing unverified or "leaked" scores before they are finalized.

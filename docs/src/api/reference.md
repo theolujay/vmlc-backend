@@ -2179,7 +2179,7 @@ X-Api-Key: <your_api_key>
       "scheduled_date": "2024-01-25T14:00:00Z",
       "countdown_minutes": 90,
       "question_count": 25,
-      "participation": "not_done"
+      "enrollment": "not_done"
     }
   ],
   "concluded_exams": [
@@ -2192,7 +2192,7 @@ X-Api-Key: <your_api_key>
       "description": "Comprehensive algebra exam.",
       "concluded_at": "2024-01-21T15:00:00Z",
       "question_count": 20,
-      "participation": "missed"
+      "enrollment": "missed"
     }
   ]
 }
@@ -2201,7 +2201,7 @@ X-Api-Key: <your_api_key>
 _Note:_
 
 - _If dashboard data is not immediately available (e.g., first load), a `202 Accepted` response will be returned, indicating that the data is being generated asynchronously._
-- _participation is either missed, done, or not done_
+- _enrollment is either missed, done, or not done_
 
 #### Staff Dashboard
 
@@ -3405,7 +3405,7 @@ For technical support, API key requests, or questions:
     - `moderator` and `admin` roles can now only view the list of candidates (`profile=candidate`).
     - `manager` and `superadmin` roles can view candidates, staff (`profile=staff`), and the generic user list.
   - **New Feature**: Added `GET /user/list/` endpoint to list all users with filtering by profile type (`staff` or `candidate`), active status, and search term. This endpoint is available to `moderator` roles and higher.
-  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `participation` indicating `missed`, `not_done`, or `done`.
+  - **Dashboard**: Added `concluded_exams` field that indicates exams that have passed, which has a sub-field `enrollment` indicating `missed`, `not_done`, or `done`.
   - **Profile**: Added `status` field to staff and candidate profiles, which is either `active`, `inactive`, `pending`, or `deactivated`.
 
 - **2025-11-09**:

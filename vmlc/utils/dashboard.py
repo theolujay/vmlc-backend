@@ -86,11 +86,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             ),
             "latest_score_info": result_stats["latest_score_data"],
         },
-        "stage_progress": {
+        "enrollment_stage_progress": {
             "current_stage": candidate.role,
             "current_round": available_exams_list[0]["round"] if available_exams_list else 1,
             "has_taken_exam": (
-                available_exams_list[0]["participation"] == "done"
+                available_exams_list[0]["enrollment"] == "done"
                 if available_exams_list
                 else result_stats["total_exams_taken"] > 0
             ),
@@ -105,7 +105,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             if candidate.role == "league"
             else None
         ),
-        "screening_standings_ranking": (
+        "screening_ranking_snapshot_ranking": (
             {
                 "current_rank": screening_rank,
                 "position": screening_rank,
@@ -208,7 +208,7 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,
-                        "participation": (
+                        "enrollment": (
                             "done" if exam.id in taken_exam_ids else "not_done"
                         ),
                     }
@@ -245,7 +245,7 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "description": exam.description,
                         "concluded_at": exam.concluded_at,
                         "question_count": exam.question_count,
-                        "participation": (
+                        "enrollment": (
                             "done" if exam.id in taken_exam_ids else "missed"
                         ),
                     }

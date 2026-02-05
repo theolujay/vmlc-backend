@@ -426,7 +426,7 @@ class CandidateManager(models.Manager):
 
 class Candidate(models.Model):
     """
-    Represents a student or participant in the exam system.
+    Represents a prospective, enrolled, or past candidate for a competition in the exam system.
     Linked to a User, assigned a role, and tracks their profile and result history.
     """
 

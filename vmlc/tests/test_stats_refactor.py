@@ -141,7 +141,7 @@ class UserStatsRefactorTest(TestCase):
         self.assertEqual(counts["inactive"], 0) # Inactive calculation excludes deactivated
 
     def test_active_staff(self):
-        # Staff doesn't need exam participation
+        # Staff doesn't need exam enrollment
         user = self.create_user("staffactive@example.com", last_login_days_ago=1)
         self.create_staff(user)
         

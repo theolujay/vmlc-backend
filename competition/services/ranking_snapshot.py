@@ -4,21 +4,21 @@ import uuid
 from django.db import transaction
 
 from competition.models import (
-    CandidateCompetition,
-    Standings,
-    StandingsEntry,
+    Enrollment,
+    RankingSnapshot,
+    RankingSnapshotEntry,
     StageExam,
 )
 from vmlc.models import CandidateExamResult, Exam
 
 logger = logging.getLogger(__name__)
-class StandingsGenerationError(Exception):
+class RankingSnapshotGenerationError(Exception):
     pass
 
 
-class StandingsGenerator:
+class RankingSnapshotGenerator:
     """
-    Service to generate immutable Standings and StandingsEntry records
+    Service to generate immutable RankingSnapshot and StandingsEntry records
     for a given exam within a competition stage.
     """
 
@@ -37,9 +37,9 @@ class StandingsGenerator:
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
         absentee_score: float = 0.0,
         published_by_staff_id: uuid.UUID = None,
-    ) -> Standings:
+    ) -> RankingSnapshot:
         """
-        Generates Standings and StandingsEntry records from exam results.
+        Generates RankingSnapshot and StandingsEntry records from exam results.
 
         Args:
             ranking_policy: Defines how ranks are assigned (e.g., 'dense_rank').
@@ -48,14 +48,14 @@ class StandingsGenerator:
             published_by_staff_id: Staff member initiating this generation.
 
         Returns:
-            The newly created Standings object.
+            The newly created RankingSnapshot object.
 
         Raises:
-            StandingsGenerationError: If validation fails or no results are found.
+            RankingSnapshotGenerationError: If validation fails or no results are found.
         """
         self._validate_preconditions()
 
-        # Perform auto-scoring for all submissions before generating standings
+        # Perform auto-scoring for all submissions before generating ranking_snapshot
         from vmlc.utils.functions import compute_exam_results
         compute_exam_results(self.exam.id)
 
@@ -63,16 +63,16 @@ class StandingsGenerator:
         raw_results = CandidateExamResult.objects.filter(exam=self.exam).select_related(
             "candidate", "candidate__user"
         )
-        logger.debug(f"StandingsGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}.")
+        logger.debug(f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}.")
 
         # Identify all eligible candidates for this stage/exam
         eligible_candidate_ids = set(
-            CandidateCompetition.objects.filter(
+            Enrollment.objects.filter(
                 competition=self.competition,
-                status=CandidateCompetition.Status.ACTIVE,  # Only active participants
+                status=Enrollment.Status.ACTIVE,  # Only active participants
             ).values_list("candidate_id", flat=True)
         )
-        logger.debug(f"StandingsGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}.")
+        logger.debug(f"RankingSnapshotGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}.")
 
         # Map results to eligible candidates, handle absentees
         candidate_scores = (
@@ -84,7 +84,7 @@ class StandingsGenerator:
                     "score": float(res.score),
                     "recorded_at": res.recorded_at,
                 }
-        logger.debug(f"StandingsGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check.")
+        logger.debug(f"RankingSnapshotGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check.")
 
         # Add absentees (eligible candidates without a result)
         for cand_id in eligible_candidate_ids:
@@ -95,7 +95,7 @@ class StandingsGenerator:
                 }
 
         if not candidate_scores:
-            raise StandingsGenerationError(
+            raise RankingSnapshotGenerationError(
                 f"No eligible candidate results found for Exam {self.exam.id}."
             )
 
@@ -119,7 +119,7 @@ class StandingsGenerator:
             reverse=True,  # Higher score first, then earlier submission time
         )
 
-        standings_entries_to_create = []
+        ranking_snapshot_entries_to_create = []
         previous_score = None
         current_rank = 0
         for idx, (candidate_id, data) in enumerate(sorted_candidates):
@@ -128,14 +128,14 @@ class StandingsGenerator:
                 current_rank = idx + 1  # Dense rank
 
             # Find CandidateCompetition for FK
-            candidate_competition = CandidateCompetition.objects.filter(
+            enrollment = Enrollment.objects.filter(
                 candidate_id=candidate_id, competition=self.competition
             ).first()  # Should always exist if in eligible_candidate_ids
 
-            standings_entries_to_create.append(
-                StandingsEntry(
+            ranking_snapshot_entries_to_create.append(
+                RankingSnapshotEntry(
                     candidate_id=candidate_id,
-                    candidate_competition=candidate_competition,
+                    enrollment=enrollment,
                     exam_score=score,
                     rank=current_rank,
                 )
@@ -145,16 +145,16 @@ class StandingsGenerator:
             # the following applies skips for ties. E.g. [..., 5, 5, 7, ...]
             # current_rank = idx + 1
 
-        # Attempt to get existing standings for this exam with lock to prevent race conditions
+        # Attempt to get existing ranking_snapshot for this exam with lock to prevent race conditions
         try:
-            existing_standings = Standings.objects.select_for_update().get(exam=self.exam)
+            existing_standings = RankingSnapshot.objects.select_for_update().get(exam=self.exam)
             # If found, delete it and its entries to ensure a clean regeneration
             existing_standings.delete()
-        except Standings.DoesNotExist:
-            pass  # No existing standings, proceed with creation
+        except RankingSnapshot.DoesNotExist:
+            pass  # No existing ranking_snapshot, proceed with creation
 
-        # Create Standings record
-        standings = Standings.objects.create(
+        # Create RankingSnapshot record
+        ranking_snapshot = RankingSnapshot.objects.create(
             competition=self.competition,
             stage=self.stage.type,
             round=self.stage_exam.round,
@@ -167,10 +167,10 @@ class StandingsGenerator:
             },
         )
 
-        # Assign standings to entries and bulk create
-        for entry in standings_entries_to_create:
-            entry.standings = standings
-        StandingsEntry.objects.bulk_create(standings_entries_to_create)
+        # Assign ranking_snapshot to entries and bulk create
+        for entry in ranking_snapshot_entries_to_create:
+            entry.ranking_snapshot = ranking_snapshot
+        RankingSnapshotEntry.objects.bulk_create(ranking_snapshot_entries_to_create)
 
         # Invalidate Caches
         from vmlc.v2.utils import (
@@ -191,11 +191,11 @@ class StandingsGenerator:
                 invalidate_candidate_cache(cand_id)
         transaction.on_commit(clear_standings_cache)
 
-        return standings
+        return ranking_snapshot
 
 
     def _validate_preconditions(self):
-        """Internal validation before generating standings."""
+        """Internal validation before generating ranking_snapshot."""
         if not self.exam.status == Exam.Status.CONCLUDED:
-            raise StandingsGenerationError(f"Exam {self.exam.id} is not yet concluded.")
-        # TODO: Add more validation, e.g., ensure no existing published standings for this stage_exam
+            raise RankingSnapshotGenerationError(f"Exam {self.exam.id} is not yet concluded.")
+        # TODO: Add more validation, e.g., ensure no existing published ranking_snapshot for this stage_exam

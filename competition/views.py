@@ -12,17 +12,17 @@ from identity.permissions import (
     IsLeagueParticipantOrStaff
 )
 from vmlc.models import Exam
-from competition.models import Standings, StandingsEntry
+from competition.models import RankingSnapshot, RankingSnapshotEntry
 from competition.serializers import (
-    PublishStandingsSerializer, 
-    StandingsSerializer, 
+    PublishRankingSnapshotSerializer, 
+    RankingSnapshotSerializer, 
     CandidateResultDetailSerializer,
-    AggregateLeaderboardSerializer,
-    AggregateLeaderboardEntrySerializer,
+    LeagueLeaderboardSerializer,
+    LeagueLeaderboardEntrySerializer,
     CompetitionDashboardSerializer,
     PromoteCandidatesSerializer
 )
-from competition.tasks import generate_standings_task
+from competition.tasks import generate_ranking_snapshot_task
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import StaffCompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
@@ -41,13 +41,13 @@ class CandidateDashboardView(APIView):
 
     def get(self, request):
         candidate = request.user.candidate_profile
-        participation = getattr(request, 'participation', None)
+        enrollment = getattr(request, 'enrollment', None)
         from vmlc.v2.utils import CacheKeys
         cache_key = CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate.pk)
         
         data = get_or_set_cache(
             cache_key,
-            lambda: CandidateDashboardService.get_dashboard_data(candidate, participation),
+            lambda: CandidateDashboardService.get_dashboard_data(candidate, enrollment),
             ttl=3600
         )
         return Response(data)
@@ -70,14 +70,14 @@ class StaffCompetitionDashboardView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class PublishStandingsView(APIView):
+class PublishRankingSnapshotView(APIView):
     """
-    View to trigger the generation and optional publishing of standings.
+    View to trigger the generation and optional publishing of ranking snapshots.
     """
     permission_classes = ActiveAdminPermissions
 
     def post(self, request):
-        serializer = PublishStandingsSerializer(data=request.data)
+        serializer = PublishRankingSnapshotSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
         data = serializer.validated_data
@@ -110,7 +110,7 @@ class PublishStandingsView(APIView):
         if hasattr(request.user, 'staff_profile'):
              staff_id = str(request.user.staff_profile.pk)
 
-        generate_standings_task.delay(
+        generate_ranking_snapshot_task.delay(
             stage_exam_id=str(stage_exam_id),
             publish_now=publish_now,
             staff_id=staff_id
@@ -118,21 +118,21 @@ class PublishStandingsView(APIView):
         
         return Response(
             {
-                "message": "Standings generation has been started."
+                "message": "Ranking snapshot generation has been started."
             },
             status=status.HTTP_202_ACCEPTED
         )
 
 
-class RetrieveStandingsView(RetrieveAPIView):
+class RetrieveRankingSnapshotView(RetrieveAPIView):
     """
-    View to retrieve a specific standing using Exam ID.
+    View to retrieve a specific ranking snapshot using Exam ID.
     """
-    queryset = Standings.objects.prefetch_related(
+    queryset = RankingSnapshot.objects.prefetch_related(
         'entries',
         'entries__candidate__user'
     ).all()
-    serializer_class = StandingsSerializer
+    serializer_class = RankingSnapshotSerializer
     permission_classes = ActiveAdminPermissions
     lookup_field = 'exam_id'
 
@@ -150,19 +150,19 @@ class LeagueLeaderboardView(APIView):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
         from vmlc.v2.utils import CacheKeys
-        from competition.serializers import AggregateLeaderboardSerializer, AggregateLeaderboardEntrySerializer
+        from competition.serializers import LeagueLeaderboardSerializer, LeagueLeaderboardEntrySerializer
 
         def fetch_and_serialize_leaderboard():
             leaderboard = LeaderboardService.get_latest_league_leaderboard()
             if not leaderboard:
                 return None
             
-            serializer = AggregateLeaderboardSerializer(leaderboard)
+            serializer = LeagueLeaderboardSerializer(leaderboard)
             data = serializer.data
             
             # Replace entries with the processed list from the service
             # (which includes rank_change annotations)
-            data['entries'] = AggregateLeaderboardEntrySerializer(
+            data['entries'] = LeagueLeaderboardEntrySerializer(
                 leaderboard.processed_entries, 
                 many=True
             ).data
@@ -183,14 +183,14 @@ class LeagueLeaderboardView(APIView):
         return Response(data)
 
 
-class RetrieveCandidateStandingView(APIView):
+class RetrieveCandidateRankingSnapshotEntryView(APIView):
     """
-    Retrieves detailed performance for a specific candidate in a specific exam standing.
+    Retrieves detailed performance for a specific candidate in a specific exam ranking snapshot.
     """
     permission_classes = ActiveAdminPermissions
 
     def get(self, request, exam_id, candidate_id):
-        standing = get_object_or_404(Standings, exam_id=exam_id)
+        ranking_snapshot = get_object_or_404(RankingSnapshot, exam_id=exam_id)
         
         # Access control
         if hasattr(request.user, "candidate_profile"):
@@ -202,7 +202,7 @@ class RetrieveCandidateStandingView(APIView):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-        entry = get_object_or_404(StandingsEntry, standings=standing, candidate_id=candidate_id)
+        entry = get_object_or_404(RankingSnapshotEntry, ranking_snapshot=ranking_snapshot, candidate_id=candidate_id)
         
         result = get_object_or_404(
             CandidateExamResult.objects.prefetch_related('answers__question'), 
@@ -210,20 +210,20 @@ class RetrieveCandidateStandingView(APIView):
             candidate_id=candidate_id
         )
         
-        # Manually attach rank/percentile from StandingsEntry to result object for serialization
+        # Manually attach rank/percentile from RankingSnapshotEntry to result object for serialization
         result.rank = entry.rank
         result.percentile = entry.percentile
 
-        exam = standing.exam
+        exam = ranking_snapshot.exam
         exam_details = {
             "id": exam.id,
             "title": exam.get_title(),
-            "stage": standing.stage,
-            "round": standing.round,
+            "stage": ranking_snapshot.stage,
+            "round": ranking_snapshot.round,
             "scheduled_date": exam.scheduled_date,
             "concluded_at": exam.concluded_at,
             "total_questions": exam.get_question_count(),
-            "total_candidates": standing.entries.count(),
+            "total_candidates": ranking_snapshot.entries.count(),
             "average_score": float(exam.get_average_score() or 0),
         }
 
@@ -259,7 +259,7 @@ class LeagueCandidateLeaderboardView(APIView):
         if not entry:
             return Response({"detail": "Candidate not found in leaderboard."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(AggregateLeaderboardEntrySerializer(entry).data)
+        return Response(LeagueLeaderboardEntrySerializer(entry).data)
 
 
 class PromoteCandidatesView(APIView):

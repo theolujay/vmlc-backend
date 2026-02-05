@@ -10,12 +10,12 @@ from .models import (
     Competition,
     Stage,
     StageExam,
-    CandidateCompetition,
-    CandidateStageProgress,
-    Standings,
-    StandingsEntry,
-    AggregateLeaderboard,
-    AggregateLeaderboardEntry,
+    Enrollment,
+    EnrollmentStageProgress,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
 )
 
 
@@ -30,16 +30,16 @@ class StageExamInline(admin.TabularInline):
     extra = 0
 
 
-class StandingsEntryInline(admin.TabularInline):
-    model = StandingsEntry
+class RankingSnapshotEntryInline(admin.TabularInline):
+    model = RankingSnapshotEntry
     extra = 0
-    raw_id_fields = ["candidate", "candidate_competition"]
+    raw_id_fields = ["candidate", "enrollment"]
 
 
-class AggregateLeaderboardEntryInline(admin.TabularInline):
-    model = AggregateLeaderboardEntry
+class LeagueLeaderboardEntryInline(admin.TabularInline):
+    model = LeagueLeaderboardEntry
     extra = 0
-    raw_id_fields = ["candidate", "candidate_competition"]
+    raw_id_fields = ["candidate", "enrollment"]
 
 
 @admin.register(Competition)
@@ -183,8 +183,8 @@ class StageExamAdmin(admin.ModelAdmin):
         return "-"
 
 
-@admin.register(CandidateCompetition)
-class CandidateCompetitionAdmin(admin.ModelAdmin):
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
     list_display = ("candidate", "competition", "status_display", "current_stage", "joined_at")
     list_filter = ("competition", "status", "current_stage")
     search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
@@ -211,10 +211,10 @@ class CandidateCompetitionAdmin(admin.ModelAdmin):
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
         colors = {
-            CandidateCompetition.Status.ACTIVE: "green",
-            CandidateCompetition.Status.ELIMINATED: "red",
-            # CandidateCompetition.Status.WITHDRAWN: "orange",
-            CandidateCompetition.Status.DISQUALIFIED: "darkred",
+            Enrollment.Status.ACTIVE: "green",
+            Enrollment.Status.ELIMINATED: "red",
+            # Enrollment.Status.WITHDRAWN: "orange",
+            Enrollment.Status.DISQUALIFIED: "darkred",
         }
         return format_html(
             '<span style="color: {};">{}</span>',
@@ -223,25 +223,25 @@ class CandidateCompetitionAdmin(admin.ModelAdmin):
         )
 
 
-@admin.register(CandidateStageProgress)
-class CandidateStageProgressAdmin(admin.ModelAdmin):
-    list_display = ("candidate_competition", "stage", "status_display", "updated_at")
+@admin.register(EnrollmentStageProgress)
+class EnrollmentStageProgressAdmin(admin.ModelAdmin):
+    list_display = ("enrollment", "stage", "status_display", "updated_at")
     list_filter = ("stage__competition", "stage", "status")
-    raw_id_fields = ("candidate_competition", "stage")
-    list_select_related = ("candidate_competition", "candidate_competition__candidate", "candidate_competition__candidate__user", "stage")
+    raw_id_fields = ("enrollment", "stage")
+    list_select_related = ("enrollment", "enrollment__candidate", "enrollment__candidate__user", "stage")
     date_hierarchy = "updated_at"
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        self._invalidate_candidate_cache(obj.candidate_competition.candidate)
+        self._invalidate_candidate_cache(obj.enrollment.candidate)
 
     def delete_model(self, request, obj):
-        self._invalidate_candidate_cache(obj.candidate_competition.candidate)
+        self._invalidate_candidate_cache(obj.enrollment.candidate)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
         for obj in queryset:
-            self._invalidate_candidate_cache(obj.candidate_competition.candidate)
+            self._invalidate_candidate_cache(obj.enrollment.candidate)
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
@@ -250,10 +250,10 @@ class CandidateStageProgressAdmin(admin.ModelAdmin):
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
         colors = {
-            CandidateStageProgress.Status.PENDING: "orange",
-            CandidateStageProgress.Status.IN_PROGRESS: "blue",
-            CandidateStageProgress.Status.COMPLETED: "green",
-            CandidateStageProgress.Status.DISCONTINUED: "red",
+            EnrollmentStageProgress.Status.PENDING: "orange",
+            EnrollmentStageProgress.Status.IN_PROGRESS: "blue",
+            EnrollmentStageProgress.Status.COMPLETED: "green",
+            EnrollmentStageProgress.Status.DISCONTINUED: "red",
         }
         return format_html(
             '<span style="color: {};">{}</span>',
@@ -262,12 +262,12 @@ class CandidateStageProgressAdmin(admin.ModelAdmin):
         )
 
 
-@admin.register(Standings)
-class StandingsAdmin(admin.ModelAdmin):
+@admin.register(RankingSnapshot)
+class RankingSnapshotAdmin(admin.ModelAdmin):
     list_display = ("competition", "stage", "round", "exam", "facilitator_system", "is_published", "published_at")
     list_filter = ("competition", "stage", "facilitator_system", "is_published")
     raw_id_fields = ("competition", "exam")
-    inlines = [StandingsEntryInline]
+    inlines = [RankingSnapshotEntryInline]
     list_select_related = ("competition", "exam")
     date_hierarchy = "published_at"
 
@@ -293,13 +293,13 @@ class StandingsAdmin(admin.ModelAdmin):
                 invalidate_exam_cache(e_id)
 
 
-@admin.register(StandingsEntry)
-class StandingsEntryAdmin(admin.ModelAdmin):
-    list_display = ("standings", "candidate", "exam_score", "rank", "percentile")
-    list_filter = ("standings__competition", "standings__stage")
+@admin.register(RankingSnapshotEntry)
+class RankingSnapshotEntryAdmin(admin.ModelAdmin):
+    list_display = ("ranking_snapshot", "candidate", "exam_score", "rank", "percentile")
+    list_filter = ("ranking_snapshot__competition", "ranking_snapshot__stage")
     search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
-    raw_id_fields = ("standings", "candidate", "candidate_competition")
-    list_select_related = ("standings", "candidate", "candidate__user", "candidate_competition")
+    raw_id_fields = ("ranking_snapshot", "candidate", "enrollment")
+    list_select_related = ("ranking_snapshot", "candidate", "candidate__user", "enrollment")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -318,11 +318,11 @@ class StandingsEntryAdmin(admin.ModelAdmin):
         invalidate_candidate_cache(candidate.id, candidate.user.id)
 
 
-@admin.register(AggregateLeaderboard)
-class AggregateLeaderboardAdmin(admin.ModelAdmin):
+@admin.register(LeagueLeaderboard)
+class LeagueLeaderboardAdmin(admin.ModelAdmin):
     list_display = ("competition", "stage", "as_of_round", "created_at")
     list_filter = ("competition", "stage")
-    inlines = [AggregateLeaderboardEntryInline]
+    inlines = [LeagueLeaderboardEntryInline]
     list_select_related = ("competition",)
     date_hierarchy = "created_at"
 
@@ -339,71 +339,27 @@ class AggregateLeaderboardAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
 
-@admin.register(AggregateLeaderboardEntry)
-
-
-class AggregateLeaderboardEntryAdmin(admin.ModelAdmin):
-
-
+@admin.register(LeagueLeaderboardEntry)
+class LeagueLeaderboardEntryAdmin(admin.ModelAdmin):
     list_display = ("leaderboard", "candidate", "total_score", "overall_rank")
-
-
     list_filter = ("leaderboard__competition", "leaderboard__stage")
-
-
     search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
-
-
-    raw_id_fields = ("leaderboard", "candidate", "candidate_competition")
-
-
-    list_select_related = ("leaderboard", "candidate", "candidate__user", "candidate_competition")
-
-
-
-
+    raw_id_fields = ("leaderboard", "candidate", "enrollment")
+    list_select_related = ("leaderboard", "candidate", "candidate__user", "enrollment")
 
     def save_model(self, request, obj, form, change):
-
-
         super().save_model(request, obj, form, change)
-
-
         self._invalidate_candidate_cache(obj.candidate)
-
-
-
-
 
     def delete_model(self, request, obj):
-
-
         self._invalidate_candidate_cache(obj.candidate)
-
-
         super().delete_model(request, obj)
 
-
-
-
-
     def delete_queryset(self, request, queryset):
-
-
         for obj in queryset:
-
-
             self._invalidate_candidate_cache(obj.candidate)
-
-
         super().delete_queryset(request, queryset)
 
-
-
-
-
     def _invalidate_candidate_cache(self, candidate):
-
-
         invalidate_candidate_cache(candidate.id, candidate.user.id)
 

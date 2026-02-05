@@ -6,8 +6,8 @@ from django.utils import timezone
 from competition.models import (
     Competition,
     Stage,
-    CandidateCompetition,
-    CandidateStageProgress,
+    Enrollment,
+    EnrollmentStageProgress,
 )
 from identity.models import Candidate
 from vmlc.models import FeatureFlag
@@ -134,7 +134,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
 
                 # Find candidates not already in this competition
-                enrolled_candidate_ids = CandidateCompetition.objects.filter(
+                enrolled_candidate_ids = Enrollment.objects.filter(
                     competition=competition
                 ).values_list("candidate_id", flat=True)
 
@@ -151,18 +151,18 @@ class Command(BaseCommand):
                     self.stdout.write(f"Found {total_to_enroll} candidates to enroll.")
                     created_count = 0
                     for candidate in candidates_to_enroll:
-                        # Create participation
-                        participation = CandidateCompetition.objects.create(
+                        # Create enrollment
+                        enrollment = Enrollment.objects.create(
                             candidate=candidate,
                             competition=competition,
                             current_stage=first_stage,
-                            status=CandidateCompetition.Status.ACTIVE,
+                            status=Enrollment.Status.ACTIVE,
                         )
                         # Create progress
-                        CandidateStageProgress.objects.create(
-                            candidate_competition=participation,
+                        EnrollmentStageProgress.objects.create(
+                            enrollment=enrollment,
                             stage=first_stage,
-                            status=CandidateStageProgress.Status.IN_PROGRESS,
+                            status=EnrollmentStageProgress.Status.IN_PROGRESS,
                         )
                         created_count += 1
 

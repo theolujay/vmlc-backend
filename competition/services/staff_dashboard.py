@@ -3,12 +3,12 @@ from django.db.models import Count, Avg, Q
 from competition.models import (
     Competition,
     StageExam, 
-    CandidateCompetition, 
-    Standings
+    Enrollment, 
+    RankingSnapshot
 )
 from vmlc.models import Exam, CandidateExamResult
 from competition.services.leaderboard import LeaderboardService
-from competition.serializers import AggregateLeaderboardEntrySerializer
+from competition.serializers import LeagueLeaderboardEntrySerializer, RankingSnapshotEntrySerializer
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +19,15 @@ class StaffCompetitionDashboardService:
         if not active_comp:
             return {}
         
-        # TODO: set registered candidate to CandidateCompetition.Status.DISQUALIFIED
+        # TODO: set registered candidate to Enrollment.Status.DISQUALIFIED
         # when set to candidate.user.is_active=False in order to count them out of the
         # following stats queryset
 
         # Get Stats
-        stats = CandidateCompetition.objects.filter(competition=active_comp).aggregate(
+        stats = Enrollment.objects.filter(competition=active_comp).aggregate(
             enrolled=Count('id'),
-            active=Count('id', filter=Q(status=CandidateCompetition.Status.ACTIVE)),
-            eliminated=Count('id', filter=Q(status=CandidateCompetition.Status.ELIMINATED)),
+            active=Count('id', filter=Q(status=Enrollment.Status.ACTIVE)),
+            eliminated=Count('id', filter=Q(status=Enrollment.Status.ELIMINATED)),
         )
 
         # Compute Progress
@@ -49,7 +49,7 @@ class StaffCompetitionDashboardService:
                  competition_stage__type=current_stage_type
              ).count()
              
-             published_rounds = Standings.objects.filter(
+             published_rounds = RankingSnapshot.objects.filter(
                  competition=active_comp,
                  stage=current_stage_type,
                  is_published=True
@@ -88,11 +88,11 @@ class StaffCompetitionDashboardService:
                 avg=Avg('score')
             )
             
-            # check standings status
-            standings = Standings.objects.filter(exam=exam).first()
+            # check ranking_snapshot status
+            ranking_snapshot = RankingSnapshot.objects.filter(exam=exam).first()
             standings_status = "pending"
-            if standings:
-                standings_status = "published" if standings.is_published else "ready"
+            if ranking_snapshot:
+                standings_status = "published" if ranking_snapshot.is_published else "ready"
 
             # TODO: calculate absent count when eligibility logic is adequate
             # For now, keep it simple as per SAT stats
@@ -114,25 +114,25 @@ class StaffCompetitionDashboardService:
         latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
         if latest_leaderboard:
             # The service annotates processed_entries
-            leaderboard_summary_data = AggregateLeaderboardEntrySerializer(
+            leaderboard_summary_data = LeagueLeaderboardEntrySerializer(
                 latest_leaderboard.processed_entries[:3], 
                 many=True
             ).data
 
-        # Latest Standings Summary (Top 3)
+        # Latest RankingSnapshot Summary (Top 3)
         latest_standings_summary = None
-        latest_published_standings = Standings.objects.filter(
+        latest_published_standings = RankingSnapshot.objects.filter(
             competition=active_comp,
             is_published=True
         ).select_related('exam').order_by('-published_at', '-created_at').first()
 
         if latest_published_standings:
             entries = latest_published_standings.entries.select_related('candidate__user').order_by('rank')[:3]
-            from competition.serializers import StandingsEntrySerializer
+            from competition.serializers import RankingSnapshotEntrySerializer
             latest_standings_summary = {
                 "exam_id": latest_published_standings.exam_id,
                 "exam_title": str(latest_published_standings.exam),
-                "entries": StandingsEntrySerializer(entries, many=True).data
+                "entries": RankingSnapshotEntrySerializer(entries, many=True).data
             }
 
         return {

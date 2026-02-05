@@ -39,7 +39,7 @@ This document outlines the API endpoints related to exams, prioritizing V2 over 
       "scheduled_date": "2024-05-01T10:00:00Z",
       "concluded_at": "2024-05-01T22:00:00Z",
       "created_at": "2024-04-01T12:00:00Z",
-      "standings": {
+      "ranking_snapshot": {
         "exists": true,
         "is_published": false,
         "created_at": "2024-05-02T08:00:00Z",
@@ -112,7 +112,7 @@ Returns the full exam object (see **Get Exam Details**).
   "created_at": "2024-04-01T12:00:00Z",
   "created_by": { "id": "uuid", "full_name": "Staff Name", "email": "staff@vmlc.com" },
   "updated_by": null,
-  "standings": {
+  "ranking_snapshot": {
     "exists": true,
     "is_published": false,
     "created_at": "2024-05-02T08:00:00Z",
@@ -347,16 +347,16 @@ Fields same as **Create Exam** (all optional for PATCH).
 
 ---
 
-## 13. Publish Standings
-**Endpoint:** `POST /v1/competition/standings/publish/`  
-**Description:** Triggers the generation and optional immediate publishing of standings for an exam.  
+## 13. Publish RankingSnapshot
+**Endpoint:** `POST /v1/competition/ranking_snapshot/publish/`  
+**Description:** Triggers the generation and optional immediate publishing of ranking_snapshot for an exam.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Request Body
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `exam_id` | UUID | **Required.** UUID of the Exam to generate standings for. |
-| `publish_now` | Boolean | **Optional.** (Default: false) If true, immediately marks standings as published. |
+| `exam_id` | UUID | **Required.** UUID of the Exam to generate ranking_snapshot for. |
+| `publish_now` | Boolean | **Optional.** (Default: false) If true, immediately marks ranking_snapshot as published. |
 
 ```json
 {
@@ -368,15 +368,15 @@ Fields same as **Create Exam** (all optional for PATCH).
 ### Response Body
 ```json
 {
-    "message": "Standings generation has been started."
+    "message": "RankingSnapshot generation has been started."
 }
 ```
 
 ---
 
-## 14. Retrieve Standings
-**Endpoint:** `GET /v1/competition/standings/{exam_id}/`  
-**Description:** Retrieves the full standings for a specific exam, including all candidate entries.  
+## 14. Retrieve RankingSnapshot
+**Endpoint:** `GET /v1/competition/ranking_snapshot/{exam_id}/`  
+**Description:** Retrieves the full ranking_snapshot for a specific exam, including all candidate entries.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Response Body
@@ -411,7 +411,7 @@ Fields same as **Create Exam** (all optional for PATCH).
 ---
 
 ## 15. Retrieve Candidate Standing Detail
-**Endpoint:** `GET /v1/competition/standings/{exam_id}/candidate/{candidate_id}/`  
+**Endpoint:** `GET /v1/competition/ranking_snapshot/{exam_id}/candidate/{candidate_id}/`  
 **Description:** Retrieves detailed performance for a specific candidate in a specific exam standing.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
@@ -521,8 +521,8 @@ To prevent issues where an exam is live but the visibility flag was manually uns
 
 ### 3. Candidate Enrollment Fallback
 The dashboard requires a `CandidateCompetition` record to determine a candidate's "Current Stage."
-- **Enrolled Candidates:** The dashboard uses `participation.current_stage`.
+- **Enrolled Candidates:** The dashboard uses `enrollment.current_stage`.
 - **Unenrolled Candidates:** If a candidate has no enrollment record for the active competition, the dashboard falls back to using the candidate's `role` (e.g., `screening`, `league`) to infer their current stage. This ensures that new registrants see the screening exam immediately even if the background enrollment task hasn't completed.
 
 ### 4. Awaiting Results
-Once an exam is `CONCLUDED` and the candidate has participated, the exam remains visible in the "Active Exam" section with a status of `awaiting_results` until the official **Standings** are published by an admin.
+Once an exam is `CONCLUDED` and the candidate has participated, the exam remains visible in the "Active Exam" section with a status of `awaiting_results` until the official **RankingSnapshot** are published by an admin.

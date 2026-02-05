@@ -4,9 +4,9 @@ from django.utils import timezone
 from competition.models import (
     Competition,
     Stage,
-    CandidateCompetition,
-    CandidateStageProgress,
-    Standings,
+    Enrollment,
+    EnrollmentStageProgress,
+    RankingSnapshot,
 )
 from competition.services.leaderboard import LeaderboardService
 
@@ -61,24 +61,24 @@ class ProgressionService:
                 if mode == "top_n":
                     cutoff_rank = int(value)
                 elif mode == "top_percent":
-                    # Calculate total participants to apply percentage
-                    total_participants = 0
+                    # Calculate total enrollments to apply percentage
+                    total_enrollments = 0
                     if from_stage_type == Stage.Type.SCREENING:
-                        standings = Standings.objects.filter(
+                        ranking_snapshot = RankingSnapshot.objects.filter(
                             competition=competition, stage=Stage.Type.SCREENING, is_published=True
                         ).order_by('-published_at').first()
-                        if standings:
-                            total_participants = standings.entries.count()
+                        if ranking_snapshot:
+                            total_enrollments = ranking_snapshot.entries.count()
                     elif from_stage_type == Stage.Type.LEAGUE:
                         leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
                         if leaderboard:
-                            total_participants = leaderboard.entries.count()
+                            total_enrollments = leaderboard.entries.count()
                     
-                    if total_participants > 0:
+                    if total_enrollments > 0:
                         import math
-                        cutoff_rank = max(1, math.ceil(total_participants * float(value)))
+                        cutoff_rank = max(1, math.ceil(total_enrollments * float(value)))
                     else:
-                        raise ProgressionError(f"Cannot calculate top_percent: No participants found in {from_stage_type} stage.")
+                        raise ProgressionError(f"Cannot calculate top_percent: No enrollments found in {from_stage_type} stage.")
                 else:
                     raise ProgressionError(f"Unsupported advancement mode: {mode}")
             else:
@@ -96,20 +96,20 @@ class ProgressionService:
         candidate_ids_to_eliminate = []
         
         if from_stage_type == Stage.Type.SCREENING:
-            standings = Standings.objects.filter(
+            ranking_snapshot = RankingSnapshot.objects.filter(
                 competition=competition, 
                 stage=Stage.Type.SCREENING, 
                 is_published=True
             ).order_by('-published_at').first()
             
-            if not standings:
-                raise ProgressionError("No published Screening standings found.")
+            if not ranking_snapshot:
+                raise ProgressionError("No published Screening ranking snapshot found.")
             
-            candidate_ids_to_promote = list(standings.entries.filter(
+            candidate_ids_to_promote = list(ranking_snapshot.entries.filter(
                 rank__lte=cutoff_rank
             ).values_list('candidate_id', flat=True))
 
-            candidate_ids_to_eliminate = list(standings.entries.filter(
+            candidate_ids_to_eliminate = list(ranking_snapshot.entries.filter(
                 rank__gt=cutoff_rank
             ).values_list('candidate_id', flat=True))
 
@@ -136,18 +136,18 @@ class ProgressionService:
         
         # Update CandidateCompetition
         # Promote meeting cutoff
-        CandidateCompetition.objects.filter(
+        Enrollment.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_promote,
-            status=CandidateCompetition.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE
         ).update(current_stage=to_stage, last_active_at=now)
 
         # Eliminate below cutoff
-        CandidateCompetition.objects.filter(
+        Enrollment.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_eliminate,
-            status=CandidateCompetition.Status.ACTIVE
-        ).update(status=CandidateCompetition.Status.ELIMINATED, last_active_at=now)
+            status=Enrollment.Status.ACTIVE
+        ).update(status=Enrollment.Status.ELIMINATED, last_active_at=now)
 
         # Update Candidate Roles (for permissions)
         from identity.models import Candidate
@@ -159,24 +159,23 @@ class ProgressionService:
         # Update Old StageProgress
         from_stage = Stage.objects.filter(competition=competition, type=from_stage_type).first()
         if from_stage:
-            CandidateStageProgress.objects.filter(
-                candidate_competition__competition=competition,
-                candidate_competition__candidate_id__in=(candidate_ids_to_promote + candidate_ids_to_eliminate),
+            EnrollmentStageProgress.objects.filter(
+                enrollment__competition=competition,
+                enrollment__candidate_id__in=(candidate_ids_to_promote + candidate_ids_to_eliminate),
                 stage=from_stage
-            ).update(status=CandidateStageProgress.Status.COMPLETED, completed_at=now)
+            ).update(status=EnrollmentStageProgress.Status.COMPLETED, completed_at=now)
 
         # Create/Update New StageProgress
-        participations = CandidateCompetition.objects.filter(
-            competition=competition, 
+        enrollments = Enrollment.objects.filter(
+            competition=competition,
             candidate_id__in=candidate_ids_to_promote
-        )
-        
-        for part in participations:
-             CandidateStageProgress.objects.update_or_create(
-                 candidate_competition=part,
+        )        
+        for enrollment in enrollments:
+             EnrollmentStageProgress.objects.update_or_create(
+                 enrollment=enrollment,
                  stage=to_stage,
                  defaults={
-                     'status': CandidateStageProgress.Status.IN_PROGRESS,
+                     'status': EnrollmentStageProgress.Status.IN_PROGRESS,
                      'started_at': now
                  }
              )

@@ -11,9 +11,9 @@ from competition.models import (
     Competition,
     Stage,
     StageExam,
-    CandidateCompetition,
-    StandingsEntry,
-    AggregateLeaderboardEntry
+    Enrollment,
+    RankingSnapshotEntry,
+    LeagueLeaderboardEntry
 )
 
 logger = logging.getLogger(__name__)
@@ -37,22 +37,22 @@ class CandidateRecordService:
     @staticmethod
     def get_available_exams(candidate: Candidate) -> List[Dict[str, Any]]:
         """
-        Fetches exams available to the candidate based on their active competition participation.
+        Fetches exams available to the candidate based on their active competition enrollment.
         """
-        # Get active competition and participation context
-        participation = CandidateCompetition.objects.filter(
+        # Get active competition and enrollment context
+        enrollment = Enrollment.objects.filter(
             candidate=candidate,
             competition__status=Competition.Status.ACTIVE,
-            status=CandidateCompetition.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE
         ).select_related('current_stage').first()
 
-        if not participation or not participation.current_stage:
-            logger.info(f"No active participation found for candidate {candidate.pk}")
+        if not enrollment or not enrollment.current_stage:
+            logger.info(f"No active enrollment found for candidate {candidate.pk}")
             return []
 
         # Get exams for this specific stage
         stage_exams = StageExam.objects.filter(
-            competition_stage=participation.current_stage,
+            competition_stage=enrollment.current_stage,
             is_active=True
         ).select_related('exam').order_by('round')
 
@@ -77,7 +77,7 @@ class CandidateRecordService:
                             "scheduled_date": exam.scheduled_date,
                             "countdown_minutes": exam.countdown_minutes,
                             "question_count": exam.get_question_count(),
-                            "stage": participation.current_stage.type,
+                            "stage": enrollment.current_stage.type,
                             "round": slot.round,
                         })
             except Exam.DoesNotExist:
@@ -88,10 +88,10 @@ class CandidateRecordService:
     @staticmethod
     def get_performance_stats(candidate: Candidate) -> Dict[str, Any]:
         """
-        Computes performance statistics for the candidate leveraging modern Standings and Leaderboards.
+        Computes performance statistics for the candidate leveraging modern RankingSnapshot and Leaderboards.
         """
         # 1. Fetch latest published snapshot for legacy bounds if necessary
-        # (Though we prefer Standings/Leaderboards now)
+        # (Though we prefer RankingSnapshot/Leaderboards now)
         latest_snapshot = CandidateExamResultSnapshot.objects.filter(
             published_at__isnull=False
         ).order_by("-published_at").first()
@@ -141,7 +141,7 @@ class CandidateRecordService:
         Retrieves the candidate's ranking from the latest aggregate leaderboard.
         """
         # Look for their entry in the latest published AggregateLeaderboard
-        entry = AggregateLeaderboardEntry.objects.filter(
+        entry = LeagueLeaderboardEntry.objects.filter(
             candidate=candidate,
             leaderboard__competition__status=Competition.Status.ACTIVE
         ).select_related('leaderboard').order_by('-leaderboard__as_of_round', '-leaderboard__created_at').first()
@@ -153,17 +153,17 @@ class CandidateRecordService:
                 "as_of_round": entry.leaderboard.as_of_round
             }
         
-        # Fallback to Screening Standings if not in League yet
-        screening_entry = StandingsEntry.objects.filter(
+        # Fallback to Screening RankingSnapshot if not in League yet
+        screening_entry = RankingSnapshotEntry.objects.filter(
             candidate=candidate,
-            standings__stage=Stage.Type.SCREENING,
-            standings__is_published=True
-        ).select_related('standings').order_by('-standings__created_at').first()
+            ranking_snapshot__stage=Stage.Type.SCREENING,
+            ranking_snapshot__is_published=True
+        ).select_related('ranking_snapshot').order_by('-ranking_snapshot__created_at').first()
 
         if screening_entry:
             return {
                 "current_rank": screening_entry.rank,
-                "total_candidates": screening_entry.standings.entries.count(),
+                "total_candidates": screening_entry.ranking_snapshot.entries.count(),
                 "stage": "screening"
             }
 

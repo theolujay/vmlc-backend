@@ -35,14 +35,14 @@ from competition.models import (
     Competition,
     Stage,
     StageExam,
-    CandidateCompetition,
-    CandidateStageProgress,
-    Standings,
-    StandingsEntry,
-    AggregateLeaderboard,
-    AggregateLeaderboardEntry,
+    Enrollment,
+    EnrollmentStageProgress,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
 )
-from competition.services.standings import StandingsGenerator
+from competition.services.ranking_snapshot import RankingSnapshotGenerator
 from competition.services.leaderboard import LeaderboardService
 from competition.services.progression import ProgressionService
 
@@ -88,8 +88,8 @@ class Command(BaseCommand):
             staff_pool=staff_list,
             days_ago=30  # Screening happened a month ago
         )
-        self._generate_exam_results(screening_exam, CandidateCompetition.objects.all(), staff_list)
-        self._finalize_standings(screening_exam, staff_list)
+        self._generate_exam_results(screening_exam, Enrollment.objects.all(), staff_list)
+        self._finalize_ranking_snapshot(screening_exam, staff_list)
         
         # Promote top 80 to League
         self.stdout.write("Promoting top 80 candidates to League stage...")
@@ -109,14 +109,14 @@ class Command(BaseCommand):
                 days_ago=(25 - r * 3), # Round 1: 22 days ago, Round 6: 7 days ago
                 round_num=r
             )
-            # Only active participants take the exam
-            active_parts = CandidateCompetition.objects.filter(
+            # Only active enrollments take the exam
+            active_parts = Enrollment.objects.filter(
                 competition=competition, 
                 current_stage=stages['league'],
-                status=CandidateCompetition.Status.ACTIVE
+                status=Enrollment.Status.ACTIVE
             )
             self._generate_exam_results(league_exam, active_parts, staff_list)
-            self._finalize_standings(league_exam, staff_list, update_leaderboard=True)
+            self._finalize_ranking_snapshot(league_exam, staff_list, update_leaderboard=True)
 
         # Promote top 20 to Final
         self.stdout.write("Promoting top 20 candidates to Final stage...")
@@ -134,13 +134,13 @@ class Command(BaseCommand):
             staff_pool=staff_list,
             days_ago=3
         )
-        active_parts_final = CandidateCompetition.objects.filter(
+        active_parts_final = Enrollment.objects.filter(
             competition=competition,
             current_stage=stages['final'],
-            status=CandidateCompetition.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE
         )
         self._generate_exam_results(final_exam, active_parts_final, staff_list)
-        self._finalize_standings(final_exam, staff_list)
+        self._finalize_ranking_snapshot(final_exam, staff_list)
 
         # 5. Ancillary Data
         self._create_pre_reg_and_events(candidates, staff_list)
@@ -153,17 +153,17 @@ class Command(BaseCommand):
 
     def _clear_data(self):
         self.stdout.write("Clearing existing data...")
-        Standings.objects.all().delete()
-        StandingsEntry.objects.all().delete()
-        AggregateLeaderboard.objects.all().delete()
-        AggregateLeaderboardEntry.objects.all().delete()
+        RankingSnapshot.objects.all().delete()
+        RankingSnapshotEntry.objects.all().delete()
+        LeagueLeaderboard.objects.all().delete()
+        LeagueLeaderboardEntry.objects.all().delete()
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
         Question.objects.all().delete()
         StageExam.objects.all().delete()
-        CandidateCompetition.objects.all().delete()
-        CandidateStageProgress.objects.all().delete()
+        Enrollment.objects.all().delete()
+        EnrollmentStageProgress.objects.all().delete()
         Stage.objects.all().delete()
         Competition.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
@@ -299,16 +299,16 @@ class Command(BaseCommand):
     def _enroll_candidates_in_screening(self, candidates, competition, first_stage):
         self.stdout.write("Enrolling candidates in Screening...")
         for cand in candidates:
-            participation = CandidateCompetition.objects.create(
+            enrollment = Enrollment.objects.create(
                 candidate=cand,
                 competition=competition,
                 current_stage=first_stage,
-                status=CandidateCompetition.Status.ACTIVE
+                status=Enrollment.Status.ACTIVE
             )
-            CandidateStageProgress.objects.create(
-                candidate_competition=participation,
+            EnrollmentStageProgress.objects.create(
+                enrollment=enrollment,
                 stage=first_stage,
-                status=CandidateStageProgress.Status.IN_PROGRESS
+                status=EnrollmentStageProgress.Status.IN_PROGRESS
             )
 
     def _create_questions(self, count, staff_pool):
@@ -340,14 +340,14 @@ class Command(BaseCommand):
         exam.questions.set(questions)
         return exam
 
-    def _generate_exam_results(self, exam, participation_pool, staff_pool):
-        for part in participation_pool:
+    def _generate_exam_results(self, exam, enrollment_pool, staff_pool):
+        for enrollment in enrollment_pool:
             # Simulate some candidates missing the exam
             if random.random() < 0.05:
                 continue
                 
             result = CandidateExamResult.objects.create(
-                candidate=part.candidate,
+                candidate=enrollment.candidate,
                 exam=exam,
                 score=round(random.uniform(20.0, 100.0), 2),
                 score_submitted_by=random.choice(staff_pool),
@@ -359,19 +359,19 @@ class Command(BaseCommand):
                     selected_option=random.choice(["A", "B", "C", "D"]),
                 )
 
-    def _finalize_standings(self, exam, staff_pool, update_leaderboard=False):
-        generator = StandingsGenerator(stage_exam_id=exam.competition_slot.id)
-        standings = generator.generate_and_save_standings(
+    def _finalize_ranking_snapshot(self, exam, staff_pool, update_leaderboard=False):
+        generator = RankingSnapshotGenerator(stage_exam_id=exam.competition_slot.id)
+        ranking_snapshot = generator.generate_and_save_ranking_snapshot(
             published_by_staff_id=random.choice(staff_pool).pk
         )
-        standings.is_published = True
-        standings.published_at = timezone.now()
-        standings.save()
+        ranking_snapshot.is_published = True
+        ranking_snapshot.published_at = timezone.now()
+        ranking_snapshot.save()
         
-        if update_leaderboard and standings.stage == Stage.Type.LEAGUE:
+        if update_leaderboard and ranking_snapshot.stage == Stage.Type.LEAGUE:
             LeaderboardService.update_league_leaderboard(
-                competition_id=standings.competition_id,
-                as_of_round=standings.round
+                competition_id=ranking_snapshot.competition_id,
+                as_of_round=ranking_snapshot.round
             )
 
     def _create_pre_reg_and_events(self, candidates, staff_pool):

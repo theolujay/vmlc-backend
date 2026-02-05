@@ -113,12 +113,11 @@ class IsActiveCompetitionParticipant(BasePermission):
     Uses context from CompetitionContextMiddleware.
     """
     def has_permission(self, request, view):
-        part = getattr(request, 'participation', None)
-        if not part:
+        enrollment = getattr(request, 'enrollment', None)
+        if not enrollment:
             return False
-        from competition.models import CandidateCompetition
-        return part.status == CandidateCompetition.Status.ACTIVE
-
+        from competition.models import Enrollment
+        return enrollment.status == Enrollment.Status.ACTIVE
 
 class IsInStage(BasePermission):
     """
@@ -132,18 +131,17 @@ class IsInStage(BasePermission):
         return self
 
     def has_permission(self, request, view):
-        part = getattr(request, 'participation', None)
-        if not part:
+        enrollment = getattr(request, 'enrollment', None)
+        if not enrollment:
             return False
             
-        from competition.models import CandidateCompetition
-        if part.status != CandidateCompetition.Status.ACTIVE:
+        from competition.models import Enrollment
+        if enrollment.status != Enrollment.Status.ACTIVE:            return False
+            
+        if not enrollment.current_stage:
             return False
             
-        if not part.current_stage:
-            return False
-            
-        return part.current_stage.type in self.allowed_stages
+        return enrollment.current_stage.type in self.allowed_stages
 
 
 class CanAccessStageResource(IsInStage):
@@ -163,15 +161,15 @@ class IsLeagueParticipantOrStaffBase(BasePermission):
             return True
             
         # League Participant check
-        part = getattr(request, 'participation', None)
-        if not part:
+        enrollment = getattr(request, 'enrollment', None)
+        if not enrollment:
             return False
             
-        from competition.models import CandidateCompetition, Stage
+        from competition.models import Enrollment, Stage
         return (
-            part.status == CandidateCompetition.Status.ACTIVE and
-            part.current_stage and 
-            part.current_stage.type == Stage.Type.LEAGUE
+            enrollment.status == Enrollment.Status.ACTIVE and
+            enrollment.current_stage and 
+            enrollment.current_stage.type == Stage.Type.LEAGUE
         )
 
 

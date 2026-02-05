@@ -8,7 +8,7 @@ Currently, the `Candidate` model in `identity/models.py` contains significant bu
 
 1.  **Tight Coupling**: Identity models should focus on authentication and profile data, not business rules or exam availability logic.
 2.  **Brittle Permissions**: Logic relies on the `candidate.role` string (e.g., `stage=self.role`) to determine access. This ignores the dynamic nature of competitions (e.g., specific editions, active enrollment status, disqualifications).
-3.  **Legacy Dependencies**: Performance stats rely on `CandidateExamResultSnapshot`, which is less real-time and granular than the new `Standings` and `Leaderboard` architecture.
+3.  **Legacy Dependencies**: Performance stats rely on `CandidateExamResultSnapshot`, which is less real-time and granular than the new `RankingSnapshot` and `Leaderboard` architecture.
 
 ## 2. Proposed Architecture
 
@@ -48,7 +48,7 @@ Exam.objects.filter(stage=self.role, is_active=True)
 ```
 
 **Proposed Logic (Optimized):**
-The availability of an exam should be determined by the candidate's **active participation** in a **current stage** of an **active competition**.
+The availability of an exam should be determined by the candidate's **active enrollment** in a **current stage** of an **active competition**.
 
 1.  **Fetch Context**: Query `CandidateCompetition` to find the active enrollment for the candidate.
     *   *Check*: `competition.status == ACTIVE`
@@ -61,19 +61,19 @@ The availability of an exam should be determined by the candidate's **active par
 ```python
 def get_available_exams(candidate):
     # 1. Get active context
-    participation = CandidateCompetition.objects.filter(
+    enrollment = CandidateCompetition.objects.filter(
         candidate=candidate,
         competition__status=Competition.Status.ACTIVE,
         status=CandidateCompetition.Status.ACTIVE
     ).select_related('current_stage').first()
 
-    if not participation or not participation.current_stage:
+    if not enrollment or not enrollment.current_stage:
         return []
 
     # 2. Get exams for this specific stage
     # This decouples the 'Exam' definition from the 'Stage' execution
     stage_exams = StageExam.objects.filter(
-        competition_stage=participation.current_stage,
+        competition_stage=enrollment.current_stage,
         is_active=True
     ).select_related('exam')
 

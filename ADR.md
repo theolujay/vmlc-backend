@@ -18,27 +18,27 @@
 
 *   **`CandidateCompetition`**: Enrollment record.
     *   *Responsibility*: Links `Identity` to `Competition`. Tracks global status (Eliminated vs Active).
-    *   *Assessment*: **Crucial Missing Link**. It currently links `candidate` (from identity) but `vmlc` results link to `candidate` too. This is fine, but we must ensure that when `Standings` are generated, we only include candidates who are `ACTIVE` in this model.
+    *   *Assessment*: **Crucial Missing Link**. It currently links `candidate` (from identity) but `vmlc` results link to `candidate` too. This is fine, but we must ensure that when `RankingSnapshot` are generated, we only include candidates who are `ACTIVE` in this model.
 
 *   **`CandidateStageProgress`**: Tracks state within a stage.
     *   *Responsibility*: Granular progress (e.g., "Did they finish Screening?").
     *   *Assessment*: The commented-out `# last_exam` suggests uncertainty.
-    *   *Recommendation*: This should track *aggregate* status for the stage (e.g., "Qualified for Next Stage"). It should NOT link to a specific exam; `Standings` covers that.
+    *   *Recommendation*: This should track *aggregate* status for the stage (e.g., "Qualified for Next Stage"). It should NOT link to a specific exam; `RankingSnapshot` covers that.
 
-*   **`Standings` & `StandingsEntry`**: The core presentation artifacts.
+*   **`RankingSnapshot` & `StandingsEntry`**: The core presentation artifacts.
     *   *Responsibility*: Immutable snapshot of performance for a *single exam*.
     *   *Assessment*: Excellent pattern. It decouples "taking the test" (vmlc) from "ranking the users" (competition).
-    *   *Gap*: There is no model for **Aggregate Leaderboards** (e.g., "League Table" summing up 10 weeks). `Standings` is per-exam. Relying on summing `StandingsEntry` on the fly is expensive and risky for consistency.
+    *   *Gap*: There is no model for **Aggregate Leaderboards** (e.g., "League Table" summing up 10 weeks). `RankingSnapshot` is per-exam. Relying on summing `StandingsEntry` on the fly is expensive and risky for consistency.
 
 ### VMLC App (`vmlc/models.py`)
 
 *   **`Exam`**: The test definition.
     *   *Issue*: It has `stage` and `round` fields.
     *   *Violation*: `vmlc` shouldn't know about "League" vs "Screening" intimately.
-    *   *Mitigation*: Keep them for now as "tags" for the engine, but `competition.Standings` is the authoritative mapper of "This Exam ID = League Round 1".
+    *   *Mitigation*: Keep them for now as "tags" for the engine, but `competition.RankingSnapshot` is the authoritative mapper of "This Exam ID = League Round 1".
 
 *   **`LeaderboardSnapshot`** (Legacy):
-    *   *Status*: **Deprecated**. This stores a massive JSON blob. It should be replaced by `competition.Standings`.
+    *   *Status*: **Deprecated**. This stores a massive JSON blob. It should be replaced by `competition.RankingSnapshot`.
 
 ## 2. Integration & Data Flow
 
@@ -54,20 +54,20 @@
     *   An admin (or cron) triggers **"Finalize Results"**.
     *   *Action*: Calculate all pending scores (auto-grading).
 
-3.  **Standings Generation (Competition)**
-    *   **Trigger**: Explicit Admin Action "Publish Standings" for Exam X.
+3.  **RankingSnapshot Generation (Competition)**
+    *   **Trigger**: Explicit Admin Action "Publish RankingSnapshot" for Exam X.
     *   **Input**: `vmlc.CandidateExamResult` for Exam X.
     *   **Process**:
         *   Fetch all results.
         *   Filter out disqualified/withdrawn candidates (via `CandidateCompetition`).
         *   Sort by Score (DESC), then Time (ASC).
         *   Calculate Rank and Percentile.
-        *   **Write**: Create `Standings` (parent) and `StandingsEntry` (rows).
+        *   **Write**: Create `RankingSnapshot` (parent) and `StandingsEntry` (rows).
     *   **Output**: A frozen, queryable table in `competition` DB.
 
 4.  **Aggregate Leaderboard Update (Competition)**
     *   *New Step*: Update the "League Table".
-    *   **Input**: All published `Standings` for the current Stage.
+    *   **Input**: All published `RankingSnapshot` for the current Stage.
     *   **Process**: Sum scores per candidate.
     *   **Write**: Update a `Leaderboard` model (see recommendations).
 
@@ -98,13 +98,13 @@ def generate_standings(exam_id):
 ```
 
 ### Priority 2: Add `AggregateLeaderboard` Model
-`Standings` is for a single exam. The "League Table" is long-lived.
+`RankingSnapshot` is for a single exam. The "League Table" is long-lived.
 
 ```python
 class AggregateLeaderboard(models.Model):
     """
     Sum of scores for a Stage (e.g. League Total).
-    Updated every time a generic Standings is published.
+    Updated every time a generic RankingSnapshot is published.
     """
     competition = ForeignKey(...)
     stage = ForeignKey(...) 
@@ -119,10 +119,10 @@ class AggregateEntry(models.Model):
 ```
 
 ### Priority 3: Explicit "Source" Meta
-Update `Standings` to explicitly handle external sources (Esturdi).
+Update `RankingSnapshot` to explicitly handle external sources (Esturdi).
 
 ```python
-class Standings(models.Model):
+class RankingSnapshot(models.Model):
     # ... existing fields ...
     source_system = models.CharField(choices=["vmlc", "esturdi"], default="vmlc")
     external_reference_id = models.CharField(null=True) # ID in Esturdi
@@ -132,6 +132,6 @@ class Standings(models.Model):
 
 1.  **Tie-Breaking**: The current `vmlc` utils don't seem to have explicit tie-breaking logic other than database sort order. `competition` needs a clear rule (e.g., "Submission Time" or "Shared Rank").
 2.  **Facilitator ID**: If an exam is run on Esturdi, does a `vmlc.Exam` record exist?
-    *   *Assumption*: No. `Standings` might point to `exam=None` and use `external_reference_id`, OR we create a "stub" Exam in `vmlc`.
-    *   *Recommendation*: Make `Standings.exam` nullable to support external engines.
+    *   *Assumption*: No. `RankingSnapshot` might point to `exam=None` and use `external_reference_id`, OR we create a "stub" Exam in `vmlc`.
+    *   *Recommendation*: Make `RankingSnapshot.exam` nullable to support external engines.
 

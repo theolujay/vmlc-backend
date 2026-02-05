@@ -6,18 +6,18 @@ This document provides detailed information on the response bodies for the compe
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **POST** | `/competition/standings/publish/` | Trigger asynchronous generation/publishing of standings. |
-| **GET** | `/competition/standings/{exam_id}/` | Retrieve specific standings with detailed entries using Exam ID. |
-| **GET** | `/competition/standings/{exam_id}/candidate/{candidate_id}/` | Retrieve detailed performance for a specific candidate in an exam standing. |
+| **POST** | `/competition/ranking_snapshot/publish/` | Trigger asynchronous generation/publishing of ranking_snapshot. |
+| **GET** | `/competition/ranking_snapshot/{exam_id}/` | Retrieve specific ranking_snapshot with detailed entries using Exam ID. |
+| **GET** | `/competition/ranking_snapshot/{exam_id}/candidate/{candidate_id}/` | Retrieve detailed performance for a specific candidate in an exam standing. |
 | **GET** | `/competition/leaderboard/league/` | Retrieve the latest cumulative league leaderboard. |
 | **GET** | `/competition/leaderboard/league/candidate/{candidate_id}/` | Retrieve cumulative performance for a specific candidate in the league. |
 
 ---
 
-## 1. Publish Standings
-`POST /competition/standings/publish/`
+## 1. Publish RankingSnapshot
+`POST /competition/ranking_snapshot/publish/`
 
-Used by administrators to trigger the calculation of standings for a specific exam round.
+Used by administrators to trigger the calculation of ranking_snapshot for a specific exam round.
 
 ### Request Body
 ```json
@@ -30,16 +30,16 @@ Used by administrators to trigger the calculation of standings for a specific ex
 ### Response Body (`202 Accepted`)
 ```json
 {
-  "message": "Standings generation has been started."
+  "message": "RankingSnapshot generation has been started."
 }
 ```
 
 ---
 
-## 2. Retrieve Standings
-`GET /competition/standings/{exam_id}/`
+## 2. Retrieve RankingSnapshot
+`GET /competition/ranking_snapshot/{exam_id}/`
 
-Retrieves a snapshot of standings for a specific stage and round using the Exam ID.
+Retrieves a snapshot of ranking_snapshot for a specific stage and round using the Exam ID.
 
 ### Response Body (`200 OK`)
 ```json
@@ -73,7 +73,7 @@ Retrieves a snapshot of standings for a specific stage and round using the Exam 
 ---
 
 ## 3. Candidate Standing Detail
-`GET /competition/standings/{exam_id}/candidate/{candidate_id}/`
+`GET /competition/ranking_snapshot/{exam_id}/candidate/{candidate_id}/`
 
 Retrieves detailed performance for a specific candidate in a specific exam standing, including their answers and the correct options.
 

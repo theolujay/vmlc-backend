@@ -35,12 +35,12 @@ from competition.models import (
     Competition,
     Stage,
     StageExam,
-    CandidateCompetition,
-    CandidateStageProgress,
-    Standings,
-    StandingsEntry,
-    AggregateLeaderboard,
-    AggregateLeaderboardEntry,
+    Enrollment,
+    EnrollmentStageProgress,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
 )
 
 load_dotenv(".env")
@@ -115,17 +115,17 @@ class Command(BaseCommand):
         
     def _clear_data(self):
         self.stdout.write("Clearing existing data...")
-        Standings.objects.all().delete()
-        StandingsEntry.objects.all().delete()
-        AggregateLeaderboard.objects.all().delete()
-        AggregateLeaderboardEntry.objects.all().delete()
+        RankingSnapshot.objects.all().delete()
+        RankingSnapshotEntry.objects.all().delete()
+        LeagueLeaderboard.objects.all().delete()
+        LeagueLeaderboardEntry.objects.all().delete()
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
         Exam.objects.all().delete()
         Question.objects.all().delete()
         StageExam.objects.all().delete()
-        CandidateCompetition.objects.all().delete()
-        CandidateStageProgress.objects.all().delete()
+        Enrollment.objects.all().delete()
+        EnrollmentStageProgress.objects.all().delete()
         Stage.objects.all().delete()
         Competition.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
@@ -289,14 +289,14 @@ class Command(BaseCommand):
     def _enroll_candidates_in_screening(self, candidates, competition, first_stage):
         self.stdout.write("Enrolling candidates in Screening...")
         for cand in candidates:
-            participation = CandidateCompetition.objects.create(
+            enrollment = Enrollment.objects.create(
                 candidate=cand,
                 competition=competition,
                 current_stage=first_stage,
-                status=CandidateCompetition.Status.ACTIVE
+                status=Enrollment.Status.ACTIVE
             )
-            CandidateStageProgress.objects.create(
-                candidate_competition=participation,
+            EnrollmentStageProgress.objects.create(
+                enrollment=enrollment,
                 stage=first_stage,
-                status=CandidateStageProgress.Status.IN_PROGRESS
+                status=EnrollmentStageProgress.Status.IN_PROGRESS
             )

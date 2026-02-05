@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class SubmitAnswersV2View(APIView):
     """
     Handles the submission of a candidate's answers for a specific exam.
-    Uses ExamAccess to track participation status.
+    Uses ExamAccess to track enrollment status.
     """
 
     permission_classes = CandidatePermissions

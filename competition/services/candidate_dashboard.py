@@ -8,9 +8,9 @@ from competition.models import (
     Competition,
     Stage,
     StageExam,
-    CandidateCompetition,
-    Standings,
-    StandingsEntry,
+    Enrollment,
+    RankingSnapshot,
+    RankingSnapshotEntry,
 )
 from identity.models import Candidate
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 class CandidateDashboardService:
     @staticmethod
-    def get_dashboard_data(candidate: Candidate, participation: Optional[CandidateCompetition] = None) -> Dict[str, Any]:
+    def get_dashboard_data(candidate: Candidate, enrollment: Optional[Enrollment] = None) -> Dict[str, Any]:
         """
         Main entry point to get all candidate dashboard data.
         """
         active_comp = None
-        if participation:
-            active_comp = participation.competition
+        if enrollment:
+            active_comp = enrollment.competition
         else:
             active_comp = Competition.objects.filter(
                 status=Competition.Status.ACTIVE
@@ -35,22 +35,22 @@ class CandidateDashboardService:
 
         context = CandidateDashboardService._get_context(candidate)
 
-        if active_comp and not participation:
-            participation = (
-                CandidateCompetition.objects.filter(
+        if active_comp and not enrollment:
+            enrollment = (
+                Enrollment.objects.filter(
                     candidate=candidate, competition=active_comp
                 )
                 .select_related("current_stage")
                 .first()
             )
 
-        progress = CandidateDashboardService._get_stage_progress(
-            candidate, active_comp, participation
+        progress = CandidateDashboardService._get_enrollment_stage_progress(
+            candidate, active_comp, enrollment
         )
 
         # 3. Active Exam
         active_exam_data = CandidateDashboardService._get_active_exam(
-            candidate, active_comp, participation
+            candidate, active_comp, enrollment
         )
 
         # 4. Performance Snapshot
@@ -63,7 +63,7 @@ class CandidateDashboardService:
 
         return {
             "candidate_context": context,
-            "stage_progress": progress,
+            "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
             "performance_snapshot": performance,
             "exam_history": history,
@@ -111,10 +111,10 @@ class CandidateDashboardService:
         }
 
     @staticmethod
-    def _get_stage_progress(
+    def _get_enrollment_stage_progress(
         candidate: Candidate,
         active_comp: Optional[Competition],
-        participation: Optional[CandidateCompetition],
+        enrollment: Optional[Enrollment],
     ) -> Dict[str, Any]:
         if not active_comp:
             return {
@@ -127,7 +127,7 @@ class CandidateDashboardService:
             }
 
         # Determine the current stage - fallback to candidate role if not enrolled
-        current_stage = participation.current_stage if participation else None
+        current_stage = enrollment.current_stage if enrollment else None
         if not current_stage:
             current_stage = Stage.objects.filter(
                 competition=active_comp, type=candidate.role
@@ -158,8 +158,8 @@ class CandidateDashboardService:
 
         total_rounds = slots.count()
 
-        # Published standings in current stage
-        published_rounds = Standings.objects.filter(
+        # Published ranking_snapshot in current stage
+        published_rounds = RankingSnapshot.objects.filter(
             competition=active_comp, stage=current_stage.type, is_published=True
         ).count()
 
@@ -181,12 +181,12 @@ class CandidateDashboardService:
 
         # Qualification Status logic
         is_qualified = (
-            participation.status == CandidateCompetition.Status.ACTIVE
-            if participation
+            enrollment.status == Enrollment.Status.ACTIVE
+            if enrollment
             else True  # Assume active if just discovered by role
         )
         status_display = (
-            participation.get_status_display() if participation else "Active"
+            enrollment.get_status_display() if enrollment else "Active"
         )
 
         qualification_status = {
@@ -211,13 +211,13 @@ class CandidateDashboardService:
     def _get_active_exam(
         candidate: Candidate,
         active_comp: Optional[Competition],
-        participation: Optional[CandidateCompetition],
+        enrollment: Optional[Enrollment],
     ) -> Optional[Dict[str, Any]]:
         if not active_comp:
             return None
 
         # Determine the current stage - fallback to candidate role if not enrolled
-        current_stage = participation.current_stage if participation else None
+        current_stage = enrollment.current_stage if enrollment else None
         if not current_stage:
             current_stage = Stage.objects.filter(
                 competition=active_comp, type=candidate.role
@@ -287,8 +287,8 @@ class CandidateDashboardService:
                         active_exam_data = exam_data
 
                 elif status == Exam.Status.CONCLUDED and has_participated:
-                    # Check if standings are published
-                    standing = Standings.objects.filter(
+                    # Check if ranking_snapshot are published
+                    standing = RankingSnapshot.objects.filter(
                         exam=exam, is_published=True
                     ).first()
 
@@ -323,24 +323,24 @@ class CandidateDashboardService:
 
         from django.db.models import Q
 
-        # 1. Fetch Screening and Final Standings Entries
-        entries = StandingsEntry.objects.filter(
-            Q(standings__stage=Stage.Type.SCREENING)
-            | Q(standings__stage=Stage.Type.FINAL),
-            standings__competition=active_comp,
-            standings__is_published=True,
+        # 1. Fetch Screening and Final RankingSnapshot Entries
+        entries = RankingSnapshotEntry.objects.filter(
+            Q(ranking_snapshot__stage=Stage.Type.SCREENING)
+            | Q(ranking_snapshot__stage=Stage.Type.FINAL),
+            ranking_snapshot__competition=active_comp,
+            ranking_snapshot__is_published=True,
             candidate=candidate,
-        ).select_related("standings")
+        ).select_related("ranking_snapshot")
 
         for entry in entries:
-            stage_type = entry.standings.stage
+            stage_type = entry.ranking_snapshot.stage
             data = {
                 "rank": entry.rank,
-                "total_candidates": entry.standings.entries.count(),
+                "total_candidates": entry.ranking_snapshot.entries.count(),
                 "score": float(entry.exam_score),
                 "percentile": entry.percentile,
-                "exam_id": str(entry.standings.exam_id),
-                "exam_title": entry.standings.exam.get_title(),
+                "exam_id": str(entry.ranking_snapshot.exam_id),
+                "exam_title": entry.ranking_snapshot.exam.get_title(),
             }
 
             if stage_type == Stage.Type.SCREENING:
@@ -383,9 +383,9 @@ class CandidateDashboardService:
             .order_by("-recorded_at")
         )
 
-        # Prefetch published standings to avoid N+1
+        # Prefetch published ranking_snapshot to avoid N+1
         published_exam_ids = set(
-            Standings.objects.filter(
+            RankingSnapshot.objects.filter(
                 exam_id__in=[res.exam_id for res in results],
                 is_published=True
             ).values_list("exam_id", flat=True)

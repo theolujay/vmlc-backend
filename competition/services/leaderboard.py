@@ -4,11 +4,11 @@ from django.db import transaction
 from django.db.models import Sum, Prefetch
 from competition.models import (
     Competition, 
-    AggregateLeaderboard, 
-    AggregateLeaderboardEntry, 
+    LeagueLeaderboard, 
+    LeagueLeaderboardEntry, 
     Stage, 
-    Standings, 
-    StandingsEntry
+    RankingSnapshot, 
+    RankingSnapshotEntry
 )
 
 class LeaderboardService:
@@ -17,7 +17,7 @@ class LeaderboardService:
     """
 
     @staticmethod
-    def get_latest_league_leaderboard(competition: Optional[Competition] = None) -> Optional[AggregateLeaderboard]:
+    def get_latest_league_leaderboard(competition: Optional[Competition] = None) -> Optional[LeagueLeaderboard]:
         """
         Retrieves the latest cumulative leaderboard for the league stage.
         
@@ -26,7 +26,7 @@ class LeaderboardService:
                         finds the active or latest competition.
         
         Returns:
-            AggregateLeaderboard instance with annotated entries, or None.
+            LeagueLeaderboard instance with annotated entries, or None.
         """
         if not competition:
             competition = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
@@ -36,8 +36,8 @@ class LeaderboardService:
         if not competition:
             return None
 
-        # Fetch the latest AggregateLeaderboard for LEAGUE stage
-        current_leaderboard = AggregateLeaderboard.objects.filter(
+        # Fetch the latest LeagueLeaderboard for LEAGUE stage
+        current_leaderboard = LeagueLeaderboard.objects.filter(
             competition=competition,
             stage=Stage.Type.LEAGUE
         ).order_by('-as_of_round').prefetch_related(
@@ -55,7 +55,7 @@ class LeaderboardService:
         return current_leaderboard
 
     @staticmethod
-    def _annotate_rank_changes(leaderboard: AggregateLeaderboard, competition: Competition):
+    def _annotate_rank_changes(leaderboard: LeagueLeaderboard, competition: Competition):
         """
         Calculates and attaches rank_change to each entry in the leaderboard.
         """
@@ -63,7 +63,7 @@ class LeaderboardService:
         previous_ranks = {}
         
         if previous_round > 0:
-            previous_leaderboard = AggregateLeaderboard.objects.filter(
+            previous_leaderboard = LeagueLeaderboard.objects.filter(
                 competition=competition,
                 stage=Stage.Type.LEAGUE,
                 as_of_round=previous_round
@@ -93,25 +93,25 @@ class LeaderboardService:
     @transaction.atomic
     def update_league_leaderboard(competition_id: uuid.UUID, as_of_round: int):
         """
-        Aggregates all published league standings up to 'as_of_round' 
-        and updates the AggregateLeaderboard.
+        Aggregates all published league ranking_snapshot up to 'as_of_round' 
+        and updates the LeagueLeaderboard.
         """
         competition = Competition.objects.get(id=competition_id)
         
-        # 1. Fetch all published league standings up to as_of_round
-        published_standings = Standings.objects.filter(
+        # 1. Fetch all published league ranking_snapshot up to as_of_round
+        published_ranking_snapshots = RankingSnapshot.objects.filter(
             competition=competition,
             stage=Stage.Type.LEAGUE,
             round__lte=as_of_round,
             is_published=True
         ).values_list('id', flat=True)
 
-        if not published_standings:
+        if not published_ranking_snapshots:
             return None
 
         # 2. Aggregate scores by candidate
-        candidate_totals = StandingsEntry.objects.filter(
-            standings_id__in=published_standings
+        candidate_totals = RankingSnapshotEntry.objects.filter(
+            ranking_snapshot_id__in=published_ranking_snapshots
         ).values('candidate_id', 'candidate_competition_id').annotate(
             total_score=Sum('exam_score')
         ).order_by('-total_score')
@@ -119,8 +119,8 @@ class LeaderboardService:
         if not candidate_totals:
             return None
 
-        # 3. Create or update AggregateLeaderboard for this round
-        leaderboard, _ = AggregateLeaderboard.objects.get_or_create(
+        # 3. Create or update LeagueLeaderboard for this round
+        leaderboard, _ = LeagueLeaderboard.objects.get_or_create(
             competition=competition,
             stage=Stage.Type.LEAGUE,
             as_of_round=as_of_round
@@ -138,7 +138,7 @@ class LeaderboardService:
                 current_rank = idx + 1
             
             entries_to_create.append(
-                AggregateLeaderboardEntry(
+                LeagueLeaderboardEntry(
                     leaderboard=leaderboard,
                     candidate_id=item['candidate_id'],
                     candidate_competition_id=item['candidate_competition_id'],
@@ -150,6 +150,6 @@ class LeaderboardService:
 
         # Clear existing entries for this leaderboard if any
         leaderboard.entries.all().delete()
-        AggregateLeaderboardEntry.objects.bulk_create(entries_to_create)
+        LeagueLeaderboardEntry.objects.bulk_create(entries_to_create)
 
         return leaderboard

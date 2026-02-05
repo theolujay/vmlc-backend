@@ -1,31 +1,31 @@
 from rest_framework import serializers
-from competition.models import Standings, StandingsEntry, AggregateLeaderboard, AggregateLeaderboardEntry
+from competition.models import RankingSnapshot, RankingSnapshotEntry, LeagueLeaderboard, LeagueLeaderboardEntry
 from vmlc.serializers.question import QuestionListSerializer
 from vmlc.models import CandidateAnswer, CandidateExamResult, Exam
 
-class PublishStandingsSerializer(serializers.Serializer):
+class PublishRankingSnapshotSerializer(serializers.Serializer):
     """
-    Serializer for triggering the standings generation/publish process.
+    Serializer for triggering the ranking snapshots generation/publish process.
     """
     exam_id = serializers.UUIDField(
-        help_text="UUID of the Exam to generate standings for."
+        help_text="UUID of the Exam to generate ranking snapshot for."
     )
     publish_now = serializers.BooleanField(
         default=False,
-        help_text="If True, immediately marks the generated standings as published."
+        help_text="If True, immediately marks the generated ranking snapshot as published."
     )
 
 
-class StandingsEntrySerializer(serializers.ModelSerializer):
+class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
     """
-    Serializer for a single entry in the standings.
+    Serializer for a single entry in the ranking snapshot.
     """
     candidate_name = serializers.SerializerMethodField()
     candidate_email = serializers.SerializerMethodField()
     school_name = serializers.SerializerMethodField()
 
     class Meta:
-        model = StandingsEntry
+        model = RankingSnapshotEntry
         fields = [
             'candidate',
             'candidate_name',
@@ -47,15 +47,15 @@ class StandingsEntrySerializer(serializers.ModelSerializer):
         return obj.candidate.school_name
 
 
-class StandingsSerializer(serializers.ModelSerializer):
+class RankingSnapshotSerializer(serializers.ModelSerializer):
     """
-    Serializer for the Standings model, including its entries.
+    Serializer for the RankingSnapshot model, including its entries.
     """
-    entries = StandingsEntrySerializer(many=True, read_only=True)
+    entries = RankingSnapshotEntrySerializer(many=True, read_only=True)
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
 
     class Meta:
-        model = Standings
+        model = RankingSnapshot
         fields = [
             'id',
             'competition',
@@ -110,7 +110,7 @@ class CandidateResultDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
+class LeagueLeaderboardEntrySerializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(source='candidate.user.get_full_name', read_only=True)
     candidate_email = serializers.CharField(source='candidate.user.email', read_only=True)
     school_name = serializers.CharField(source='candidate.school_name', read_only=True)
@@ -118,7 +118,7 @@ class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
     rank_change = serializers.IntegerField(default=0, read_only=True)
 
     class Meta:
-        model = AggregateLeaderboardEntry
+        model = LeagueLeaderboardEntry
         fields = [
             'candidate',
             'candidate_name',
@@ -131,10 +131,10 @@ class AggregateLeaderboardEntrySerializer(serializers.ModelSerializer):
         ]
 
 
-class AggregateLeaderboardSerializer(serializers.ModelSerializer):
+class LeagueLeaderboardSerializer(serializers.ModelSerializer):
 
 
-    entries = AggregateLeaderboardEntrySerializer(many=True, read_only=True)
+    entries = LeagueLeaderboardEntrySerializer(many=True, read_only=True)
 
 
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
@@ -146,37 +146,40 @@ class AggregateLeaderboardSerializer(serializers.ModelSerializer):
     class Meta:
 
 
-        model = AggregateLeaderboard
 
 
-        fields = [
+
+        model = LeagueLeaderboard
 
 
-            'id',
+    fields = [
 
 
-            'competition',
+        'id',
 
 
-            'stage',
+        'competition',
 
 
-            'stage_display',
+        'stage',
 
 
-            'as_of_round',
+        'stage_display',
 
 
-            'created_at',
+        'as_of_round',
 
 
-            'updated_at',
+        'created_at',
 
 
-            'entries',
+        'updated_at',
 
 
-        ]
+        'entries',
+
+
+    ]
 
 
 
@@ -200,7 +203,7 @@ class CompetitionDashboardExamSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
-    standings_status = serializers.CharField()
+    ranking_snapshot_status = serializers.CharField()
 
 
     stats = serializers.DictField()
@@ -227,7 +230,7 @@ class CompetitionDashboardSerializer(serializers.Serializer):
     leaderboard_summary = serializers.ListField()
 
 
-    latest_standings_summary = serializers.DictField(allow_null=True)
+    latest_ranking_snapshot_summary = serializers.DictField(allow_null=True)
 
 
 
@@ -236,7 +239,7 @@ class CompetitionDashboardSerializer(serializers.Serializer):
 
 
 
-class CandidateStandingsDetailSerializer(serializers.Serializer):
+class CandidateRankingSnapshotDetailSerializer(serializers.Serializer):
 
 
 

@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework_api_key.models import APIKey
 
 from identity.models import User, Candidate
-from competition.models import Competition, Stage, StageExam, CandidateCompetition
+from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import Exam
 
 class CandidateDashboardViewTest(APITestCase):
@@ -48,11 +48,11 @@ class CandidateDashboardViewTest(APITestCase):
         )
         
         # Enroll candidate
-        self.participation = CandidateCompetition.objects.create(
+        self.enrollment = Enrollment.objects.create(
             candidate=self.candidate,
             competition=self.competition,
             current_stage=self.stage,
-            status=CandidateCompetition.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE
         )
         
         # Create competition_slot
@@ -81,14 +81,14 @@ class CandidateDashboardViewTest(APITestCase):
         
         # Verify structure
         self.assertIn("candidate_context", data)
-        self.assertIn("stage_progress", data)
+        self.assertIn("enrollment_stage_progress", data)
         self.assertIn("active_exam", data)
         self.assertIn("performance_snapshot", data)
         self.assertIn("exam_history", data)
         
         # Verify Content
         self.assertEqual(data["candidate_context"]["full_name"], "John Doe")
-        self.assertEqual(data["stage_progress"]["current_stage"], "screening")
+        self.assertEqual(data["enrollment_stage_progress"]["current_stage"], "screening")
         self.assertEqual(data["active_exam"]["title"], "Screening")
 
         # 2. Second call - should return 200 from cache

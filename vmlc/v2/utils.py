@@ -18,7 +18,7 @@ class CacheKeys:
     STAFF_DASHBOARD = "dash:staff:global"
 
     # Competition
-    PARTICIPATION = "part:{user_id}"
+    ENROLLMENT = "enrollment:{user_id}"
     LEADERBOARD_LEAGUE = "lb:league:latest"
 
     # Exams
@@ -72,7 +72,7 @@ class CacheKeys:
         ]
         if user_id:
             keys.extend([
-                cls.PARTICIPATION.format(user_id=user_id),
+                cls.ENROLLMENT.format(user_id=user_id),
                 cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
                 cls.USER_VERIFICATION.format(user_id=user_id),
                 cls.CANDIDATE_PROFILE.format(user_id=user_id),
@@ -94,7 +94,7 @@ class CacheKeys:
             cls.CANDIDATE_DETAIL.format(user_id=user_id),
             cls.STAFF_PROFILE.format(user_id=user_id),
             cls.STAFF_DASHBOARD_DATA.format(user_id=user_id),
-            cls.PARTICIPATION.format(user_id=user_id),
+            cls.ENROLLMENT.format(user_id=user_id),
             # Legacy
             cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
             cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),

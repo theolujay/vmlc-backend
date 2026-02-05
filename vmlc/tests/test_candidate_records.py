@@ -4,7 +4,7 @@ from rest_framework import status
 from django.utils import timezone
 
 from identity.models import User, Candidate
-from competition.models import Competition, Stage, StageExam, CandidateCompetition
+from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import Exam, CandidateExamResult
 from vmlc.services.candidate_records import CandidateRecordService
 
@@ -35,11 +35,11 @@ class CandidateRecordServiceTest(APITestCase):
             type=Stage.Type.LEAGUE,
             order=1
         )
-        self.participation = CandidateCompetition.objects.create(
+        self.enrollment = Enrollment.objects.create(
             candidate=self.candidate,
             competition=self.competition,
             current_stage=self.stage,
-            status=CandidateCompetition.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE
         )
         
         # Create an available exam
