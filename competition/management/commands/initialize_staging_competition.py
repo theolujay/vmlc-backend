@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from typing import Any, List, Dict
+from typing import Any
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
@@ -42,6 +42,7 @@ from competition.models import (
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
 )
+from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
 
@@ -95,9 +96,9 @@ class Command(BaseCommand):
             self._clear_data()
             self._create_feature_flags()
             staff_list = self._create_staff(count=5)
-            competition, stages = self._create_competition_structure(edition, name)
+            competition, _ = self._create_competition_structure(edition, name)
             candidates = self._create_candidates(count=50, staff_pool=staff_list)
-            self._enroll_candidates_in_screening(candidates, competition, stages[Stage.Type.SCREENING])
+            self._enroll_candidates_in_screening(candidates, competition)
 
             self.stdout.write(self.style.SUCCESS("Staging competition setup complete."))
 
@@ -286,17 +287,6 @@ class Command(BaseCommand):
             candidates.append(candidate)
         return candidates
 
-    def _enroll_candidates_in_screening(self, candidates, competition, first_stage):
+    def _enroll_candidates_in_screening(self, candidates, competition):
         self.stdout.write("Enrolling candidates in Screening...")
-        for cand in candidates:
-            enrollment = Enrollment.objects.create(
-                candidate=cand,
-                competition=competition,
-                current_stage=first_stage,
-                status=Enrollment.Status.ACTIVE
-            )
-            EnrollmentStageProgress.objects.create(
-                enrollment=enrollment,
-                stage=first_stage,
-                status=EnrollmentStageProgress.Status.IN_PROGRESS
-            )
+        EnrollmentService.enroll_candidates(competition, candidates=candidates)

@@ -45,6 +45,7 @@ from competition.models import (
 from competition.services.ranking import RankingSnapshotGenerator
 from competition.services.leaderboard import LeaderboardService
 from competition.services.progression import ProgressionService
+from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
 
@@ -75,7 +76,7 @@ class Command(BaseCommand):
         # 2. Candidates & Enrollment
         # Initially, all candidates are enrolled in Screening
         candidates = self._create_candidates(count=120, staff_pool=staff_list)
-        self._enroll_candidates_in_screening(candidates, competition, stages['screening'])
+        self._enroll_candidates_in_screening(competition, candidates)
         
         # 3. Content
         questions = self._create_questions(count=60, staff_pool=staff_list)
@@ -146,7 +147,6 @@ class Command(BaseCommand):
         self._create_pre_reg_and_events(candidates, staff_list)
         self._create_support_data(candidates, staff_list)
         self._create_candidate_notifications(candidates)
-        self._generate_legacy_snapshot(staff_list)
         self._clear_cache()
 
         self.stdout.write(self.style.SUCCESS("Database populated successfully!"))
@@ -296,20 +296,9 @@ class Command(BaseCommand):
             candidates.append(candidate)
         return candidates
 
-    def _enroll_candidates_in_screening(self, candidates, competition, first_stage):
+    def _enroll_candidates_in_screening(self, competition, candidates):
         self.stdout.write("Enrolling candidates in Screening...")
-        for cand in candidates:
-            enrollment = Enrollment.objects.create(
-                candidate=cand,
-                competition=competition,
-                current_stage=first_stage,
-                status=Enrollment.Status.ACTIVE
-            )
-            EnrollmentStageProgress.objects.create(
-                enrollment=enrollment,
-                stage=first_stage,
-                status=EnrollmentStageProgress.Status.IN_PROGRESS
-            )
+        EnrollmentService.enroll_candidates(competition, candidates)
 
     def _create_questions(self, count, staff_pool):
         self.stdout.write(f"Creating {count} questions...")
@@ -414,10 +403,6 @@ class Command(BaseCommand):
                     message=self.fake.text(),
                     is_read_by_recipient=False
                 )
-
-    def _generate_legacy_snapshot(self, staff_list):
-        # Implementation of legacy snapshot generation
-        pass
 
     def _clear_cache(self):
         self.stdout.write("Clearing cache...")

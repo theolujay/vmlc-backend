@@ -1,13 +1,8 @@
 import logging
 from django.core.management.base import BaseCommand
-from django.db import transaction
-from competition.models import (
-    Competition,
-    Enrollment,
-    EnrollmentStageProgress,
-    Stage,
-)
+from competition.models import Competition
 from identity.models import Candidate
+from competition.services.enrollment import EnrollmentService, EnrollmentError
 
 logger = logging.getLogger(__name__)
 
@@ -51,55 +46,28 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Target Competition: {competition} (ID: {competition.id})")
 
-        first_stage = competition.stages.order_by("order").first()
-        if not first_stage:
-            self.stderr.write(
-                self.style.ERROR(f"No stages found for competition {competition}.")
-            )
-            return
-
-        self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
-
-        # Find candidates not already in this competition
-        enrolled_candidate_ids = Enrollment.objects.filter(
-            competition=competition
-        ).values_list("candidate_id", flat=True)
-
-        candidates_to_enroll = Candidate.objects.exclude(pk__in=enrolled_candidate_ids)
-        total_to_enroll = candidates_to_enroll.count()
-
-        if total_to_enroll == 0:
-            self.stdout.write(
-                self.style.SUCCESS("All candidates are already enrolled.")
-            )
-            return
-
-        self.stdout.write(f"Found {total_to_enroll} candidates to enroll.")
-
         if dry_run:
             self.stdout.write(
                 self.style.WARNING("Dry run enabled. No changes will be saved.")
             )
+            # In a dry run, we just count how many WOULD be enrolled
+            from competition.models import Enrollment
+            enrolled_candidate_ids = Enrollment.objects.filter(
+                competition=competition
+            ).values_list("candidate_id", flat=True)
+            candidates_to_enroll = Candidate.objects.exclude(pk__in=enrolled_candidate_ids)
+            self.stdout.write(f"Found {candidates_to_enroll.count()} candidates to enroll.")
             return
 
-        with transaction.atomic():
-            created_count = 0
-            for candidate in candidates_to_enroll:
-                # Create enrollment
-                enrollment = Enrollment.objects.create(
-                    candidate=candidate,
-                    competition=competition,
-                    current_stage=first_stage,
-                    status=Enrollment.Status.ACTIVE,
+        try:
+            created_count = EnrollmentService.enroll_candidates(competition)
+            if created_count == 0:
+                self.stdout.write(
+                    self.style.SUCCESS("All candidates are already enrolled.")
                 )
-                # Create progress
-                EnrollmentStageProgress.objects.create(
-                    enrollment=enrollment,
-                    stage=first_stage,
-                    status=EnrollmentStageProgress.Status.IN_PROGRESS,
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(f"Successfully enrolled {created_count} candidates.")
                 )
-                created_count += 1
-
-            self.stdout.write(
-                self.style.SUCCESS(f"Successfully enrolled {created_count} candidates.")
-            )
+        except EnrollmentError as e:
+            self.stderr.write(self.style.ERROR(str(e)))

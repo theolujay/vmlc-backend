@@ -6,11 +6,9 @@ from django.utils import timezone
 from competition.models import (
     Competition,
     Stage,
-    Enrollment,
-    EnrollmentStageProgress,
 )
-from identity.models import Candidate
 from vmlc.models import FeatureFlag
+from competition.services.enrollment import EnrollmentService, EnrollmentError
 
 logger = logging.getLogger(__name__)
 
@@ -124,53 +122,20 @@ class Command(BaseCommand):
 
             # Enroll Candidates
             self.stdout.write("Enrolling candidates...")
-
-            first_stage = competition.stages.order_by("order").first()
-            if not first_stage:
-                self.stderr.write(
-                    self.style.ERROR(f"No stages found for competition {competition}.")
-                )
-            else:
-                self.stdout.write(f"Enrollment Stage: {first_stage.get_type_display()}")
-
-                # Find candidates not already in this competition
-                enrolled_candidate_ids = Enrollment.objects.filter(
-                    competition=competition
-                ).values_list("candidate_id", flat=True)
-
-                candidates_to_enroll = Candidate.objects.exclude(
-                    pk__in=enrolled_candidate_ids
-                )
-                total_to_enroll = candidates_to_enroll.count()
-
-                if total_to_enroll == 0:
+            try:
+                created_count = EnrollmentService.enroll_candidates(competition)
+                if created_count == 0:
                     self.stdout.write(
                         self.style.SUCCESS("All candidates are already enrolled.")
                     )
                 else:
-                    self.stdout.write(f"Found {total_to_enroll} candidates to enroll.")
-                    created_count = 0
-                    for candidate in candidates_to_enroll:
-                        # Create enrollment
-                        enrollment = Enrollment.objects.create(
-                            candidate=candidate,
-                            competition=competition,
-                            current_stage=first_stage,
-                            status=Enrollment.Status.ACTIVE,
-                        )
-                        # Create progress
-                        EnrollmentStageProgress.objects.create(
-                            enrollment=enrollment,
-                            stage=first_stage,
-                            status=EnrollmentStageProgress.Status.IN_PROGRESS,
-                        )
-                        created_count += 1
-
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"Successfully enrolled {created_count} candidates."
                         )
                     )
+            except EnrollmentError as e:
+                self.stderr.write(self.style.ERROR(str(e)))
 
             if dry_run:
                 transaction.set_rollback(True)
