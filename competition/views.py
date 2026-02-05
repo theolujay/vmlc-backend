@@ -7,9 +7,9 @@ from django.shortcuts import get_object_or_404
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
-    ActiveModeratorPermissions,
-    ActiveParticipantPermissions,
     ActiveVolunteerPermissions,
+    CanViewOwnOrStaffRankingSnapshotEntry,
+    CanViewRankingSnapshot,
     CandidatePermissions,
     IsLeagueParticipantOrStaff
 )
@@ -19,7 +19,6 @@ from competition.serializers import (
     PublishRankingSnapshotSerializer, 
     RankingSnapshotSerializer, 
     CandidateResultDetailSerializer,
-    LeagueLeaderboardSerializer,
     LeagueLeaderboardEntrySerializer,
     CompetitionDashboardSerializer,
     PromoteCandidatesSerializer
@@ -135,7 +134,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         'entries__candidate__user'
     ).all()
     serializer_class = RankingSnapshotSerializer
-    permission_classes = ActiveParticipantPermissions or ActiveModeratorPermissions
+    permission_classes = [CanViewRankingSnapshot]
     lookup_field = 'exam_id'
 
     def get(self, request, *args, **kwargs):
@@ -189,20 +188,20 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
     """
     Retrieves detailed performance for a specific candidate in a specific exam ranking snapshot.
     """
-    permission_classes = ActiveAdminPermissions
+    permission_classes = [CanViewOwnOrStaffRankingSnapshotEntry]
 
     def get(self, request, exam_id, candidate_id):
         ranking_snapshot = get_object_or_404(RankingSnapshot, exam_id=exam_id)
-        
+
         # Access control
-        if hasattr(request.user, "candidate_profile"):
-            if str(request.user.candidate_profile.pk) != str(candidate_id):
-                # If they are a candidate, they can only see their own detail unless they are staff
-                if not request.user.is_staff:
-                    return Response(
-                        {"detail": "You can only view your own performance."},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        # if hasattr(request.user, "candidate_profile"):
+        #     if str(request.user.candidate_profile.pk) != str(candidate_id):
+        #         # If they are a candidate, they can only see their own detail unless they are staff
+        #         if not request.user.is_staff:
+        #             return Response(
+        #                 {"detail": "You can only view your own performance."},
+        #                 status=status.HTTP_403_FORBIDDEN,
+        #             )
 
         entry = get_object_or_404(RankingSnapshotEntry, ranking_snapshot=ranking_snapshot, candidate_id=candidate_id)
         

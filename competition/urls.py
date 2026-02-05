@@ -20,5 +20,5 @@ urlpatterns = [
     path("rankings/<uuid:exam_id>/candidate/<uuid:candidate_id>/", RetrieveCandidateRankingSnapshotEntryView.as_view(), name="candidate-ranking-snapshot-detail"),
     path("leaderboard/league/", LeagueLeaderboardView.as_view(), name="league-leaderboard"),
     path("leaderboard/league/candidate/<uuid:candidate_id>/", LeagueCandidateLeaderboardView.as_view(), name="league-candidate-cumulative-detail"),
-    path("promote/", PromoteCandidatesView.as_view(), name="promote-candidates"),
+    path("promote-candidates/", PromoteCandidatesView.as_view(), name="promote-candidates"),
 ]

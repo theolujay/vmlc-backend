@@ -217,7 +217,7 @@ class ProgressionService:
             candidates = Candidate.objects.filter(pk__in=promoted_ids).select_related('user')
             subject = f"Congrats!"
             message = (
-                f"Hii! Based on your performance in the previous stage of {competition.name}, "
+                f"Based on your performance in the previous stage of {competition.name}, "
                 f"you have successfully advanced to the {to_stage_type.title()} stage. "
                 "Check your dashboard for more information."
             )

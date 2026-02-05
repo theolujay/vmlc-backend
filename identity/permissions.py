@@ -4,6 +4,8 @@ from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_MET
 from rest_framework_api_key.permissions import HasAPIKey
 
 from identity.models import Candidate, Staff
+from competition.models import Enrollment, Competition, RankingSnapshot
+from vmlc.models import ExamAccess
 
 def _is_api_key_valid(key):
     from rest_framework_api_key.models import APIKey
@@ -248,6 +250,119 @@ class IsActiveModeratorOrCandidate(BasePermission):
         )
         is_candidate = get_candidate_profile(request) is not None
         return is_active_moderator or is_candidate
+
+
+class CanViewRankingSnapshot(BasePermission):
+    """
+    Grants access to a ranking snapshot if:
+    1. The user is staff (any role).
+    OR
+    2. The user is a candidate who is actively enrolled in the exam's competition
+       AND has submitted the exam for which the ranking snapshot is requested.
+    """
+    message = "You do not have permission to view this ranking snapshot."
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Staff always have permission
+        if get_staff_profile(request):
+            return True
+
+        candidate = get_candidate_profile(request)
+        if not candidate:
+            return False
+
+        # Candidate must be enrolled and have participated in the exam
+        exam_id = view.kwargs.get('exam_id')
+        if not exam_id:
+            return False
+
+        try:
+            ranking_snapshot = RankingSnapshot.objects.select_related(
+                'competition', 'exam__competition_slot__competition_stage__competition'
+            ).get(exam_id=exam_id, is_published=True)
+        except RankingSnapshot.DoesNotExist:
+            return False
+
+        # Check if candidate is actively enrolled in this competition
+        enrollment_exists = Enrollment.objects.filter(
+            candidate=candidate,
+            competition=ranking_snapshot.competition,
+            status=Enrollment.Status.ACTIVE
+        ).exists()
+
+        if not enrollment_exists:
+            return False
+
+        # Check if candidate submitted the exam
+        exam_submitted = ExamAccess.objects.filter(
+            candidate=candidate,
+            exam=ranking_snapshot.exam,
+            status=ExamAccess.Status.SUBMITTED
+        ).exists()
+
+        return exam_submitted
+
+
+class CanViewOwnOrStaffRankingSnapshotEntry(BasePermission):
+    """
+    Grants access to a specific candidate's ranking snapshot entry if:
+    1. The user is staff (any role).
+    OR
+    2. The user is the candidate whose entry is requested, and
+       is actively enrolled in the exam's competition, and has submitted the exam.
+    """
+    message = "You do not have permission to view this candidate's ranking snapshot entry."
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Staff always have permission
+        if get_staff_profile(request):
+            return True
+
+        candidate = get_candidate_profile(request)
+        if not candidate:
+            return False
+
+        # Check if the requested candidate_id matches the authenticated candidate's ID
+        requested_candidate_id = view.kwargs.get('candidate_id')
+        if not requested_candidate_id or str(candidate.pk) != str(requested_candidate_id):
+            return False
+
+        # The candidate must be actively enrolled and have participated in the exam
+        exam_id = view.kwargs.get('exam_id')
+        if not exam_id:
+            return False
+
+        try:
+            ranking_snapshot = RankingSnapshot.objects.select_related(
+                'competition', 'exam__competition_slot__competition_stage__competition'
+            ).get(exam_id=exam_id, is_published=True)
+        except RankingSnapshot.DoesNotExist:
+            return False
+            
+        # Check if candidate is actively enrolled in this competition
+        enrollment_exists = Enrollment.objects.filter(
+            candidate=candidate,
+            competition=ranking_snapshot.competition,
+            status=Enrollment.Status.ACTIVE
+        ).exists()
+
+        if not enrollment_exists:
+            return False
+
+        # Check if candidate submitted the exam
+        exam_submitted = ExamAccess.objects.filter(
+            candidate=candidate,
+            exam=ranking_snapshot.exam,
+            status=ExamAccess.Status.SUBMITTED
+        ).exists()
+
+        return exam_submitted
 
 
 # =============================================================================
