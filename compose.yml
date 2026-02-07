@@ -19,14 +19,8 @@ x-app-base: &app-base
   develop:
     watch:
       - action: sync
-        path: ./vmlc
-        target: /app/vmlc
-      - action: sync
-        path: ./comms
-        target: /app/comms
-      - action: sync
-        path: ./config
-        target: /app/config
+        path: ./
+        target: /app/
       - action: rebuild
         path: ./uv.lock
       - action: rebuild
@@ -193,14 +187,14 @@ services:
           memory: 50M
           cpus: '0.1'
 
-  flower:
-    <<: *app-base
-    container_name: vmlc-flower
-    command: celery -A config flower --port=5555
-    ports:
-      - "5555:5555"
-    depends_on:
-      - redis
+  # flower:
+  #   <<: *app-base
+  #   container_name: vmlc-flower
+  #   command: celery -A config flower --port=5555
+  #   ports:
+  #     - "5555:5555"
+  #   depends_on:
+  #     - redis
       
 volumes:
   dev_db:

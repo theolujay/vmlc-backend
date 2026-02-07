@@ -20,7 +20,7 @@ class HasXAPIKey(HasAPIKey):
         return request.headers.get("x-api-key") or request.headers.get("X-Api-Key")
 
     def has_permission(self, request, view):
-        if settings.DEBUG:
+        if settings.DEBUG or getattr(settings, "TESTING", False):
             return True
         key = self._get_key(request)
         if not key:

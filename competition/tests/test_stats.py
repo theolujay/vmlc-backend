@@ -25,31 +25,28 @@ class StatsOverviewDataTest(TestCase):
         )
         
         # Create rounds for league via StageExam
-        # Need vmlc.Exam first
-        exam1 = Exam.objects.create(title="Round 1 Exam", is_active=True)
-        exam2 = Exam.objects.create(title="Round 2 Exam", is_active=True)
-        
-        StageExam.objects.create(
+        stage_exam1 = StageExam.objects.create(
             competition_stage=league,
-            vmlc_exam=exam1,
             round=1,
             is_active=True
         )
-        StageExam.objects.create(
+        stage_exam2 = StageExam.objects.create(
             competition_stage=league,
-            vmlc_exam=exam2,
             round=2,
             is_active=True
         )
         
+        # Create vmlc.Exam linked to StageExam
+        exam1 = Exam.objects.create(competition_slot=stage_exam1, is_active=True)
+        exam2 = Exam.objects.create(competition_slot=stage_exam2, is_active=True)
+        
         # Create inactive round/exam (StageExam inactive)
-        exam3 = Exam.objects.create(title="Round 3 Inactive", is_active=True)
-        StageExam.objects.create(
+        stage_exam3 = StageExam.objects.create(
             competition_stage=league,
-            vmlc_exam=exam3,
             round=3,
             is_active=False 
         )
+        exam3 = Exam.objects.create(competition_slot=stage_exam3, is_active=True)
         
         # Call the function
         data = generate_stats_overview_data()

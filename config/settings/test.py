@@ -9,14 +9,26 @@ from .base import *
 # TEST-SPECIFIC SETTINGS
 # ============================================================================
 SECRET_KEY = "dummy"
-DEBUG = True
+DEBUG = False
 TESTING = True
 
 # Add daphne for testing ASGI applications
-INSTALLED_APPS.insert(0, "daphne")
-INSTALLED_APPS += [
-    "debug_toolbar",
-]
+if "daphne" not in INSTALLED_APPS:
+    INSTALLED_APPS.insert(0, "daphne")
+
+# Remove debug_toolbar if it was added by base.py
+if "debug_toolbar" in INSTALLED_APPS:
+    INSTALLED_APPS.remove("debug_toolbar")
+
+# Remove debug_toolbar middleware if it was added by base.py
+MIDDLEWARE = [m for m in MIDDLEWARE if "debug_toolbar" not in m]
+
+# Disable DRF throttling in tests
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {},
+}
 
 # Configure test database
 DATABASES = {

@@ -40,111 +40,111 @@ jobs:
           echo "Version: ${{ steps.meta.outputs.VERSION }}"
 
   # Job 2: Run all tests
-  # test:
-  #   runs-on: ubuntu-24.04
-  #   needs: prepare
-  #   environment:
-  #     name: staging
-  #     url: https://staging-api.verboheit.org
-  #   steps:
-  #     - name: Checkout source code
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
+  test:
+    runs-on: ubuntu-24.04
+    needs: prepare
+    environment:
+      name: staging
+      url: https://staging-api.verboheit.org
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
           
       
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  #     - name: Cache Docker layers
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: /tmp/.buildx-cache
-  #         key: ${{ runner.os }}-buildx-test-${{ github.sha }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-buildx-test-
-  #           ${{ runner.os }}-buildx-
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-test-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-test-
+            ${{ runner.os }}-buildx-
       
-  #     - name: Build Docker image for tests
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         context: .
-  #         file: Dockerfile
-  #         target: test
-  #         build-args: INSTALL_TEST=true
-  #         tags: ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }}
-  #         load: true
-  #         cache-from: type=local,src=/tmp/.buildx-cache
-  #         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      - name: Build Docker image for tests
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: test
+          build-args: INSTALL_TEST=true
+          tags: ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }}
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
       
-  #     - name: Create test network
-  #       run: docker network create test-network
+      - name: Create test network
+        run: docker network create test-network
 
-  #     - name: Start PostgreSQL
-  #       run: |
-  #         docker run -d --rm \
-  #           -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
-  #           -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
-  #           -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
-  #           --network test-network \
-  #           --name db \
-  #           --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
-  #           --health-interval=5s \
-  #           --health-timeout=5s \
-  #           --health-retries=5 \
-  #           postgres:17.2-bookworm
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --rm \
+            -e POSTGRES_USER=${{ secrets.TEST_DB_USER || 'testuser' }} \
+            -e POSTGRES_PASSWORD=${{ secrets.TEST_DB_PASSWORD || 'testpassword' }} \
+            -e POSTGRES_DB=${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            --network test-network \
+            --name db \
+            --health-cmd="pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            postgres:17.2-bookworm
 
-  #     - name: Start Redis
-  #       run: |
-  #         docker run -d --rm \
-  #           --network test-network \
-  #           --name redis \
-  #           --health-cmd="redis-cli ping" \
-  #           --health-interval=5s \
-  #           --health-timeout=5s \
-  #           --health-retries=5 \
-  #           redis:7.2.4-alpine
+      - name: Start Redis
+        run: |
+          docker run -d --rm \
+            --network test-network \
+            --name redis \
+            --health-cmd="redis-cli ping" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=5 \
+            redis:7.2.4-alpine
 
-  #     - name: Wait for database readiness
-  #       run: |
-  #         echo "Waiting for database to be ready..."
-  #         timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
-  #         echo "Database is ready!"
+      - name: Wait for database readiness
+        run: |
+          echo "Waiting for database to be ready..."
+          timeout 60 bash -c 'until docker exec db pg_isready -U ${{ secrets.TEST_DB_USER || 'testuser' }}; do sleep 2; done'
+          echo "Database is ready!"
 
-  #     - name: Run tests
-  #       run: |
-  #         docker run --rm \
-  #           -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
-  #           -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
-  #           -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
-  #           -e AWS_S3_REGION_NAME=eu-north-1 \
-  #           -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
-  #           -e DEBUG=true \
-  #           -e USE_S3=true \
-  #           --network test-network \
-  #           --entrypoint "" \
-  #           ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
-  #           sh -c "python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
-  #       timeout-minutes: 10
+      - name: Run tests
+        run: |
+          docker run --rm \
+            -e DATABASE_URL=postgresql://${{ secrets.TEST_DB_USER || 'testuser' }}:${{ secrets.TEST_DB_PASSWORD || 'testpassword' }}@db:5432/${{ secrets.TEST_DB_NAME || 'testdb' }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || 'minio' }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || 'minio123' }} \
+            -e AWS_S3_REGION_NAME=eu-north-1 \
+            -e AWS_STORAGE_BUCKET_NAME=vmlc-s3 \
+            -e DEBUG=true \
+            -e USE_S3=true \
+            --network test-network \
+            --entrypoint "" \
+            ${{ needs.prepare.outputs.repo_name }}-test:${{ needs.prepare.outputs.short_sha }} \
+            sh -c "python manage.py test --settings=config.settings.test --noinput --keepdb --failfast"
+        timeout-minutes: 10
 
-  #     - name: Cleanup test containers
-  #       if: always()
-  #       run: |
-  #         docker stop db redis 2>/dev/null || true
-  #         docker network rm test-network 2>/dev/null || true
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          docker stop db redis 2>/dev/null || true
+          docker network rm test-network 2>/dev/null || true
       
-  #     - name: Move cache
-  #       if: always()
-  #       run: |
-  #         rm -rf /tmp/.buildx-cache
-  #         if [ -d /tmp/.buildx-cache-new ]; then
-  #           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-  #         fi
+      - name: Move cache
+        if: always()
+        run: |
+          rm -rf /tmp/.buildx-cache
+          if [ -d /tmp/.buildx-cache-new ]; then
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
 
   # Job 3: Build and push production Docker image
   build:
     runs-on: ubuntu-24.04
-    needs: [prepare] # TODO: return needs: [prepare, test]
+    needs: [prepare, test]
     permissions:
       contents: read
       packages: write

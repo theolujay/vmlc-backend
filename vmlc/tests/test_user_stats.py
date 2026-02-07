@@ -104,7 +104,6 @@ class UserStatsRefactorTest(TestCase):
         
         # Let's create a concluded exam
         exam = Exam.objects.create(
-            title="Concluded Exam",
             scheduled_date=timezone.now() - timedelta(days=2),
             open_duration_hours=1,
             is_active=True

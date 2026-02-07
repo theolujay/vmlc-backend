@@ -511,6 +511,10 @@ class ExamHistoryView(ListAPIView):
         is_self = hasattr(request.user, 'candidate_profile') and str(request.user.candidate_profile.pk) == str(candidate_id)
         
         if not (is_staff or is_self):
+            print(f"DEBUG: Permission Denied. is_staff: {is_staff}, is_self: {is_self}")
+            if hasattr(request.user, 'candidate_profile'):
+                print(f"DEBUG: request.user.candidate_profile.pk: {request.user.candidate_profile.pk}")
+            print(f"DEBUG: candidate_id from kwargs: {candidate_id}")
             raise PermissionDenied("You do not have permission to view this candidate's history.")
 
         cache_key = f"candidate_exam_history_v2_{candidate_id}"
