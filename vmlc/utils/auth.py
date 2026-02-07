@@ -308,7 +308,8 @@ def send_welcome_email(user: User | PreRegUser, generated_password: str = None) 
     generated_password_msg = ""
     if generated_password is not None:
         generated_password_msg = (
-            f"Your generated password is: {generated_password}\n"
+            f"Your generated password is: \n"
+            f"{generated_password}\n"
             f"Please use 'Forgot Password' to set your own password.\n"
         )
     try:
