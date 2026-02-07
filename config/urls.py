@@ -64,6 +64,10 @@ comms_urlpatterns = [
     path("v1/", include("comms.urls", namespace="comms")),
 ]
 
+competition_urlpatterns = [
+    path("v1/competition/", include("competition.urls", namespace="competition")),
+]
+
 docs_urlpatterns = [
     path(
         "schema.json",
@@ -102,6 +106,7 @@ urlpatterns = [
     # === VMLC ===
     path("", include(vmlc_urlpatterns)),
     path("", include(comms_urlpatterns)),
+    path("", include(competition_urlpatterns)),
     # === Docs ===
     path("docs/", include(docs_urlpatterns)),
     path("favicon.ico", get_favicon, name="favicon"),

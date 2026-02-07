@@ -9,408 +9,429 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def check_if_migrating_from_vmlc(apps, schema_editor):
+    """Check if vmlc tables exist (migrating) or if this is a fresh install"""
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'vmlc_user'
+            );
+        """)
+        return cursor.fetchone()[0]
+
+
+def rename_or_create_tables(apps, schema_editor):
+    """
+    For existing databases: rename vmlc_* tables to identity_*
+    For fresh databases: do nothing (tables will be created by state_operations)
+    """
+    if check_if_migrating_from_vmlc(apps, schema_editor):
+        # Existing database - rename tables
+        with schema_editor.connection.cursor() as cursor:
+            cursor.execute("ALTER TABLE vmlc_user RENAME TO identity_user;")
+            cursor.execute("ALTER TABLE vmlc_staff RENAME TO identity_staff;")
+            cursor.execute("ALTER TABLE vmlc_candidate RENAME TO identity_candidate;")
+            cursor.execute("ALTER TABLE vmlc_prereguser RENAME TO identity_prereguser;")
+            cursor.execute("ALTER TABLE vmlc_userverification RENAME TO identity_userverification;")
+            cursor.execute("ALTER TABLE vmlc_emailotp RENAME TO identity_emailotp;")
+            cursor.execute("""
+                UPDATE django_content_type 
+                SET app_label = 'identity' 
+                WHERE app_label = 'vmlc' 
+                AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');
+            """)
+
+
+def reverse_rename_tables(apps, schema_editor):
+    """Reverse the table renames"""
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE identity_user RENAME TO vmlc_user;")
+        cursor.execute("ALTER TABLE identity_staff RENAME TO vmlc_staff;")
+        cursor.execute("ALTER TABLE identity_candidate RENAME TO vmlc_candidate;")
+        cursor.execute("ALTER TABLE identity_prereguser RENAME TO vmlc_prereguser;")
+        cursor.execute("ALTER TABLE identity_userverification RENAME TO vmlc_userverification;")
+        cursor.execute("ALTER TABLE identity_emailotp RENAME TO vmlc_emailotp;")
+        cursor.execute("""
+            UPDATE django_content_type 
+            SET app_label = 'vmlc' 
+            WHERE app_label = 'identity' 
+            AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');
+        """)
+
+
 class Migration(migrations.Migration):
 
     initial = True
 
     dependencies = [
         ("auth", "0012_alter_user_first_name_max_length"),
-        ("vmlc", "0038_remove_candidateanswer_unique_answer_per_candidate_score_and_more"),
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                # Rename tables
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_user RENAME TO identity_user;",
-                    reverse_sql="ALTER TABLE identity_user RENAME TO vmlc_user;"
+        # Run the rename operation (only if tables exist)
+        migrations.RunPython(
+            rename_or_create_tables,
+            reverse_rename_tables,
+        ),
+        # Create the models in Django's state
+        migrations.CreateModel(
+            name="User",
+            fields=[
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
                 ),
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_staff RENAME TO identity_staff;",
-                    reverse_sql="ALTER TABLE identity_staff RENAME TO vmlc_staff;"
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them.",
+                        verbose_name="superuser status",
+                    ),
                 ),
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_candidate RENAME TO identity_candidate;",
-                    reverse_sql="ALTER TABLE identity_candidate RENAME TO vmlc_candidate;"
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into this admin site.",
+                        verbose_name="staff status",
+                    ),
                 ),
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_prereguser RENAME TO identity_prereguser;",
-                    reverse_sql="ALTER TABLE identity_prereguser RENAME TO vmlc_prereguser;"
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="active",
+                    ),
                 ),
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_userverification RENAME TO identity_userverification;",
-                    reverse_sql="ALTER TABLE identity_userverification RENAME TO vmlc_userverification;"
+                (
+                    "date_joined",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now, verbose_name="date joined"
+                    ),
                 ),
-                migrations.RunSQL(
-                    sql="ALTER TABLE vmlc_emailotp RENAME TO identity_emailotp;",
-                    reverse_sql="ALTER TABLE identity_emailotp RENAME TO vmlc_emailotp;"
+                (
+                    "phone",
+                    models.CharField(
+                        help_text="Nigerian phone number",
+                        max_length=17,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+                                regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+                            )
+                        ],
+                    ),
                 ),
-                # Update content types to preserve GenericForeignKey relationships and permissions
-                migrations.RunSQL(
-                    sql="UPDATE django_content_type SET app_label = 'identity' WHERE app_label = 'vmlc' AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');",
-                    reverse_sql="UPDATE django_content_type SET app_label = 'vmlc' WHERE app_label = 'identity' AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');"
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
+                    ),
+                ),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                ("is_email_verified", models.BooleanField(default=False)),
+                ("first_name", models.CharField(max_length=30)),
+                ("last_name", models.CharField(max_length=30)),
+                ("state", models.CharField(blank=True, max_length=50)),
+                (
+                    "profile_picture",
+                    models.ImageField(
+                        blank=True,
+                        null=True,
+                        storage=vmlc.storage_backends.PublicMediaStorage(),
+                        upload_to="profile_pictures/",
+                        validators=[],
+                    ),
+                ),
+                ("username", models.CharField(max_length=255, unique=True)),
+                (
+                    "groups",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.group",
+                        verbose_name="groups",
+                    ),
+                ),
+                (
+                    "user_permissions",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="Specific permissions for this user.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.permission",
+                        verbose_name="user permissions",
+                    ),
                 ),
             ],
-            state_operations=[
-                migrations.CreateModel(
-                    name="User",
-                    fields=[
-                        ("password", models.CharField(max_length=128, verbose_name="password")),
-                        (
-                            "last_login",
-                            models.DateTimeField(
-                                blank=True, null=True, verbose_name="last login"
-                            ),
-                        ),
-                        (
-                            "is_superuser",
-                            models.BooleanField(
-                                default=False,
-                                help_text="Designates that this user has all permissions without explicitly assigning them.",
-                                verbose_name="superuser status",
-                            ),
-                        ),
-                        (
-                            "is_staff",
-                            models.BooleanField(
-                                default=False,
-                                help_text="Designates whether the user can log into this admin site.",
-                                verbose_name="staff status",
-                            ),
-                        ),
-                        (
-                            "is_active",
-                            models.BooleanField(
-                                default=True,
-                                help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
-                                verbose_name="active",
-                            ),
-                        ),
-                        (
-                            "date_joined",
-                            models.DateTimeField(
-                                default=django.utils.timezone.now, verbose_name="date joined"
-                            ),
-                        ),
-                        (
-                            "phone",
-                            models.CharField(
-                                help_text="Nigerian phone number",
-                                max_length=17,
-                                validators=[
-                                    django.core.validators.RegexValidator(
-                                        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-                                        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-                                    )
-                                ],
-                            ),
-                        ),
-                        (
-                            "id",
-                            models.UUIDField(
-                                default=uuid.uuid4,
-                                editable=False,
-                                primary_key=True,
-                                serialize=False,
-                                unique=True,
-                            ),
-                        ),
-                        ("email", models.EmailField(max_length=254, unique=True)),
-                        ("is_email_verified", models.BooleanField(default=False)),
-                        ("first_name", models.CharField(max_length=30)),
-                        ("last_name", models.CharField(max_length=30)),
-                        ("state", models.CharField(blank=True, max_length=50)),
-                        (
-                            "profile_picture",
-                            models.ImageField(
-                                blank=True,
-                                null=True,
-                                storage=vmlc.storage_backends.PublicMediaStorage(),
-                                upload_to="profile_pictures/",
-                                validators=[],
-                            ),
-                        ),
-                        ("username", models.CharField(max_length=255, unique=True)),
-                        (
-                            "groups",
-                            models.ManyToManyField(
-                                blank=True,
-                                help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
-                                related_name="user_set",
-                                related_query_name="user",
-                                to="auth.group",
-                                verbose_name="groups",
-                            ),
-                        ),
-                        (
-                            "user_permissions",
-                            models.ManyToManyField(
-                                blank=True,
-                                help_text="Specific permissions for this user.",
-                                related_name="user_set",
-                                related_query_name="user",
-                                to="auth.permission",
-                                verbose_name="user permissions",
-                            ),
-                        ),
-                    ],
-                    options={
-                        "verbose_name": "user",
-                        "verbose_name_plural": "users",
-                        "abstract": False,
-                    },
+            options={
+                "verbose_name": "user",
+                "verbose_name_plural": "users",
+                "abstract": False,
+            },
+        ),
+        migrations.CreateModel(
+            name="PreRegUser",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
                 ),
-                migrations.CreateModel(
-                    name="PreRegUser",
-                    fields=[
-                        (
-                            "id",
-                            models.BigAutoField(
-                                auto_created=True,
-                                primary_key=True,
-                                serialize=False,
-                                verbose_name="ID",
-                            ),
-                        ),
-                        (
-                            "phone",
-                            models.CharField(
-                                help_text="Nigerian phone number",
-                                max_length=17,
-                                validators=[
-                                    django.core.validators.RegexValidator(
-                                        message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
-                                        regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
-                                    )
-                                ],
-                            ),
-                        ),
-                        ("full_name", models.CharField(max_length=255)),
-                        ("email", models.EmailField(max_length=254, unique=True)),
-                        (
-                            "interest_type",
-                            models.CharField(
-                                choices=[
-                                    ("candidate", "Candidate"),
-                                    ("volunteer", "Volunteer"),
-                                ],
-                                max_length=20,
-                            ),
-                        ),
-                        ("created_at", models.DateTimeField(auto_now_add=True)),
-                    ],
-                ),
-                migrations.CreateModel(
-                    name="Staff",
-                    fields=[
-                        (
-                            "user",
-                            models.OneToOneField(
-                                on_delete=django.db.models.deletion.CASCADE,
-                                primary_key=True,
-                                related_name="staff_profile",
-                                serialize=False,
-                                to=settings.AUTH_USER_MODEL,
-                            ),
-                        ),
-                        ("occupation", models.CharField(blank=True, default="", max_length=50)),
-                        ("created_at", models.DateTimeField(auto_now_add=True)),
-                        ("updated_at", models.DateTimeField(auto_now=True)),
-                        (
-                            "role",
-                            models.CharField(
-                                choices=[
-                                    ("superadmin", "Superadmin"),
-                                    ("manager", "Manager"),
-                                    ("admin", "Admin"),
-                                    ("moderator", "Moderator"),
-                                    ("sponsor", "Sponsor"),
-                                    ("volunteer", "Volunteer"),
-                                ],
-                                db_index=True,
-                                default="volunteer",
-                                max_length=20,
-                            ),
-                        ),
-                        (
-                            "created_by",
-                            models.ForeignKey(
-                                blank=True,
-                                default=None,
-                                null=True,
-                                on_delete=django.db.models.deletion.SET_NULL,
-                                related_name="invited_staffs",
-                                to="identity.staff",
-                            ),
-                        ),
-                    ],
-                ),
-                migrations.CreateModel(
-                    name="EmailOTP",
-                    fields=[
-                        (
-                            "id",
-                            models.BigAutoField(
-                                auto_created=True,
-                                primary_key=True,
-                                serialize=False,
-                                verbose_name="ID",
-                            ),
-                        ),
-                        ("otp", models.CharField(max_length=6)),
-                        ("created_at", models.DateTimeField(auto_now_add=True)),
-                        ("expires_at", models.DateTimeField()),
-                        (
-                            "user",
-                            models.ForeignKey(
-                                on_delete=django.db.models.deletion.CASCADE,
-                                to=settings.AUTH_USER_MODEL,
-                            ),
-                        ),
-                    ],
-                ),
-                migrations.CreateModel(
-                    name="UserVerification",
-                    fields=[
-                        (
-                            "id",
-                            models.BigAutoField(
-                                auto_created=True,
-                                primary_key=True,
-                                serialize=False,
-                                verbose_name="ID",
-                            ),
-                        ),
-                        ("is_pending", models.BooleanField(default=False)),
-                        ("is_approved", models.BooleanField(default=False)),
-                        ("is_rejected", models.BooleanField(default=False)),
-                        (
-                            "face_id",
-                            models.ImageField(
-                                blank=True,
-                                null=True,
-                                storage=vmlc.storage_backends.PrivateMediaStorage(),
-                                upload_to="face_ids/",
-                                validators=[],
-                            ),
-                        ),
-                        (
-                            "id_card",
-                            models.FileField(
-                                blank=True,
-                                null=True,
-                                storage=vmlc.storage_backends.PrivateMediaStorage(),
-                                upload_to="id_cards/",
-                                validators=[],
-                            ),
-                        ),
-                        (
-                            "verification_document",
-                            models.FileField(
-                                blank=True,
-                                null=True,
-                                storage=vmlc.storage_backends.PrivateMediaStorage(),
-                                upload_to="verification_docs/",
-                                validators=[],
-                            ),
-                        ),
-                        ("verification_document_type", models.CharField(blank=True, max_length=50, null=True)),
-                        ("rejection_reason", models.CharField(blank=True, default="", max_length=150)),
-                        ("created_at", models.DateTimeField(auto_now_add=True)),
-                        ("updated_at", models.DateTimeField(auto_now=True)),
-                        (
-                            "user",
-                            models.OneToOneField(
-                                on_delete=django.db.models.deletion.CASCADE,
-                                related_name="verification",
-                                to=settings.AUTH_USER_MODEL,
-                            ),
-                        ),
-                        (
-                            "action_by",
-                            models.ForeignKey(
-                                blank=True,
-                                default=None,
-                                null=True,
-                                on_delete=django.db.models.deletion.SET_NULL,
-                                related_name="verified_users",
-                                to="identity.staff",
-                            ),
-                        ),
-                    ],
-                    options={
-                        "verbose_name": "User Verification",
-                    },
-                ),
-                migrations.CreateModel(
-                    name="Candidate",
-                    fields=[
-                        (
-                            "user",
-                            models.OneToOneField(
-                                on_delete=django.db.models.deletion.CASCADE,
-                                primary_key=True,
-                                related_name="candidate_profile",
-                                serialize=False,
-                                to=settings.AUTH_USER_MODEL,
-                            ),
-                        ),
-                        ("school_name", models.CharField(max_length=150)),
-                        (
-                            "school_type",
-                            models.CharField(
-                                blank=True,
-                                choices=[("public", "Public"), ("private", "Private")],
-                                max_length=20,
-                            ),
-                        ),
-                        (
-                            "current_class",
-                            models.CharField(
-                                blank=True,
-                                choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")],
-                                max_length=10,
-                                null=True,
-                            ),
-                        ),
-                        ("created_at", models.DateTimeField(auto_now_add=True)),
-                        ("updated_at", models.DateTimeField(auto_now=True)),
-                        (
-                            "role",
-                            models.CharField(
-                                choices=[
-                                    ("screening", "Screening"),
-                                    ("league", "League"),
-                                    ("final", "Final"),
-                                    ("winner", "Winner"),
-                                ],
-                                db_index=True,
-                                default="screening",
-                                max_length=15,
-                            ),
-                        ),
-                        (
-                            "created_by",
-                            models.ForeignKey(
-                                blank=True,
-                                default=None,
-                                null=True,
-                                on_delete=django.db.models.deletion.SET_NULL,
-                                related_name="invited_candidates",
-                                to="identity.staff",
-                            ),
-                        ),
-                    ],
-                    options={
-                        "indexes": [
-                            models.Index(fields=["role"], name="identity_ca_role_3f9714_idx"),
-                            models.Index(
-                                fields=["school_name"], name="identity_ca_school__9f974b_idx"
-                            ),
+                (
+                    "phone",
+                    models.CharField(
+                        help_text="Nigerian phone number",
+                        max_length=17,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
+                                regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
+                            )
                         ],
-                    },
+                    ),
                 ),
-            ]
+                ("full_name", models.CharField(max_length=255)),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                (
+                    "interest_type",
+                    models.CharField(
+                        choices=[
+                            ("candidate", "Candidate"),
+                            ("volunteer", "Volunteer"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name="Staff",
+            fields=[
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="staff_profile",
+                        serialize=False,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                ("occupation", models.CharField(blank=True, default="", max_length=50)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("superadmin", "Superadmin"),
+                            ("manager", "Manager"),
+                            ("admin", "Admin"),
+                            ("moderator", "Moderator"),
+                            ("sponsor", "Sponsor"),
+                            ("volunteer", "Volunteer"),
+                        ],
+                        db_index=True,
+                        default="volunteer",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="invited_staffs",
+                        to="identity.staff",
+                    ),
+                ),
+            ],
+        ),
+        migrations.CreateModel(
+            name="EmailOTP",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("otp", models.CharField(max_length=6)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("expires_at", models.DateTimeField()),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+        ),
+        migrations.CreateModel(
+            name="UserVerification",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("is_pending", models.BooleanField(default=False)),
+                ("is_approved", models.BooleanField(default=False)),
+                ("is_rejected", models.BooleanField(default=False)),
+                (
+                    "face_id",
+                    models.ImageField(
+                        blank=True,
+                        null=True,
+                        storage=vmlc.storage_backends.PrivateMediaStorage(),
+                        upload_to="face_ids/",
+                        validators=[],
+                    ),
+                ),
+                (
+                    "id_card",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        storage=vmlc.storage_backends.PrivateMediaStorage(),
+                        upload_to="id_cards/",
+                        validators=[],
+                    ),
+                ),
+                (
+                    "verification_document",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        storage=vmlc.storage_backends.PrivateMediaStorage(),
+                        upload_to="verification_docs/",
+                        validators=[],
+                    ),
+                ),
+                ("verification_document_type", models.CharField(blank=True, max_length=50, null=True)),
+                ("rejection_reason", models.CharField(blank=True, default="", max_length=150)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="verification",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "action_by",
+                    models.ForeignKey(
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="verified_users",
+                        to="identity.staff",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "User Verification",
+            },
+        ),
+        migrations.CreateModel(
+            name="Candidate",
+            fields=[
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="candidate_profile",
+                        serialize=False,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                ("school_name", models.CharField(max_length=150)),
+                (
+                    "school_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[("public", "Public"), ("private", "Private")],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "current_class",
+                    models.CharField(
+                        blank=True,
+                        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")],
+                        max_length=10,
+                        null=True,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("screening", "Screening"),
+                            ("league", "League"),
+                            ("final", "Final"),
+                            ("winner", "Winner"),
+                        ],
+                        db_index=True,
+                        default="screening",
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="invited_candidates",
+                        to="identity.staff",
+                    ),
+                ),
+            ],
+            options={
+                "indexes": [
+                    models.Index(fields=["role"], name="identity_ca_role_3f9714_idx"),
+                    models.Index(
+                        fields=["school_name"], name="identity_ca_school__9f974b_idx"
+                    ),
+                ],
+            },
         ),
     ]

@@ -17,7 +17,7 @@ from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
 from identity.models import User, UserVerification
-from vmlc.permissions import (
+from identity.permissions import (
     AuthenticatedUser,
     IsObjectOwnerOrActiveAdmin,
     ActiveManagerPermissions,

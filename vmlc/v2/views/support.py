@@ -9,7 +9,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.permissions import AllowAny
 
 from vmlc.models import SupportInquiry, SupportMessage
-from vmlc.permissions import ActiveModeratorPermissions
+from identity.permissions import ActiveModeratorPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.v2.serializers.support import (
     SupportInquirySerializer, 

@@ -18,15 +18,9 @@ x-app-base: &app-base
     - dev_static:/app/staticfiles
   develop:
     watch:
-      - action: sync+restart
-        path: ./vmlc
-        target: /app/vmlc
-      - action: sync+restart
-        path: ./comms
-        target: /app/comms
-      - action: sync+restart
-        path: ./config
-        target: /app/config
+      - action: sync
+        path: ./
+        target: /app/
       - action: rebuild
         path: ./uv.lock
       - action: rebuild
@@ -99,7 +93,7 @@ services:
     <<: *app-base
     container_name: vmlc-django
     entrypoint: "./scripts/entrypoint.sh"
-    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --lifespan off
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --lifespan off --reload
     ports:
       - "8000:8000"
     depends_on:
@@ -193,14 +187,14 @@ services:
           memory: 50M
           cpus: '0.1'
 
-  flower:
-    <<: *app-base
-    container_name: vmlc-flower
-    command: celery -A config flower --port=5555
-    ports:
-      - "5555:5555"
-    depends_on:
-      - redis
+  # flower:
+  #   <<: *app-base
+  #   container_name: vmlc-flower
+  #   command: celery -A config flower --port=5555
+  #   ports:
+  #     - "5555:5555"
+  #   depends_on:
+  #     - redis
       
 volumes:
   dev_db:

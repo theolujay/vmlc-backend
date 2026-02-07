@@ -7,7 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..utils.metrics import get_registration_metrics, get_funnel_metrics
-from ..permissions import ActiveManagerPermissions
+from identity.permissions import ActiveVolunteerPermissions
 from ..utils.swagger_schemas import (
     api_key,
     bearer_auth,
@@ -22,7 +22,7 @@ class RegistrationMetricsView(APIView):
     Retrieve aggregated registration metrics for daily and weekly trends, 
     including the registration funnel.
     """
-    permission_classes = ActiveManagerPermissions
+    permission_classes = ActiveVolunteerPermissions
 
     @swagger_auto_schema(
         operation_summary="Get Registration Metrics",
@@ -61,19 +61,41 @@ class RegistrationMetricsView(APIView):
     def get(self, request):
         logger.info(f"RegistrationMetricsView: request from user {request.user.id}")
         
-        cache_key = "registration_metrics"
-        cached_data = cache.get(cache_key)
-        
-        if cached_data:
-            return Response(cached_data)
+        from vmlc.v2.utils import get_or_set_cache, CacheKeys
+        query_params = request.query_params
         
         try:
-            metrics_data = get_registration_metrics()
-            metrics_data["funnel"] = get_funnel_metrics()
+            days = query_params.get("days")
+            weeks = query_params.get("weeks")
             
-            # Cache for 10 minutes
-            cache.set(cache_key, metrics_data, 600)
+            # Since query params can vary, we might want to include them in the cache key
+            # However, the original code used a static "registration_metrics" key
+            # which means it ignored query params if cached. 
+            # For consistency with original logic but new strategy:
+            
+            def fetch_metrics():
+                kwargs = {}
+                if days:
+                    kwargs["days"] = int(days)
+                if weeks:
+                    kwargs["weeks"] = int(weeks)
+
+                data = get_registration_metrics(**kwargs)
+                data["funnel"] = get_funnel_metrics()
+                return data
+
+            metrics_data = get_or_set_cache(
+                CacheKeys.REGISTRATION_METRICS,
+                fetch_metrics,
+                ttl=600 # 10 minutes
+            )
             return Response(metrics_data)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid query parameters for registration metrics: {str(e)}")
+            return Response(
+                {"error": "Invalid days or weeks parameter. Must be integers."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.error(f"Error computing registration metrics: {str(e)}", exc_info=True)
             return Response(

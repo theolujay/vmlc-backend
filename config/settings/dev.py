@@ -23,20 +23,10 @@ if not SECRET_KEY:
 # ============================================================================
 DEBUG = True
 
-if "test" not in sys.argv:
-    INSTALLED_APPS += [
-        "debug_toolbar",
-        "django_extensions",
-    ]
-    MIDDLEWARE.insert(
-        2, "debug_toolbar.middleware.DebugToolbarMiddleware"
-    )  # After CorsMiddleware
-
 # Use NeonDB if URL is provided, otherwise default to SQLite
+DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
 DATABASES = {
-    "default": dj_database_url.parse(
-        read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
-    )
+    "default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))
 }
 
 # Extend token lifetimes for easier development
@@ -107,29 +97,6 @@ LOGGING = {
         },
     },
 }
-
-# Django Debug Toolbar configuration
-DEBUG_TOOLBAR_CONFIG = {
-    "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG,
-    "INTERCEPT_REDIRECTS": False,
-}
-
-# Define panels to exclude RequestPanel due to async incompatibility (SynchronousOnlyOperation)
-DEBUG_TOOLBAR_PANELS = [
-    "debug_toolbar.panels.history.HistoryPanel",
-    "debug_toolbar.panels.versions.VersionsPanel",
-    "debug_toolbar.panels.timer.TimerPanel",
-    "debug_toolbar.panels.settings.SettingsPanel",
-    "debug_toolbar.panels.headers.HeadersPanel",
-    "debug_toolbar.panels.sql.SQLPanel",
-    "debug_toolbar.panels.staticfiles.StaticFilesPanel",
-    "debug_toolbar.panels.templates.TemplatesPanel",
-    "debug_toolbar.panels.cache.CachePanel",
-    "debug_toolbar.panels.signals.SignalsPanel",
-    "debug_toolbar.panels.logging.LoggingPanel",
-    "debug_toolbar.panels.redirects.RedirectsPanel",
-    "debug_toolbar.panels.profiling.ProfilingPanel",
-]
 
 # Django Extensions graph models configuration
 GRAPH_MODELS = {"all_applications": True, "group_models": True}

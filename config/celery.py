@@ -19,12 +19,16 @@ app.conf.beat_schedule = {
         "task": "update_staff_dashboard_cache_task",
         "schedule": crontab(minute="0,15"),
     },
-    "update-candidate-dashboard-cache-every-30-minutes": {
-        "task": "update_candidate_dashboard_cache_task",
-        "schedule": crontab(minute="0,15"),
-    },
     "notify-prereg-users-every-4-days": {
         "task": "notify_prereg_users_via_whatsapp_task",
         "schedule": crontab(minute=0, hour=10, day_of_month="*/4"),
+    },
+    "generate-stats-overview-every-5-minutes": {
+        "task": "generate_stats_overview_task",
+        "schedule": crontab(minute="*/5"),
+    },
+    "check-exam-status-transitions-every-minute": {
+        "task": "check_exam_status_transitions_task",
+        "schedule": crontab(minute="*"),
     },
 }

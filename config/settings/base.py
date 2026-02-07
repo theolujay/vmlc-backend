@@ -61,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "identity.middleware.CompetitionContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -208,6 +209,12 @@ SERVER_EMAIL = read_secret("SERVER_EMAIL", "dev@vmlc.local")
 EMAIL_TIMEOUT = 30
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    INSTALLED_APPS += [
+        "debug_toolbar",
+    ]
+    MIDDLEWARE.insert(
+        2, "debug_toolbar.middleware.DebugToolbarMiddleware"
+    ) 
 # elif (
 #     not DEBUG
 #     and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"
@@ -340,7 +347,6 @@ CELERY_TASK_ROUTES = {
     "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
     "generate_results_snapshot_task": {"queue": "reports", "priority": 3},
     "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
-    "update_candidate_dashboard_cache_task": {"queue": "cache", "priority": 2},
     "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},
 }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -354,6 +360,7 @@ CELERY_TASK_IGNORE_RESULT = False
 # ============================================================================
 # FILE UPLOAD AND MISC SETTINGS
 # ============================================================================
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
     read_secret("DATA_UPLOAD_MAX_MEMORY_SIZE", 2 * 1024 * 1024)
 )
@@ -370,3 +377,27 @@ if (
     from config.otel import configure_opentelemetry
 
     configure_opentelemetry()
+
+# Django Debug Toolbar configuration
+DEBUG_TOOLBAR_CONFIG = {
+    "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG,
+    "INTERCEPT_REDIRECTS": False,
+    "IS_RUNNING_TESTS": False,
+}
+
+# Define panels to exclude RequestPanel due to async incompatibility (SynchronousOnlyOperation)
+DEBUG_TOOLBAR_PANELS = [
+    "debug_toolbar.panels.history.HistoryPanel",
+    "debug_toolbar.panels.versions.VersionsPanel",
+    "debug_toolbar.panels.timer.TimerPanel",
+    "debug_toolbar.panels.settings.SettingsPanel",
+    "debug_toolbar.panels.headers.HeadersPanel",
+    "debug_toolbar.panels.sql.SQLPanel",
+    "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+    "debug_toolbar.panels.templates.TemplatesPanel",
+    "debug_toolbar.panels.cache.CachePanel",
+    "debug_toolbar.panels.signals.SignalsPanel",
+    "debug_toolbar.panels.logging.LoggingPanel",
+    "debug_toolbar.panels.redirects.RedirectsPanel",
+    "debug_toolbar.panels.profiling.ProfilingPanel",
+]

@@ -29,6 +29,7 @@ from vmlc.models import (
     CandidateExamResult,
     CandidateAnswer,
     CandidateExamResultSnapshot,
+    ExamAccess,
 )
 from vmlc.serializers import (
     CandidateLeaderboardPerfSerializer,
@@ -121,8 +122,8 @@ def _build_leaderboard_entries(exam):
                     "option_d": answer.question.option_d,
                     "correct_answer": answer.question.correct_answer,
                     "selected_option": answer.selected_option,
-                    "is_correct": answer.selected_option
-                    == answer.question.correct_answer,
+                    "is_correct": (answer.selected_option or "").strip().upper()
+                    == (answer.question.correct_answer or "").strip().upper(),
                     # "answered_at": answer.answered_at.isoformat(),
                 }
             )
@@ -169,29 +170,7 @@ def compute_candidate_result(candidate_result_id):
 
     try:
         candidate_exam_result = CandidateExamResult.objects.get(pk=candidate_result_id)
-        submitted_answers = CandidateAnswer.objects.filter(
-            candidate_exam_result=candidate_exam_result
-        )
-
-        total_questions = candidate_exam_result.exam.questions.filter(
-            is_archived=False
-        ).count()
-        if not total_questions:
-            candidate_exam_result.score = 0
-        else:
-            correct_count = sum(
-                1
-                for answer in submitted_answers
-                if answer.selected_option == answer.question.correct_answer
-            )
-            score = (correct_count / total_questions) * 100
-            candidate_exam_result.score = round(score, 2)
-
-        candidate_exam_result.auto_score = True
-        candidate_exam_result.score_submitted_by = None
-        candidate_exam_result.recorded_at = timezone.now()
-        candidate_exam_result.save()
-        cache.delete(f"candidate_dashboard_{candidate_exam_result.candidate.pk}")
+        _compute_and_save_candidate_exam_result(candidate_exam_result)
         logger.info(
             f"Successfully computed result for CandidateExamResult {candidate_result_id}"
         )
@@ -201,6 +180,92 @@ def compute_candidate_result(candidate_result_id):
         logger.error(
             f"Failed to compute result for CandidateExamResult {candidate_result_id}: {e}"
         )
+
+
+def compute_exam_results(exam_id):
+    """
+    Ensures CandidateExamResult records exist for all submitted ExamAccess records
+    for a specific exam, and then calculates and saves their auto-scores.
+    """
+    try:
+        exam = Exam.objects.get(pk=exam_id)
+        
+        # Find all submitted exam accesses for this exam
+        submitted_accesses = ExamAccess.objects.filter(
+            exam=exam, status=ExamAccess.Status.SUBMITTED
+        ).select_related('candidate') # Prefetch candidate to avoid N+1 queries
+        
+        created_count = 0
+        scored_count = 0
+
+        for access in submitted_accesses:
+            # Get or create CandidateExamResult for each submitted access
+            candidate_exam_result, created = CandidateExamResult.objects.get_or_create(
+                candidate=access.candidate,
+                exam=exam
+            )
+            
+            if created:
+                created_count += 1
+            
+            # Now compute and save the score for this result
+            _compute_and_save_candidate_exam_result(candidate_exam_result)
+            scored_count += 1
+            
+        logger.info(
+            f"Exam {exam_id}: Created {created_count} new CandidateExamResult records, "
+            f"scored {scored_count} total submissions."
+        )
+        return scored_count
+    except Exam.DoesNotExist:
+        logger.error(f"Exam with id {exam_id} does not exist.")
+        return 0
+    except Exception as e:
+        logger.error(f"Failed to score submissions for exam {exam_id}: {e}", exc_info=True)
+        raise
+
+
+def _compute_and_save_candidate_exam_result(candidate_exam_result):
+    """Internal helper to compute and save result for a single CandidateExamResult."""
+    submitted_answers = CandidateAnswer.objects.filter(
+        candidate_exam_result=candidate_exam_result
+    ).select_related("question")
+
+    total_questions = candidate_exam_result.exam.questions.filter(
+        is_archived=False
+    ).count()
+    
+    if not total_questions:
+        logger.warning(f"Exam {candidate_exam_result.exam.id} has no active questions. Scoring 0.")
+        candidate_exam_result.score = 0
+    else:
+        answer_count = submitted_answers.count()
+        if answer_count == 0:
+             logger.warning(f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.id})")
+        
+        correct_count = 0
+        for answer in submitted_answers:
+            selected = (answer.selected_option or "").strip().upper()
+            correct = (answer.question.correct_answer or "").strip().upper()
+            if selected == correct:
+                correct_count += 1
+        
+        score = (correct_count / total_questions) * 100
+        candidate_exam_result.score = round(score, 2)
+        
+        logger.debug(
+            f"Scored CandidateExamResult {candidate_exam_result.id}: "
+            f"{correct_count}/{total_questions} correct. Score: {candidate_exam_result.score}"
+        )
+
+    candidate_exam_result.auto_score = True
+    candidate_exam_result.score_submitted_by = None
+    candidate_exam_result.recorded_at = timezone.now()
+    candidate_exam_result.save()
+
+    from vmlc.v2.utils import invalidate_candidate_cache
+    invalidate_candidate_cache(candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id)
+
 
 
 def generate_results_snapshot(staff_id=None):
@@ -390,30 +455,6 @@ def update_staff_dashboard_cache(staff_id=None):
     except Exception as e:
         logger.error(
             f"Failed to update staff dashboard cache for staff {staff_id}: {e}"
-        )
-
-
-def update_candidate_dashboard_cache(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-
-    try:
-        if candidate_id:
-            candidates = Candidate.objects.filter(pk=candidate_id)
-            if not candidates.exists():
-                logger.error(f"Candidate with id {candidate_id} does not exist.")
-        else:
-            candidates = Candidate.objects.all()
-        for candidate in candidates:
-            dashboard_data = get_candidate_dashboard_data(candidate)
-            cache.set(
-                f"candidate_dashboard_{candidate.user_id}", dashboard_data, timeout=3600
-            )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for candidate {candidate.user_id}")
-    except Exception as e:
-        logger.error(
-            f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
         )
 
 

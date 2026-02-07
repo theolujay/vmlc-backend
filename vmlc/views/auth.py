@@ -21,7 +21,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from identity.models import User
-from ..permissions import HasXAPIKey
+from identity.permissions import HasXAPIKey
 from ..serializers import (
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
@@ -458,6 +458,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Customizes the JWT token response to include user details.
     """
+
+    default_error_messages = {"no_active_account": "Invalid email or password"}
 
     def validate(self, attrs):
         # The default result (access/refresh tokens)

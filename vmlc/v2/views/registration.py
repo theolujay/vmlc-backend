@@ -62,16 +62,6 @@ class RegistrationV2View(CreateAPIView):
         user_type = request.data.get("user_type")
         feature_flag_key = None
 
-        # Note: V1 used "staff_registration" in StaffRegistrationView but "staff_registration_open" in ToggleStaffRegistrationView.
-        # I should check the toggle view in vmlc/views/registration.py (v1) again.
-        # ToggleStaffRegistrationView uses "staff_registration_open".
-        # StaffRegistrationView uses "staff_registration".
-        # FeatureFlag.get_bool uses the key. If they are different, that's a bug in V1 or deliberate.
-        # ToggleCandidateRegistrationView uses "candidate_registration_open".
-        # CandidateRegistrationView uses "candidate_registration".
-        # I suspect the keys are consistent in DB, maybe just inconsistent naming in code or mapped.
-        # Let's look at `FeatureFlag.get_bool`. It just queries by key.
-        # I will use "candidate_registration" and "staff_registration" as used in the Registration Views in V1.
         from vmlc.tasks import clear_pre_reg_user
         if user_type == "candidate":
             feature_flag_key = "candidate_registration"
@@ -107,10 +97,14 @@ class RegistrationV2View(CreateAPIView):
         
         # 6. Invalidate Caches
         if isinstance(instance, Candidate):
-             cache.delete(f"candidate_dashboard_{instance.pk}")
+             from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+             invalidate_candidate_cache(instance.pk, user_id=instance.user_id)
              invalidate_all_staff_dashboards()
+             invalidate_staff_dashboard()
         elif isinstance(instance, Staff):
+             from vmlc.v2.utils import invalidate_staff_dashboard
              invalidate_all_staff_dashboards()
+             invalidate_staff_dashboard()
 
         logger.info(f"Successfully registered new user (v2) with email: {instance.user.email}")
         

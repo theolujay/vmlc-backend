@@ -14,8 +14,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from vmlc.models import FeatureFlag
-from vmlc.permissions import (
+from identity.permissions import (
     ActiveModeratorPermissions,
+    ActiveVolunteerPermissions,
 )
 from ..tasks import generate_stats_overview_task
 
@@ -59,32 +60,34 @@ def registration_status(request):
     Returns information of if registration is open/closed for staff and candidate
     """
     logger.info("Registration status request by %s", request.user)
-    cache_key = "registration_status"
-    cached_data = cache.get(cache_key)
+    from vmlc.v2.utils import get_or_set_cache, CacheKeys
 
-    if cached_data:
-        return Response(cached_data, status=status.HTTP_200_OK)
+    def fetch_reg_status():
+        def _get_detailed_status(feature_flag_key):
+            try:
+                flag, _ = FeatureFlag.objects.get_or_create(key=feature_flag_key)
+                return {
+                    "is_open": flag.value,
+                    "closing_date": flag.auto_off_date
+                }
+            except Exception as e:
+                logger.error(f"Error getting feature flag {feature_flag_key}: {e}")
+                return {
+                    "is_open": False,
+                    "closing_date": None
+                }
 
-    def _get_detailed_status(feature_flag_key):
-        try:
-            flag, _ = FeatureFlag.objects.get_or_create(key=feature_flag_key)
-            return {
-                "is_open": flag.value,
-                "closing_date": flag.auto_off_date
-            }
-        except Exception as e:
-            logger.error(f"Error getting feature flag {feature_flag_key}: {e}")
-            return {
-                "is_open": False,
-                "closing_date": None
-            }
+        return {
+            "candidate_registration": _get_detailed_status("candidate_registration"),
+            "staff_registration": _get_detailed_status("staff_registration"),
+            "support_email": settings.SUPPORT_EMAIL,
+        }
 
-    reg_status_data = {
-        "candidate_registration": _get_detailed_status("candidate_registration"),
-        "staff_registration": _get_detailed_status("staff_registration"),
-        "support_email": settings.SUPPORT_EMAIL,
-    }
-    cache.set(cache_key, reg_status_data, 604800) # Cache for 1 week
+    reg_status_data = get_or_set_cache(
+        CacheKeys.REGISTRATION_STATUS,
+        fetch_reg_status,
+        ttl=604800 # 1 week
+    )
 
     return Response(reg_status_data, status=status.HTTP_200_OK)
 
@@ -96,26 +99,18 @@ def registration_status(request):
     tags=["Status"],
 )
 @api_view(["GET"])
-@permission_classes(ActiveModeratorPermissions)
+@permission_classes(ActiveVolunteerPermissions)
 def stats_overview(request):
     """
     Retrieve overall statistics for candidates and staff.
-
-    If the data is not cached, it triggers a background task to generate it
-    and returns a message indicating that the data is being prepared.
     """
     logger.info("Stats overview request by %s", request.user.id)
-    cache_key = "stats_overview"
-    cached_data = cache.get(cache_key)
+    from vmlc.v2.utils import get_or_set_cache, CacheKeys
+    from vmlc.utils import generate_stats_overview_data
 
-    if cached_data:
-        return Response(cached_data)
-
-    generate_stats_overview_task.delay()
-
-    return Response(
-        {
-            "message": "Statistics overview is being generated. Please check back in a few moments."
-        },
-        status=status.HTTP_202_ACCEPTED,
+    data = get_or_set_cache(
+        CacheKeys.STATS_OVERVIEW,
+        generate_stats_overview_data,
+        ttl=3600
     )
+    return Response(data)

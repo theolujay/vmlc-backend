@@ -14,7 +14,7 @@ from rest_framework.settings import api_settings
 
 from identity.models import Candidate
 from vmlc.models import LeaderboardSnapshot
-from vmlc.permissions import (
+from identity.permissions import (
     AuthenticatedUser,
     IsActiveModeratorOrCandidate,
     ActiveAdminPermissions,
@@ -377,7 +377,7 @@ class LoadLeaderboardDetailView(APIView, LeaderboardViewMixin):
 
         if hasattr(request.user, "candidate_profile"):
             if request.user.candidate_profile.role == Candidate.Roles.SCREENING:
-                if request.user.candidate_profile.id != candidate_id:
+                if request.user.candidate_profile.pk != candidate_id:
                     return Response(
                         {"detail": "You can only view your own performance."},
                         status=status.HTTP_403_FORBIDDEN,

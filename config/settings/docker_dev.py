@@ -23,15 +23,15 @@ if not SECRET_KEY:
 # ============================================================================
 DEBUG = True
 
-if "test" not in sys.argv:
-    INSTALLED_APPS += ["debug_toolbar", "django_extensions"]
-    MIDDLEWARE.insert(
-        2, "debug_toolbar.middleware.DebugToolbarMiddleware"
-    )  # After CorsMiddleware
+# if "test" not in sys.argv:
+#     INSTALLED_APPS += ["debug_toolbar", "django_extensions"]
+#     MIDDLEWARE.insert(
+#         2, "debug_toolbar.middleware.DebugToolbarMiddleware"
+#     )  # After CorsMiddleware
 
 # Database configuration for Docker (PostgreSQL with connection pooling)
 DATABASE_URL = read_secret(
-    "DATABASE_URL",
+    "LOCAL_DATABASE_URL",
     f"postgresql://{read_secret('POSTGRES_USER', 'postgres')}:{read_secret('POSTGRES_PASSWORD', 'password')}@db:5432/{read_secret('POSTGRES_DB', 'vmlc_dev')}",
 )
 db_config = dj_database_url.config(
@@ -137,29 +137,6 @@ if str(read_secret("LOG_QUERIES", "false")).lower() == "true":
     LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 if str(read_secret("LOG_REQUESTS", "false")).lower() == "true":
     LOGGING["loggers"]["django.request"]["level"] = "INFO"
-
-# Django Debug Toolbar configuration
-DEBUG_TOOLBAR_CONFIG = {
-    "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG,
-    "INTERCEPT_REDIRECTS": False,
-}
-
-# Define panels to exclude RequestPanel due to async incompatibility (SynchronousOnlyOperation)
-DEBUG_TOOLBAR_PANELS = [
-    "debug_toolbar.panels.history.HistoryPanel",
-    "debug_toolbar.panels.versions.VersionsPanel",
-    "debug_toolbar.panels.timer.TimerPanel",
-    "debug_toolbar.panels.settings.SettingsPanel",
-    "debug_toolbar.panels.headers.HeadersPanel",
-    "debug_toolbar.panels.sql.SQLPanel",
-    "debug_toolbar.panels.staticfiles.StaticFilesPanel",
-    "debug_toolbar.panels.templates.TemplatesPanel",
-    "debug_toolbar.panels.cache.CachePanel",
-    "debug_toolbar.panels.signals.SignalsPanel",
-    "debug_toolbar.panels.logging.LoggingPanel",
-    "debug_toolbar.panels.redirects.RedirectsPanel",
-    "debug_toolbar.panels.profiling.ProfilingPanel",
-]
 
 GRAPH_MODELS = {"all_applications": True, "group_models": True}
 

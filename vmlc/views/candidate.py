@@ -14,7 +14,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from identity.models import Candidate
-from ..permissions import (
+from identity.permissions import (
     CandidatePermissions,
     ActiveModeratorPermissions,
     ActiveAdminPermissions,
@@ -39,6 +39,8 @@ from ..utils.swagger_schemas import (
 )
 from ..utils.query_filters import filter_candidates
 from ..utils.exceptions import ValidationError
+from ..services.candidate_records import CandidateRecordService
+from ..v2.utils import get_or_set_cache
 
 logger = logging.getLogger(__name__)
 
@@ -59,26 +61,36 @@ logger = logging.getLogger(__name__)
 )
 class CandidateMeView(RetrieveAPIView):
     """
-    Retrieve the authenticated candidate's own profile.
+    Retrieve the authenticated candidate's own profile and performance records.
     """
 
     permission_classes = CandidatePermissions
-    serializer_class = MinimalCandidateSerializer
+    serializer_class = None
 
-    def get_object(self):
+    def get(self, request, *args, **kwargs):
         """
         Returns a structured data payload for the authenticated candidate.
         """
-        user_id = self.request.user.id
-        cache_key = f"candidate_profile_{user_id}"
+        candidate = request.user.candidate_profile
+        cache_key = f"candidate_me_records_{candidate.pk}"
 
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
+        data = get_or_set_cache(
+            cache_key,
+            lambda: self._get_candidate_data(candidate),
+            ttl=3600
+        )
+        return Response(data)
 
-        data = Candidate.objects.get(user=self.request.user)
-        cache.set(cache_key, data, 3600)  # Cache for 1 hour
-        return data
+    def _get_candidate_data(self, candidate):
+        # TODO: Basic profile data from MinimalCandidateSerializer could be integrated here 
+        # or we just return the records.
+        # For now, let's follow the existing pattern but use the service.
+        records = CandidateRecordService.get_candidate_records(candidate)
+        profile_data = MinimalCandidateSerializer(candidate).data
+        return {
+            "profile": profile_data,
+            "records": records
+        }
 
 
 @method_decorator(

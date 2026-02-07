@@ -95,7 +95,11 @@ def invalidate_all_staff_dashboards():
     """
     Invalidates the dashboard cache for all staff members.
     """
+    from vmlc.v2.utils import invalidate_staff_cache, invalidate_staff_dashboard
+    invalidate_staff_dashboard()
     for staff in Staff.objects.all():
+        invalidate_staff_cache(staff.user_id)
+        # Legacy
         cache.delete(f"staff_dashboard_data_{staff.pk}")
 
 
@@ -103,7 +107,10 @@ def invalidate_all_candidate_dashboards():
     """
     Invalidates the dashboard cache for all candidates.
     """
+    from vmlc.v2.utils import invalidate_candidate_cache
     for candidate in Candidate.objects.all():
+        invalidate_candidate_cache(candidate.pk, candidate.user_id)
+        # Legacy
         cache.delete(f"candidate_dashboard_{candidate.pk}")
 
 

@@ -1,0 +1,144 @@
+import logging
+from django.db.models import Count, Avg, Q
+from competition.models import (
+    Competition,
+    StageExam, 
+    Enrollment, 
+    RankingSnapshot
+)
+from vmlc.models import Exam, CandidateExamResult
+from competition.services.leaderboard import LeaderboardService
+from competition.serializers import LeagueLeaderboardEntrySerializer, RankingSnapshotEntrySerializer
+
+logger = logging.getLogger(__name__)
+
+class StaffCompetitionDashboardService:
+    @staticmethod
+    def get_dashboard_data():
+        active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+        if not active_comp:
+            return {}
+        
+        # TODO: set registered candidate to Enrollment.Status.DISQUALIFIED
+        # when set to candidate.user.is_active=False in order to count them out of the
+        # following stats queryset
+
+        # Get Stats
+        stats = Enrollment.objects.filter(competition=active_comp).aggregate(
+            enrolled=Count('id'),
+            active=Count('id', filter=Q(status=Enrollment.Status.ACTIVE)),
+            eliminated=Count('id', filter=Q(status=Enrollment.Status.ELIMINATED)),
+        )
+
+        # Compute Progress
+
+        # Determine current stage and round based on the latest active StageExam
+        latest_active_slot = StageExam.objects.filter(
+            competition_stage__competition=active_comp,
+            is_active=True
+        ).select_related('competition_stage').order_by('-competition_stage__order', '-round').first()
+
+        current_stage_type = latest_active_slot.competition_stage.type if latest_active_slot else None
+        current_round = latest_active_slot.round if latest_active_slot else None
+        
+        total_rounds = 0
+        published_rounds = 0
+        if current_stage_type is not None:
+             total_rounds = StageExam.objects.filter(
+                 competition_stage__competition=active_comp,
+                 competition_stage__type=current_stage_type
+             ).count()
+             
+             published_rounds = RankingSnapshot.objects.filter(
+                 competition=active_comp,
+                 stage=current_stage_type,
+                 is_published=True
+             ).count()
+
+        progress = {
+            "current_stage": current_stage_type,
+            "current_round": current_round,
+            "total_rounds": total_rounds,
+            "published_rounds": published_rounds
+        }
+
+        # Gather Exams data
+        exams_list = []
+        # Get all slots for this competition
+        slots = StageExam.objects.filter(
+            competition_stage__competition=active_comp
+        ).select_related('competition_stage').order_by('competition_stage__order', 'round')
+        
+        from vmlc.v2.utils import truncate_float
+        for slot in slots:
+            try:
+                # OneToOneField backref
+                exam = slot.exam
+            except Exam.DoesNotExist:
+                continue
+            
+            # Filter manually since status is a property
+            curr_status = exam.status
+            if curr_status in [Exam.Status.DRAFT, Exam.Status.CANCELLED]:
+                continue
+            
+            # Calculate stats for this exam
+            res_stats = CandidateExamResult.objects.filter(exam=exam).aggregate(
+                sat=Count('id'),
+                avg=Avg('score')
+            )
+            
+            # check ranking status
+            ranking = RankingSnapshot.objects.filter(exam=exam).first()
+            ranking_status = "pending"
+            if ranking:
+                ranking_status = "published" if ranking.is_published else "ready"
+
+            # TODO: calculate absent count when eligibility logic is adequate
+            # For now, keep it simple as per SAT stats
+            avg_score = float(res_stats['avg'] or 0)
+            exams_list.append({
+                "id": exam.id,
+                "title": str(exam),
+                "stage": slot.competition_stage.type,
+                "status": curr_status,
+                "ranking_status": ranking_status,
+                "stats": {
+                    "candidates_sat": res_stats['sat'],
+                    "avg_score": truncate_float(avg_score)
+                }
+            })
+
+        # Leaderboard Summary (Top 3)
+        leaderboard_summary_data = []
+        latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
+        if latest_leaderboard:
+            # The service annotates processed_entries
+            leaderboard_summary_data = LeagueLeaderboardEntrySerializer(
+                latest_leaderboard.processed_entries[:3], 
+                many=True
+            ).data
+
+        # Latest RankingSnapshot Summary (Top 3)
+        latest_ranking_summary = None
+        latest_published_ranking = RankingSnapshot.objects.filter(
+            competition=active_comp,
+            is_published=True
+        ).select_related('exam').order_by('-published_at', '-created_at').first()
+
+        if latest_published_ranking:
+            entries = latest_published_ranking.entries.select_related('candidate__user').order_by('rank')[:3]
+            from competition.serializers import RankingSnapshotEntrySerializer
+            latest_ranking_summary = {
+                "exam_id": latest_published_ranking.exam_id,
+                "exam_title": str(latest_published_ranking.exam),
+                "entries": RankingSnapshotEntrySerializer(entries, many=True).data
+            }
+
+        return {
+            "stats": stats,
+            "progress": progress,
+            "exams": exams_list,
+            "leaderboard_summary": leaderboard_summary_data,
+            "latest_ranking_summary": latest_ranking_summary
+        }

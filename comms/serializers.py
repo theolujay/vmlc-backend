@@ -68,6 +68,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "id",
             "subject",
             "message",
-            "read",
+            "type",
+            "is_read_by_recipient",
             "created_at",
         )

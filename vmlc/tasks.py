@@ -10,6 +10,7 @@ from celery import shared_task
 from celery.exceptions import Retry
 
 from vmlc.utils import generate_stats_overview_data
+from vmlc.v2 import tasks as v2_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -114,22 +115,10 @@ def validate_user_verification_files_task(user_verification_id):
 def update_staff_dashboard_cache_task(staff_id=None):
     """
     Celery task to update the staff dashboard cache.
-    If a staff_id is provided, it updates the cache for that specific staff member.
-    Otherwise, it updates the cache for all staff members.
     """
     from vmlc.utils.functions import update_staff_dashboard_cache
 
     update_staff_dashboard_cache(staff_id)
-
-
-@shared_task(name="update_candidate_dashboard_cache_task")
-def update_candidate_dashboard_cache_task(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-    from vmlc.utils.functions import update_candidate_dashboard_cache
-
-    update_candidate_dashboard_cache(candidate_id)
 
 
 @shared_task(name="update_candidate_ranking_cache_task")
@@ -414,8 +403,9 @@ def generate_stats_overview_task():
     """
     Asynchronously generates and caches the statistics overview.
     """
+    from vmlc.v2.utils import CacheKeys
     data = generate_stats_overview_data()
-    cache.set("stats_overview", data, timeout=3600)  # Cache for 1 hour
+    cache.set(CacheKeys.STATS_OVERVIEW, data, timeout=3600)  # Cache for 1 hour
     logger.info("Successfully generated and cached stats overview.")
 
 

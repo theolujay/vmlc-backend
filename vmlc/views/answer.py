@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import CandidateAnswer, CandidateExamResult, Exam
-from ..permissions import CandidatePermissions
+from identity.permissions import CandidatePermissions
 from ..serializers import CandidateAnswerBulkSerializer
 from ..utils.swagger_schemas import (
     api_key,
@@ -108,22 +108,17 @@ class SubmitAnswersView(APIView):
         serializer.is_valid(raise_exception=True)
         answers_data = serializer.validated_data["answers"]
 
-        # 4. Atomic Bulk Creation and Scoring
+        # 4. Atomic Bulk Creation
         with transaction.atomic():
             answers_to_create = [
                 CandidateAnswer(
                     candidate_exam_result=candidate_exam_result,
                     question=answer_data["question"],
-                    selected_option=answer_data.get("selected_option", ""),
+                    selected_option=answer_data.get("selected_option", "").strip().upper(),
                 )
                 for answer_data in answers_data
             ]
             CandidateAnswer.objects.bulk_create(answers_to_create)
-
-            # Asynchronously computes the result
-            from ..tasks import compute_candidate_result_task
-
-            compute_candidate_result_task.delay(candidate_exam_result.id)
 
         logger.info(
             "Candidate %s successfully submitted answers for exam %s.",

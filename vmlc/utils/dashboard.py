@@ -20,6 +20,8 @@ from vmlc.models import (
 )
 
 
+import warnings
+
 def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     """
     Generate dashboard data for a specific candidate.
@@ -36,6 +38,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     Returns:
         dict: A dictionary containing candidate info, exam stats, ranking, recent results, and upcoming exams.
     """
+    warnings.warn(
+        "get_candidate_dashboard_data is superseeded by competition.services.candidate_dashboard.CandidateDashboardService.get_dashboard_data",
+        DeprecationWarning,
+        stacklevel=2
+    )
 
     candidate = Candidate.objects.select_related("user").get(pk=candidate.pk)
 
@@ -79,11 +86,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             ),
             "latest_score_info": result_stats["latest_score_data"],
         },
-        "stage_progress": {
+        "enrollment_stage_progress": {
             "current_stage": candidate.role,
             "current_round": available_exams_list[0]["round"] if available_exams_list else 1,
             "has_taken_exam": (
-                available_exams_list[0]["participation"] == "done"
+                available_exams_list[0]["enrollment"] == "done"
                 if available_exams_list
                 else result_stats["total_exams_taken"] > 0
             ),
@@ -98,7 +105,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
             if candidate.role == "league"
             else None
         ),
-        "screening_standings_ranking": (
+        "screening_ranking": (
             {
                 "current_rank": screening_rank,
                 "position": screening_rank,
@@ -109,11 +116,11 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         ),
         "recent_results": [
             {
-                "exam": result["exam__title"],
-                "exam_title": result["exam__title"],
-                "score": float(result["score"]),
-                "date": result["recorded_at"],
-                "exam_stage": result["exam__stage"],
+                "exam": result.exam.get_title(),
+                "exam_title": result.exam.get_title(),
+                "score": float(result.score),
+                "date": result.recorded_at,
+                "exam_stage": result.exam.competition_slot.competition_stage.type if result.exam.competition_slot else "N/A",
             }
             for result in recent_results_list
         ],
@@ -148,17 +155,16 @@ def _get_candidate_performance_stats(
     total_exams_taken = all_results_qs.count()
 
     recent_results_list = list(
-        all_results_qs.order_by("-recorded_at")
-        .select_related("exam")
-        .values("score", "exam__title", "recorded_at", "exam__stage")[:5]
+        all_results_qs.select_related("exam", "exam__competition_slot", "exam__competition_slot__competition_stage")
+        .order_by("-recorded_at")[:5]
     )
 
     latest_score_data = None
     if recent_results_list:
         latest_score_data = {
-            "score": float(recent_results_list[0]["score"]),
-            "exam_title": recent_results_list[0]["exam__title"],
-            "date": recent_results_list[0]["recorded_at"],
+            "score": float(recent_results_list[0].score),
+            "exam_title": recent_results_list[0].exam.get_title(),
+            "date": recent_results_list[0].recorded_at,
         }
     return {
         "average_score": result_stats["average_score"],
@@ -175,7 +181,11 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
     available_exams_list = []
     if candidate.is_active:
         all_relevant_exams = (
-            Exam.objects.filter(stage=candidate.role.lower(), is_active=True)
+            Exam.objects.select_related("competition_slot__competition_stage")
+            .filter(
+                competition_slot__competition_stage__type=candidate.role.lower(),
+                is_active=True,
+            )
             .annotate(
                 question_count=Count(
                     "questions", filter=Q(questions__is_archived=False)
@@ -198,7 +208,7 @@ def _get_candidate_available_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "scheduled_date": exam.scheduled_date,
                         "countdown_minutes": exam.countdown_minutes,
                         "question_count": exam.question_count,
-                        "participation": (
+                        "enrollment": (
                             "done" if exam.id in taken_exam_ids else "not_done"
                         ),
                     }
@@ -211,7 +221,10 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
     concluded_exams_list = []
     if candidate.is_active:
         all_relevant_exams = (
-            Exam.objects.filter(stage=candidate.role, is_active=True)
+            Exam.objects.select_related("competition_slot__competition_stage")
+            .filter(
+                competition_slot__competition_stage__type=candidate.role, is_active=True
+            )
             .annotate(
                 question_count=Count(
                     "questions", filter=Q(questions__is_archived=False)
@@ -232,7 +245,7 @@ def _get_candidate_concluded_exams(candidate: Candidate, taken_exam_ids: set) ->
                         "description": exam.description,
                         "concluded_at": exam.concluded_at,
                         "question_count": exam.question_count,
-                        "participation": (
+                        "enrollment": (
                             "done" if exam.id in taken_exam_ids else "missed"
                         ),
                     }
@@ -274,7 +287,13 @@ def _get_candidate_screening_ranking(
     candidate: Candidate,
 ) -> tuple[Optional[int], int]:
     """Helper to get ranking for the Screening Round 1 exam."""
-    screening_exam = Exam.objects.filter(stage="screening", round=1).first()
+    screening_exam = (
+        Exam.objects.filter(
+            competition_slot__competition_stage__type="screening",
+            competition_slot__round=1,
+        )
+        .first()
+    )
     if not screening_exam:
         return None, 0
 
@@ -451,35 +470,44 @@ def _get_staff_score_submission_stats(last_week: timedelta) -> Dict[str, Any]:
 
 def _get_staff_recent_activity() -> list:
     """Helper to get recent candidate activity for staff dashboard."""
-    recent_activity_list = list(
+    recent_activity = (
         CandidateExamResult.objects.select_related("candidate__user", "exam")
-        .order_by("-recorded_at")
-        .values(
-            "score",
-            "recorded_at",
-            "candidate__user__first_name",
-            "candidate__user__last_name",
-            "exam__title",
-            "candidate__school_name",
-        )[:10]
+        .order_by("-recorded_at")[:10]
     )
+    
+    recent_activity_list = [
+        {
+            "score": result.score,
+            "recorded_at": result.recorded_at,
+            "candidate__user__first_name": result.candidate.user.first_name,
+            "candidate__user__last_name": result.candidate.user.last_name,
+            "exam__title": result.exam.get_title(),
+            "candidate__school_name": result.candidate.school_name,
+        }
+        for result in recent_activity
+    ]
     return recent_activity_list
 
 
 def _get_staff_upcoming_exams(now: Any) -> list:
     """Helper to get upcoming exams for staff dashboard."""
-    upcoming_exams_list = list(
+    upcoming_exams = (
         Exam.objects.filter(scheduled_date__gte=now, is_active=True)
         .order_by("scheduled_date")
-        .values(
-            "id",
-            "title",
-            "scheduled_date",
-            "is_active",
-            "stage",
-            "round",
-            "countdown_minutes",
-        )
         .annotate(question_count=Count("questions"))[:5]
     )
+    
+    upcoming_exams_list = [
+        {
+            "id": exam.id,
+            "title": exam.get_title(),
+            "scheduled_date": exam.scheduled_date,
+            "is_active": exam.is_active,
+            "stage": exam.competition_slot.competition_stage.type if exam.competition_slot else "N/A",
+            "round": exam.competition_slot.round if exam.competition_slot else None,
+            "countdown_minutes": exam.countdown_minutes,
+            "question_count": exam.question_count,
+        }
+        for exam in upcoming_exams
+    ]
     return upcoming_exams_list

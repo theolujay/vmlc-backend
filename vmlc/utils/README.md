@@ -36,7 +36,7 @@ This directory serves as a collection of utility functions, helper classes, and 
     -   `generate_results_snapshot`: Creates snapshots of candidate results.
     -   `_validate_file_size`, `_validate_image_file`, `_validate_file_type`: Helpers for file validation, used in user verification processes.
     -   `validate_user_verification_files`: Validates uploaded documents for user verification.
-    -   `update_staff_dashboard_cache`, `update_candidate_dashboard_cache`, `update_candidate_ranking_cache`: Functions to update and invalidate cache entries for dashboards and rankings.
+    -   `update_staff_dashboard_cache`, `update_candidate_ranking_cache`: Functions to update and invalidate cache entries for dashboards and rankings.
 -   **`helpers.py`**: Contains small, general utility functions.
     -   `sanitize_data`: Recursively redacts sensitive information from data structures, useful for safe logging.
     -   `invalidate_all_staff_dashboards`, `invalidate_all_candidate_dashboards`, `invalidate_all_candidate_records`, `invalidate_all_dashboard_caches`: Functions to clear various cache entries across the application.
@@ -48,7 +48,7 @@ This directory serves as a collection of utility functions, helper classes, and 
     -   `_get_candidate_stats`, `_get_staff_stats`: Helper functions to retrieve specific statistics.
 -   **`swagger_schemas.py`**: Defines reusable OpenAPI (Swagger) schema components.
     -   Includes schema definitions for parameters (e.g., `bearer_auth`, `api_key`, `pagination_limit`), common error responses (e.g., `error_response_400`, `error_response_401`), and request/response bodies for various API endpoints.
--   **`user.py`**: Contains utility functions related to user status and exam participation.
+-   **`user.py`**: Contains utility functions related to user status and exam enrollment.
     -   `get_user_status_counts`: Calculates counts of users by their status (active, inactive, pending, deactivated).
     -   `get_last_concluded_exam`: Retrieves the most recently concluded exam.
 
