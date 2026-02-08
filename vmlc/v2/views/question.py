@@ -1,7 +1,7 @@
 import logging
 from django.db import transaction
 from django.db.models import Count, Q
-from rest_framework import status
+from rest_framework import status, parsers
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -22,6 +22,7 @@ class QuestionListCreateV2View(ListCreateAPIView):
     permission_classes = ActiveModeratorPermissions
     serializer_class = QuestionV2Serializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def get_queryset(self):
         queryset = Question.objects.filter(is_archived=False).select_related(
@@ -60,6 +61,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
     queryset = Question.objects.filter(is_archived=False).select_related(
         "created_by__user", "updated_by__user"
     )
+    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

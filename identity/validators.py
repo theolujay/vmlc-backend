@@ -32,6 +32,20 @@ def validate_profile_picture(value):
     if value.size > 5 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 5MB.")
 
+def validate_image(value):
+    if not value:
+        return
+
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    if ext not in valid_extensions:
+        raise ValidationError(
+            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+        )
+
+    if value.size > 5 * 1024 * 1024:
+        raise ValidationError("Image size cannot exceed 5MB.")
+
 
 def validate_id_card_file(value):
     """Validate that the uploaded file is an image or PDF"""

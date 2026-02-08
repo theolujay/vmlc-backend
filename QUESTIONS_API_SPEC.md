@@ -29,6 +29,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
     {
       "id": 1,
       "text": "What is 2+2?",
+      "image": "http://example.com/media/question_images/img.png",
       "option_a": "3",
       "option_b": "4",
       "option_c": "5",
@@ -50,13 +51,14 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
 
 ## 2. Create Question
 **Endpoint:** `POST /v2/questions/`  
-**Description:** Creates a new question. Optionally assigns the question to one or more exams.  
+**Description:** Creates a new question. Optionally assigns the question to one or more exams. Supports `multipart/form-data` for image uploads.  
 **Permissions:** `ActiveModeratorPermissions`
 
 ### Request Body
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `text` | String | **Required.** The question text. |
+| `image` | File | Optional. Image file for the question. |
 | `option_a` | String | **Required.** |
 | `option_b` | String | **Required.** |
 | `option_c` | String | **Required.** |
@@ -77,6 +79,7 @@ This document outlines the V2 API endpoints for question management. V1 endpoint
 {
   "id": 1,
   "text": "...",
+  "image": "http://example.com/media/question_images/img.png",
   "related_exams": [
     {
       "id": "uuid",

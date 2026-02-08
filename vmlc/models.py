@@ -11,6 +11,9 @@ from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
 
+from identity.validators import validate_image
+from vmlc.storage_backends import PublicMediaStorage
+
 phone_regex = RegexValidator(
     regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
     message="Phone number must be in format: '+234XXXXXXXXXX' or '0XXXXXXXXXX'",
@@ -186,6 +189,13 @@ class Question(models.Model):
         HARD = "hard", "Hard"
 
     text = models.TextField()
+    image = models.ImageField(
+        upload_to="question_images/",
+        blank=True,
+        null=True,
+        storage=PublicMediaStorage(),
+        validators=[validate_image],
+    )
     option_a = models.TextField(blank=True)
     option_b = models.TextField(blank=True)
     option_c = models.TextField(blank=True)
