@@ -1,6 +1,5 @@
 import logging
 from django.db import transaction
-from django.db.models import Count, Q
 from rest_framework import status, parsers
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
@@ -124,12 +123,17 @@ class QuestionBulkActionV2View(APIView):
                 )
 
             for exam in exams:
-                exam.questions.add(*questions)
-                delete_many_cache([
-                    CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
-                    CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
-                ])
-            msg = f"Assigned {questions.count()} questions to {exams.count()} exams."
+                # Find questions that are NOT already in this exam
+                existing_question_ids = set(exam.questions.values_list('id', flat=True))
+                new_questions = [q for q in questions if q.id not in existing_question_ids]
+                
+                if new_questions:
+                    exam.questions.add(*new_questions)
+                    delete_many_cache([
+                        CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                        CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                    ])
+            msg = f"Assigned questions to {exams.count()} exams."
             
         elif action == "unassign":
             exams = Exam.objects.filter(id__in=exam_ids)

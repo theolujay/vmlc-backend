@@ -395,8 +395,12 @@ class Exam(models.Model):
         stage_type = stage.type
         stage_label = stage.get_type_display()
 
-        if stage_type == "league" and slot.round is not None:
+        if stage_type == "screening" and slot.round is None:
+            stage_part = "Screening Test"
+        elif stage_type == "league" and slot.round is not None:
             stage_part = f"League Round {slot.round}"
+        elif stage_type == "final" and slot.round is None:
+            stage_part = "Final Exam"
         else:
             stage_part = stage_label
 
@@ -445,7 +449,7 @@ class CandidateExamResult(models.Model):
     )
     exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="results")
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
-    recorded_at = models.DateTimeField(default=timezone.now)
+    recorded_at = models.DateTimeField(default=timezone.now) # TODO: consider making this field nullable so generate_ranking_task updates it
     updated_at = models.DateTimeField(auto_now=True)
     score_submitted_by = models.ForeignKey(
         "identity.Staff", on_delete=models.SET_NULL, null=True, blank=True
@@ -584,10 +588,12 @@ class ExamAccess(models.Model):
         ESTURDI = "esturdi", "Esturdi"
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"          # provisioned but not opened
-        ISSUED = "issued", "Issued"             # URL generated
-        STARTED = "started", "Started"
-        SUBMITTED = "submitted", "Submitted"
+        PENDING = "pending", "Pending"          # provisioned but not opened... this is for Esturdi
+        ISSUED = "issued", "Issued"             # URL generated... also for Esturdi
+
+        STARTED = "started", "Started"          # mostly for VMLC, as I'm unsure when Esturdi will provide this in its case
+        SUBMITTED = "submitted", "Submitted"    # also mostly for VMLC...
+
         EXPIRED = "expired", "Expired"
         FAILED = "failed", "Failed"
 
@@ -630,8 +636,8 @@ class ExamAccess(models.Model):
 
     issued_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
+    deadline = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
-
     facilitator_payload = models.JSONField(
         default=dict,
         blank=True,

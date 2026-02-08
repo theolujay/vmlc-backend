@@ -94,17 +94,38 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         question = super().create(validated_data)
         
         if exam_ids:
-            exams = Exam.objects.filter(id__in=exam_ids)
-            question.exams.add(*exams)
-            
-            # Invalidate caches
             from vmlc.v2.utils import delete_many_cache, CacheKeys
+            exams = Exam.objects.filter(id__in=exam_ids)
             for exam in exams:
-                delete_many_cache([
-                    CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
-                    CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
-                ])
+                # Skip if the question is already associated with this exam
+                if not exam.questions.filter(id=question.id).exists():
+                    exam.questions.add(question)
+                    
+                    # Invalidate caches only for exams where the question was newly added
+                    delete_many_cache([
+                        CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                        CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                    ])
                 
+        return question
+
+    def update(self, instance, validated_data):
+        exam_ids = validated_data.pop("exam_ids", None)
+        question = super().update(instance, validated_data)
+        
+        if exam_ids is not None:
+            from vmlc.v2.utils import delete_many_cache, CacheKeys
+            exams = Exam.objects.filter(id__in=exam_ids)
+            
+            for exam in exams:
+                # Only add and invalidate cache if the question is not already in the exam
+                if not exam.questions.filter(id=question.id).exists():
+                    exam.questions.add(question)
+                    delete_many_cache([
+                        CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
+                        CacheKeys.EXAM_DETAIL.format(exam_id=exam.id)
+                    ])
+        
         return question
 
 class QuestionBulkActionSerializer(serializers.Serializer):

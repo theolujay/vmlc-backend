@@ -132,229 +132,50 @@ class LeagueLeaderboardEntrySerializer(serializers.ModelSerializer):
 
 
 class LeagueLeaderboardSerializer(serializers.ModelSerializer):
-
-
     entries = LeagueLeaderboardEntrySerializer(many=True, read_only=True)
-
-
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
 
-
-
-
-
     class Meta:
-
-
-
-
-
         model = LeagueLeaderboard
-
-
-    fields = [
-
-
-        'id',
-
-
-        'competition',
-
-
-        'stage',
-
-
-        'stage_display',
-
-
-        'as_of_round',
-
-
-        'created_at',
-
-
-        'updated_at',
-
-
-        'entries',
-
-
-    ]
-
-
-
-
-
-
+        fields = [
+            'id',
+            'competition',
+            'stage',
+            'stage_display',
+            'as_of_round',
+            'created_at',
+            'updated_at',
+            'entries',
+        ]
 
 
 class CompetitionDashboardExamSerializer(serializers.Serializer):
-
-
     id = serializers.UUIDField()
-
-
     title = serializers.CharField()
-
-
     stage = serializers.CharField()
-
-
     status = serializers.CharField()
-
-
     ranking_status = serializers.CharField()
-
-
     stats = serializers.DictField()
-
-
-
-
-
-
 
 
 class CompetitionDashboardSerializer(serializers.Serializer):
-
-
     stats = serializers.DictField()
-
-
     progress = serializers.DictField()
-
-
     exams = CompetitionDashboardExamSerializer(many=True)
-
-
     leaderboard_summary = serializers.ListField()
-
-
     latest_ranking_summary = serializers.DictField(allow_null=True)
 
 
-
-
-
-
-
-
 class CandidateRankingSnapshotDetailSerializer(serializers.Serializer):
-
-
-
-
-
-
-
-
     exam_details = serializers.DictField()
-
-
-
-
-
-
-
-
     candidate_performance = serializers.DictField()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class PromoteCandidatesSerializer(serializers.Serializer):
-
-
-
-
-
-
-
-
     """
-
-
-
-
-
-
-
-
     Serializer for promoting candidates from one stage to another.
-
-
-
-
-
-
-
-
     """
-
-
-
-
-
-
-
-
     from_stage = serializers.ChoiceField(choices=["screening", "league"])
-
-
-
-
-
-
-
-
     to_stage = serializers.ChoiceField(choices=["league", "final"])
-
-
-
-
-
-
-
-
     cutoff_rank = serializers.IntegerField(required=False, min_value=1)
-
-
-
-
-
-
-
-
     competition_id = serializers.IntegerField(required=False)
-
-
-
-
-
-
-
-
-
-

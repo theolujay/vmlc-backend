@@ -48,46 +48,35 @@ class ProgressionService:
             # Prefer policy from the stage being exited
             policy = from_stage.config.get("advancement_policy")
             
-            # Fallback to target stage config (legacy behavior)
-            # TODO: re-examine this... to avoid unexepected behaviour
-            # We should stick to one
             if not policy:
-                policy = to_stage.config.get("advancement_policy")
+                raise ProgressionError(f"No advancement_policy found for {from_stage_type} -> {to_stage_type}. AND cutoff_rank wasn't provided")
 
-            if policy:
-                mode = policy.get("mode")
-                value = policy.get("value")
+            mode = policy.get("mode")
+            value = policy.get("value")
+            
+            if mode == "top_n":
+                cutoff_rank = int(value)
+            elif mode == "top_percent":
+                # Calculate total active candidates in from_stage to apply percentage
+                total_active_in_stage = 0
+                if from_stage_type == Stage.Type.SCREENING:
+                    ranking = RankingSnapshot.objects.filter(
+                        competition=competition, stage=Stage.Type.SCREENING, is_published=True
+                    ).order_by('-published_at').first()
+                    if ranking:
+                        total_active_in_stage = ranking.entries.count()
+                elif from_stage_type == Stage.Type.LEAGUE:
+                    leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
+                    if leaderboard:
+                        total_active_in_stage = leaderboard.entries.count()
                 
-                if mode == "top_n":
-                    cutoff_rank = int(value)
-                elif mode == "top_percent":
-                    # Calculate total enrollments to apply percentage
-                    total_enrollments = 0
-                    if from_stage_type == Stage.Type.SCREENING:
-                        ranking = RankingSnapshot.objects.filter(
-                            competition=competition, stage=Stage.Type.SCREENING, is_published=True
-                        ).order_by('-published_at').first()
-                        if ranking:
-                            total_enrollments = ranking.entries.count()
-                    elif from_stage_type == Stage.Type.LEAGUE:
-                        leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
-                        if leaderboard:
-                            total_enrollments = leaderboard.entries.count()
-                    
-                    if total_enrollments > 0:
-                        import math
-                        cutoff_rank = max(1, math.ceil(total_enrollments * float(value)))
-                    else:
-                        raise ProgressionError(f"Cannot calculate top_percent: No enrollments found in {from_stage_type} stage.")
+                if total_active_in_stage > 0:
+                    import math
+                    cutoff_rank = max(1, math.ceil(total_active_in_stage * float(value))) # resolve cutoff_rank to at least 1
                 else:
-                    raise ProgressionError(f"Unsupported advancement mode: {mode}")
+                    raise ProgressionError(f"Cannot calculate top_percent: No enrollments found in {from_stage_type} stage.")
             else:
-                # Last resort fallback to old promotion_cutoff
-                # TODO: same as above, seek to deprecate this
-                cutoff_rank = from_stage.config.get("promotion_cutoff") or to_stage.config.get("promotion_cutoff")
-                
-            if cutoff_rank is None:
-                raise ProgressionError(f"No advancement policy or promotion_cutoff found for {from_stage_type} -> {to_stage_type}.")
+                raise ProgressionError(f"Unsupported advancement mode: {mode}")
 
         logger.info(f"Advancement: Using cutoff_rank={cutoff_rank} for {from_stage_type} -> {to_stage_type}")
 

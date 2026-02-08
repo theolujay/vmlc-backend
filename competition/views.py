@@ -11,7 +11,8 @@ from identity.permissions import (
     CanViewOwnOrStaffRankingSnapshotEntry,
     CanViewRankingSnapshot,
     CandidatePermissions,
-    IsLeagueParticipantOrStaff
+    IsLeagueParticipantOrStaff,
+    get_enrollment
 )
 from vmlc.models import Exam
 from competition.models import RankingSnapshot, RankingSnapshotEntry
@@ -42,7 +43,7 @@ class CandidateDashboardView(APIView):
 
     def get(self, request):
         candidate = request.user.candidate_profile
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = get_enrollment(request)
         from vmlc.v2.utils import CacheKeys
         cache_key = CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate.pk)
         
@@ -279,8 +280,8 @@ class PromoteCandidatesView(APIView):
             promoted_count = ProgressionService.promote_candidates(
                 from_stage_type=data['from_stage'],
                 to_stage_type=data['to_stage'],
-                cutoff_rank=data.get('cutoff_rank'),
-                competition_id=data.get('competition_id')
+                cutoff_rank=data.get('cutoff_rank', None),
+                competition_id=data.get('competition_id', None)
             )
             
             return Response({

@@ -65,7 +65,7 @@ class CandidateDashboardService:
             "candidate_context": context,
             "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
-            "performance_snapshot": performance,
+            "performance": performance,
             "exam_history": history,
         }
 
@@ -199,7 +199,7 @@ class CandidateDashboardService:
         }
 
         return {
-            "current_stage": current_stage.type,
+            "current_stage": current_stage.type, # TODO: compare with staff's competition dashboard to handle when exam's not started yet
             "current_round": current_round,
             "total_rounds": total_rounds,
             "published_rounds": published_rounds,
@@ -257,10 +257,19 @@ class CandidateDashboardService:
                 
                 has_participated = access.status == ExamAccess.Status.SUBMITTED if access else False
 
+                attempt_data = None
+                if access:
+                    attempt_data = {
+                        "started_at": access.started_at,
+                        "deadline": access.deadline,
+                        "submitted_at": access.submitted_at,
+                    }
+
                 if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]:
                     exam_data = {
                         "id": str(exam.id),
                         "title": exam.get_title(),
+                        "description": exam.description,
                         "stage": current_stage.type,
                         "round": slot.round,
                         "question_count": exam.get_question_count(),
@@ -271,11 +280,10 @@ class CandidateDashboardService:
                             if exam.scheduled_date
                             else None
                         ),
-                        "duration_minutes": exam.countdown_minutes,
+                        "duration_minutes": exam.countdown_minutes, # TODO: rename tis to exam.duration_minutes
                         "status": status,
-                        "has_participated": has_participated,
-                        "is_eligible": is_eligible,
-                        "access_status": access.status if access else None,
+                        "attempt": attempt_data,
+                        "access_status": access.status if access else None, # TODO: reconsider if this is necessary
                     }
                     if status == Exam.Status.ONGOING and is_eligible and not has_participated:
                         # Found our primary target, an ongoing exam
@@ -286,23 +294,23 @@ class CandidateDashboardService:
                     if not active_exam_data:
                         active_exam_data = exam_data
 
-                elif status == Exam.Status.CONCLUDED and has_participated:
-                    # Check if ranking are published
-                    ranking = RankingSnapshot.objects.filter(
-                        exam=exam, is_published=True
-                    ).first()
+                    if status == Exam.Status.CONCLUDED and has_participated:
+                        # Check if ranking are published
+                        ranking = RankingSnapshot.objects.filter(
+                            exam=exam, is_published=True
+                        ).first()
 
-                    is_published = ranking is not None
+                        is_published = ranking is not None
 
-                    if not active_exam_data:
-                        active_exam_data = {
-                            "id": str(exam.id),
-                            "title": exam.get_title(),
-                            "stage": current_stage.type,
-                            "round": slot.round,
-                            "status": "results_published" if is_published else "awaiting_results",
-                            "has_participated": True,
-                        }
+                        if not active_exam_data:
+                            active_exam_data = {
+                                "id": str(exam.id),
+                                "title": exam.get_title(),
+                                "stage": current_stage.type,
+                                "round": slot.round,
+                                "status": "results_published" if is_published else "awaiting_results",
+                                "attempt": attempt_data,
+                            }
             except Exam.DoesNotExist:
                 continue
 

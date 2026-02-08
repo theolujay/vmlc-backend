@@ -31,6 +31,11 @@ class EligibilityService:
 
         # Check if the exam is currently open (time-wise)
         if not exam.is_currently_open:
+            # TODO: examine if this is initially returned due to race condition,
+            # as exam.is_currently_open is computed at runtime (as a property) and
+            # probably makes it required for a user to refresh their dashboard
+            # to check the expected state (exam.is_currently_open=True).
+            # But what handles this state change, check_exam_status_transitions_task in vmlc/v2/tasks.py?
             return False
 
         # Check competition context

@@ -1,6 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
 
-from competition.models import Enrollment
+from competition.models import Competition, Enrollment
 from vmlc.v2.utils import get_or_set_cache, CacheKeys
 
 class CompetitionContextMiddleware(MiddlewareMixin):

@@ -67,9 +67,7 @@ class SubmitAnswersV2View(APIView):
         is_within_personal_time = False
 
         if access.started_at:
-            personal_deadline = access.started_at + timedelta(
-                minutes=exam.countdown_minutes
-            )
+            personal_deadline = access.deadline
             # Add 5 minutes grace period for network latency
             if timezone.now() <= personal_deadline + timedelta(minutes=5):
                 is_within_personal_time = True
@@ -96,9 +94,9 @@ class SubmitAnswersV2View(APIView):
                 candidate=candidate,
                 exam=exam,
                 defaults={
-                    "score": 0.0,
-                    "auto_score": False,
-                    "recorded_at": timezone.now(),
+                    "score": 0.0,                   # to be updated when... 
+                    "auto_score": False,            # generate_ranking_task is called
+                    "recorded_at": timezone.now(),  # TODO: make generate_ranking_task set this
                 },
             )
 

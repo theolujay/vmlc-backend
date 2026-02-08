@@ -46,6 +46,22 @@ def _get_staff_profile(request):
     return request._staff_profile
 
 
+def _get_enrollment(request):
+    """Helper to get and cache enrollment on the request object."""
+    enrollment = getattr(request, "enrollment", None)
+    if enrollment is None:
+        candidate = _get_candidate_profile(request)
+        if candidate:
+            from competition.models import Enrollment, Competition
+            enrollment = Enrollment.objects.filter(
+                candidate=candidate,
+                competition__status=Competition.Status.ACTIVE,
+                status=Enrollment.Status.ACTIVE
+            ).select_related("competition", "current_stage").first()
+            request.enrollment = enrollment
+    return enrollment
+
+
 class IsCandidate(BasePermission):
     """
     Grants access if the authenticated user has a related Candidate profile.
@@ -126,7 +142,7 @@ class IsInStage(BasePermission):
         return self
 
     def has_permission(self, request, view):
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = _get_enrollment(request)
         if not enrollment:
             return False
             
@@ -160,7 +176,7 @@ class IsLeagueCandidateOrStaff(BasePermission):
             return True
 
         # 2. League Candidate check
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = _get_enrollment(request)
         if not enrollment:
             return False
             

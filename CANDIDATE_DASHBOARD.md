@@ -27,7 +27,7 @@ Provides a comprehensive overview for the student, including their notifications
       "error": []
     }
   },
-  "stage_progress": {
+  "enrollment_stage_progress": {
     "current_stage": "league", 
     "current_round": 3,
     "total_rounds": 6,
@@ -51,12 +51,15 @@ Provides a comprehensive overview for the student, including their notifications
     "starts_at": "2026-01-31T08:00:00Z",
     "ends_at": "2026-01-31T20:00:00Z",
     "duration_minutes": 60,
-    "status": "ongoing", 
-    "has_participated": false,
-    "is_eligible": true,
-    "access_status": "started" 
+    "status": "ongoing",
+    "attempt": {
+      "started_at": "2026-01-31T19:00:00Z",
+      "deadline": "2026-01-31T20:00:00Z",
+      "submitted_at": "2026-01-31T19:35:00Z"
+    },
+    "access_status": "started"
   },
-  "performance_snapshot": {
+  "performance": {
     "screening_ranking": {
       "rank": 45,
       "total_candidates": 10230,
@@ -147,4 +150,3 @@ Once submitted, the system automatically triggers a background scoring process. 
     - A student's profile or status is updated.
 2.  **Grace Period**: Students have a **5-minute grace period** after their personal timer ends to account for network latency during submission.
 3.  **Result Visibility**: In the `exam_history`, the `score` and `percentage` will remain `null` until the staff officially publishes the results. This prevents students from seeing unverified or "leaked" scores before they are finalized.
-4.  **Eligibility**: Use the `is_eligible` flag in `active_exam` to enable or disable the "Start Exam" button. The backend handles all the complex rules (role checks, stage placement, etc.) and gives you this simple boolean.

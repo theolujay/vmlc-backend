@@ -311,6 +311,7 @@ class ExamHistoryV2View(ListAPIView):
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
+    from datetime import timedelta
     from competition.services.eligibility import EligibilityService
     candidate = request.user.candidate_profile
 
@@ -326,13 +327,15 @@ def candidate_take_exam_V2(request, exam_id):
         raise PermissionDenied("You are not eligible to take this exam at this time.")
 
     # Manage Exam Access
+    now = timezone.now()
     access, created = ExamAccess.objects.get_or_create(
         candidate=candidate,
         exam=exam,
         defaults={
             "status": ExamAccess.Status.STARTED,
             "facilitator_system": ExamAccess.Facilitator.VMLC,
-            "started_at": timezone.now(),
+            "started_at": now,
+            "deadline": now + timedelta(minutes=exam.countdown_minutes),
         },
     )
 
@@ -346,10 +349,11 @@ def candidate_take_exam_V2(request, exam_id):
             raise PermissionDenied("You have already completed or attempted this exam.")
         
         # If in PENDING or ISSUED (unlikely for VMLC native, but possible), update to STARTED
-        # TODO: revisit this when Esturdi integration is implemented
+        # TODO: revisit this when Esturdi integration is implemented, especially when fallback feature flag is implemented
         if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:
             access.status = ExamAccess.Status.STARTED
-            access.started_at = timezone.now()
-            access.save(update_fields=["status", "started_at"])
+            access.started_at = now
+            access.deadline = now + timedelta(minutes=exam.countdown_minutes)
+            access.save(update_fields=["status", "started_at", "deadline"])
 
-    return Response(CandidateTakeExamSerializer(exam).data)
+    return Response(CandidateTakeExamSerializer(exam, context={"request": request}).data)

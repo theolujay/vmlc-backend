@@ -49,6 +49,24 @@ def get_staff_profile(request):
     return request._staff_profile
 
 
+def get_enrollment(request):
+    """Helper to get and cache enrollment on the request object."""
+    # Try to get from request (set by middleware)
+    enrollment = getattr(request, "enrollment", None)
+    if enrollment is None:
+        # If not found (e.g. middleware ran before auth), try to fetch manually
+        candidate = get_candidate_profile(request)
+        if candidate:
+            from competition.models import Enrollment, Competition
+            enrollment = Enrollment.objects.filter(
+                candidate=candidate,
+                competition__status=Competition.Status.ACTIVE,
+                status=Enrollment.Status.ACTIVE
+            ).select_related("competition", "current_stage").first()
+            request.enrollment = enrollment
+    return enrollment
+
+
 # =============================================================================
 # CORE PERMISSIONS
 # =============================================================================
@@ -115,7 +133,7 @@ class IsActiveCompetitionParticipant(BasePermission):
     Uses context from CompetitionContextMiddleware.
     """
     def has_permission(self, request, view):
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = get_enrollment(request)
         if not enrollment:
             return False
         from competition.models import Enrollment
@@ -133,12 +151,13 @@ class IsInStage(BasePermission):
         return self
 
     def has_permission(self, request, view):
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = get_enrollment(request)
         if not enrollment:
             return False
             
         from competition.models import Enrollment
-        if enrollment.status != Enrollment.Status.ACTIVE:            return False
+        if enrollment.status != Enrollment.Status.ACTIVE:
+            return False
             
         if not enrollment.current_stage:
             return False
@@ -163,7 +182,7 @@ class IsLeagueParticipantOrStaffBase(BasePermission):
             return True
             
         # League Participant check
-        enrollment = getattr(request, 'enrollment', None)
+        enrollment = get_enrollment(request)
         if not enrollment:
             return False
             

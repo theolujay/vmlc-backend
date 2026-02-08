@@ -6,6 +6,7 @@ from vmlc.serializers.staff import MinimalStaffSerializer
 from vmlc.models import (
     CandidateExamResult,
     Exam,
+    ExamAccess,
 )
 from vmlc.serializers.question import CandidateQuestionSerializer
 
@@ -81,8 +82,8 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     updated_by = MinimalStaffSerializer(read_only=True)
     competition_title= serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
-    stage_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    round = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    stage_id = serializers.IntegerField(required=False, allow_null=True)
+    round = serializers.IntegerField(required=False, allow_null=True)
     stage = serializers.ReadOnlyField()
     ranking = serializers.SerializerMethodField()
 
@@ -202,14 +203,16 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
+            "attempt",
             "open_duration_hours",
             "scheduled_date",
             "countdown_minutes",
             "questions",
         ]
 
-    questions = serializers.SerializerMethodField()
+    questions = serializers.SerializerMethodField() # TODO: implement question randomizer
     title = serializers.SerializerMethodField()
+    attempt = serializers.SerializerMethodField()
 
     def get_title(self, obj):
         return obj.title
@@ -220,6 +223,23 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
             questions, many=True, context=self.context
         ).data
 
+    def get_attempt(self, obj):
+        request = self.context.get("request")
+        if not request or not hasattr(request.user, "candidate_profile"):
+            return None
+
+        exam_access = ExamAccess.objects.filter(
+            exam=obj,
+            candidate=request.user.candidate_profile
+        ).first()
+
+        if exam_access:
+            return {
+                "started_at": exam_access.started_at,
+                "deadline": exam_access.deadline,
+                "submitted_at": exam_access.submitted_at,
+            }
+        return None
 
 class ExamResultV2Serializer(serializers.ModelSerializer):
     """
