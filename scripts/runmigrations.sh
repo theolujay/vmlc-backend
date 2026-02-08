@@ -157,7 +157,7 @@ setup_django_env() {
     #     fi
     # else
     #     log_info "Skipping competition initialization..."
-    fi
+    # fi
 }
 
 setup_application() {
