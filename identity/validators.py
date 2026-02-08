@@ -1,6 +1,7 @@
 import os
 from django.core.exceptions import ValidationError
 
+
 def validate_verification_document(value):
     """Validate verification document"""
     if not value:
@@ -31,6 +32,7 @@ def validate_profile_picture(value):
 
     if value.size > 5 * 1024 * 1024:
         raise ValidationError("Image size cannot exceed 5MB.")
+
 
 def validate_image(value):
     if not value:

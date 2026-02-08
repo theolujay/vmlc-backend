@@ -3,11 +3,14 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
 
-class PublicMediaStorage(S3Boto3Storage if getattr(settings, "USE_S3", False) else FileSystemStorage):
+class PublicMediaStorage(
+    S3Boto3Storage if getattr(settings, "USE_S3", False) else FileSystemStorage
+):
     """
     Storage for files that can be publicly accessible (like profile photos)
     These files get public URLs that don't expire
     """
+
     if getattr(settings, "USE_S3", False):
         location = "media/public"
         default_acl = "public-read"
@@ -32,11 +35,14 @@ class PublicMediaStorage(S3Boto3Storage if getattr(settings, "USE_S3", False) el
         super().__init__(*args, **kwargs)
 
 
-class PrivateMediaStorage(S3Boto3Storage if getattr(settings, "USE_S3", False) else FileSystemStorage):
+class PrivateMediaStorage(
+    S3Boto3Storage if getattr(settings, "USE_S3", False) else FileSystemStorage
+):
     """
     Storage for sensitive files that need access control (ID cards, verification docs)
     These files generate signed URLs that expire
     """
+
     if getattr(settings, "USE_S3", False):
         location = "media/private"
         default_acl = "private"

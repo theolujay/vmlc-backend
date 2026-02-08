@@ -52,11 +52,16 @@ class Command(BaseCommand):
             )
             # In a dry run, we just count how many WOULD be enrolled
             from competition.models import Enrollment
+
             enrolled_candidate_ids = Enrollment.objects.filter(
                 competition=competition
             ).values_list("candidate_id", flat=True)
-            candidates_to_enroll = Candidate.objects.exclude(pk__in=enrolled_candidate_ids)
-            self.stdout.write(f"Found {candidates_to_enroll.count()} candidates to enroll.")
+            candidates_to_enroll = Candidate.objects.exclude(
+                pk__in=enrolled_candidate_ids
+            )
+            self.stdout.write(
+                f"Found {candidates_to_enroll.count()} candidates to enroll."
+            )
             return
 
         try:
@@ -67,7 +72,9 @@ class Command(BaseCommand):
                 )
             else:
                 self.stdout.write(
-                    self.style.SUCCESS(f"Successfully enrolled {created_count} candidates.")
+                    self.style.SUCCESS(
+                        f"Successfully enrolled {created_count} candidates."
+                    )
                 )
         except EnrollmentError as e:
             self.stderr.write(self.style.ERROR(str(e)))

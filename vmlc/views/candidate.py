@@ -75,22 +75,17 @@ class CandidateMeView(RetrieveAPIView):
         cache_key = f"candidate_me_records_{candidate.pk}"
 
         data = get_or_set_cache(
-            cache_key,
-            lambda: self._get_candidate_data(candidate),
-            ttl=3600
+            cache_key, lambda: self._get_candidate_data(candidate), ttl=3600
         )
         return Response(data)
 
     def _get_candidate_data(self, candidate):
-        # TODO: Basic profile data from MinimalCandidateSerializer could be integrated here 
+        # TODO: Basic profile data from MinimalCandidateSerializer could be integrated here
         # or we just return the records.
         # For now, let's follow the existing pattern but use the service.
         records = CandidateRecordService.get_candidate_records(candidate)
         profile_data = MinimalCandidateSerializer(candidate).data
-        return {
-            "profile": profile_data,
-            "records": records
-        }
+        return {"profile": profile_data, "records": records}
 
 
 @method_decorator(

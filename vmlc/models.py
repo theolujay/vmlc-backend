@@ -25,6 +25,7 @@ phone_field = models.CharField(
     help_text="Nigerian phone number",
 )
 
+
 class FeatureFlag(models.Model):
     """Feature flag model."""
 
@@ -60,6 +61,7 @@ class FeatureFlag(models.Model):
     def __str__(self):
         """Return a string representation of the feature flag."""
         return f"{self.key}: {'Enabled' if self.value else 'Disabled'}"
+
 
 class SupportInquiry(models.Model):
     """Model for support inquiries and conversations"""
@@ -168,6 +170,7 @@ class SupportMessage(models.Model):
             return
         super().save(*args, **kwargs)
 
+
 class Question(models.Model):
     """
     A question belonging to one or more exams. Includes text, difficulty, and staff author.
@@ -239,15 +242,15 @@ class Question(models.Model):
 class Exam(models.Model):
     """
     Defines the content and delivery configuration for an assessment.
-    
-    This model serves as the 'Blueprint' for an exam. It is linked to a 
-    specific Competition Stage via a 'competition_slot', which 
+
+    This model serves as the 'Blueprint' for an exam. It is linked to a
+    specific Competition Stage via a 'competition_slot', which
     dictates where and when this exam occurs within the tournament logic.
     """
 
     def __str__(self):
         return self.get_title()
-    
+
     class ExamDeliveryMode(models.TextChoices):
         ONLINE = "online", "Online (Remote)"
         IN_PERSON = "in_person", "In-Person (CBT Venue)"
@@ -280,7 +283,7 @@ class Exam(models.Model):
         blank=True,
         null=True,
         on_delete=models.PROTECT,
-        related_name="exam" 
+        related_name="exam",
     )
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -308,7 +311,11 @@ class Exam(models.Model):
     @property
     def stage(self):
         """Inferred stage type from StageExam context"""
-        return self.competition_slot.competition_stage.type if self.competition_slot else None
+        return (
+            self.competition_slot.competition_stage.type
+            if self.competition_slot
+            else None
+        )
 
     @property
     def round(self):
@@ -318,7 +325,11 @@ class Exam(models.Model):
     @property
     def stage_display(self):
         """Inferred stage display label from StageExam context"""
-        return self.competition_slot.competition_stage.get_type_display() if self.competition_slot else None
+        return (
+            self.competition_slot.competition_stage.get_type_display()
+            if self.competition_slot
+            else None
+        )
 
     @property
     def is_currently_open(self):
@@ -427,15 +438,16 @@ class Exam(models.Model):
         if self.competition_slot:
             # StageExam should be active ONLY IF the exam is scheduled AND is_active is True
             should_be_active = self.scheduled_date is not None and self.is_active
-            
+
             if self.competition_slot.is_active != should_be_active:
                 from django.db import transaction
-                
+
                 def update_slot():
                     self.competition_slot.is_active = should_be_active
                     self.competition_slot.save(update_fields=["is_active"])
-                
+
                 transaction.on_commit(update_slot)
+
 
 class CandidateExamResult(models.Model):
     """
@@ -449,7 +461,9 @@ class CandidateExamResult(models.Model):
     )
     exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="results")
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
-    recorded_at = models.DateTimeField(default=timezone.now) # TODO: consider making this field nullable so generate_ranking_task updates it
+    recorded_at = models.DateTimeField(
+        default=timezone.now
+    )  # TODO: consider making this field nullable so generate_ranking_task updates it
     updated_at = models.DateTimeField(auto_now=True)
     score_submitted_by = models.ForeignKey(
         "identity.Staff", on_delete=models.SET_NULL, null=True, blank=True
@@ -522,7 +536,9 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         ordering = ["-created_at"]
 
 
-class CandidateExamResultSnapshot(models.Model):  # pylint: disable=too-few-public-methods
+class CandidateExamResultSnapshot(
+    models.Model
+):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's result."""
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -575,6 +591,7 @@ class Event(models.Model):
         """Return a string representation of the event."""
         return f"{self.event_name} at {self.timestamp}"
 
+
 class ExamAccess(models.Model):
     """
     Represents a per-candidate execution contract for an exam on a facilitator.
@@ -588,11 +605,17 @@ class ExamAccess(models.Model):
         ESTURDI = "esturdi", "Esturdi"
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"          # provisioned but not opened... this is for Esturdi
-        ISSUED = "issued", "Issued"             # URL generated... also for Esturdi
+        PENDING = (
+            "pending",
+            "Pending",
+        )  # provisioned but not opened... this is for Esturdi
+        ISSUED = "issued", "Issued"  # URL generated... also for Esturdi
 
-        STARTED = "started", "Started"          # mostly for VMLC, as I'm unsure when Esturdi will provide this in its case
-        SUBMITTED = "submitted", "Submitted"    # also mostly for VMLC...
+        STARTED = (
+            "started",
+            "Started",
+        )  # mostly for VMLC, as I'm unsure when Esturdi will provide this in its case
+        SUBMITTED = "submitted", "Submitted"  # also mostly for VMLC...
 
         EXPIRED = "expired", "Expired"
         FAILED = "failed", "Failed"
@@ -618,13 +641,13 @@ class ExamAccess(models.Model):
     access_url = models.URLField(
         null=True,
         blank=True,
-        help_text="Candidate-specific exam URL on the facilitator."
+        help_text="Candidate-specific exam URL on the facilitator.",
     )
     passcode = models.CharField(
         max_length=64,
         null=True,
         blank=True,
-        help_text="Opaque passcode or token embedded in the URL."
+        help_text="Opaque passcode or token embedded in the URL.",
     )
 
     status = models.CharField(
@@ -641,7 +664,7 @@ class ExamAccess(models.Model):
     facilitator_payload = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Raw request/response metadata exchanged with facilitator."
+        help_text="Raw request/response metadata exchanged with facilitator.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -649,8 +672,7 @@ class ExamAccess(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["exam", "candidate"],
-                name="unique_exam_access_per_candidate"
+                fields=["exam", "candidate"], name="unique_exam_access_per_candidate"
             ),
         ]
         indexes = [

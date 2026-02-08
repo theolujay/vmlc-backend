@@ -47,7 +47,6 @@ class Command(BaseCommand):
 
             return success_count, len(emails_needing_events)
 
-
         def generate_event(email, interest_type):
             """Create a PRE_REGISTRATION event for the given email."""
             try:
@@ -59,9 +58,11 @@ class Command(BaseCommand):
             except Exception as e:
                 # Consider logging this exception for debugging
                 return False
-            
+
         backfill_pre_registration_events()
-        
+
         self.stdout.write(
-            self.style.SUCCESS("Database populated successfully with comprehensive test data!")
+            self.style.SUCCESS(
+                "Database populated successfully with comprehensive test data!"
+            )
         )

@@ -37,7 +37,9 @@ class EnrollmentService:
             ).values_list("candidate_id", flat=True)
             candidates = Candidate.objects.exclude(pk__in=enrolled_candidate_ids)
 
-        total_to_enroll = candidates.count() if hasattr(candidates, 'count') else len(candidates)
+        total_to_enroll = (
+            candidates.count() if hasattr(candidates, "count") else len(candidates)
+        )
         if total_to_enroll == 0:
             return 0
 
@@ -52,7 +54,7 @@ class EnrollmentService:
                     "status": Enrollment.Status.ACTIVE,
                 },
             )
-            
+
             if created:
                 # Create progress
                 EnrollmentStageProgress.objects.get_or_create(

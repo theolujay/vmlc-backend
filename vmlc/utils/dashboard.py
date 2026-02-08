@@ -22,6 +22,7 @@ from vmlc.models import (
 
 import warnings
 
+
 def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     """
     Generate dashboard data for a specific candidate.
@@ -41,7 +42,7 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
     warnings.warn(
         "get_candidate_dashboard_data is superseeded by competition.services.candidate_dashboard.CandidateDashboardService.get_dashboard_data",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     candidate = Candidate.objects.select_related("user").get(pk=candidate.pk)
@@ -88,7 +89,9 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
         },
         "enrollment_stage_progress": {
             "current_stage": candidate.role,
-            "current_round": available_exams_list[0]["round"] if available_exams_list else 1,
+            "current_round": (
+                available_exams_list[0]["round"] if available_exams_list else 1
+            ),
             "has_taken_exam": (
                 available_exams_list[0]["enrollment"] == "done"
                 if available_exams_list
@@ -120,13 +123,17 @@ def get_candidate_dashboard_data(candidate: Candidate) -> Dict[str, Any]:
                 "exam_title": result.exam.get_title(),
                 "score": float(result.score),
                 "date": result.recorded_at,
-                "exam_stage": result.exam.competition_slot.competition_stage.type if result.exam.competition_slot else "N/A",
+                "exam_stage": (
+                    result.exam.competition_slot.competition_stage.type
+                    if result.exam.competition_slot
+                    else "N/A"
+                ),
             }
             for result in recent_results_list
         ],
         "available_exams": available_exams_list,
         "concluded_exams": concluded_exams_list,
-        "next_exam": available_exams_list[0] if available_exams_list else None
+        "next_exam": available_exams_list[0] if available_exams_list else None,
     }
 
     cache_key = f"candidate_dashboard_{candidate.pk}"
@@ -155,8 +162,11 @@ def _get_candidate_performance_stats(
     total_exams_taken = all_results_qs.count()
 
     recent_results_list = list(
-        all_results_qs.select_related("exam", "exam__competition_slot", "exam__competition_slot__competition_stage")
-        .order_by("-recorded_at")[:5]
+        all_results_qs.select_related(
+            "exam",
+            "exam__competition_slot",
+            "exam__competition_slot__competition_stage",
+        ).order_by("-recorded_at")[:5]
     )
 
     latest_score_data = None
@@ -287,13 +297,10 @@ def _get_candidate_screening_ranking(
     candidate: Candidate,
 ) -> tuple[Optional[int], int]:
     """Helper to get ranking for the Screening Round 1 exam."""
-    screening_exam = (
-        Exam.objects.filter(
-            competition_slot__competition_stage__type="screening",
-            competition_slot__round=1,
-        )
-        .first()
-    )
+    screening_exam = Exam.objects.filter(
+        competition_slot__competition_stage__type="screening",
+        competition_slot__round=1,
+    ).first()
     if not screening_exam:
         return None, 0
 
@@ -470,11 +477,10 @@ def _get_staff_score_submission_stats(last_week: timedelta) -> Dict[str, Any]:
 
 def _get_staff_recent_activity() -> list:
     """Helper to get recent candidate activity for staff dashboard."""
-    recent_activity = (
-        CandidateExamResult.objects.select_related("candidate__user", "exam")
-        .order_by("-recorded_at")[:10]
-    )
-    
+    recent_activity = CandidateExamResult.objects.select_related(
+        "candidate__user", "exam"
+    ).order_by("-recorded_at")[:10]
+
     recent_activity_list = [
         {
             "score": result.score,
@@ -496,14 +502,18 @@ def _get_staff_upcoming_exams(now: Any) -> list:
         .order_by("scheduled_date")
         .annotate(question_count=Count("questions"))[:5]
     )
-    
+
     upcoming_exams_list = [
         {
             "id": exam.id,
             "title": exam.get_title(),
             "scheduled_date": exam.scheduled_date,
             "is_active": exam.is_active,
-            "stage": exam.competition_slot.competition_stage.type if exam.competition_slot else "N/A",
+            "stage": (
+                exam.competition_slot.competition_stage.type
+                if exam.competition_slot
+                else "N/A"
+            ),
             "round": exam.competition_slot.round if exam.competition_slot else None,
             "countdown_minutes": exam.countdown_minutes,
             "question_count": exam.question_count,

@@ -21,7 +21,12 @@ class BroadcastAdmin(admin.ModelAdmin):
         "task_status_display",
     ]
     list_filter = ["status", "created_at", "mediums", "created_by"]
-    search_fields = ["subject", "message", "created_by__email", "created_by__user__first_name"]
+    search_fields = [
+        "subject",
+        "message",
+        "created_by__email",
+        "created_by__user__first_name",
+    ]
     readonly_fields = ["task_result_display"]
     autocomplete_fields = ["created_by"]
     list_select_related = ["created_by", "created_by__user"]
@@ -101,7 +106,13 @@ class BroadcastLogAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ["recipient", "subject", "type", "is_read_by_recipient", "created_at"]
+    list_display = [
+        "recipient",
+        "subject",
+        "type",
+        "is_read_by_recipient",
+        "created_at",
+    ]
     list_filter = ["type", "is_read_by_recipient", "created_at"]
     search_fields = ["recipient__email", "recipient__first_name", "subject", "message"]
     readonly_fields = ["created_at"]
@@ -123,8 +134,11 @@ class NotificationAdmin(admin.ModelAdmin):
 
     def _invalidate_cache(self, obj):
         from vmlc.v2.utils import invalidate_candidate_cache
+
         if hasattr(obj.recipient, "candidate_profile"):
-            invalidate_candidate_cache(obj.recipient.candidate_profile.id, obj.recipient.id)
+            invalidate_candidate_cache(
+                obj.recipient.candidate_profile.id, obj.recipient.id
+            )
 
 
 @admin.register(BackupLog)

@@ -12,13 +12,15 @@ from django.db import migrations, models
 def check_if_migrating_from_vmlc(apps, schema_editor):
     """Check if vmlc tables exist (migrating) or if this is a fresh install"""
     with schema_editor.connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
                 WHERE table_schema = 'public' 
                 AND table_name = 'vmlc_user'
             );
-        """)
+        """
+        )
         return cursor.fetchone()[0]
 
 
@@ -34,14 +36,18 @@ def rename_or_create_tables(apps, schema_editor):
             cursor.execute("ALTER TABLE vmlc_staff RENAME TO identity_staff;")
             cursor.execute("ALTER TABLE vmlc_candidate RENAME TO identity_candidate;")
             cursor.execute("ALTER TABLE vmlc_prereguser RENAME TO identity_prereguser;")
-            cursor.execute("ALTER TABLE vmlc_userverification RENAME TO identity_userverification;")
+            cursor.execute(
+                "ALTER TABLE vmlc_userverification RENAME TO identity_userverification;"
+            )
             cursor.execute("ALTER TABLE vmlc_emailotp RENAME TO identity_emailotp;")
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE django_content_type 
                 SET app_label = 'identity' 
                 WHERE app_label = 'vmlc' 
                 AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');
-            """)
+            """
+            )
 
 
 def reverse_rename_tables(apps, schema_editor):
@@ -51,14 +57,18 @@ def reverse_rename_tables(apps, schema_editor):
         cursor.execute("ALTER TABLE identity_staff RENAME TO vmlc_staff;")
         cursor.execute("ALTER TABLE identity_candidate RENAME TO vmlc_candidate;")
         cursor.execute("ALTER TABLE identity_prereguser RENAME TO vmlc_prereguser;")
-        cursor.execute("ALTER TABLE identity_userverification RENAME TO vmlc_userverification;")
+        cursor.execute(
+            "ALTER TABLE identity_userverification RENAME TO vmlc_userverification;"
+        )
         cursor.execute("ALTER TABLE identity_emailotp RENAME TO vmlc_emailotp;")
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE django_content_type 
             SET app_label = 'vmlc' 
             WHERE app_label = 'identity' 
             AND model IN ('user', 'staff', 'candidate', 'prereguser', 'userverification', 'emailotp');
-        """)
+        """
+        )
 
 
 class Migration(migrations.Migration):
@@ -338,8 +348,14 @@ class Migration(migrations.Migration):
                         validators=[],
                     ),
                 ),
-                ("verification_document_type", models.CharField(blank=True, max_length=50, null=True)),
-                ("rejection_reason", models.CharField(blank=True, default="", max_length=150)),
+                (
+                    "verification_document_type",
+                    models.CharField(blank=True, max_length=50, null=True),
+                ),
+                (
+                    "rejection_reason",
+                    models.CharField(blank=True, default="", max_length=150),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (

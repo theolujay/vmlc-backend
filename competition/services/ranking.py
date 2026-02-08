@@ -12,6 +12,8 @@ from competition.models import (
 from vmlc.models import CandidateExamResult, Exam
 
 logger = logging.getLogger(__name__)
+
+
 class RankingSnapshotGenerationError(Exception):
     pass
 
@@ -57,13 +59,16 @@ class RankingSnapshotGenerator:
 
         # Perform auto-scoring for all submissions before generating ranking
         from vmlc.utils.functions import compute_exam_results
+
         compute_exam_results(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
         raw_results = CandidateExamResult.objects.filter(exam=self.exam).select_related(
             "candidate", "candidate__user"
         )
-        logger.debug(f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}.")
+        logger.debug(
+            f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}."
+        )
 
         # Identify all eligible candidates for this stage/exam
         eligible_candidate_ids = set(
@@ -72,7 +77,9 @@ class RankingSnapshotGenerator:
                 status=Enrollment.Status.ACTIVE,  # Only active participants
             ).values_list("candidate_id", flat=True)
         )
-        logger.debug(f"RankingSnapshotGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}.")
+        logger.debug(
+            f"RankingSnapshotGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}."
+        )
 
         # Map results to eligible candidates, handle absentees
         candidate_scores = (
@@ -84,7 +91,9 @@ class RankingSnapshotGenerator:
                     "score": float(res.score),
                     "recorded_at": res.recorded_at,
                 }
-        logger.debug(f"RankingSnapshotGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check.")
+        logger.debug(
+            f"RankingSnapshotGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check."
+        )
 
         # Add absentees (eligible candidates without a result)
         for cand_id in eligible_candidate_ids:
@@ -147,7 +156,9 @@ class RankingSnapshotGenerator:
 
         # Attempt to get existing ranking for this exam with lock to prevent race conditions
         try:
-            existing_ranking = RankingSnapshot.objects.select_for_update().get(exam=self.exam)
+            existing_ranking = RankingSnapshot.objects.select_for_update().get(
+                exam=self.exam
+            )
             # If found, delete it and its entries to ensure a clean regeneration
             existing_ranking.delete()
         except RankingSnapshot.DoesNotExist:
@@ -161,7 +172,9 @@ class RankingSnapshotGenerator:
             exam=self.exam,
             is_published=False,
             meta={
-                "generated_by": str(published_by_staff_id) if published_by_staff_id else None,
+                "generated_by": (
+                    str(published_by_staff_id) if published_by_staff_id else None
+                ),
                 "policy": ranking_policy,
                 "tie_break": tie_break_strategy,
             },
@@ -174,28 +187,31 @@ class RankingSnapshotGenerator:
 
         # Invalidate Caches
         from vmlc.v2.utils import (
-            invalidate_staff_dashboard, 
+            invalidate_staff_dashboard,
             invalidate_league_leaderboard,
             invalidate_exam_cache,
-            invalidate_candidate_cache
+            invalidate_candidate_cache,
         )
+
         # Capture exam_id and candidate_ids explicitly to avoid closure issues
         exam_id = self.exam.id
         candidate_ids = list(candidate_scores.keys())
-        
+
         def clear_ranking_cache():
             invalidate_staff_dashboard()
             invalidate_league_leaderboard()
             invalidate_exam_cache(exam_id)
             for cand_id in candidate_ids:
                 invalidate_candidate_cache(cand_id)
+
         transaction.on_commit(clear_ranking_cache)
 
         return ranking
 
-
     def _validate_preconditions(self):
         """Internal validation before generating ranking."""
         if not self.exam.status == Exam.Status.CONCLUDED:
-            raise RankingSnapshotGenerationError(f"Exam {self.exam.id} is not yet concluded.")
+            raise RankingSnapshotGenerationError(
+                f"Exam {self.exam.id} is not yet concluded."
+            )
         # TODO: Add more validation, e.g., ensure no existing published ranking for this stage_exam

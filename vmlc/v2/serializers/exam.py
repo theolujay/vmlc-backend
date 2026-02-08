@@ -1,4 +1,3 @@
-
 from django.db import transaction
 from rest_framework import serializers
 
@@ -43,6 +42,7 @@ class ExamListV2Serializer(serializers.ModelSerializer):
             return None
         return obj.competition_slot.competition_stage.competition.edition
 
+
 class ExamDetailV2Serializer(serializers.ModelSerializer):
 
     class Meta:
@@ -80,7 +80,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
     created_by = MinimalStaffSerializer(read_only=True)
     updated_by = MinimalStaffSerializer(read_only=True)
-    competition_title= serializers.SerializerMethodField()
+    competition_title = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
     stage_id = serializers.IntegerField(required=False, allow_null=True)
     round = serializers.IntegerField(required=False, allow_null=True)
@@ -89,6 +89,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
     def get_ranking(self, obj):
         from competition.models import RankingSnapshot
+
         ranking = RankingSnapshot.objects.filter(exam=obj).first()
         return {
             "exists": ranking is not None,
@@ -112,12 +113,14 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"Cannot update an exam that is {status}."
                 )
-            
+
             # For ONGOING exams, only allow certain fields if necessary, or block all
             if status == Exam.Status.ONGOING:
-                allowed_ongoing_updates = ['is_active'] # Example: only allow cancellation
+                allowed_ongoing_updates = [
+                    "is_active"
+                ]  # Example: only allow cancellation
                 if any(k for k in attrs if k not in allowed_ongoing_updates):
-                     raise serializers.ValidationError(
+                    raise serializers.ValidationError(
                         "Cannot update core details of an ONGOING exam. You can only deactivate it."
                     )
         return attrs
@@ -146,7 +149,9 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
         # If no stage provided but exam is scheduled, try to find current active stage
         if not stage and exam.scheduled_date and not exam.competition_slot:
-            active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            active_comp = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
             if active_comp:
                 # Place in Screening if no round, or current stage by order
                 stage = active_comp.stages.order_by("order").first()
@@ -165,22 +170,32 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                     new_slot, created = StageExam.objects.get_or_create(
                         competition_stage=stage, round=round
                     )
-                    if not created and hasattr(new_slot, "exam") and new_slot.exam != exam:
+                    if (
+                        not created
+                        and hasattr(new_slot, "exam")
+                        and new_slot.exam != exam
+                    ):
                         raise serializers.ValidationError(
-                            {"round": f"Round {round} in {stage.type} is already assigned to another exam."}
+                            {
+                                "round": f"Round {round} in {stage.type} is already assigned to another exam."
+                            }
                         )
                 else:
                     # For screening/final, reuse existing if same stage, else create/find new
-                    if old_slot and old_slot.competition_stage == stage and old_slot.round is None:
+                    if (
+                        old_slot
+                        and old_slot.competition_stage == stage
+                        and old_slot.round is None
+                    ):
                         new_slot = old_slot
                     else:
                         new_slot = StageExam.objects.create(
                             competition_stage=stage, round=None
                         )
-                
+
                 # Update is_active based on scheduled_date
                 is_active = exam.scheduled_date is not None
-                
+
                 # If slot changed, clean up old slot
                 if old_slot and old_slot != new_slot:
                     old_slot.is_active = False
@@ -193,7 +208,6 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
                     exam.competition_slot = new_slot
 
                 exam.save(update_fields=["competition_slot"])
-
 
 
 class CandidateTakeExamSerializer(serializers.ModelSerializer):
@@ -210,7 +224,9 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
             "questions",
         ]
 
-    questions = serializers.SerializerMethodField() # TODO: implement question randomizer
+    questions = (
+        serializers.SerializerMethodField()
+    )  # TODO: implement question randomizer
     title = serializers.SerializerMethodField()
     attempt = serializers.SerializerMethodField()
 
@@ -229,8 +245,7 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
             return None
 
         exam_access = ExamAccess.objects.filter(
-            exam=obj,
-            candidate=request.user.candidate_profile
+            exam=obj, candidate=request.user.candidate_profile
         ).first()
 
         if exam_access:
@@ -241,6 +256,7 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
             }
         return None
 
+
 class ExamResultV2Serializer(serializers.ModelSerializer):
     """
     Serializer for displaying the results of an exam.
@@ -249,7 +265,9 @@ class ExamResultV2Serializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(
         source="candidate.user.get_full_name", read_only=True
     )
-    candidate_school_name = serializers.CharField(source="candidate.school_name", read_only=True)
+    candidate_school_name = serializers.CharField(
+        source="candidate.school_name", read_only=True
+    )
 
     class Meta:
         model = CandidateExamResult

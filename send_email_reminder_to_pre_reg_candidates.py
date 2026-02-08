@@ -1,4 +1,4 @@
-code = '''
+code = """
 from django.core.mail import send_mass_mail
 from vmlc.models import FeatureFlag
 from identity.models import PreRegUser
@@ -69,5 +69,5 @@ def send_email_reminder():
 
 
 send_email_reminder()
-'''
+"""
 exec(code)

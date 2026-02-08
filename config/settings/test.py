@@ -78,6 +78,7 @@ LOGGING = {
     },
 }
 
+
 # Speed up tests and avoid migration issues by building DB from models
 class DisableMigrations:
     def __contains__(self, item):

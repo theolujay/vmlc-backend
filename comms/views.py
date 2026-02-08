@@ -283,6 +283,7 @@ class DatabaseBackupWebhookView(APIView):
 
         return Response({"status": "received"}, status=200)
 
+
 @method_decorator(
     name="get",
     decorator=swagger_auto_schema(
@@ -321,7 +322,7 @@ class NotificationHistory(ListAPIView):
         version = cache.get(f"notifications_version_{user.id}", 0)
         query_hash = hash(frozenset(request.query_params.items()))
         cache_key = f"notifications_{user.id}_{version}_{query_hash}"
-        
+
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.info(f"Returning cached notifications for user {user.id}")
@@ -394,12 +395,12 @@ class MarkNotificationAsReadView(APIView):
             if not notification.is_read_by_recipient:
                 notification.is_read_by_recipient = True
                 notification.save()
-                
+
                 # Invalidate all notification caches by incrementing version
                 version_key = f"notifications_version_{user.id}"
                 current_version = cache.get(version_key, 0)
                 cache.set(version_key, current_version + 1, timeout=86400)
-                
+
                 logger.info(
                     f"Notification {notification_id} marked as read for user {user.id}"
                 )
@@ -429,16 +430,16 @@ class MarkAllNotificationsAsReadView(APIView):
     )
     def patch(self, request):
         user = request.user
-        updated_count = Notification.objects.filter(recipient=user, is_read_by_recipient=False).update(
-            is_read_by_recipient=True
-        )
+        updated_count = Notification.objects.filter(
+            recipient=user, is_read_by_recipient=False
+        ).update(is_read_by_recipient=True)
 
         if updated_count > 0:
             # Invalidate all notification caches by incrementing version
             version_key = f"notifications_version_{user.id}"
             current_version = cache.get(version_key, 0)
             cache.set(version_key, current_version + 1, timeout=86400)
-            
+
             logger.info(
                 f"All notifications ({updated_count}) marked as read for user {user.id}"
             )

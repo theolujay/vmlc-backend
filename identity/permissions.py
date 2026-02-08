@@ -7,8 +7,10 @@ from identity.models import Candidate, Staff
 from competition.models import Enrollment, Competition, RankingSnapshot
 from vmlc.models import ExamAccess
 
+
 def _is_api_key_valid(key):
     from rest_framework_api_key.models import APIKey
+
     return APIKey.objects.is_valid(key)
 
 
@@ -16,6 +18,7 @@ class HasXAPIKey(HasAPIKey):
     """
     Custom API Key permission that checks 'x-api-key' or 'X-Api-Key' header.
     """
+
     def _get_key(self, request):
         return request.headers.get("x-api-key") or request.headers.get("X-Api-Key")
 
@@ -58,11 +61,16 @@ def get_enrollment(request):
         candidate = get_candidate_profile(request)
         if candidate:
             from competition.models import Enrollment, Competition
-            enrollment = Enrollment.objects.filter(
-                candidate=candidate,
-                competition__status=Competition.Status.ACTIVE,
-                status=Enrollment.Status.ACTIVE
-            ).select_related("competition", "current_stage").first()
+
+            enrollment = (
+                Enrollment.objects.filter(
+                    candidate=candidate,
+                    competition__status=Competition.Status.ACTIVE,
+                    status=Enrollment.Status.ACTIVE,
+                )
+                .select_related("competition", "current_stage")
+                .first()
+            )
             request.enrollment = enrollment
     return enrollment
 
@@ -71,21 +79,26 @@ def get_enrollment(request):
 # CORE PERMISSIONS
 # =============================================================================
 
+
 class IsCandidate(BasePermission):
     """Grants access if the user has a Candidate profile."""
+
     def has_permission(self, request, view):
         return get_candidate_profile(request) is not None
 
 
 class IsStaff(BasePermission):
     """Grants access if the user has a Staff profile."""
+
     def has_permission(self, request, view):
         return get_staff_profile(request) is not None
 
 
 class IsActiveStaff(BasePermission):
     """Grants access if the user is a non-deactivated Staff member."""
+
     message = "User is a deactivated staff member."
+
     def has_permission(self, request, view):
         staff = get_staff_profile(request)
         return staff is not None and (settings.DEBUG or staff.is_active)
@@ -94,6 +107,7 @@ class IsActiveStaff(BasePermission):
 # =============================================================================
 # STAFF ROLE HIERARCHY
 # =============================================================================
+
 
 class StaffRoleHierarchy:
     ROLE_LEVELS = {
@@ -114,12 +128,14 @@ class StaffRoleHierarchy:
 
 def HasMinimumStaffRole(minimum_role):
     """Permission factory for hierarchical role checking."""
+
     class HasMinimumStaffRolePermission(BasePermission):
         def has_permission(self, request, view):
             staff = get_staff_profile(request)
             if not staff:
                 return False
             return StaffRoleHierarchy.has_minimum_role(staff.role, minimum_role)
+
     return HasMinimumStaffRolePermission
 
 
@@ -127,23 +143,28 @@ def HasMinimumStaffRole(minimum_role):
 # COMPETITION AWARE PERMISSIONS
 # =============================================================================
 
+
 class IsActiveCompetitionParticipant(BasePermission):
     """
     Grants access if the candidate is ACTIVE in the current competition edition.
     Uses context from CompetitionContextMiddleware.
     """
+
     def has_permission(self, request, view):
         enrollment = get_enrollment(request)
         if not enrollment:
             return False
         from competition.models import Enrollment
+
         return enrollment.status == Enrollment.Status.ACTIVE
+
 
 class IsInStage(BasePermission):
     """
     Grants access if the candidate is ACTIVE and in one of the allowed stages.
     Usage: IsInStage('league') or IsInStage('league', 'final')
     """
+
     def __init__(self, *allowed_stages):
         self.allowed_stages = allowed_stages
 
@@ -154,43 +175,51 @@ class IsInStage(BasePermission):
         enrollment = get_enrollment(request)
         if not enrollment:
             return False
-            
+
         from competition.models import Enrollment
+
         if enrollment.status != Enrollment.Status.ACTIVE:
             return False
-            
+
         if not enrollment.current_stage:
             return False
-            
+
         return enrollment.current_stage.type in self.allowed_stages
 
 
 class CanAccessStageResource(IsInStage):
     """Alias for IsInStage for backward compatibility."""
+
     pass
 
 
 class IsLeagueParticipantOrStaffBase(BasePermission):
     """
-    Grants access if the user is an active Staff (Moderator+) OR 
+    Grants access if the user is an active Staff (Moderator+) OR
     an active League candidate in the current competition.
     """
+
     def has_permission(self, request, view):
         # Staff check
         staff = get_staff_profile(request)
-        if staff and (settings.DEBUG or staff.is_active) and StaffRoleHierarchy.has_minimum_role(staff.role, Staff.Roles.MODERATOR):
+        if (
+            staff
+            and (settings.DEBUG or staff.is_active)
+            and StaffRoleHierarchy.has_minimum_role(staff.role, Staff.Roles.MODERATOR)
+        ):
             return True
-            
+
         # League Participant check
         enrollment = get_enrollment(request)
         if not enrollment:
             return False
-            
+
         from competition.models import Enrollment, Stage
+
         return (
-            enrollment.status == Enrollment.Status.ACTIVE and
-            enrollment.current_stage and 
-            enrollment.current_stage.type == Stage.Type.LEAGUE
+            enrollment.status == Enrollment.Status.ACTIVE
+            and enrollment.current_stage
+            and enrollment.current_stage.type == Stage.Type.LEAGUE
         )
 
 
@@ -198,12 +227,15 @@ class IsLeagueParticipantOrStaffBase(BasePermission):
 # GENERAL UTILITY PERMISSIONS
 # =============================================================================
 
+
 class ReadOnly(BasePermission):
     """
     Grants access only for safe methods (GET, HEAD, OPTIONS).
     """
+
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS
+
 
 class IsManagerForStaffDetail(BasePermission):
     """
@@ -223,12 +255,14 @@ class IsManagerForStaffDetail(BasePermission):
 
         return staff_profile.role in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
 
+
 class IsObjectOwnerOrActiveAdmin(BasePermission):
     """
     Object-level permission that grants access if the user is either:
     1. The owner of the object.
     2. A non-deactivated staff member with an 'admin' role or higher.
     """
+
     message = "You do not have permission to perform this action on this object."
 
     def has_permission(self, request, view):
@@ -260,6 +294,7 @@ class IsActiveModeratorOrCandidate(BasePermission):
     """
     Grants access to active staff (Moderator+) or any candidate.
     """
+
     def has_permission(self, request, view):
         staff = get_staff_profile(request)
         is_active_moderator = (
@@ -279,6 +314,7 @@ class CanViewRankingSnapshot(BasePermission):
     2. The user is a candidate who is actively enrolled in the exam's competition
        AND has submitted the exam for which the ranking snapshot is requested.
     """
+
     message = "You do not have permission to view this ranking snapshot."
 
     def has_permission(self, request, view):
@@ -294,13 +330,13 @@ class CanViewRankingSnapshot(BasePermission):
             return False
 
         # Candidate must be enrolled and have participated in the exam
-        exam_id = view.kwargs.get('exam_id')
+        exam_id = view.kwargs.get("exam_id")
         if not exam_id:
             return False
 
         try:
             ranking_snapshot = RankingSnapshot.objects.select_related(
-                'competition', 'exam__competition_slot__competition_stage__competition'
+                "competition", "exam__competition_slot__competition_stage__competition"
             ).get(exam_id=exam_id, is_published=True)
         except RankingSnapshot.DoesNotExist:
             return False
@@ -309,7 +345,7 @@ class CanViewRankingSnapshot(BasePermission):
         enrollment_exists = Enrollment.objects.filter(
             candidate=candidate,
             competition=ranking_snapshot.competition,
-            status=Enrollment.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE,
         ).exists()
 
         if not enrollment_exists:
@@ -319,7 +355,7 @@ class CanViewRankingSnapshot(BasePermission):
         exam_submitted = ExamAccess.objects.filter(
             candidate=candidate,
             exam=ranking_snapshot.exam,
-            status=ExamAccess.Status.SUBMITTED
+            status=ExamAccess.Status.SUBMITTED,
         ).exists()
 
         return exam_submitted
@@ -333,7 +369,10 @@ class CanViewOwnOrStaffRankingSnapshotEntry(BasePermission):
     2. The user is the candidate whose entry is requested, and
        is actively enrolled in the exam's competition, and has submitted the exam.
     """
-    message = "You do not have permission to view this candidate's ranking snapshot entry."
+
+    message = (
+        "You do not have permission to view this candidate's ranking snapshot entry."
+    )
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -348,27 +387,29 @@ class CanViewOwnOrStaffRankingSnapshotEntry(BasePermission):
             return False
 
         # Check if the requested candidate_id matches the authenticated candidate's ID
-        requested_candidate_id = view.kwargs.get('candidate_id')
-        if not requested_candidate_id or str(candidate.pk) != str(requested_candidate_id):
+        requested_candidate_id = view.kwargs.get("candidate_id")
+        if not requested_candidate_id or str(candidate.pk) != str(
+            requested_candidate_id
+        ):
             return False
 
         # The candidate must be actively enrolled and have participated in the exam
-        exam_id = view.kwargs.get('exam_id')
+        exam_id = view.kwargs.get("exam_id")
         if not exam_id:
             return False
 
         try:
             ranking_snapshot = RankingSnapshot.objects.select_related(
-                'competition', 'exam__competition_slot__competition_stage__competition'
+                "competition", "exam__competition_slot__competition_stage__competition"
             ).get(exam_id=exam_id, is_published=True)
         except RankingSnapshot.DoesNotExist:
             return False
-            
+
         # Check if candidate is actively enrolled in this competition
         enrollment_exists = Enrollment.objects.filter(
             candidate=candidate,
             competition=ranking_snapshot.competition,
-            status=Enrollment.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE,
         ).exists()
 
         if not enrollment_exists:
@@ -378,7 +419,7 @@ class CanViewOwnOrStaffRankingSnapshotEntry(BasePermission):
         exam_submitted = ExamAccess.objects.filter(
             candidate=candidate,
             exam=ranking_snapshot.exam,
-            status=ExamAccess.Status.SUBMITTED
+            status=ExamAccess.Status.SUBMITTED,
         ).exists()
 
         return exam_submitted
@@ -403,7 +444,3 @@ ActiveVolunteerPermissions = [HasMinimumStaffRole(Staff.Roles.VOLUNTEER)] + Acti
 ActiveModeratorPermissions = [HasMinimumStaffRole(Staff.Roles.MODERATOR)] + ActiveStaff
 ActiveAdminPermissions = [HasMinimumStaffRole(Staff.Roles.ADMIN)] + ActiveStaff
 ActiveManagerPermissions = [HasMinimumStaffRole(Staff.Roles.MANAGER)] + ActiveStaff
-
-
-
-

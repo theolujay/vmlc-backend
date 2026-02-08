@@ -9,6 +9,8 @@ from ..models import (
 
 from .candidate import CandidateListSerializer
 from .exam import ExamListSerializer
+
+
 class ExamResultSerializer(serializers.ModelSerializer):
     """
     Serializer for displaying the results of an exam.
@@ -17,7 +19,9 @@ class ExamResultSerializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(
         source="candidate.user.get_full_name", read_only=True
     )
-    candidate_school_name = serializers.CharField(source="candidate.school_name", read_only=True)
+    candidate_school_name = serializers.CharField(
+        source="candidate.school_name", read_only=True
+    )
 
     class Meta:
         model = CandidateExamResult

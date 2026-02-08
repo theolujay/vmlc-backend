@@ -94,8 +94,8 @@ class SubmitAnswersV2View(APIView):
                 candidate=candidate,
                 exam=exam,
                 defaults={
-                    "score": 0.0,                   # to be updated when... 
-                    "auto_score": False,            # generate_ranking_task is called
+                    "score": 0.0,  # to be updated when...
+                    "auto_score": False,  # generate_ranking_task is called
                     "recorded_at": timezone.now(),  # TODO: make generate_ranking_task set this
                 },
             )
@@ -105,7 +105,9 @@ class SubmitAnswersV2View(APIView):
                 CandidateAnswer(
                     candidate_exam_result=result,
                     question=answer_data["question"],
-                    selected_option=answer_data.get("selected_option", "").strip().upper(),
+                    selected_option=answer_data.get("selected_option", "")
+                    .strip()
+                    .upper(),
                 )
                 for answer_data in answers_data
             ]

@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.views import exception_handler
 
+
 def custom_exception_handler(exc, context):
     """
     Custom exception handler to standardize error responses across the project.
@@ -15,7 +16,7 @@ def custom_exception_handler(exc, context):
             response.data = {
                 "status": "error",
                 "message": "Validation failed.",
-                "errors": response.data
+                "errors": response.data,
             }
 
     return response

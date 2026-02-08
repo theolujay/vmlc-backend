@@ -53,11 +53,16 @@ def _get_enrollment(request):
         candidate = _get_candidate_profile(request)
         if candidate:
             from competition.models import Enrollment, Competition
-            enrollment = Enrollment.objects.filter(
-                candidate=candidate,
-                competition__status=Competition.Status.ACTIVE,
-                status=Enrollment.Status.ACTIVE
-            ).select_related("competition", "current_stage").first()
+
+            enrollment = (
+                Enrollment.objects.filter(
+                    candidate=candidate,
+                    competition__status=Competition.Status.ACTIVE,
+                    status=Enrollment.Status.ACTIVE,
+                )
+                .select_related("competition", "current_stage")
+                .first()
+            )
             request.enrollment = enrollment
     return enrollment
 
@@ -135,6 +140,7 @@ class IsInStage(BasePermission):
     Grants access if the candidate is ACTIVE and in one of the allowed stages.
     Usage: IsInStage('league')
     """
+
     def __init__(self, *allowed_stages):
         self.allowed_stages = allowed_stages
 
@@ -145,14 +151,15 @@ class IsInStage(BasePermission):
         enrollment = _get_enrollment(request)
         if not enrollment:
             return False
-            
+
         from competition.models import Enrollment
+
         if enrollment.status != Enrollment.Status.ACTIVE:
             return False
-            
+
         if not enrollment.current_stage:
             return False
-            
+
         return enrollment.current_stage.type in self.allowed_stages
 
 
@@ -160,8 +167,10 @@ class IsLeagueCandidate(IsInStage):
     """
     Grants access only to candidates in the 'league' stage.
     """
+
     def __init__(self):
         from competition.models import Stage
+
         super().__init__(Stage.Type.LEAGUE)
 
 
@@ -169,22 +178,30 @@ class IsLeagueCandidateOrStaff(BasePermission):
     """
     Grants access if the user is a league candidate or a staff with an elevated role.
     """
+
     def has_permission(self, request, view):
         # 1. Staff check
         staff_profile = _get_staff_profile(request)
-        if staff_profile and (settings.DEBUG or staff_profile.is_active) and StaffRoleHierarchy.has_minimum_role(staff_profile.role, Staff.Roles.MODERATOR):
+        if (
+            staff_profile
+            and (settings.DEBUG or staff_profile.is_active)
+            and StaffRoleHierarchy.has_minimum_role(
+                staff_profile.role, Staff.Roles.MODERATOR
+            )
+        ):
             return True
 
         # 2. League Candidate check
         enrollment = _get_enrollment(request)
         if not enrollment:
             return False
-            
+
         from competition.models import Enrollment, Stage
+
         return (
-            enrollment.status == Enrollment.Status.ACTIVE and
-            enrollment.current_stage and 
-            enrollment.current_stage.type == Stage.Type.LEAGUE
+            enrollment.status == Enrollment.Status.ACTIVE
+            and enrollment.current_stage
+            and enrollment.current_stage.type == Stage.Type.LEAGUE
         )
 
 

@@ -85,9 +85,21 @@ urlpatterns = [
     # SUPPORT & CONVERSATIONS
     # =============================================================================
     path("support/inquiry/", SupportUsView.as_view(), name="support-inquiry"),
-    path("support/conversations/", SupportConversationListView.as_view(), name="support-conversations"),
-    path("support/conversations/<int:id>/", SupportConversationDetailView.as_view(), name="support-conversation-detail"),
-    path("support/conversations/<int:inquiry_id>/reply/", SupportReplyView.as_view(), name="support-reply"),
+    path(
+        "support/conversations/",
+        SupportConversationListView.as_view(),
+        name="support-conversations",
+    ),
+    path(
+        "support/conversations/<int:id>/",
+        SupportConversationDetailView.as_view(),
+        name="support-conversation-detail",
+    ),
+    path(
+        "support/conversations/<int:inquiry_id>/reply/",
+        SupportReplyView.as_view(),
+        name="support-reply",
+    ),
     # =============================================================================
     # AUTHENTICATION
     # =============================================================================

@@ -42,7 +42,7 @@ class DualAuthMiddleware:
         # Try header first, then query param
         api_key = None
         api_key_header = headers.get(b"x-api-key", None)
-        
+
         if api_key_header:
             api_key = api_key_header.decode("utf-8")
         else:
@@ -51,7 +51,9 @@ class DualAuthMiddleware:
                 api_key = api_key_list[0]
 
         if not api_key:
-            logger.warning("Missing API Key (checked X-Api-Key header and 'api_key' query param)")
+            logger.warning(
+                "Missing API Key (checked X-Api-Key header and 'api_key' query param)"
+            )
             return await self.app(scope, receive, send)
 
         logger.info(f"Validating API key: {api_key[:8]}...")
@@ -75,15 +77,19 @@ class DualAuthMiddleware:
             if auth_str.startswith("Bearer "):
                 token = auth_str[7:]
             else:
-                logger.warning("Invalid Authorization header format (expected 'Bearer <token>')")
-        
+                logger.warning(
+                    "Invalid Authorization header format (expected 'Bearer <token>')"
+                )
+
         if not token:
             token_list = query_params.get("token", [])
             if token_list:
                 token = token_list[0]
 
         if not token:
-            logger.warning("Missing JWT Token (checked Authorization header and 'token' query param)")
+            logger.warning(
+                "Missing JWT Token (checked Authorization header and 'token' query param)"
+            )
             return await self.app(scope, receive, send)
 
         logger.info(f"Validating JWT token")

@@ -12,20 +12,21 @@ from vmlc.models import SupportInquiry, SupportMessage
 from identity.permissions import ActiveModeratorPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.v2.serializers.support import (
-    SupportInquirySerializer, 
-    SupportConversationSerializer, 
+    SupportInquirySerializer,
+    SupportConversationSerializer,
     SupportConversationDetailSerializer,
-    SupportMessageSerializer
+    SupportMessageSerializer,
 )
 
 logger = logging.getLogger(__name__)
 
-        
+
 class SupportUsView(CreateAPIView):
     """
     API View to handle 'Support Us' inquiries.
     Authentication: x-api-key required.
     """
+
     permission_classes = [AllowAny]
     serializer_class = SupportInquirySerializer
 
@@ -39,35 +40,43 @@ class SupportUsView(CreateAPIView):
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            
+
             # Link to user if authenticated
             extra_data = {}
             if request.user.is_authenticated:
-                extra_data['user'] = request.user
-                
+                extra_data["user"] = request.user
+
             support_inquiry = serializer.save(**extra_data)
 
             # Create initial message
             SupportMessage.objects.create(
                 inquiry=support_inquiry,
                 sender=request.user if request.user.is_authenticated else None,
-                sender_profile="candidate" if request.user.is_authenticated else "guest",
+                sender_profile=(
+                    "candidate" if request.user.is_authenticated else "guest"
+                ),
                 text=support_inquiry.message,
                 is_read_by_user=True,
-                is_read_by_staff=False
+                is_read_by_staff=False,
             )
 
-            send_system_email_task.delay(obj_id=support_inquiry.id, is_support_inquiry=True)
-            send_system_email_task.delay(obj_id=support_inquiry.id, is_support_notification=True)
+            send_system_email_task.delay(
+                obj_id=support_inquiry.id, is_support_inquiry=True
+            )
+            send_system_email_task.delay(
+                obj_id=support_inquiry.id, is_support_notification=True
+            )
 
-            logger.info(f"Successfully registered support inquiry with email: {support_inquiry.email}")
-            
+            logger.info(
+                f"Successfully registered support inquiry with email: {support_inquiry.email}"
+            )
+
             return Response(
                 {
                     "status": "success",
-                    "message": "Support inquiry submitted successfully."
+                    "message": "Support inquiry submitted successfully.",
                 },
-                status=status.HTTP_201_CREATED
+                status=status.HTTP_201_CREATED,
             )
         except ValidationError as e:
             logger.warning(f"Support inquiry validation failed: {e.detail}")
@@ -75,16 +84,18 @@ class SupportUsView(CreateAPIView):
                 {
                     "status": "error",
                     "message": "Support inquiry submission failed.",
-                    "errors": e.detail
+                    "errors": e.detail,
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
 
 class SupportConversationListView(ListAPIView):
     """
     List all support inquiries as conversations.
     Accessible by Moderators and higher.
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = SupportConversationSerializer
     queryset = SupportInquiry.objects.all().prefetch_related("messages")
@@ -97,10 +108,12 @@ class SupportConversationListView(ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+
 class SupportConversationDetailView(RetrieveAPIView):
     """
     Retrieve full conversation history and manage read status.
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = SupportConversationDetailSerializer
     queryset = SupportInquiry.objects.all()
@@ -117,10 +130,12 @@ class SupportConversationDetailView(RetrieveAPIView):
         instance.messages.filter(is_read_by_staff=False).update(is_read_by_staff=True)
         return super().get(request, *args, **kwargs)
 
+
 class SupportReplyView(CreateAPIView):
     """
     Staff reply to a support conversation.
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = SupportMessageSerializer
 
@@ -134,25 +149,27 @@ class SupportReplyView(CreateAPIView):
         try:
             inquiry = SupportInquiry.objects.get(id=inquiry_id)
         except SupportInquiry.DoesNotExist:
-            return Response({"error": "Inquiry not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Inquiry not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        staff_profile = getattr(request.user, 'staff_profile', None)
+        staff_profile = getattr(request.user, "staff_profile", None)
         role = staff_profile.role if staff_profile else "staff"
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         message = serializer.save(
             inquiry=inquiry,
             sender=request.user,
             sender_profile=role,
-            is_read_by_staff=True, # Staff sent it
-            is_read_by_user=False
+            is_read_by_staff=True,  # Staff sent it
+            is_read_by_user=False,
         )
 
         # Update inquiry status to in_progress if it was open
         if inquiry.status == SupportInquiry.Status.OPEN:
             inquiry.status = SupportInquiry.Status.IN_PROGRESS
-            inquiry.save(update_fields=['status', 'updated_at'])
+            inquiry.save(update_fields=["status", "updated_at"])
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)

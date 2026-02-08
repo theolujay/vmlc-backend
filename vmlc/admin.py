@@ -160,7 +160,7 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     list_filter = ("exam", "auto_score", "score_submitted_by")
     search_fields = (
         "candidate__user__email",
-        "exam__competition_slot__exam__description", # Exam doesn't have a direct title field anymore
+        "exam__competition_slot__exam__description",  # Exam doesn't have a direct title field anymore
         "score_submitted_by__user__email",
     )
     list_select_related = ("candidate__user", "exam", "score_submitted_by__user")
@@ -251,7 +251,8 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
         invalidate_all_dashboard_caches()
 
     @admin.display(
-        description="Candidate", ordering="candidate_exam_result__candidate__user__email"
+        description="Candidate",
+        ordering="candidate_exam_result__candidate__user__email",
     )
     def candidate_email(self, obj):
         return obj.candidate_exam_result.candidate.user.email
@@ -420,7 +421,14 @@ class FeatureFlagAdmin(admin.ModelAdmin):
 
 @admin.register(SupportInquiry)
 class SupportInquiryAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "email", "support_type", "organization", "status", "created_at")
+    list_display = (
+        "full_name",
+        "email",
+        "support_type",
+        "organization",
+        "status",
+        "created_at",
+    )
     list_filter = ("support_type", "status", "created_at")
     search_fields = ("full_name", "email", "message", "organization")
     readonly_fields = ("created_at",)

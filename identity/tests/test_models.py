@@ -2,6 +2,7 @@ from django.test import TestCase
 
 from identity.models import Candidate, Staff, User
 
+
 class UserModelTest(TestCase):
 
     def test_create_user(self):

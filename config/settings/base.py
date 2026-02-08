@@ -145,6 +145,7 @@ AWS_S3_REGION_NAME = read_secret("AWS_S3_REGION_NAME")
 AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "dev")
 
 if USE_S3:
+
     def validate_aws_config():
         required_vars = [
             "AWS_ACCESS_KEY_ID",
@@ -212,9 +213,7 @@ if DEBUG:
     INSTALLED_APPS += [
         "debug_toolbar",
     ]
-    MIDDLEWARE.insert(
-        2, "debug_toolbar.middleware.DebugToolbarMiddleware"
-    ) 
+    MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
 # elif (
 #     not DEBUG
 #     and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"

@@ -6,6 +6,7 @@ from django.test import TestCase, RequestFactory
 
 from identity.models import Candidate, User
 
+
 class AuthEndpointsTest(APITestCase):
 
     def setUp(self):
@@ -61,7 +62,7 @@ class FirstLoginTest(TestCase):
             password="!Testpassword234",
             first_name="Test",
             last_name="User",
-            is_email_verified=False
+            is_email_verified=False,
         )
         # Create a profile with created_by=None to simulate a self-registered user
         self.candidate = Candidate.objects.create(
@@ -77,10 +78,13 @@ class FirstLoginTest(TestCase):
 
         # Simulate login
         self.client.login(email="test@example.com", password="!Testpassword234")
-        
+
         # Reload user from DB
         self.user.refresh_from_db()
-        
+
         # Check if email is verified
-        self.assertTrue(self.user.is_email_verified, "is_email_verified should be True after first login")
+        self.assertTrue(
+            self.user.is_email_verified,
+            "is_email_verified should be True after first login",
+        )
         self.assertIsNotNone(self.user.last_login)

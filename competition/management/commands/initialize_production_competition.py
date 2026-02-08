@@ -111,7 +111,7 @@ class Command(BaseCommand):
                 stages[st_type] = stage
                 if created:
                     self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
-          
+
             # Feature Flags
             FeatureFlag.objects.get_or_create(
                 key="candidate_registration", defaults={"value": True}

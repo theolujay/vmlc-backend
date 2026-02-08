@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: handle emitted events to send notifications
 
+
 def send_broadcast(broadcast_id):
     """
     Send a broadcast to multiple recipients across different mediums.

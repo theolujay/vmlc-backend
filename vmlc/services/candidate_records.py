@@ -13,10 +13,11 @@ from competition.models import (
     StageExam,
     Enrollment,
     RankingSnapshotEntry,
-    LeagueLeaderboardEntry
+    LeagueLeaderboardEntry,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class CandidateRecordService:
     """
@@ -40,21 +41,28 @@ class CandidateRecordService:
         Fetches exams available to the candidate based on their active competition enrollment.
         """
         # Get active competition and enrollment context
-        enrollment = Enrollment.objects.filter(
-            candidate=candidate,
-            competition__status=Competition.Status.ACTIVE,
-            status=Enrollment.Status.ACTIVE
-        ).select_related('current_stage').first()
+        enrollment = (
+            Enrollment.objects.filter(
+                candidate=candidate,
+                competition__status=Competition.Status.ACTIVE,
+                status=Enrollment.Status.ACTIVE,
+            )
+            .select_related("current_stage")
+            .first()
+        )
 
         if not enrollment or not enrollment.current_stage:
             logger.info(f"No active enrollment found for candidate {candidate.pk}")
             return []
 
         # Get exams for this specific stage
-        stage_exams = StageExam.objects.filter(
-            competition_stage=enrollment.current_stage,
-            is_active=True
-        ).select_related('exam').order_by('round')
+        stage_exams = (
+            StageExam.objects.filter(
+                competition_stage=enrollment.current_stage, is_active=True
+            )
+            .select_related("exam")
+            .order_by("round")
+        )
 
         available_exams_list = []
         for slot in stage_exams:
@@ -64,22 +72,23 @@ class CandidateRecordService:
                 if exam.is_active and exam.is_currently_open:
                     # Check if they already participated in this exam
                     has_participated = CandidateExamResult.objects.filter(
-                        candidate=candidate,
-                        exam=exam
+                        candidate=candidate, exam=exam
                     ).exists()
 
                     if not has_participated:
-                        available_exams_list.append({
-                            "id": str(exam.id),
-                            "title": exam.get_title(),
-                            "description": exam.description,
-                            "open_duration_hours": exam.open_duration_hours,
-                            "scheduled_date": exam.scheduled_date,
-                            "countdown_minutes": exam.countdown_minutes,
-                            "question_count": exam.get_question_count(),
-                            "stage": enrollment.current_stage.type,
-                            "round": slot.round,
-                        })
+                        available_exams_list.append(
+                            {
+                                "id": str(exam.id),
+                                "title": exam.get_title(),
+                                "description": exam.description,
+                                "open_duration_hours": exam.open_duration_hours,
+                                "scheduled_date": exam.scheduled_date,
+                                "countdown_minutes": exam.countdown_minutes,
+                                "question_count": exam.get_question_count(),
+                                "stage": enrollment.current_stage.type,
+                                "round": slot.round,
+                            }
+                        )
             except Exam.DoesNotExist:
                 continue
 
@@ -92,13 +101,17 @@ class CandidateRecordService:
         """
         # 1. Fetch latest published snapshot for legacy bounds if necessary
         # (Though we prefer RankingSnapshot/Leaderboards now)
-        latest_snapshot = CandidateExamResultSnapshot.objects.filter(
-            published_at__isnull=False
-        ).order_by("-published_at").first()
+        latest_snapshot = (
+            CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
+            .order_by("-published_at")
+            .first()
+        )
 
         results_qs = CandidateExamResult.objects.filter(candidate=candidate)
         if latest_snapshot:
-            results_qs = results_qs.filter(recorded_at__lte=latest_snapshot.published_at)
+            results_qs = results_qs.filter(
+                recorded_at__lte=latest_snapshot.published_at
+            )
 
         result_stats = results_qs.aggregate(
             total_exams_taken=Count("id"),
@@ -108,7 +121,9 @@ class CandidateRecordService:
             total_score=Sum("score"),
         )
 
-        recent_result = results_qs.order_by("-recorded_at").select_related("exam").first()
+        recent_result = (
+            results_qs.order_by("-recorded_at").select_related("exam").first()
+        )
 
         latest_score_data = None
         if recent_result:
@@ -132,7 +147,9 @@ class CandidateRecordService:
                 "lowest_result": float(result_stats["lowest_score"] or 0),
                 "highest_obtainable_score": 100.0,
             },
-            "exams_taken": CandidateRecordService.get_exams_taken(candidate, results_qs),
+            "exams_taken": CandidateRecordService.get_exams_taken(
+                candidate, results_qs
+            ),
         }
 
     @staticmethod
@@ -141,30 +158,40 @@ class CandidateRecordService:
         Retrieves the candidate's ranking from the latest aggregate leaderboard.
         """
         # Look for their entry in the latest published AggregateLeaderboard
-        entry = LeagueLeaderboardEntry.objects.filter(
-            candidate=candidate,
-            leaderboard__competition__status=Competition.Status.ACTIVE
-        ).select_related('leaderboard').order_by('-leaderboard__as_of_round', '-leaderboard__created_at').first()
+        entry = (
+            LeagueLeaderboardEntry.objects.filter(
+                candidate=candidate,
+                leaderboard__competition__status=Competition.Status.ACTIVE,
+            )
+            .select_related("leaderboard")
+            .order_by("-leaderboard__as_of_round", "-leaderboard__created_at")
+            .first()
+        )
 
         if entry:
             return {
                 "current_rank": entry.overall_rank,
                 "total_candidates": entry.leaderboard.entries.count(),
-                "as_of_round": entry.leaderboard.as_of_round
+                "as_of_round": entry.leaderboard.as_of_round,
             }
-        
+
         # Fallback to Screening RankingSnapshot if not in League yet
-        screening_entry = RankingSnapshotEntry.objects.filter(
-            candidate=candidate,
-            ranking_snapshot__stage=Stage.Type.SCREENING,
-            ranking_snapshot__is_published=True
-        ).select_related('ranking_snapshot').order_by('-ranking_snapshot__created_at').first()
+        screening_entry = (
+            RankingSnapshotEntry.objects.filter(
+                candidate=candidate,
+                ranking_snapshot__stage=Stage.Type.SCREENING,
+                ranking_snapshot__is_published=True,
+            )
+            .select_related("ranking_snapshot")
+            .order_by("-ranking_snapshot__created_at")
+            .first()
+        )
 
         if screening_entry:
             return {
                 "current_rank": screening_entry.rank,
                 "total_candidates": screening_entry.ranking_snapshot.entries.count(),
-                "stage": "screening"
+                "stage": "screening",
             }
 
         return None
@@ -176,46 +203,54 @@ class CandidateRecordService:
         """
         if results_qs is None:
             results_qs = CandidateExamResult.objects.filter(candidate=candidate)
-            
-        results = results_qs.select_related(
-            "exam", 
-            "exam__competition_slot__competition_stage",
-            "score_submitted_by__user"
-        ).prefetch_related("answers__question").order_by("-recorded_at")
+
+        results = (
+            results_qs.select_related(
+                "exam",
+                "exam__competition_slot__competition_stage",
+                "score_submitted_by__user",
+            )
+            .prefetch_related("answers__question")
+            .order_by("-recorded_at")
+        )
 
         exams_taken_list = []
         for result in results:
             exam = result.exam
             slot = exam.competition_slot
-            
+
             answers = result.answers.all()
             submission_list = []
             for answer in answers:
-                submission_list.append({
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "selected_option": answer.selected_option,
-                    "answered_at": answer.answered_at.isoformat(),
-                })
+                submission_list.append(
+                    {
+                        "question_id": answer.question.id,
+                        "question_text": answer.question.text,
+                        "option_a": answer.question.option_a,
+                        "option_b": answer.question.option_b,
+                        "option_c": answer.question.option_c,
+                        "option_d": answer.question.option_d,
+                        "selected_option": answer.selected_option,
+                        "answered_at": answer.answered_at.isoformat(),
+                    }
+                )
 
-            exams_taken_list.append({
-                "exam_id": str(exam.id),
-                "exam_title": exam.get_title(),
-                "exam_stage": slot.competition_stage.type if slot else "N/A",
-                "round": slot.round if slot else None,
-                "scheduled_date": exam.scheduled_date,
-                "score": float(result.score),
-                "recorded_at": result.recorded_at.isoformat(),
-                "score_submitted_by": (
-                    result.score_submitted_by.user.get_full_name()
-                    if result.score_submitted_by and result.score_submitted_by.user
-                    else None
-                ),
-                "auto_score": result.auto_score,
-                "submission": submission_list,
-            })
+            exams_taken_list.append(
+                {
+                    "exam_id": str(exam.id),
+                    "exam_title": exam.get_title(),
+                    "exam_stage": slot.competition_stage.type if slot else "N/A",
+                    "round": slot.round if slot else None,
+                    "scheduled_date": exam.scheduled_date,
+                    "score": float(result.score),
+                    "recorded_at": result.recorded_at.isoformat(),
+                    "score_submitted_by": (
+                        result.score_submitted_by.user.get_full_name()
+                        if result.score_submitted_by and result.score_submitted_by.user
+                        else None
+                    ),
+                    "auto_score": result.auto_score,
+                    "submission": submission_list,
+                }
+            )
         return exams_taken_list

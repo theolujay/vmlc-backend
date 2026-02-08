@@ -25,9 +25,7 @@ DEBUG = True
 
 # Use NeonDB if URL is provided, otherwise default to SQLite
 DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
-DATABASES = {
-    "default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))
-}
+DATABASES = {"default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))}
 
 # Extend token lifetimes for easier development
 SIMPLE_JWT.update(

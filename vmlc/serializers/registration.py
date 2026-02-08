@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from vmlc.serializers.staff import MinimalStaffSerializer
 from vmlc.utils.user import normalize_title
+
 # from vmlc.tasks import revoke_staff_registration_task
 from identity.models import (
     Candidate,

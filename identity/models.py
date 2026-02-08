@@ -36,6 +36,7 @@ phone_field = models.CharField(
     help_text="Nigerian phone number",
 )
 
+
 class CustomUserManager(BaseUserManager):
     """Custom user manager for the User model."""
 
@@ -64,6 +65,7 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
+
 
 class User(AbstractUser):
     """Custom user model."""
