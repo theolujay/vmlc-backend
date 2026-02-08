@@ -182,7 +182,7 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     def _invalidate_result_cache(self, result):
         candidate = result.candidate
         exam = result.exam
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
         invalidate_exam_cache(exam.id)
         invalidate_all_dashboard_caches()
 
@@ -246,7 +246,7 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     def _invalidate_answer_cache(self, answer):
         if answer.candidate_exam_result:
             candidate = answer.candidate_exam_result.candidate
-            invalidate_candidate_cache(candidate.id, candidate.user.id)
+            invalidate_candidate_cache(candidate.pk, candidate.user.id)
             invalidate_exam_cache(answer.candidate_exam_result.exam_id)
         invalidate_all_dashboard_caches()
 

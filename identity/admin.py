@@ -469,7 +469,7 @@ class CandidateAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)

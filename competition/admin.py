@@ -206,7 +206,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
@@ -245,7 +245,7 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
@@ -315,7 +315,7 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
 
 @admin.register(LeagueLeaderboard)
@@ -361,5 +361,5 @@ class LeagueLeaderboardEntryAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 

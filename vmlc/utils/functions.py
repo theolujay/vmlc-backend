@@ -241,7 +241,7 @@ def _compute_and_save_candidate_exam_result(candidate_exam_result):
     else:
         answer_count = submitted_answers.count()
         if answer_count == 0:
-             logger.warning(f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.id})")
+             logger.warning(f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.pk})")
         
         correct_count = 0
         for answer in submitted_answers:
