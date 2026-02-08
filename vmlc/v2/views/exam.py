@@ -27,11 +27,7 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import (
-    get_or_set_cache, 
-    delete_many_cache,
-    question_pool_aggregate
-)
+from vmlc.v2.utils import get_or_set_cache, delete_many_cache, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 from vmlc.utils.swagger_schemas import *
@@ -83,9 +79,10 @@ class ExamListV2View(ListCreateAPIView):
         logger.info(
             f"ExamListV2View: request from user {self.request.user.id} with query params: {self.request.query_params}"
         )
-        
+
         # Question Pool Data (Staff Dashboard context)
         from vmlc.v2.utils import CacheKeys
+
         question_pool_data = get_or_set_cache(
             CacheKeys.QUESTION_POOL,
             lambda: question_pool_aggregate(Question.objects.filter(is_archived=False)),
@@ -106,10 +103,11 @@ class ExamListV2View(ListCreateAPIView):
         Also records the staff member who created the exam
         """
         serializer.save(created_by=self.request.user.staff_profile)
-        
+
         from vmlc.v2.utils import invalidate_staff_dashboard
+
         invalidate_staff_dashboard()
-        
+
         logger.info(
             f"Exam created by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -147,6 +145,7 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             f"ExamDetailView: request from user {self.request.user.id} for exam {exam_id}"
         )
         from vmlc.v2.utils import CacheKeys
+
         cache_key = CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)
 
         def build():
@@ -195,6 +194,7 @@ class ExamResultsV2View(ListAPIView):
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs[self.lookup_url_kwarg]
         from vmlc.v2.utils import CacheKeys
+
         cache_key = CacheKeys.EXAM_RESULTS.format(exam_id=exam_id)
 
         def fetch_results():
@@ -230,6 +230,7 @@ class ExamQuestionsV2View(ListAPIView):
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs["exam_id"]
         from vmlc.v2.utils import CacheKeys
+
         cache_key = CacheKeys.EXAM_QUESTIONS.format(exam_id=exam_id)
 
         def fetch_questions():
@@ -275,6 +276,7 @@ class ExamHistoryV2View(ListAPIView):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
 
         from vmlc.v2.utils import CacheKeys
+
         cache_key = CacheKeys.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id)
 
         try:
@@ -283,7 +285,9 @@ class ExamHistoryV2View(ListAPIView):
             raise NotFound("Candidate not found.")
 
         data = get_or_set_cache(
-            cache_key, lambda: CandidateRecordService.get_exams_taken(candidate), ttl=3600
+            cache_key,
+            lambda: CandidateRecordService.get_exams_taken(candidate),
+            ttl=3600,
         )
         logger.info(
             f"ExamHistoryV2View: request from user {self.request.user.id} for candidate {candidate_id}"
@@ -311,7 +315,9 @@ class ExamHistoryV2View(ListAPIView):
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
+    from datetime import timedelta
     from competition.services.eligibility import EligibilityService
+
     candidate = request.user.candidate_profile
 
     try:
@@ -326,13 +332,15 @@ def candidate_take_exam_V2(request, exam_id):
         raise PermissionDenied("You are not eligible to take this exam at this time.")
 
     # Manage Exam Access
+    now = timezone.now()
     access, created = ExamAccess.objects.get_or_create(
         candidate=candidate,
         exam=exam,
         defaults={
             "status": ExamAccess.Status.STARTED,
             "facilitator_system": ExamAccess.Facilitator.VMLC,
-            "started_at": timezone.now(),
+            "started_at": now,
+            "deadline": now + timedelta(minutes=exam.countdown_minutes),
         },
     )
 
@@ -344,12 +352,15 @@ def candidate_take_exam_V2(request, exam_id):
             ExamAccess.Status.FAILED,
         ]:
             raise PermissionDenied("You have already completed or attempted this exam.")
-        
+
         # If in PENDING or ISSUED (unlikely for VMLC native, but possible), update to STARTED
-        # TODO: revisit this when Esturdi integration is implemented
+        # TODO: revisit this when Esturdi integration is implemented, especially when fallback feature flag is implemented
         if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:
             access.status = ExamAccess.Status.STARTED
-            access.started_at = timezone.now()
-            access.save(update_fields=["status", "started_at"])
+            access.started_at = now
+            access.deadline = now + timedelta(minutes=exam.countdown_minutes)
+            access.save(update_fields=["status", "started_at", "deadline"])
 
-    return Response(CandidateTakeExamSerializer(exam).data)
+    return Response(
+        CandidateTakeExamSerializer(exam, context={"request": request}).data
+    )

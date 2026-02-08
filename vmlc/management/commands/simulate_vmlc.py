@@ -49,6 +49,7 @@ from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
 
+
 class Command(BaseCommand):
     help = "Populates the database with initial data using realistic competition flows."
 
@@ -67,54 +68,56 @@ class Command(BaseCommand):
         Faker.seed(seed)
 
         self._clear_data()
-        
+
         # 1. Basic Setup
         self._create_feature_flags()
         staff_list = self._create_staff(count=20)
         competition, stages = self._create_competition_structure()
-        
+
         # 2. Candidates & Enrollment
         # Initially, all candidates are enrolled in Screening
         candidates = self._create_candidates(count=120, staff_pool=staff_list)
         self._enroll_candidates_in_screening(competition, candidates)
-        
+
         # 3. Content
         questions = self._create_questions(count=60, staff_pool=staff_list)
-        
+
         # 4. Simulation Flow
         self.stdout.write("Simulating Screening Stage...")
         screening_exam = self._create_exam(
-            stage=stages['screening'], 
-            questions=random.sample(questions, 15), 
+            stage=stages["screening"],
+            questions=random.sample(questions, 15),
             staff_pool=staff_list,
-            days_ago=30  # Screening happened a month ago
+            days_ago=30,  # Screening happened a month ago
         )
-        self._generate_exam_results(screening_exam, Enrollment.objects.all(), staff_list)
+        self._generate_exam_results(
+            screening_exam, Enrollment.objects.all(), staff_list
+        )
         self._finalize_ranking(screening_exam, staff_list)
-        
+
         # Promote top 80 to League
         self.stdout.write("Promoting top 80 candidates to League stage...")
         ProgressionService.promote_candidates(
             from_stage_type=Stage.Type.SCREENING,
             to_stage_type=Stage.Type.LEAGUE,
             cutoff_rank=80,
-            competition_id=competition.id
+            competition_id=competition.id,
         )
 
         self.stdout.write("Simulating League Stage (Rounds 1-6)...")
         for r in range(1, 7):
             league_exam = self._create_exam(
-                stage=stages['league'],
+                stage=stages["league"],
                 questions=random.sample(questions, 15),
                 staff_pool=staff_list,
-                days_ago=(25 - r * 3), # Round 1: 22 days ago, Round 6: 7 days ago
-                round_num=r
+                days_ago=(25 - r * 3),  # Round 1: 22 days ago, Round 6: 7 days ago
+                round_num=r,
             )
             # Only active enrollments take the exam
             active_parts = Enrollment.objects.filter(
-                competition=competition, 
-                current_stage=stages['league'],
-                status=Enrollment.Status.ACTIVE
+                competition=competition,
+                current_stage=stages["league"],
+                status=Enrollment.Status.ACTIVE,
             )
             self._generate_exam_results(league_exam, active_parts, staff_list)
             self._finalize_ranking(league_exam, staff_list, update_leaderboard=True)
@@ -125,20 +128,20 @@ class Command(BaseCommand):
             from_stage_type=Stage.Type.LEAGUE,
             to_stage_type=Stage.Type.FINAL,
             cutoff_rank=20,
-            competition_id=competition.id
+            competition_id=competition.id,
         )
 
         self.stdout.write("Simulating Final Stage...")
         final_exam = self._create_exam(
-            stage=stages['final'],
+            stage=stages["final"],
             questions=random.sample(questions, 20),
             staff_pool=staff_list,
-            days_ago=3
+            days_ago=3,
         )
         active_parts_final = Enrollment.objects.filter(
             competition=competition,
-            current_stage=stages['final'],
-            status=Enrollment.Status.ACTIVE
+            current_stage=stages["final"],
+            status=Enrollment.Status.ACTIVE,
         )
         self._generate_exam_results(final_exam, active_parts_final, staff_list)
         self._finalize_ranking(final_exam, staff_list)
@@ -189,8 +192,12 @@ class Command(BaseCommand):
             {"is_pending": False, "is_approved": False, "is_rejected": True},
         ]
         status_data = random.choice(statuses)
-        verification, _ = UserVerification.objects.get_or_create(user=user, defaults=status_data)
-        verification.verification_document_type = random.choice(["NIN", "Passport", "School ID"])
+        verification, _ = UserVerification.objects.get_or_create(
+            user=user, defaults=status_data
+        )
+        verification.verification_document_type = random.choice(
+            ["NIN", "Passport", "School ID"]
+        )
         if staff_pool and (verification.is_approved or verification.is_rejected):
             verification.action_by = random.choice(staff_pool)
         if verification.is_rejected:
@@ -259,7 +266,7 @@ class Command(BaseCommand):
                 type=st_type,
                 order=order,
                 description=f"{st_label} Stage",
-                config=config
+                config=config,
             )
             stages[st_type] = stage
         return competition, stages
@@ -312,7 +319,8 @@ class Command(BaseCommand):
                 correct_answer=random.choice(["A", "B", "C", "D"]),
                 created_by=random.choice(staff_pool),
                 difficulty=random.choice(["easy", "moderate", "hard"]),
-            ) for _ in range(count)
+            )
+            for _ in range(count)
         ]
 
     def _create_exam(self, stage, questions, staff_pool, days_ago, round_num=None):
@@ -334,7 +342,7 @@ class Command(BaseCommand):
             # Simulate some candidates missing the exam
             if random.random() < 0.05:
                 continue
-                
+
             result = CandidateExamResult.objects.create(
                 candidate=enrollment.candidate,
                 exam=exam,
@@ -356,11 +364,10 @@ class Command(BaseCommand):
         ranking.is_published = True
         ranking.published_at = timezone.now()
         ranking.save()
-        
+
         if update_leaderboard and ranking.stage == Stage.Type.LEAGUE:
             LeaderboardService.update_league_leaderboard(
-                competition_id=ranking.competition_id,
-                as_of_round=ranking.round
+                competition_id=ranking.competition_id, as_of_round=ranking.round
             )
 
     def _create_pre_reg_and_events(self, candidates, staff_pool):
@@ -373,25 +380,32 @@ class Command(BaseCommand):
             )
             Event.objects.create(
                 event_name="PRE_REGISTRATION",
-                metadata={"email": pre_reg.email, "interest_type": pre_reg.interest_type}
+                metadata={
+                    "email": pre_reg.email,
+                    "interest_type": pre_reg.interest_type,
+                },
             )
 
     def _create_support_data(self, candidates, staff_pool):
         for _ in range(15):
-            linked_user = random.choice(candidates).user if random.random() < 0.3 else None
+            linked_user = (
+                random.choice(candidates).user if random.random() < 0.3 else None
+            )
             inquiry = SupportInquiry.objects.create(
                 user=linked_user,
-                full_name=linked_user.get_full_name() if linked_user else self.fake.name(),
+                full_name=(
+                    linked_user.get_full_name() if linked_user else self.fake.name()
+                ),
                 email=linked_user.email if linked_user else self.fake.email(),
                 support_type=random.choice(SupportInquiry.SupportType.values),
                 message=self.fake.text(),
-                status=random.choice(SupportInquiry.Status.values)
+                status=random.choice(SupportInquiry.Status.values),
             )
             SupportMessage.objects.create(
                 inquiry=inquiry,
                 sender=linked_user,
                 sender_profile="candidate" if linked_user else "guest",
-                text=inquiry.message
+                text=inquiry.message,
             )
 
     def _create_candidate_notifications(self, candidates):
@@ -401,7 +415,7 @@ class Command(BaseCommand):
                     recipient=cand.user,
                     subject=self.fake.sentence(nb_words=5),
                     message=self.fake.text(),
-                    is_read_by_recipient=False
+                    is_read_by_recipient=False,
                 )
 
     def _clear_cache(self):

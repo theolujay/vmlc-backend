@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from identity.models import (
-    Candidate,)
+    Candidate,
+)
 from ..models import (
     Exam,
     CandidateExamResult,

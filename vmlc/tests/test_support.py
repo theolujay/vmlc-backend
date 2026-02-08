@@ -7,6 +7,7 @@ from rest_framework_api_key.models import APIKey
 
 from vmlc.models import SupportInquiry
 
+
 class SupportUsViewTests(APITestCase):
     def setUp(self):
         self.url = reverse("vmlc-v2:support-us")
@@ -38,9 +39,7 @@ class SupportUsViewTests(APITestCase):
         """Test submission with missing required fields."""
         payload = self.valid_payload.copy()
         del payload["full_name"]
-        response = self.client.post(
-            self.url, payload, format="json"
-        )
+        response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("full_name", response.data["errors"])
 
@@ -48,9 +47,7 @@ class SupportUsViewTests(APITestCase):
         """Test submission with invalid email."""
         payload = self.valid_payload.copy()
         payload["email"] = "invalid-email"
-        response = self.client.post(
-            self.url, payload, format="json"
-        )
+        response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
 
@@ -58,8 +55,6 @@ class SupportUsViewTests(APITestCase):
         """Test submission without consent."""
         payload = self.valid_payload.copy()
         payload["consent"] = False
-        response = self.client.post(
-            self.url, payload, format="json"
-        )
+        response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("consent", response.data["errors"])

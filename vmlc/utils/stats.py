@@ -30,40 +30,39 @@ def _get_competition_stats() -> dict:
     """Helper to get active competition statistics."""
     # Only one active competition should exist
     active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
-    
+
     if not active_comp:
         return None
 
     stages_data = []
     # Get all stages for the active competition
-    stages = active_comp.stages.all().order_by('order')
-    
+    stages = active_comp.stages.all().order_by("order")
+
     for stage in stages:
         stage_info = {
             "id": stage.id,
-            "name": re.sub(r'^\d+\s-\s', '', str(stage)),
+            "name": re.sub(r"^\d+\s-\s", "", str(stage)),
             "type": stage.type,
         }
-        
+
         # If stage is LEAGUE, get available rounds
         if stage.type == Stage.Type.LEAGUE:
             # Rounds are defined in StageExam associated with this stage
             # We filter for active StageExams that have a round number
             rounds = (
-                stage.stage_exams
-                .filter(is_active=True, round__isnull=False)
-                .values_list('round', flat=True)
+                stage.stage_exams.filter(is_active=True, round__isnull=False)
+                .values_list("round", flat=True)
                 .distinct()
-                .order_by('round')
+                .order_by("round")
             )
             stage_info["rounds"] = list(rounds)
-            
+
         stages_data.append(stage_info)
 
     return {
         "active_competition": str(active_comp),
         "active_competition_id": active_comp.id,
-        "stages": stages_data
+        "stages": stages_data,
     }
 
 
@@ -82,33 +81,36 @@ def _get_staff_stats() -> dict:
 def _get_exam_stats() -> dict:
     """Helper to get exam statistics."""
     now = timezone.now()
-    
+
     # Base queryset for active exams
     active_exams_qs = Exam.objects.filter(is_active=True)
-    
+
     # Ongoing exams: is_active=True AND scheduled_date <= now AND (scheduled_date + duration) > now
-    ongoing_count = active_exams_qs.annotate(
-        end_time=ExpressionWrapper(
-            F('scheduled_date') + F('open_duration_hours') * timedelta(hours=1),
-            output_field=DateTimeField()
+    ongoing_count = (
+        active_exams_qs.annotate(
+            end_time=ExpressionWrapper(
+                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
+                output_field=DateTimeField(),
+            )
         )
-    ).filter(
-        scheduled_date__lte=now,
-        end_time__gt=now
-    ).count()
-    
+        .filter(scheduled_date__lte=now, end_time__gt=now)
+        .count()
+    )
+
     # Upcoming exams: is_active=True AND scheduled_date > now
     upcoming_count = active_exams_qs.filter(scheduled_date__gt=now).count()
-    
+
     # Concluded exams: is_active=True AND (scheduled_date + duration) <= now
-    concluded_count = active_exams_qs.annotate(
-        end_time=ExpressionWrapper(
-            F('scheduled_date') + F('open_duration_hours') * timedelta(hours=1),
-            output_field=DateTimeField()
+    concluded_count = (
+        active_exams_qs.annotate(
+            end_time=ExpressionWrapper(
+                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
+                output_field=DateTimeField(),
+            )
         )
-    ).filter(
-        end_time__lte=now
-    ).count()
+        .filter(end_time__lte=now)
+        .count()
+    )
 
     return {
         "total": Exam.objects.count(),
@@ -116,7 +118,7 @@ def _get_exam_stats() -> dict:
         "ongoing": ongoing_count,
         "upcoming": upcoming_count,
         "concluded": concluded_count,
-        "drafts": Exam.objects.filter(scheduled_date__isnull=True).count()
+        "drafts": Exam.objects.filter(scheduled_date__isnull=True).count(),
     }
 
 
@@ -146,8 +148,4 @@ def _get_geographic_stats() -> dict:
         .order_by("-count")
     )
 
-    return {
-        "overall": overall,
-        "candidate": candidates,
-        "volunteer": volunteers
-    }
+    return {"overall": overall, "candidate": candidates, "volunteer": volunteers}

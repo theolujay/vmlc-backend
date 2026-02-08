@@ -160,7 +160,7 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     list_filter = ("exam", "auto_score", "score_submitted_by")
     search_fields = (
         "candidate__user__email",
-        "exam__competition_slot__exam__description", # Exam doesn't have a direct title field anymore
+        "exam__competition_slot__exam__description",  # Exam doesn't have a direct title field anymore
         "score_submitted_by__user__email",
     )
     list_select_related = ("candidate__user", "exam", "score_submitted_by__user")
@@ -182,7 +182,7 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     def _invalidate_result_cache(self, result):
         candidate = result.candidate
         exam = result.exam
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
         invalidate_exam_cache(exam.id)
         invalidate_all_dashboard_caches()
 
@@ -246,12 +246,13 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
     def _invalidate_answer_cache(self, answer):
         if answer.candidate_exam_result:
             candidate = answer.candidate_exam_result.candidate
-            invalidate_candidate_cache(candidate.id, candidate.user.id)
+            invalidate_candidate_cache(candidate.pk, candidate.user.id)
             invalidate_exam_cache(answer.candidate_exam_result.exam_id)
         invalidate_all_dashboard_caches()
 
     @admin.display(
-        description="Candidate", ordering="candidate_exam_result__candidate__user__email"
+        description="Candidate",
+        ordering="candidate_exam_result__candidate__user__email",
     )
     def candidate_email(self, obj):
         return obj.candidate_exam_result.candidate.user.email
@@ -420,7 +421,14 @@ class FeatureFlagAdmin(admin.ModelAdmin):
 
 @admin.register(SupportInquiry)
 class SupportInquiryAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "email", "support_type", "organization", "status", "created_at")
+    list_display = (
+        "full_name",
+        "email",
+        "support_type",
+        "organization",
+        "status",
+        "created_at",
+    )
     list_filter = ("support_type", "status", "created_at")
     search_fields = ("full_name", "email", "message", "organization")
     readonly_fields = ("created_at",)

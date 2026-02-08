@@ -194,7 +194,9 @@ def filter_users(queryset: QuerySet[User], params: Any) -> QuerySet[User]:
         )
 
     if school_name:
-        queryset = queryset.filter(candidate_profile__school_name__icontains=school_name)
+        queryset = queryset.filter(
+            candidate_profile__school_name__icontains=school_name
+        )
 
     if school_type:
         queryset = queryset.filter(candidate_profile__school_type=school_type)

@@ -97,7 +97,7 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
                 "notification_id is required for 'mark_as_read' action."
             )
             return
-        
+
         updated_count = await self.mark_notification_as_read(notification_id)
 
         if updated_count > 0:

@@ -10,13 +10,15 @@ from identity.models import User, Candidate, Staff, PreRegUser
 from vmlc.models import FeatureFlag
 from vmlc.serializers import CandidateRegistrationSerializer
 
-def generate_photo_file(name='test.jpg'):
+
+def generate_photo_file(name="test.jpg"):
     file = io.BytesIO()
-    image = Image.new('RGB', (100, 100))
-    image.save(file, 'jpeg')
+    image = Image.new("RGB", (100, 100))
+    image.save(file, "jpeg")
     file.name = name
     file.seek(0)
     return file
+
 
 class CandidateRegistrationSerializerTest(TestCase):
 
@@ -72,9 +74,13 @@ class RegistrationV1Test(APITestCase):
 class RegistrationV2Tests(APITestCase):
     def setUp(self):
         # Enable feature flags
-        FeatureFlag.objects.update_or_create(key="candidate_registration", defaults={"value": True})
-        FeatureFlag.objects.update_or_create(key="staff_registration", defaults={"value": True})
-        
+        FeatureFlag.objects.update_or_create(
+            key="candidate_registration", defaults={"value": True}
+        )
+        FeatureFlag.objects.update_or_create(
+            key="staff_registration", defaults={"value": True}
+        )
+
         self.url = reverse("vmlc-v2:register")
 
     def test_candidate_registration_success(self):
@@ -91,16 +97,18 @@ class RegistrationV2Tests(APITestCase):
             "current_class": "SS1",
             "document_type": "NIN",
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(User.objects.filter(email="candidate1@example.com").exists())
-        self.assertTrue(Candidate.objects.filter(user__email="candidate1@example.com").exists())
+        self.assertTrue(
+            Candidate.objects.filter(user__email="candidate1@example.com").exists()
+        )
 
     def test_volunteer_registration_success(self):
         data = {
@@ -114,16 +122,18 @@ class RegistrationV2Tests(APITestCase):
             "occupation": "Teacher",
             "document_type": "passport",
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(User.objects.filter(email="volunteer1@example.com").exists())
-        self.assertTrue(Staff.objects.filter(user__email="volunteer1@example.com").exists())
+        self.assertTrue(
+            Staff.objects.filter(user__email="volunteer1@example.com").exists()
+        )
 
     def test_candidate_missing_fields(self):
         data = {
@@ -132,9 +142,9 @@ class RegistrationV2Tests(APITestCase):
             # missing last_name, email, etc.
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -150,14 +160,14 @@ class RegistrationV2Tests(APITestCase):
             "school_name": "Test School",
             "school_type": "public",
             "current_class": "SS1",
-            "document_type": "passport", # Invalid for candidate
+            "document_type": "passport",  # Invalid for candidate
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("document_type", response.data["errors"])
@@ -178,17 +188,20 @@ class RegistrationV2Tests(APITestCase):
             "current_class": "SS1",
             "document_type": "NIN",
             "document": file,
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
-        
+
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Check either field "document" or non_field_errors
-        self.assertTrue("document" in response.data["errors"] or "non_field_errors" in response.data["errors"])
+        self.assertTrue(
+            "document" in response.data["errors"]
+            or "non_field_errors" in response.data["errors"]
+        )
 
     def test_volunteer_missing_fields(self):
         data = {
@@ -201,21 +214,24 @@ class RegistrationV2Tests(APITestCase):
             "state": "Abuja",
             "document_type": "passport",
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart', 
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Should have errors for occupation and phone (if not using defaults)
-        self.assertTrue("occupation" in response.data["errors"] or "phone" in response.data["errors"])
+        self.assertTrue(
+            "occupation" in response.data["errors"]
+            or "phone" in response.data["errors"]
+        )
 
     def test_registration_already_exists(self):
         # First registration
         self.test_candidate_registration_success()
-        
+
         # Second registration with same email
         data = {
             "user_type": "candidate",
@@ -230,12 +246,12 @@ class RegistrationV2Tests(APITestCase):
             "current_class": "SS1",
             "document_type": "NIN",
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart',
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
@@ -254,26 +270,26 @@ class RegistrationV2Tests(APITestCase):
             "current_class": "SS1",
             "document_type": "NIN",
             "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg")
+            "face_capture": generate_photo_file("face.jpg"),
         }
         response = self.client.post(
-            self.url, 
-            data, 
-            format='multipart',
+            self.url,
+            data,
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("consent", response.data["errors"])
 
 
 class PreRegistrationTestCase(APITestCase):
-    def setUp(self):        
+    def setUp(self):
         self.url = reverse("vmlc-v2:pre-register")
-        
+
         self.valid_payload = {
             "full_name": "Test User",
             "email": "test@example.com",
             "phone": "08012345678",
-            "interest_type": "candidate"
+            "interest_type": "candidate",
         }
 
     def test_pre_registration_success_candidate(self):
@@ -290,10 +306,12 @@ class PreRegistrationTestCase(APITestCase):
         payload = self.valid_payload.copy()
         payload["interest_type"] = "volunteer"
         payload["email"] = "volunteer@example.com"
-        
+
         response = self.client.post(self.url, payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(PreRegUser.objects.filter(interest_type="volunteer").count(), 1)
+        self.assertEqual(
+            PreRegUser.objects.filter(interest_type="volunteer").count(), 1
+        )
 
     def test_missing_required_fields(self):
         """Test request with missing required fields."""
@@ -304,7 +322,6 @@ class PreRegistrationTestCase(APITestCase):
             response = self.client.post(self.url, payload)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(field, response.data["errors"])
-            
 
     def test_invalid_email(self):
         """Test request with invalid email format."""
@@ -326,7 +343,7 @@ class PreRegistrationTestCase(APITestCase):
         """Test that duplicate email in pre-registration returns 400, not 500."""
         # First registration
         self.client.post(self.url, self.valid_payload)
-        
+
         # Second registration with same email
         response = self.client.post(self.url, self.valid_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -336,8 +353,10 @@ class PreRegistrationTestCase(APITestCase):
 
     def test_existing_user_email(self):
         """Test that an email already belonging to a User cannot pre-register."""
-        User.objects.create_user(username="existing", email="test@example.com", password="pwd")
-        
+        User.objects.create_user(
+            username="existing", email="test@example.com", password="pwd"
+        )
+
         response = self.client.post(self.url, self.valid_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])

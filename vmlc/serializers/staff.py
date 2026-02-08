@@ -27,6 +27,7 @@ class StaffListSerializer(serializers.ModelSerializer):
     user = MinimalUserSerializer(read_only=True)
     status = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
+
     class Meta:
         model = Staff
         fields = [

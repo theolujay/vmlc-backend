@@ -499,26 +499,34 @@ class ExamHistoryView(ListAPIView):
     Requires candidate_id in the URL path.
     """
 
-    permission_classes = ActiveAdminPermissions # This was originally ActiveAdminPermissions
+    permission_classes = (
+        ActiveAdminPermissions  # This was originally ActiveAdminPermissions
+    )
     serializer_class = None
     lookup_url_kwarg = "candidate_id"
 
     def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
-        
+
         # Access Control: Allow if staff OR if it's the candidate themselves
-        is_staff = hasattr(request.user, 'staff_profile')
-        is_self = hasattr(request.user, 'candidate_profile') and str(request.user.candidate_profile.pk) == str(candidate_id)
-        
+        is_staff = hasattr(request.user, "staff_profile")
+        is_self = hasattr(request.user, "candidate_profile") and str(
+            request.user.candidate_profile.pk
+        ) == str(candidate_id)
+
         if not (is_staff or is_self):
             print(f"DEBUG: Permission Denied. is_staff: {is_staff}, is_self: {is_self}")
-            if hasattr(request.user, 'candidate_profile'):
-                print(f"DEBUG: request.user.candidate_profile.pk: {request.user.candidate_profile.pk}")
+            if hasattr(request.user, "candidate_profile"):
+                print(
+                    f"DEBUG: request.user.candidate_profile.pk: {request.user.candidate_profile.pk}"
+                )
             print(f"DEBUG: candidate_id from kwargs: {candidate_id}")
-            raise PermissionDenied("You do not have permission to view this candidate's history.")
+            raise PermissionDenied(
+                "You do not have permission to view this candidate's history."
+            )
 
         cache_key = f"candidate_exam_history_v2_{candidate_id}"
-        
+
         try:
             candidate = Candidate.objects.get(pk=candidate_id)
         except Candidate.DoesNotExist:
@@ -527,7 +535,7 @@ class ExamHistoryView(ListAPIView):
         data = get_or_set_cache(
             cache_key,
             lambda: CandidateRecordService.get_exams_taken(candidate),
-            ttl=3600
+            ttl=3600,
         )
         return Response(data)
 
@@ -552,7 +560,7 @@ def candidate_take_exam(request, exam_id):
     Allows a candidate to retrieve the questions for a specific exam if they are eligible.
     """
     from competition.services.eligibility import EligibilityService
-    
+
     logger.info(
         f"candidate_take_exam: request from user {request.user.id} for exam {exam_id}"
     )
@@ -565,7 +573,7 @@ def candidate_take_exam(request, exam_id):
 
     if not EligibilityService.can_take_exam(candidate, exam):
         logger.warning(
-            f"Candidate {candidate.id} failed eligibility check for exam {exam_id}"
+            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}"
         )
         raise PermissionDenied("You are not eligible to take this exam at this time.")
 

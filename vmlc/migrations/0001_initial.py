@@ -229,7 +229,10 @@ class Migration(migrations.Migration):
                         max_length=20,
                     ),
                 ),
-                ("message", models.TextField(help_text="Initial message from the user.")),
+                (
+                    "message",
+                    models.TextField(help_text="Initial message from the user."),
+                ),
                 ("organization", models.CharField(blank=True, max_length=255)),
                 ("consent", models.BooleanField(default=False)),
                 (
@@ -330,7 +333,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="exam",
             name="questions",
-            field=models.ManyToManyField(blank=True, related_name="exams", to="vmlc.question"),
+            field=models.ManyToManyField(
+                blank=True, related_name="exams", to="vmlc.question"
+            ),
         ),
         migrations.CreateModel(
             name="CandidateAnswer",
@@ -370,8 +375,7 @@ class Migration(migrations.Migration):
                 (
                     "question",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.PROTECT, 
-                        to="vmlc.question"
+                        on_delete=django.db.models.deletion.PROTECT, to="vmlc.question"
                     ),
                 ),
             ],

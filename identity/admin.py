@@ -451,7 +451,12 @@ class CandidateAdmin(admin.ModelAdmin):
         "user__verification__is_approved",
         "created_at",
     )
-    search_fields = ("user__email", "user__first_name", "user__last_name", "school_name")
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "school_name",
+    )
     list_select_related = ("user", "user__verification")
     date_hierarchy = "created_at"
 
@@ -469,7 +474,7 @@ class CandidateAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -536,7 +541,12 @@ class StaffAdmin(admin.ModelAdmin):
         "created_at",
     )
     search_fields = ("user__email", "user__first_name", "user__last_name", "occupation")
-    list_select_related = ("user", "user__verification", "created_by", "created_by__user")
+    list_select_related = (
+        "user",
+        "user__verification",
+        "created_by",
+        "created_by__user",
+    )
     date_hierarchy = "created_at"
 
     def save_model(self, request, obj, form, change):

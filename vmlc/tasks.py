@@ -130,33 +130,34 @@ def update_candidate_ranking_cache_task():
 
     update_candidate_ranking_cache()
 
+
 @shared_task(
     name="disable_expired_feature_flags_task",
     bind=True,
     max_retries=3,
-    default_retry_delay=300  # 5 minutes
+    default_retry_delay=300,  # 5 minutes
 )
 def disable_expired_feature_flags_task(self, feature_flag_id):
     """
     Automatically disable feature flags that have reached their auto_off_date.
-    
+
     Args:
         feature_flag_id: Primary key of the FeatureFlag to check and disable
-        
+
     Returns:
         dict: Status of the operation with relevant details
     """
     from .models import FeatureFlag
-    
+
     try:
         feature_flag = FeatureFlag.objects.get(pk=feature_flag_id)
     except FeatureFlag.DoesNotExist:
         logger.error(f"FeatureFlag with id {feature_flag_id} does not exist")
         return {
             "status": "error",
-            "message": f"FeatureFlag {feature_flag_id} not found"
+            "message": f"FeatureFlag {feature_flag_id} not found",
         }
-    
+
     try:
         # Check if flag should be disabled
         if not feature_flag.auto_off_date:
@@ -165,7 +166,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
                 "has no auto_off_date set - skipping"
             )
             return
-        
+
         # Check if the flag is already disabled
         if not feature_flag.value:
             logger.info(
@@ -173,7 +174,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
                 "is already disabled"
             )
             return
-        
+
         # Check if expiration time has been reached
         now = timezone.now()
         if feature_flag.auto_off_date > now:
@@ -188,13 +189,13 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
         feature_flag.save(update_fields=["value"])
         cache.delete("registration_status")
 
-        readable_flag_key = feature_flag.key.replace('_', ' ').title()
-        
+        readable_flag_key = feature_flag.key.replace("_", " ").title()
+
         logger.info(
             f"Successfully auto-disabled feature flag '{feature_flag.key}' "
             f"(id: {feature_flag_id}) at {now.isoformat()}"
         )
-        
+
         # Send notification email to admins
         admin_emails = [email for _, email in settings.ADMINS]
         if admin_emails:
@@ -216,15 +217,15 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
                 f"Auto-disable notification sent for '{feature_flag.key}' "
                 f"to {len(admin_emails)} admin(s)"
             )
-        
+
         return
-        
+
     except Exception as exc:
         logger.exception(
             f"Error disabling feature flag '{feature_flag.key}' "
             f"(id: {feature_flag_id}): {exc}"
         )
-        
+
         # Retry the task if it's a transient error
         try:
             raise self.retry(exc=exc)
@@ -235,11 +236,13 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
             )
             return
 
+
 @shared_task(name="clear_pre_reg_user")
 def clear_pre_reg_user(user_email, user_type="candidate"):
 
     from identity.models import PreRegUser
     from vmlc.utils.events import log_event
+
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)
         pre_reg_user.delete()
@@ -248,13 +251,14 @@ def clear_pre_reg_user(user_email, user_type="candidate"):
             metadata={
                 "email": user_email,
                 "user_type": user_type,
-                "interest_type": pre_reg_user.interest_type
-            }
+                "interest_type": pre_reg_user.interest_type,
+            },
         )
-        logger.info(f"[{user_email}] fully registered. PreRegUser entity cleared and conversion event logged.")
+        logger.info(
+            f"[{user_email}] fully registered. PreRegUser entity cleared and conversion event logged."
+        )
     except PreRegUser.DoesNotExist:
         logger.info(f"PreRegUser entity not found for [{user_email}]")
-
 
 
 @shared_task(name="revoke_user_invite_task")
@@ -281,6 +285,7 @@ def revoke_user_invite_task(user_id):
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
 
+
 @shared_task(bind=True, name="send_system_email_task", max_retries=20)
 def send_system_email_task(
     self,
@@ -289,11 +294,11 @@ def send_system_email_task(
     is_pre_reg=False,
     is_full_reg=False,
     is_support_inquiry=False,
-    is_support_notification=False
+    is_support_notification=False,
 ):
     """
     Send system emails for user registration and support inquiries.
-    
+
     Args:
         obj_id: Primary key of the object (User, PreRegUser, or SupportInquiry)
         generated_password: Auto-generated password for full registration
@@ -323,58 +328,66 @@ def send_system_email_task(
             subject, message = build_pre_registration_email(user=user)
             recipient_email = user.email
             email_type = "pre-registration"
-            
+
         elif is_full_reg:
             user = User.objects.get(pk=obj_id)
             subject, message = build_registration_welcome_email(
-                user=user,
-                generated_password=generated_password
+                user=user, generated_password=generated_password
             )
             recipient_email = user.email
             email_type = "full registration"
-            
+
         elif is_support_inquiry:
             inquiry = SupportInquiry.objects.get(pk=obj_id)
             subject, message = build_support_confirmation_email(inquiry=inquiry)
             recipient_email = inquiry.email
             email_type = "support inquiry"
-            
+
         elif is_support_notification:
             inquiry = SupportInquiry.objects.get(pk=obj_id)
             subject, message = build_support_notification_email(inquiry=inquiry)
             recipient_email = settings.SUPPORT_EMAIL
             email_type = "support notification"
-            
+
         else:
             logger.error(f"No valid email type specified for object ID {obj_id}")
             return
 
-    except (User.DoesNotExist, PreRegUser.DoesNotExist, SupportInquiry.DoesNotExist) as e:
+    except (
+        User.DoesNotExist,
+        PreRegUser.DoesNotExist,
+        SupportInquiry.DoesNotExist,
+    ) as e:
         logger.error(f"Object not found for email task: {e}")
         return
-    
+
     # Send email with retry logic
     try:
         send_system_email(subject, message, recipient_email)
-        logger.info(f"{email_type.capitalize()} email sent successfully to {recipient_email}")
-        
+        logger.info(
+            f"{email_type.capitalize()} email sent successfully to {recipient_email}"
+        )
+
     except Exception as e:
         logger.error(
             f"Failed to send {email_type} email to {recipient_email} "
             f"(attempt {self.request.retries + 1}/{self.max_retries}): {e}"
         )
-        
+
         if self.request.retries >= self.max_retries - 1:
             logger.error(
                 f"Max retries reached for {email_type} email to {recipient_email}. "
                 f"Object ID: {obj_id}"
             )
             return
-        
+
         raise self.retry(exc=e, countdown=60)
 
+
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_reg=False):
+def send_welcome_mail_task(
+    self, user_id=None, generated_password=None, is_pre_reg=False
+):
     """Send welcome email to newly registered user."""
     from .utils.auth import send_welcome_email
     from identity.models import User, PreRegUser
@@ -382,7 +395,7 @@ def send_welcome_mail_task(self, user_id=None, generated_password=None, is_pre_r
     if is_pre_reg:
         user = PreRegUser.objects.get(pk=user_id)
     else:
-        user = User.objects.get(pk=user_id) 
+        user = User.objects.get(pk=user_id)
 
     try:
         send_welcome_email(user, generated_password)
@@ -404,6 +417,7 @@ def generate_stats_overview_task():
     Asynchronously generates and caches the statistics overview.
     """
     from vmlc.v2.utils import CacheKeys
+
     data = generate_stats_overview_data()
     cache.set(CacheKeys.STATS_OVERVIEW, data, timeout=3600)  # Cache for 1 hour
     logger.info("Successfully generated and cached stats overview.")
@@ -421,27 +435,29 @@ def generate_stats_overview_task():
 def upload_user_documents_task(self, user_id, file_mappings):
     """
     Asynchronously uploads multiple user documents from temporary paths.
-    
+
     Args:
         user_id: ID of the user
         file_mappings: List of dicts with keys: temp_path, field_name, original_name
     """
     from identity.models import User, UserVerification
-    
+
     uploaded_files = []
     failed_files = []
-    
+
     try:
         user = User.objects.get(pk=user_id)
         verification, _ = UserVerification.objects.get_or_create(user=user)
-        
-        logger.info(f"Starting document upload for user {user_id} with {len(file_mappings)} files")
-        
+
+        logger.info(
+            f"Starting document upload for user {user_id} with {len(file_mappings)} files"
+        )
+
         for file_info in file_mappings:
             temp_path = file_info["temp_path"]
             field_name = file_info["field_name"]
             original_name = file_info["original_name"]
-            
+
             try:
                 # Check if file exists, with retry logic for sync delays
                 if not os.path.exists(temp_path):
@@ -455,9 +471,11 @@ def upload_user_documents_task(self, user_id, file_mappings):
                         raise self.retry(countdown=5)
                     else:
                         logger.error(f"Temp file {temp_path} not found after retries")
-                        failed_files.append({"file": temp_path, "error": "File not found"})
+                        failed_files.append(
+                            {"file": temp_path, "error": "File not found"}
+                        )
                         continue
-                
+
                 # Verify file is readable and has content
                 file_size = os.path.getsize(temp_path)
                 if file_size == 0:
@@ -465,28 +483,34 @@ def upload_user_documents_task(self, user_id, file_mappings):
                     failed_files.append({"file": temp_path, "error": "Empty file"})
                     os.remove(temp_path)
                     continue
-                
-                logger.info(f"Uploading {field_name} ({file_size} bytes) for user {user_id}")
-                
+
+                logger.info(
+                    f"Uploading {field_name} ({file_size} bytes) for user {user_id}"
+                )
+
                 # Upload to storage
                 with open(temp_path, "rb") as f:
                     django_file = File(f, name=original_name)
-                    
+
                     if field_name == "face_id":
                         verification.face_id.save(original_name, django_file, save=True)
                     elif field_name == "id_card":
                         verification.id_card.save(original_name, django_file, save=True)
                     elif field_name == "verification_document":
-                        verification.verification_document.save(original_name, django_file, save=True)
+                        verification.verification_document.save(
+                            original_name, django_file, save=True
+                        )
                     else:
                         logger.error(f"Unknown field_name: {field_name}")
-                        failed_files.append({"file": temp_path, "error": f"Unknown field: {field_name}"})
+                        failed_files.append(
+                            {"file": temp_path, "error": f"Unknown field: {field_name}"}
+                        )
                         os.remove(temp_path)
                         continue
-                
+
                 uploaded_files.append(temp_path)
                 logger.info(f"Successfully uploaded {field_name} for user {user.email}")
-                
+
             except IOError as e:
                 logger.error(f"IOError processing {temp_path}: {e}")
                 if self.request.retries < self.max_retries:
@@ -496,30 +520,34 @@ def upload_user_documents_task(self, user_id, file_mappings):
             except Exception as e:
                 logger.error(f"Unexpected error processing {temp_path}: {e}")
                 failed_files.append({"file": temp_path, "error": str(e)})
-        
+
         # Cleanup temp files
         _cleanup_temp_files(uploaded_files + [f["file"] for f in failed_files])
-        
+
         if failed_files:
-            logger.error(f"Failed to upload some files for user {user_id}: {failed_files}")
+            logger.error(
+                f"Failed to upload some files for user {user_id}: {failed_files}"
+            )
             # Optionally send notification to admins
-        
+
         if not uploaded_files and failed_files:
             # All uploads failed
             raise Exception(f"All file uploads failed for user {user_id}")
-        
+
         logger.info(
             f"Document upload task completed for user {user_id}. "
             f"Success: {len(uploaded_files)}, Failed: {len(failed_files)}"
         )
-        
+
     except User.DoesNotExist:
         logger.error(f"User {user_id} not found during document upload")
         _cleanup_temp_files([f["temp_path"] for f in file_mappings])
     except Retry:
         raise
     except Exception as exc:
-        logger.error(f"Failed to upload documents for user {user_id}: {exc}", exc_info=True)
+        logger.error(
+            f"Failed to upload documents for user {user_id}: {exc}", exc_info=True
+        )
         _cleanup_temp_files([f["temp_path"] for f in file_mappings])
         if self.request.retries < self.max_retries:
             raise self.retry(exc=exc, countdown=60)

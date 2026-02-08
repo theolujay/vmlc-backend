@@ -8,6 +8,7 @@ from vmlc.models import SupportInquiry, FeatureFlag
 
 logger = logging.getLogger(__name__)
 
+
 def send_system_email(
     subject: str,
     message: str,
@@ -23,6 +24,7 @@ def send_system_email(
         )
     except Exception as e:
         logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
+
 
 def build_registration_welcome_email(
     user: User,
@@ -66,6 +68,7 @@ def build_registration_welcome_email(
 
     return subject, message
 
+
 def build_pre_registration_email(
     user: PreRegUser,
 ) -> Tuple[str, str]:
@@ -104,6 +107,7 @@ def build_pre_registration_email(
 
     return subject, message
 
+
 def build_support_confirmation_email(
     inquiry: SupportInquiry,
 ) -> Tuple[str, str]:
@@ -120,6 +124,7 @@ def build_support_confirmation_email(
     )
 
     return subject, message
+
 
 def build_support_notification_email(
     inquiry: SupportInquiry,
@@ -138,6 +143,7 @@ def build_support_notification_email(
     )
 
     return subject, message
+
 
 def create_email_html(subject, message, otp=None, otp_message=None):
     html_template = """

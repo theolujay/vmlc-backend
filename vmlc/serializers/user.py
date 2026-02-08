@@ -6,6 +6,7 @@ from rest_framework.validators import UniqueValidator
 
 from identity.models import User, UserVerification
 from vmlc.utils.user import normalize_title
+
 logger = logging.getLogger(__name__)
 
 

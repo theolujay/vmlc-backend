@@ -17,27 +17,29 @@ def invalidate_notification_cache(sender, instance, **kwargs):
     """Invalidates the notification cache for a user and their dashboard."""
     user_id = instance.recipient_id
     version_key = f"notifications_version_{user_id}"
-    
+
     try:
         cache.incr(version_key)
     except ValueError:
         # First time, set to 1 (next read will be version 1)
         cache.set(version_key, 1, timeout=86400)
-    
+
     # Also invalidate candidate dashboard if they have one
     from vmlc.v2.utils import invalidate_candidate_cache
     from identity.models import Candidate
+
     try:
         candidate = Candidate.objects.get(user_id=user_id)
         invalidate_candidate_cache(candidate.pk, user_id=user_id)
     except Candidate.DoesNotExist:
         pass
-    
+
     logger.info(f"Invalidated notification and dashboard cache for user {user_id}")
 
 
 post_save.connect(invalidate_notification_cache, sender=Notification)
 post_delete.connect(invalidate_notification_cache, sender=Notification)
+
 
 @task_success.connect
 def task_success_handler(sender=None, result=None, **kwargs):

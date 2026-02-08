@@ -167,10 +167,7 @@ class LoadLeaderboardView(APIView, LeaderboardViewMixin):
 
         all_leaderboards = latest_snapshot.data
 
-        if (
-            hasattr(user, "candidate_profile")
-            and not user.candidate_profile.is_active
-        ):
+        if hasattr(user, "candidate_profile") and not user.candidate_profile.is_active:
             return Response(
                 {"detail": "Candidate is deactivated and cannot view leaderboard."},
                 status=status.HTTP_403_FORBIDDEN,

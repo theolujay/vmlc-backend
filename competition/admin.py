@@ -44,7 +44,14 @@ class LeagueLeaderboardEntryInline(admin.TabularInline):
 
 @admin.register(Competition)
 class CompetitionAdmin(admin.ModelAdmin):
-    list_display = ("name", "edition", "status_display", "start_date", "end_date", "created_at")
+    list_display = (
+        "name",
+        "edition",
+        "status_display",
+        "start_date",
+        "end_date",
+        "created_at",
+    )
     list_filter = ("status", "edition")
     search_fields = ("name", "edition")
     inlines = [StageInline]
@@ -78,15 +85,19 @@ class CompetitionAdmin(admin.ModelAdmin):
 
 from django import forms
 
+
 class StageAdminForm(forms.ModelForm):
     advancement_mode = forms.ChoiceField(
-        choices=[("top_n", "Top N (Fixed Count)"), ("top_percent", "Top Percent (Percentage)")],
+        choices=[
+            ("top_n", "Top N (Fixed Count)"),
+            ("top_percent", "Top Percent (Percentage)"),
+        ],
         required=False,
-        help_text="Select how candidates advance to the next stage."
+        help_text="Select how candidates advance to the next stage.",
     )
     advancement_value = forms.FloatField(
         required=False,
-        help_text="The value for the advancement mode (Integer for Top N, Decimal 0-1 for Top Percent)."
+        help_text="The value for the advancement mode (Integer for Top N, Decimal 0-1 for Top Percent).",
     )
 
     class Meta:
@@ -109,14 +120,11 @@ class StageAdminForm(forms.ModelForm):
             instance.config = {}
 
         if mode and value is not None:
-            instance.config["advancement_policy"] = {
-                "mode": mode,
-                "value": value
-            }
+            instance.config["advancement_policy"] = {"mode": mode, "value": value}
             # Remove old promotion_cutoff if it exists to maintain consistency
             if "promotion_cutoff" in instance.config:
                 del instance.config["promotion_cutoff"]
-        
+
         if commit:
             instance.save()
         return instance
@@ -125,7 +133,13 @@ class StageAdminForm(forms.ModelForm):
 @admin.register(Stage)
 class StageAdmin(admin.ModelAdmin):
     form = StageAdminForm
-    list_display = ("competition", "type", "order", "get_advancement_policy", "created_at")
+    list_display = (
+        "competition",
+        "type",
+        "order",
+        "get_advancement_policy",
+        "created_at",
+    )
     list_filter = ("competition", "type")
     ordering = ("competition", "order")
     inlines = [StageExamInline]
@@ -161,7 +175,11 @@ class StageAdmin(admin.ModelAdmin):
 class StageExamAdmin(admin.ModelAdmin):
     list_display = ("competition_stage", "round", "get_exam", "is_active")
     list_filter = ("competition_stage__competition", "is_active")
-    list_select_related = ("competition_stage", "competition_stage__competition", "exam")
+    list_select_related = (
+        "competition_stage",
+        "competition_stage__competition",
+        "exam",
+    )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -185,11 +203,26 @@ class StageExamAdmin(admin.ModelAdmin):
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
-    list_display = ("candidate", "competition", "status_display", "current_stage", "joined_at")
+    list_display = (
+        "candidate",
+        "competition",
+        "status_display",
+        "current_stage",
+        "joined_at",
+    )
     list_filter = ("competition", "status", "current_stage")
-    search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
+    search_fields = (
+        "candidate__user__email",
+        "candidate__user__first_name",
+        "candidate__user__last_name",
+    )
     raw_id_fields = ("candidate", "competition", "current_stage")
-    list_select_related = ("candidate", "candidate__user", "competition", "current_stage")
+    list_select_related = (
+        "candidate",
+        "candidate__user",
+        "competition",
+        "current_stage",
+    )
     date_hierarchy = "joined_at"
 
     def save_model(self, request, obj, form, change):
@@ -206,7 +239,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
@@ -228,7 +261,12 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
     list_display = ("enrollment", "stage", "status_display", "updated_at")
     list_filter = ("stage__competition", "stage", "status")
     raw_id_fields = ("enrollment", "stage")
-    list_select_related = ("enrollment", "enrollment__candidate", "enrollment__candidate__user", "stage")
+    list_select_related = (
+        "enrollment",
+        "enrollment__candidate",
+        "enrollment__candidate__user",
+        "stage",
+    )
     date_hierarchy = "updated_at"
 
     def save_model(self, request, obj, form, change):
@@ -245,7 +283,7 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
     @admin.display(description="Status", ordering="status")
     def status_display(self, obj):
@@ -264,7 +302,15 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
 
 @admin.register(RankingSnapshot)
 class RankingSnapshotAdmin(admin.ModelAdmin):
-    list_display = ("competition", "stage", "round", "exam", "facilitator_system", "is_published", "published_at")
+    list_display = (
+        "competition",
+        "stage",
+        "round",
+        "exam",
+        "facilitator_system",
+        "is_published",
+        "published_at",
+    )
     list_filter = ("competition", "stage", "facilitator_system", "is_published")
     raw_id_fields = ("competition", "exam")
     inlines = [RankingSnapshotEntryInline]
@@ -285,7 +331,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
             invalidate_exam_cache(exam_id)
 
     def delete_queryset(self, request, queryset):
-        exam_ids = list(queryset.values_list('exam_id', flat=True))
+        exam_ids = list(queryset.values_list("exam_id", flat=True))
         super().delete_queryset(request, queryset)
         invalidate_all_dashboard_caches()
         for e_id in exam_ids:
@@ -297,9 +343,18 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
 class RankingSnapshotEntryAdmin(admin.ModelAdmin):
     list_display = ("ranking_snapshot", "candidate", "exam_score", "rank", "percentile")
     list_filter = ("ranking_snapshot__competition", "ranking_snapshot__stage")
-    search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
+    search_fields = (
+        "candidate__user__email",
+        "candidate__user__first_name",
+        "candidate__user__last_name",
+    )
     raw_id_fields = ("ranking_snapshot", "candidate", "enrollment")
-    list_select_related = ("ranking_snapshot", "candidate", "candidate__user", "enrollment")
+    list_select_related = (
+        "ranking_snapshot",
+        "candidate",
+        "candidate__user",
+        "enrollment",
+    )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -315,7 +370,7 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
 
 
 @admin.register(LeagueLeaderboard)
@@ -343,7 +398,11 @@ class LeagueLeaderboardAdmin(admin.ModelAdmin):
 class LeagueLeaderboardEntryAdmin(admin.ModelAdmin):
     list_display = ("leaderboard", "candidate", "total_score", "overall_rank")
     list_filter = ("leaderboard__competition", "leaderboard__stage")
-    search_fields = ("candidate__user__email", "candidate__user__first_name", "candidate__user__last_name")
+    search_fields = (
+        "candidate__user__email",
+        "candidate__user__first_name",
+        "candidate__user__last_name",
+    )
     raw_id_fields = ("leaderboard", "candidate", "enrollment")
     list_select_related = ("leaderboard", "candidate", "candidate__user", "enrollment")
 
@@ -361,5 +420,4 @@ class LeagueLeaderboardEntryAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.id, candidate.user.id)
-
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)

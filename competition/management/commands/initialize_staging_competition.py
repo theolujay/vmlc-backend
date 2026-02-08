@@ -113,7 +113,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS("Staging competition setup complete.")
                 )
-        
+
     def _clear_data(self):
         self.stdout.write("Clearing existing data...")
         RankingSnapshot.objects.all().delete()
@@ -152,8 +152,12 @@ class Command(BaseCommand):
             {"is_pending": False, "is_approved": False, "is_rejected": True},
         ]
         status_data = random.choice(statuses)
-        verification, _ = UserVerification.objects.get_or_create(user=user, defaults=status_data)
-        verification.verification_document_type = random.choice(["NIN", "Passport", "School ID"])
+        verification, _ = UserVerification.objects.get_or_create(
+            user=user, defaults=status_data
+        )
+        verification.verification_document_type = random.choice(
+            ["NIN", "Passport", "School ID"]
+        )
         if staff_pool and (verification.is_approved or verification.is_rejected):
             verification.action_by = random.choice(staff_pool)
         if verification.is_rejected:
@@ -164,7 +168,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            email = f"staff{i+1}@staging.mail.com" # Use staging-specific email
+            email = f"staff{i+1}@staging.mail.com"  # Use staging-specific email
             if User.objects.filter(email=email).exists():
                 staff = Staff.objects.filter(user__email=email).first()
                 if staff:
@@ -201,9 +205,7 @@ class Command(BaseCommand):
             },
         )
         if created:
-            self.stdout.write(
-                self.style.SUCCESS(f"Created Competition: {competition}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
         else:
             self.stdout.write(f"Competition already exists: {competition}")
 
@@ -259,7 +261,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} candidate users...")
         candidates = []
         for i in range(count):
-            email = f"candidate{i+1}@staging.mail.com" # Use staging-specific email
+            email = f"candidate{i+1}@staging.mail.com"  # Use staging-specific email
             if User.objects.filter(email=email).exists():
                 candidate = Candidate.objects.filter(user__email=email).first()
                 if candidate:

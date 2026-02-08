@@ -8,6 +8,7 @@ from identity.models import User, Candidate, Staff
 from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import Exam
 
+
 class CandidateDashboardViewTest(APITestCase):
     def setUp(self):
         # Create API Key
@@ -16,79 +17,74 @@ class CandidateDashboardViewTest(APITestCase):
 
         # Create user and candidate
         self.user = User.objects.create_user(
-            email="candidate@example.com", 
+            email="candidate@example.com",
             password="SecurePass123!",
             first_name="John",
             last_name="Doe",
             phone="+2348012345678",
-            state="Lagos"
+            state="Lagos",
         )
         self.candidate = Candidate.objects.create(
             user=self.user,
             school_name="Test School",
             school_type="public",
-            role=Candidate.Roles.SCREENING
+            role=Candidate.Roles.SCREENING,
         )
-        
+
         # Authenticate
         self.client.force_authenticate(user=self.user)
-        
+
         # Create active competition
         self.competition = Competition.objects.create(
-            name="Test Comp",
-            edition=1,
-            status=Competition.Status.ACTIVE
+            name="Test Comp", edition=1, status=Competition.Status.ACTIVE
         )
-        
+
         # Create Screening Stage
         self.stage = Stage.objects.create(
-            competition=self.competition,
-            type=Stage.Type.SCREENING,
-            order=1
+            competition=self.competition, type=Stage.Type.SCREENING, order=1
         )
-        
+
         # Enroll candidate
         self.enrollment = Enrollment.objects.create(
             candidate=self.candidate,
             competition=self.competition,
             current_stage=self.stage,
-            status=Enrollment.Status.ACTIVE
+            status=Enrollment.Status.ACTIVE,
         )
-        
+
         # Create competition_slot
         self.stage_exam = StageExam.objects.create(
-            competition_stage=self.stage,
-            round=1,
-            is_active=True
+            competition_stage=self.stage, round=1, is_active=True
         )
         # Create Exam
         self.exam = Exam.objects.create(
             scheduled_date=timezone.now() + timezone.timedelta(days=1),
             open_duration_hours=12,
             competition_slot=self.stage_exam,
-            is_active=True
+            is_active=True,
         )
-        
 
     def test_dashboard_flow(self):
         # 1. First call - should calculate data, return 200, and cache it
         url = reverse("competition:candidate-dashboard")
-        
+
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         data = response.data
-        
+
         # Verify structure
         self.assertIn("candidate_context", data)
         self.assertIn("enrollment_stage_progress", data)
         self.assertIn("active_exam", data)
-        self.assertIn("performance_snapshot", data)
+        self.assertIn("performance", data)
         self.assertIn("exam_history", data)
-        
+
         # Verify Content
         self.assertEqual(data["candidate_context"]["full_name"], "John Doe")
-        self.assertEqual(data["enrollment_stage_progress"]["current_stage"], "screening")
+        self.assertEqual(
+            data["enrollment_stage_progress"]["current_stage"], "screening"
+        )
         self.assertEqual(data["active_exam"]["title"], "Screening")
 
         # 2. Second call - should return 200 from cache
@@ -109,82 +105,70 @@ class StaffCompetitionDashboardViewTest(APITestCase):
             first_name="Staff",
             last_name="User",
             phone="+2348011111111",
-            state="Lagos"
+            state="Lagos",
         )
         self.staff_profile = Staff.objects.create(
-            user=self.staff_user,
-            occupation="Admin",
-            role=Staff.Roles.ADMIN
+            user=self.staff_user, occupation="Admin", role=Staff.Roles.ADMIN
         )
-        
+
         # Authenticate as staff
         self.client.force_authenticate(user=self.staff_user)
-        
+
         # Create active competition
         self.competition = Competition.objects.create(
-            name="Test Staff Comp",
-            edition=2,
-            status=Competition.Status.ACTIVE
+            name="Test Staff Comp", edition=2, status=Competition.Status.ACTIVE
         )
-        
+
         # Create Screening Stage
         self.screening_stage = Stage.objects.create(
-            competition=self.competition,
-            type=Stage.Type.SCREENING,
-            order=1
+            competition=self.competition, type=Stage.Type.SCREENING, order=1
         )
-        
+
         # Create League Stage
         self.league_stage = Stage.objects.create(
-            competition=self.competition,
-            type=Stage.Type.LEAGUE,
-            order=2
+            competition=self.competition, type=Stage.Type.LEAGUE, order=2
         )
-        
+
         # Create a StageExam slot
         self.stage_exam_screening = StageExam.objects.create(
-            competition_stage=self.screening_stage,
-            round=1,
-            is_active=True
+            competition_stage=self.screening_stage, round=1, is_active=True
         )
-        
+
         # Create an Exam
         self.exam_screening = Exam.objects.create(
             scheduled_date=timezone.now() + timezone.timedelta(days=1),
             open_duration_hours=12,
             competition_slot=self.stage_exam_screening,
-            is_active=True
+            is_active=True,
         )
 
         # Create another StageExam slot for League
         self.stage_exam_league = StageExam.objects.create(
-            competition_stage=self.league_stage,
-            round=1,
-            is_active=True
+            competition_stage=self.league_stage, round=1, is_active=True
         )
 
         # Create another Exam for League
         self.exam_league = Exam.objects.create(
-            scheduled_date=timezone.now() + timezone.timedelta(days=7), # Future date
+            scheduled_date=timezone.now() + timezone.timedelta(days=7),  # Future date
             open_duration_hours=12,
             competition_slot=self.stage_exam_league,
-            is_active=True
+            is_active=True,
         )
 
     def test_staff_dashboard_retrieval(self):
         url = reverse("competition:staff-competition-dashboard")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         data = response.data
-        
+
         # Verify top-level structure
         self.assertIn("stats", data)
         self.assertIn("progress", data)
         self.assertIn("exams", data)
         self.assertIn("leaderboard_summary", data)
         self.assertIn("latest_ranking_summary", data)
-        
+
         # Verify content of 'exams' list
         self.assertTrue(len(data["exams"]) > 0)
         first_exam = data["exams"][0]
@@ -192,8 +176,10 @@ class StaffCompetitionDashboardViewTest(APITestCase):
         self.assertIn("title", first_exam)
         self.assertIn("stage", first_exam)
         self.assertIn("status", first_exam)
-        self.assertIn("ranking_status", first_exam) # Key that caused KeyError
+        self.assertIn("ranking_status", first_exam)  # Key that caused KeyError
         self.assertIn("stats", first_exam)
-        
+
         self.assertEqual(first_exam["id"], str(self.exam_screening.id))
-        self.assertEqual(first_exam["ranking_status"], "pending") # No snapshot created yet
+        self.assertEqual(
+            first_exam["ranking_status"], "pending"
+        )  # No snapshot created yet

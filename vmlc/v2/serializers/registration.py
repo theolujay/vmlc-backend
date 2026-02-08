@@ -20,6 +20,8 @@ from vmlc.models import (
 )
 from vmlc.utils.auth import generate_password
 from vmlc.utils.user import normalize_title
+
+
 class RegistrationV2Serializer(serializers.Serializer):
     """
     Unified serializer for v2 registration (Candidate and Volunteer).
@@ -74,11 +76,11 @@ class RegistrationV2Serializer(serializers.Serializer):
     def validate_last_name(self, value):
         """Normalize last name to title case."""
         return normalize_title(value)
-    
+
     def validate_school_name(self, value):
         """Normalize school name to title case."""
         return normalize_title(value)
-    
+
     def validate_occupation(self, value):
         """Normalize occupation to title case"""
         return normalize_title(value)
@@ -134,7 +136,9 @@ class RegistrationV2Serializer(serializers.Serializer):
                 validate_document_file(document)
             except (serializers.ValidationError, DjangoValidationError) as e:
                 # Re-raise as field error
-                detail = e.messages if isinstance(e, DjangoValidationError) else e.detail
+                detail = (
+                    e.messages if isinstance(e, DjangoValidationError) else e.detail
+                )
                 raise serializers.ValidationError({"document": detail})
 
         # Validate face capture
@@ -143,7 +147,9 @@ class RegistrationV2Serializer(serializers.Serializer):
             try:
                 validate_face_id(face_capture)
             except (serializers.ValidationError, DjangoValidationError) as e:
-                detail = e.messages if isinstance(e, DjangoValidationError) else e.detail
+                detail = (
+                    e.messages if isinstance(e, DjangoValidationError) else e.detail
+                )
                 raise serializers.ValidationError({"face_capture": detail})
 
         return data
@@ -161,7 +167,7 @@ class RegistrationV2Serializer(serializers.Serializer):
         Create user and related objects with async file upload.
         """
         from vmlc.tasks import upload_user_documents_task
-        
+
         user_type = validated_data.get("user_type")
         email = validated_data.get("email")
         document = validated_data.get("document")
@@ -198,21 +204,29 @@ class RegistrationV2Serializer(serializers.Serializer):
                 role=Candidate.Roles.SCREENING,
             )
             # Auto-enroll in active competition if one exists
-            from competition.models import Competition, Enrollment, Stage, EnrollmentStageProgress
-            active_comp = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            from competition.models import (
+                Competition,
+                Enrollment,
+                Stage,
+                EnrollmentStageProgress,
+            )
+
+            active_comp = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
             if active_comp:
-                first_stage = active_comp.stages.order_by('order').first()
+                first_stage = active_comp.stages.order_by("order").first()
                 if first_stage:
                     enrollment = Enrollment.objects.create(
                         candidate=profile,
                         competition=active_comp,
                         current_stage=first_stage,
-                        status=Enrollment.Status.ACTIVE
+                        status=Enrollment.Status.ACTIVE,
                     )
                     EnrollmentStageProgress.objects.create(
                         enrollment=enrollment,
                         stage=first_stage,
-                        status=EnrollmentStageProgress.Status.IN_PROGRESS
+                        status=EnrollmentStageProgress.Status.IN_PROGRESS,
                     )
         else:
             profile = Staff.objects.create(
@@ -225,55 +239,60 @@ class RegistrationV2Serializer(serializers.Serializer):
         # Prepare files for async upload - save to temp location
         temp_dir = os.path.join(settings.BASE_DIR, "media", "temp_uploads")
         os.makedirs(temp_dir, exist_ok=True)
-        
+
         file_mappings = []
-        
+
         # Process document file
         if document:
             doc_ext = os.path.splitext(document.name)[1]
             doc_temp_name = f"{uuid.uuid4()}_verification_document{doc_ext}"
             doc_temp_path = os.path.join(temp_dir, doc_temp_name)
-            
+
             with open(doc_temp_path, "wb") as dest:
                 for chunk in document.chunks():
                     dest.write(chunk)
-            
-            file_mappings.append({
-                "temp_path": doc_temp_path,
-                "field_name": "verification_document",
-                "original_name": document.name
-            })
-        
+
+            file_mappings.append(
+                {
+                    "temp_path": doc_temp_path,
+                    "field_name": "verification_document",
+                    "original_name": document.name,
+                }
+            )
+
         # Process face capture file
         if face_capture:
             face_ext = os.path.splitext(face_capture.name)[1]
             face_temp_name = f"{uuid.uuid4()}_face_id{face_ext}"
             face_temp_path = os.path.join(temp_dir, face_temp_name)
-            
+
             with open(face_temp_path, "wb") as dest:
                 for chunk in face_capture.chunks():
                     dest.write(chunk)
-            
-            file_mappings.append({
-                "temp_path": face_temp_path,
-                "field_name": "face_id",
-                "original_name": face_capture.name
-            })
-        
+
+            file_mappings.append(
+                {
+                    "temp_path": face_temp_path,
+                    "field_name": "face_id",
+                    "original_name": face_capture.name,
+                }
+            )
+
         # Schedule async upload after transaction commits
         # Use a proper closure to avoid variable capture issues
         def schedule_upload():
             upload_user_documents_task.delay(user.pk, file_mappings)
-        
+
         transaction.on_commit(schedule_upload)
         return profile
+
 
 class PreRegUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = PreRegUser
-        fields = ['full_name', 'email', 'phone', 'interest_type', 'created_at']
-        read_only_fields = ['created_at']
-    
+        fields = ["full_name", "email", "phone", "interest_type", "created_at"]
+        read_only_fields = ["created_at"]
+
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
@@ -284,10 +303,11 @@ class PreRegUserSerializer(serializers.ModelSerializer):
                 _("This email has already been pre-registered.")
             )
         return value
-    
+
     def validate_phone(self, value):
         """Validate phone number format."""
         import re
+
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
             raise serializers.ValidationError(_("Enter a valid Nigerian phone number."))
         return value
@@ -295,6 +315,7 @@ class PreRegUserSerializer(serializers.ModelSerializer):
     def validate_full_name(self, value):
         """Normalize full name to title case."""
         return normalize_title(value)
+
 
 class SupportInquirySerializer(serializers.ModelSerializer):
 

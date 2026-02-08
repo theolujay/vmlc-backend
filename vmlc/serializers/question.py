@@ -104,6 +104,7 @@ class CandidateQuestionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "text",
+            "image",
             "option_a",
             "option_b",
             "option_c",

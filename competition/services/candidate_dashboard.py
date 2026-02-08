@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 class CandidateDashboardService:
     @staticmethod
-    def get_dashboard_data(candidate: Candidate, enrollment: Optional[Enrollment] = None) -> Dict[str, Any]:
+    def get_dashboard_data(
+        candidate: Candidate, enrollment: Optional[Enrollment] = None
+    ) -> Dict[str, Any]:
         """
         Main entry point to get all candidate dashboard data.
         """
@@ -37,9 +39,7 @@ class CandidateDashboardService:
 
         if active_comp and not enrollment:
             enrollment = (
-                Enrollment.objects.filter(
-                    candidate=candidate, competition=active_comp
-                )
+                Enrollment.objects.filter(candidate=candidate, competition=active_comp)
                 .select_related("current_stage")
                 .first()
             )
@@ -54,9 +54,7 @@ class CandidateDashboardService:
         )
 
         # 4. Performance Snapshot
-        performance = CandidateDashboardService._get_performance_snapshot(
-            candidate, active_comp
-        )
+        performance = CandidateDashboardService._get_performance(candidate, active_comp)
 
         # 5. Exam History
         history = CandidateDashboardService._get_exam_history(candidate)
@@ -65,7 +63,7 @@ class CandidateDashboardService:
             "candidate_context": context,
             "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
-            "performance_snapshot": performance,
+            "performance": performance,
             "exam_history": history,
         }
 
@@ -77,25 +75,22 @@ class CandidateDashboardService:
             is_read_by_recipient=False,
         ).order_by("-created_at")[:5]
 
-        notification_map = {
-            "info": [],
-            "success": [],
-            "error": []
-        }
+        notification_map = {"info": [], "success": [], "error": []}
         n_type_key_map = {
             Notification.Type.INFO: "info",
             Notification.Type.SUCCESS: "success",
             Notification.Type.ERROR: "error",
-
         }
-        
+
         for n in notifications:
             key = n_type_key_map.get(n.type)
             if key:
-                notification_map[key].append({
-                    "id": n.id,
-                    "message": n.message,
-                })
+                notification_map[key].append(
+                    {
+                        "id": n.id,
+                        "message": n.message,
+                    }
+                )
 
         return {
             "full_name": candidate.user.get_full_name(),
@@ -145,6 +140,7 @@ class CandidateDashboardService:
 
         # Rounds in current stage
         from django.db.models import Q
+
         now = timezone.now()
 
         slots = (
@@ -185,9 +181,7 @@ class CandidateDashboardService:
             if enrollment
             else True  # Assume active if just discovered by role
         )
-        status_display = (
-            enrollment.get_status_display() if enrollment else "Active"
-        )
+        status_display = enrollment.get_status_display() if enrollment else "Active"
 
         qualification_status = {
             "is_qualified": is_qualified,
@@ -199,7 +193,7 @@ class CandidateDashboardService:
         }
 
         return {
-            "current_stage": current_stage.type,
+            "current_stage": current_stage.type,  # TODO: compare with staff's competition dashboard to handle when exam's not started yet
             "current_round": current_round,
             "total_rounds": total_rounds,
             "published_rounds": published_rounds,
@@ -229,6 +223,7 @@ class CandidateDashboardService:
         # Get all active slots for current stage
         from django.db.models import Q
         from competition.services.eligibility import EligibilityService
+
         now = timezone.now()
 
         slots = (
@@ -251,16 +246,26 @@ class CandidateDashboardService:
 
                 # Check access status
                 access = ExamAccess.objects.filter(
-                    candidate=candidate,
-                    exam=exam
+                    candidate=candidate, exam=exam
                 ).first()
-                
-                has_participated = access.status == ExamAccess.Status.SUBMITTED if access else False
+
+                has_participated = (
+                    access.status == ExamAccess.Status.SUBMITTED if access else False
+                )
+
+                attempt_data = None
+                if access:
+                    attempt_data = {
+                        "started_at": access.started_at,
+                        "deadline": access.deadline,
+                        "submitted_at": access.submitted_at,
+                    }
 
                 if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]:
                     exam_data = {
                         "id": str(exam.id),
                         "title": exam.get_title(),
+                        "description": exam.description,
                         "stage": current_stage.type,
                         "round": slot.round,
                         "question_count": exam.get_question_count(),
@@ -271,45 +276,54 @@ class CandidateDashboardService:
                             if exam.scheduled_date
                             else None
                         ),
-                        "duration_minutes": exam.countdown_minutes,
+                        "duration_minutes": exam.countdown_minutes,  # TODO: rename tis to exam.duration_minutes
                         "status": status,
-                        "has_participated": has_participated,
-                        "is_eligible": is_eligible,
-                        "access_status": access.status if access else None,
+                        "attempt": attempt_data,
+                        "access_status": (
+                            access.status if access else None
+                        ),  # TODO: reconsider if this is necessary
                     }
-                    if status == Exam.Status.ONGOING and is_eligible and not has_participated:
+                    if (
+                        status == Exam.Status.ONGOING
+                        and is_eligible
+                        and not has_participated
+                    ):
                         # Found our primary target, an ongoing exam
                         # that the candidate hasn't yet participated in
                         active_exam_data = exam_data
                         break
-                    
+
                     if not active_exam_data:
                         active_exam_data = exam_data
 
-                elif status == Exam.Status.CONCLUDED and has_participated:
-                    # Check if ranking are published
-                    ranking = RankingSnapshot.objects.filter(
-                        exam=exam, is_published=True
-                    ).first()
+                    if status == Exam.Status.CONCLUDED and has_participated:
+                        # Check if ranking are published
+                        ranking = RankingSnapshot.objects.filter(
+                            exam=exam, is_published=True
+                        ).first()
 
-                    is_published = ranking is not None
+                        is_published = ranking is not None
 
-                    if not active_exam_data:
-                        active_exam_data = {
-                            "id": str(exam.id),
-                            "title": exam.get_title(),
-                            "stage": current_stage.type,
-                            "round": slot.round,
-                            "status": "results_published" if is_published else "awaiting_results",
-                            "has_participated": True,
-                        }
+                        if not active_exam_data:
+                            active_exam_data = {
+                                "id": str(exam.id),
+                                "title": exam.get_title(),
+                                "stage": current_stage.type,
+                                "round": slot.round,
+                                "status": (
+                                    "results_published"
+                                    if is_published
+                                    else "awaiting_results"
+                                ),
+                                "attempt": attempt_data,
+                            }
             except Exam.DoesNotExist:
                 continue
 
         return active_exam_data
 
     @staticmethod
-    def _get_performance_snapshot(
+    def _get_performance(
         candidate: Candidate, active_comp: Optional[Competition]
     ) -> Dict[str, Any]:
         snapshot = {
@@ -386,18 +400,18 @@ class CandidateDashboardService:
         # Prefetch published ranking to avoid N+1
         published_exam_ids = set(
             RankingSnapshot.objects.filter(
-                exam_id__in=[res.exam_id for res in results],
-                is_published=True
+                exam_id__in=[res.exam_id for res in results], is_published=True
             ).values_list("exam_id", flat=True)
         )
 
         from vmlc.v2.utils import truncate_float
+
         history = []
         for res in results:
             exam = res.exam
             slot = exam.competition_slot
             is_published = exam.id in published_exam_ids
-            
+
             history.append(
                 {
                     "exam_id": str(exam.id),
@@ -405,7 +419,9 @@ class CandidateDashboardService:
                     "stage": slot.competition_stage.type if slot else "N/A",
                     "round": slot.round if slot else None,
                     "score": truncate_float(float(res.score)) if is_published else None,
-                    "percentage": truncate_float(float(res.score)) if is_published else None,
+                    "percentage": (
+                        truncate_float(float(res.score)) if is_published else None
+                    ),
                     "date": res.recorded_at,
                     "status": exam.status,
                     "is_published": is_published,

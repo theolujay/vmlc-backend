@@ -175,7 +175,9 @@ def compute_candidate_result(candidate_result_id):
             f"Successfully computed result for CandidateExamResult {candidate_result_id}"
         )
     except CandidateExamResult.DoesNotExist:
-        logger.error(f"CandidateExamResult with id {candidate_result_id} does not exist.")
+        logger.error(
+            f"CandidateExamResult with id {candidate_result_id} does not exist."
+        )
     except Exception as e:
         logger.error(
             f"Failed to compute result for CandidateExamResult {candidate_result_id}: {e}"
@@ -189,29 +191,30 @@ def compute_exam_results(exam_id):
     """
     try:
         exam = Exam.objects.get(pk=exam_id)
-        
+
         # Find all submitted exam accesses for this exam
         submitted_accesses = ExamAccess.objects.filter(
             exam=exam, status=ExamAccess.Status.SUBMITTED
-        ).select_related('candidate') # Prefetch candidate to avoid N+1 queries
-        
+        ).select_related(
+            "candidate"
+        )  # Prefetch candidate to avoid N+1 queries
+
         created_count = 0
         scored_count = 0
 
         for access in submitted_accesses:
             # Get or create CandidateExamResult for each submitted access
             candidate_exam_result, created = CandidateExamResult.objects.get_or_create(
-                candidate=access.candidate,
-                exam=exam
+                candidate=access.candidate, exam=exam
             )
-            
+
             if created:
                 created_count += 1
-            
+
             # Now compute and save the score for this result
             _compute_and_save_candidate_exam_result(candidate_exam_result)
             scored_count += 1
-            
+
         logger.info(
             f"Exam {exam_id}: Created {created_count} new CandidateExamResult records, "
             f"scored {scored_count} total submissions."
@@ -221,7 +224,9 @@ def compute_exam_results(exam_id):
         logger.error(f"Exam with id {exam_id} does not exist.")
         return 0
     except Exception as e:
-        logger.error(f"Failed to score submissions for exam {exam_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to score submissions for exam {exam_id}: {e}", exc_info=True
+        )
         raise
 
 
@@ -234,25 +239,29 @@ def _compute_and_save_candidate_exam_result(candidate_exam_result):
     total_questions = candidate_exam_result.exam.questions.filter(
         is_archived=False
     ).count()
-    
+
     if not total_questions:
-        logger.warning(f"Exam {candidate_exam_result.exam.id} has no active questions. Scoring 0.")
+        logger.warning(
+            f"Exam {candidate_exam_result.exam.id} has no active questions. Scoring 0."
+        )
         candidate_exam_result.score = 0
     else:
         answer_count = submitted_answers.count()
         if answer_count == 0:
-             logger.warning(f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.id})")
-        
+            logger.warning(
+                f"No answers found for CandidateExamResult {candidate_exam_result.id} (Candidate: {candidate_exam_result.candidate.pk})"
+            )
+
         correct_count = 0
         for answer in submitted_answers:
             selected = (answer.selected_option or "").strip().upper()
             correct = (answer.question.correct_answer or "").strip().upper()
             if selected == correct:
                 correct_count += 1
-        
+
         score = (correct_count / total_questions) * 100
         candidate_exam_result.score = round(score, 2)
-        
+
         logger.debug(
             f"Scored CandidateExamResult {candidate_exam_result.id}: "
             f"{correct_count}/{total_questions} correct. Score: {candidate_exam_result.score}"
@@ -264,8 +273,10 @@ def _compute_and_save_candidate_exam_result(candidate_exam_result):
     candidate_exam_result.save()
 
     from vmlc.v2.utils import invalidate_candidate_cache
-    invalidate_candidate_cache(candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id)
 
+    invalidate_candidate_cache(
+        candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id
+    )
 
 
 def generate_results_snapshot(staff_id=None):
@@ -280,7 +291,9 @@ def generate_results_snapshot(staff_id=None):
             # If no staff_id is provided, use the first superadmin
             superadmin_user = User.objects.filter(is_superuser=True).first()
             if not superadmin_user:
-                logger.error("No superadmin user found to publish the results snapshot.")
+                logger.error(
+                    "No superadmin user found to publish the results snapshot."
+                )
                 return
             staff = superadmin_user.staff_profile
         candidates = Candidate.objects.with_results().filter(user__is_active=True)

@@ -210,6 +210,11 @@ Fields same as **Create Exam** (all optional for PATCH).
   "id": "uuid",
   "title": "League Round 1",
   "description": "...",
+  "attempt": {
+    "started_at": "2024-05-01T10:05:00Z",
+    "deadline": "2024-05-01T11:05:00Z",
+    "submitted_at": null
+  },
   "open_duration_hours": 12,
   "scheduled_date": "...",
   "countdown_minutes": 60,
@@ -217,6 +222,7 @@ Fields same as **Create Exam** (all optional for PATCH).
     {
       "id": 1,
       "text": "...",
+      "image": "http://example.com/media/question_images/img.png",
       "option_a": "...",
       "option_b": "...",
       "option_c": "...",
@@ -229,7 +235,7 @@ Fields same as **Create Exam** (all optional for PATCH).
 ---
 
 ## 9. Submit Exam Answers
-**Endpoint:** `POST /v1/exams/{exam_id}/submit-exam-answers/`  
+**Endpoint:** `POST /v2/exams/{exam_id}/submit/`  
 **Description:** Submits a candidate's answers for an exam. Prevents re-submission and validates exam window.  
 **Permissions:** `CandidatePermissions`
 
@@ -266,7 +272,7 @@ Fields same as **Create Exam** (all optional for PATCH).
 
 ## 10. Candidate Exam History
 **Endpoint:** `GET /v2/candidates/{candidate_id}/exam-history/`  
-**Description:** Retrieves the list of exams taken by a specific candidate and their outcomes.  
+**Description:** Retrieves the list of exams taken by a specific candidate and their outcomes, including a breakdown of their answers.  
 **Permissions:** `ActiveAdminPermissions` OR the candidate themselves.
 
 ### Response Body
@@ -275,9 +281,23 @@ Fields same as **Create Exam** (all optional for PATCH).
   {
     "exam_id": "uuid",
     "exam_title": "Screening 2024",
+    "exam_stage": "screening",
+    "round": null,
+    "scheduled_date": "2024-05-01T10:00:00Z",
     "score": 70.00,
-    "status": "completed",
-    "recorded_at": "..."
+    "recorded_at": "2024-05-01T11:30:00Z",
+    "submission": [
+      {
+        "question_id": 1,
+        "question_text": "...",
+        "option_a": "...",
+        "option_b": "...",
+        "option_c": "...",
+        "option_d": "...",
+        "selected_option": "A",
+        "answered_at": "2024-05-01T11:05:00Z"
+      }
+    ]
   }
 ]
 ```

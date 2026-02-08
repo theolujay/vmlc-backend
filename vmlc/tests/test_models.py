@@ -1,6 +1,7 @@
 from django.test import TestCase
 from vmlc.models import Question, Exam
 
+
 class QuestionModelTest(TestCase):
 
     def test_create_question(self):
@@ -18,15 +19,8 @@ class QuestionModelTest(TestCase):
 
 class ExamModelTest(TestCase):
 
-
-
-
-
     def test_create_exam(self):
-
 
         exam = Exam.objects.create()
 
-
         self.assertIsNotNone(exam.id)
-

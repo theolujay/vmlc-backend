@@ -8,6 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 from ._utils import read_secret
 
 from .base import *
+
 # Ensure SECRET_KEY is set for production
 # if not SECRET_KEY:
 #     raise ValueError("The SECRET_KEY environment variable must be set in production.")

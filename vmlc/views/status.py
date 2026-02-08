@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 class RegistrationStatusThrottle(AnonRateThrottle):
     rate = "5000/hour"
 
+
 @swagger_auto_schema(
     method="get",
     operation_summary="Health Check",
@@ -66,16 +67,10 @@ def registration_status(request):
         def _get_detailed_status(feature_flag_key):
             try:
                 flag, _ = FeatureFlag.objects.get_or_create(key=feature_flag_key)
-                return {
-                    "is_open": flag.value,
-                    "closing_date": flag.auto_off_date
-                }
+                return {"is_open": flag.value, "closing_date": flag.auto_off_date}
             except Exception as e:
                 logger.error(f"Error getting feature flag {feature_flag_key}: {e}")
-                return {
-                    "is_open": False,
-                    "closing_date": None
-                }
+                return {"is_open": False, "closing_date": None}
 
         return {
             "candidate_registration": _get_detailed_status("candidate_registration"),
@@ -84,9 +79,7 @@ def registration_status(request):
         }
 
     reg_status_data = get_or_set_cache(
-        CacheKeys.REGISTRATION_STATUS,
-        fetch_reg_status,
-        ttl=604800 # 1 week
+        CacheKeys.REGISTRATION_STATUS, fetch_reg_status, ttl=604800  # 1 week
     )
 
     return Response(reg_status_data, status=status.HTTP_200_OK)
@@ -109,8 +102,6 @@ def stats_overview(request):
     from vmlc.utils import generate_stats_overview_data
 
     data = get_or_set_cache(
-        CacheKeys.STATS_OVERVIEW,
-        generate_stats_overview_data,
-        ttl=3600
+        CacheKeys.STATS_OVERVIEW, generate_stats_overview_data, ttl=3600
     )
     return Response(data)

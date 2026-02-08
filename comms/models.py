@@ -95,9 +95,11 @@ class Broadcast(models.Model):
             invalid = set(self.target_roles["candidate"]) - set(valid_candidate_roles)
             if invalid:
                 raise ValidationError(f"Invalid candidate roles: {invalid}")
+
     class Meta:
         verbose_name = "Broadcast"
         verbose_name_plural = "Broadcasts"
+
 
 class BroadcastLog(models.Model):
     class MediumStatus(models.TextChoices):
@@ -133,6 +135,7 @@ class BroadcastLog(models.Model):
     class Meta:
         verbose_name = "Broadcast Log"
         verbose_name_plural = "Broadcast Logs"
+
 
 class Notification(models.Model):
     """

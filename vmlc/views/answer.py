@@ -93,7 +93,9 @@ class SubmitAnswersView(APIView):
 
         if (
             not created
-            and CandidateAnswer.objects.filter(candidate_exam_result=candidate_exam_result).exists()
+            and CandidateAnswer.objects.filter(
+                candidate_exam_result=candidate_exam_result
+            ).exists()
         ):
             logger.warning(
                 f"Candidate {candidate.pk} attempted to re-submit answers for exam {exam_id}"
@@ -114,7 +116,9 @@ class SubmitAnswersView(APIView):
                 CandidateAnswer(
                     candidate_exam_result=candidate_exam_result,
                     question=answer_data["question"],
-                    selected_option=answer_data.get("selected_option", "").strip().upper(),
+                    selected_option=answer_data.get("selected_option", "")
+                    .strip()
+                    .upper(),
                 )
                 for answer_data in answers_data
             ]

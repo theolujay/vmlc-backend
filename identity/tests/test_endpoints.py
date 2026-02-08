@@ -9,6 +9,7 @@ from identity.models import Staff, UserVerification
 
 User = get_user_model()
 
+
 class ListEndpointsTest(APITestCase):
 
     def setUp(self):
@@ -76,7 +77,9 @@ class InviteStaffTest(APITestCase):
         }
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["message"], "Staff profile created, invite sent.")
+        self.assertEqual(
+            response.data["message"], "Staff profile created, invite sent."
+        )
 
     def test_invite_staff_invalid_role(self):
         self.client.force_authenticate(user=self.staff_user)

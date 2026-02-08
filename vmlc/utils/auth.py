@@ -352,7 +352,9 @@ def send_welcome_email(user: User | PreRegUser, generated_password: str = None) 
             else:
                 feature_flag_key = "staff_registration"
 
-            if (feature_flag_key is not None and FeatureFlag.get_bool(feature_flag_key, default=False)):
+            if feature_flag_key is not None and FeatureFlag.get_bool(
+                feature_flag_key, default=False
+            ):
                 subject = "Thanks for Your Interest in Verboheit MLC!"
                 message = (
                     f"Hi {user.full_name},\n\n"
@@ -377,7 +379,7 @@ def send_welcome_email(user: User | PreRegUser, generated_password: str = None) 
                     "Best regards,\n"
                     "The VMLC Team."
                 )
-                
+
         send_mail_task.delay(
             subject=subject, message=message, recipient_list=[user.email]
         )

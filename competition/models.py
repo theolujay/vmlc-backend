@@ -35,11 +35,14 @@ class Competition(models.Model):
     def save(self, *args, **kwargs):
         if self.status == self.Status.ACTIVE:
             # If this competition is being set to active, deactivate all others
-            Competition.objects.filter(status=self.Status.ACTIVE).exclude(pk=self.pk).update(status=self.Status.CONCLUDED)
+            Competition.objects.filter(status=self.Status.ACTIVE).exclude(
+                pk=self.pk
+            ).update(status=self.Status.CONCLUDED)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} {self.edition}.0"
+
 
 class Stage(models.Model):
     """Phases inside a competition: Screening, League, Final"""
@@ -119,6 +122,7 @@ class StageExam(models.Model):
                 condition=models.Q(round__isnull=False),
             ),
         ]
+
 
 class Enrollment(models.Model):
     """
@@ -361,7 +365,8 @@ class RankingSnapshotEntry(models.Model):
         verbose_name_plural = "Ranking Snapshot Entries"
         constraints = [
             models.UniqueConstraint(
-                fields=["ranking_snapshot", "candidate"], name="unique_candidate_per_ranking"
+                fields=["ranking_snapshot", "candidate"],
+                name="unique_candidate_per_ranking",
             ),
         ]
         indexes = [

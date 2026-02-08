@@ -71,18 +71,20 @@ class CacheKeys:
             cls._LEGACY_CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
         ]
         if user_id:
-            keys.extend([
-                cls.ENROLLMENT.format(user_id=user_id),
-                cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
-                cls.USER_VERIFICATION.format(user_id=user_id),
-                cls.CANDIDATE_PROFILE.format(user_id=user_id),
-                cls.CANDIDATE_DETAIL.format(user_id=user_id),
-                cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
-                cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),
-                cls._LEGACY_CANDIDATE_PROFILE.format(user_id=user_id),
-                cls._LEGACY_CANDIDATE_DETAIL.format(user_id=user_id),
-                cls._LEGACY_EXAM_HISTORY.format(user_id=user_id),
-            ])
+            keys.extend(
+                [
+                    cls.ENROLLMENT.format(user_id=user_id),
+                    cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+                    cls.USER_VERIFICATION.format(user_id=user_id),
+                    cls.CANDIDATE_PROFILE.format(user_id=user_id),
+                    cls.CANDIDATE_DETAIL.format(user_id=user_id),
+                    cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+                    cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),
+                    cls._LEGACY_CANDIDATE_PROFILE.format(user_id=user_id),
+                    cls._LEGACY_CANDIDATE_DETAIL.format(user_id=user_id),
+                    cls._LEGACY_EXAM_HISTORY.format(user_id=user_id),
+                ]
+            )
         return keys
 
     @classmethod
@@ -144,10 +146,12 @@ def invalidate_candidate_cache(candidate_id, user_id=None):
     keys = CacheKeys.get_candidate_keys(candidate_id, user_id)
     # Also clear dashboard-specific keys if we have candidate_id
     if candidate_id:
-        keys.extend([
-            CacheKeys.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
-            CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
-        ])
+        keys.extend(
+            [
+                CacheKeys.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
+                CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
+            ]
+        )
     delete_many_cache(keys)
 
 
@@ -207,9 +211,10 @@ def question_pool_aggregate(qs):
         easy_questions_count=Count("id", filter=Q(difficulty=Question.Difficulty.EASY)),
     )
 
+
 def truncate_float(val):
     """
-    Truncates a float to a specified number 
+    Truncates a float to a specified number
     of decimal places without rounding
     """
     factor = 10.0**2

@@ -4,8 +4,10 @@ from django.utils import timezone
 from identity.models import PreRegUser
 from ..models import Exam
 
+
 def normalize_title(name):
     return name.lower().title()
+
 
 def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
     """
@@ -63,15 +65,16 @@ def get_user_status_counts(base_queryset: QuerySet, user_type: str) -> dict:
     # And exclude those who are already fully registered (exist in base_queryset)
     # We use email to check for existence
     registered_emails = base_queryset.values_list("user__email", flat=True)
-    
-    pre_registered = PreRegUser.objects.filter(
-        interest_type=interest_type
-    ).exclude(email__in=registered_emails).count()
+
+    pre_registered = (
+        PreRegUser.objects.filter(interest_type=interest_type)
+        .exclude(email__in=registered_emails)
+        .count()
+    )
 
     # Filter for cases when a user has both entities (fully registered AND in PreRegUser)
     both_entities = PreRegUser.objects.filter(
-        interest_type=interest_type,
-        email__in=registered_emails
+        interest_type=interest_type, email__in=registered_emails
     ).count()
 
     return {

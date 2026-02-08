@@ -40,13 +40,25 @@ urlpatterns = [
     ),
     # Questions
     path("questions/", QuestionListCreateV2View.as_view(), name="question-list"),
-    path("questions/<int:question_id>/", QuestionDetailV2View.as_view(), name="question-detail"),
-    path("questions/bulk-action/", QuestionBulkActionV2View.as_view(), name="question-bulk-action"),
+    path(
+        "questions/<int:question_id>/",
+        QuestionDetailV2View.as_view(),
+        name="question-detail",
+    ),
+    path(
+        "questions/bulk-action/",
+        QuestionBulkActionV2View.as_view(),
+        name="question-bulk-action",
+    ),
     # =============================================================================
     # SUBMISSIONS & SCORING
     # =============================================================================
     path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam_V2, name="take-exam"),
-    path("exams/<uuid:exam_id>/submit/", SubmitAnswersV2View.as_view(), name="submit-exam"),
+    path(
+        "exams/<uuid:exam_id>/submit/",
+        SubmitAnswersV2View.as_view(),
+        name="submit-exam",
+    ),
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================

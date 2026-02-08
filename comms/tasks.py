@@ -95,11 +95,7 @@ def notify_prereg_users_via_whatsapp_task():
         f"You previously expressed interest. Please complete your registration here: {registration_url}"
     )
 
-    result = send_bulk_phone_msg(
-        body=message,
-        recipients=phones,
-        medium="whatsapp"
-    )
+    result = send_bulk_phone_msg(body=message, recipients=phones, medium="whatsapp")
 
     logger.info(
         f"Pre-reg WhatsApp notification task completed. "

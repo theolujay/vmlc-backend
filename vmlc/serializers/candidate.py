@@ -52,6 +52,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj: Candidate):
         return obj.status
+
     def get_profile_type(self, obj):
         return "candidate"
 
