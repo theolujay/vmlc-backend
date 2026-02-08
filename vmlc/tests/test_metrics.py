@@ -63,10 +63,13 @@ class RegistrationMetricsViewTest(APITestCase):
         self.assertIn("pre_registrations", data["daily"])
         self.assertIn("staff", data["daily"])
         
-        # Verify funnel structure (flattened)
-        self.assertIn("pre_registrations", data["overall"])
-        self.assertIn("completed_registrations", data["overall"])
-        self.assertIn("conversion_percentage", data["overall"])
+        self.assertIn("overall", data["funnel"])
+        self.assertIn("pre_registrations", data["funnel"]["overall"])
+        self.assertIn("completed_registrations", data["funnel"]["overall"])
+        self.assertIn("conversion_percentage", data["funnel"]["overall"])
+        
+        self.assertIn("candidate", data["funnel"])
+        self.assertIn("volunteer", data["funnel"])
         
         
     def test_registration_metrics_query_params(self):
