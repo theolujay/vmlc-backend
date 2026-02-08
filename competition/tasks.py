@@ -48,7 +48,7 @@ def generate_ranking_task(stage_exam_id, publish_now=False, staff_id=None):
             # Trigger leaderboard update if it's a league exam
             if ranking.stage == Stage.Type.LEAGUE:
                 update_leaderboard_task.delay(
-                    competition_id=str(ranking.competition_id),
+                    competition_id=ranking.competition_id,
                     as_of_round=ranking.round
                 )
         else:
@@ -69,7 +69,7 @@ def update_leaderboard_task(competition_id, as_of_round):
     logger.info(f"Updating league leaderboard for competition {competition_id} as of round {as_of_round}")
     try:
         LeaderboardService.update_league_leaderboard(
-            competition_id=uuid.UUID(competition_id) if isinstance(competition_id, str) else competition_id,
+            competition_id=competition_id,
             as_of_round=as_of_round
         )
         logger.info(f"League leaderboard updated successfully for round {as_of_round}.")
