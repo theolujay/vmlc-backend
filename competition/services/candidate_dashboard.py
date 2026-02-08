@@ -54,7 +54,7 @@ class CandidateDashboardService:
         )
 
         # 4. Performance Snapshot
-        performance = CandidateDashboardService._get_performance_snapshot(
+        performance = CandidateDashboardService._get_performance(
             candidate, active_comp
         )
 
@@ -317,7 +317,7 @@ class CandidateDashboardService:
         return active_exam_data
 
     @staticmethod
-    def _get_performance_snapshot(
+    def _get_performance(
         candidate: Candidate, active_comp: Optional[Competition]
     ) -> Dict[str, Any]:
         snapshot = {

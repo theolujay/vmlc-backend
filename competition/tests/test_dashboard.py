@@ -83,7 +83,7 @@ class CandidateDashboardViewTest(APITestCase):
         self.assertIn("candidate_context", data)
         self.assertIn("enrollment_stage_progress", data)
         self.assertIn("active_exam", data)
-        self.assertIn("performance_snapshot", data)
+        self.assertIn("performance", data)
         self.assertIn("exam_history", data)
         
         # Verify Content
