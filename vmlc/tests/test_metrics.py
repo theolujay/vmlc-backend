@@ -64,13 +64,10 @@ class RegistrationMetricsViewTest(APITestCase):
         self.assertIn("staff", data["daily"])
         
         # Verify funnel structure (flattened)
-        self.assertIn("pre_registrations", data["funnel"])
-        self.assertIn("completed_registrations", data["funnel"])
-        self.assertIn("conversion_percentage", data["funnel"])
+        self.assertIn("pre_registrations", data["overall"])
+        self.assertIn("completed_registrations", data["overall"])
+        self.assertIn("conversion_percentage", data["overall"])
         
-        # Check counts if possible (knowing that setUp and other tests might affect it if using same DB)
-        # But since it's APITestCase, it should be isolated.
-        # Note: self.staff_user also counts as a user and staff.
         
     def test_registration_metrics_query_params(self):
         response = self.client.get(self.url, {"days": 7, "weeks": 4})
