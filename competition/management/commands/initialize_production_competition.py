@@ -48,77 +48,7 @@ class Command(BaseCommand):
             )
 
         with transaction.atomic():
-            # Competition
-            competition, created = Competition.objects.get_or_create(
-                edition=edition,
-                defaults={
-                    "name": name,
-                    "status": Competition.Status.ACTIVE,
-                    "start_date": timezone.now(),
-                },
-            )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(f"Created Competition: {competition}")
-                )
-            else:
-                self.stdout.write(f"Competition already exists: {competition}")
-
-            # Stages
-            stage_configs = [
-                (
-                    Stage.Type.SCREENING,
-                    1,
-                    "One-time qualification assessment for league stage",
-                    {
-                        "advancement_policy": {
-                            "mode": "top_percent",
-                            "value": 0.3,
-                        },
-                    },
-                ),
-                (
-                    Stage.Type.LEAGUE,
-                    2,
-                    "Comprises of six assessments spread across six weeks and a leaderboard ",
-                    {
-                        "advancement_policy": {
-                            "mode": "top_n",
-                            "value": 10,
-                        },
-                    },
-                ),
-                (
-                    Stage.Type.FINAL,
-                    3,
-                    "Zenith assessment to determine top three winners",
-                    {
-                        "advancement_policy": {
-                            "mode": "top_n",
-                            "value": 3,
-                        },
-                    },
-                ),
-            ]
-
-            stages = {}
-            for st_type, order, desc, config in stage_configs:
-                stage, created = Stage.objects.get_or_create(
-                    competition=competition,
-                    type=st_type,
-                    defaults={"order": order, "description": desc, "config": config},
-                )
-                stages[st_type] = stage
-                if created:
-                    self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
-
-            # Feature Flags
-            FeatureFlag.objects.get_or_create(
-                key="candidate_registration", defaults={"value": True}
-            )
-            FeatureFlag.objects.get_or_create(
-                key="staff_registration", defaults={"value": True}
-            )
+            competition, _ = self._create_competition_structure
 
             # Enroll Candidates
             self.stdout.write("Enrolling candidates...")
@@ -148,3 +78,78 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS("Production competition setup complete.")
                 )
+
+
+    def _create_competition_structure(self, edition, name):
+        self.stdout.write("Creating competition and stages...")
+
+        competition = Competition.objects.filter(
+            status=Competition.Status.ACTIVE
+        ).first()
+        if not competition:
+            self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
+        
+            competition, created = Competition.objects.get_or_create(
+                edition=edition,
+                defaults={
+                    "name": name,
+                    "status": Competition.Status.ACTIVE,
+                    "start_date": timezone.now(),
+                },
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
+        else:
+            self.stdout.write(f"Competition already exists: {competition}")
+
+        stages = {}
+        stage_configs = [
+            (
+                Stage.Type.SCREENING,
+                1,
+                "One-time qualification assessment for league stage",
+                {
+                    "advancement_policy": {
+                        "mode": "top_percent",
+                        "value": 0.3,
+                    },
+                },
+            ),
+            (
+                Stage.Type.LEAGUE,
+                2,
+                "Comprises of six assessments spread across six weeks and a leaderboard ",
+                {
+                    "advancement_policy": {
+                        "mode": "top_n",
+                        "value": 10,
+                    },
+                },
+            ),
+            (
+                Stage.Type.FINAL,
+                3,
+                "Zenith assessment to determine top three winners",
+                {
+                    "advancement_policy": {
+                        "mode": "top_n",
+                        "value": 3,
+                    },
+                },
+            ),
+        ]
+
+        for st_type, order, desc, config in stage_configs:
+            stage, created = Stage.objects.get_or_create(
+                competition=competition,
+                type=st_type,
+                defaults={"order": order, "description": desc, "config": config},
+            )
+            stages[st_type] = stage
+            if created:
+                self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
+            else:
+                self.stdout.write(
+                    f"  - Stage [{stage.get_type_display()}] already exist in {str(competition)}"
+                )
+        return competition, stages

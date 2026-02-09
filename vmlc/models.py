@@ -282,7 +282,7 @@ class Exam(models.Model):
         "competition.StageExam",
         blank=True,
         null=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="exam",
     )
     is_active = models.BooleanField(default=True, db_index=True)
@@ -303,6 +303,26 @@ class Exam(models.Model):
         on_delete=models.SET_NULL,
     )
 
+    def retract(self):
+        """
+        Retracts a scheduled exam back to draft status.
+        Only allowed if the status is SCHEDULED.
+        """
+        if self.status != self.Status.SCHEDULED:
+            return False, f"Cannot retract an exam that is {self.status}."
+
+        self.scheduled_date = None
+        self.countdown_minutes = None
+        self.open_duration_hours = None
+        self.is_active = True
+        self.save()
+
+        if self.competition_slot:
+            self.competition_slot.is_active = False
+            self.competition_slot.save(update_fields=["is_active"])
+
+        return True, "Exam retracted successfully."
+
     @property
     def title(self):
         """Inferred title from StageExam context"""
@@ -313,6 +333,15 @@ class Exam(models.Model):
         """Inferred stage type from StageExam context"""
         return (
             self.competition_slot.competition_stage.type
+            if self.competition_slot
+            else None
+        )
+
+    @property
+    def stage_id(self):
+        """Inferred stage ID from StageExam context"""
+        return (
+            self.competition_slot.competition_stage.id
             if self.competition_slot
             else None
         )

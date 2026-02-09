@@ -139,7 +139,7 @@ Returns the full exam object (see **Get Exam Details**).
 
 ## 4. Update Exam
 **Endpoint:** `PUT/PATCH /v2/exams/{exam_id}/`  
-**Description:** Updates an existing exam. Cannot update if exam is ongoing, concluded, or cancelled.  
+**Description:** Updates an existing exam. **Only exams in `DRAFT` status can be edited.** If an exam is already `SCHEDULED`, it must be [retracted](#6-retract-exam) first.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ### Request Body
@@ -149,12 +149,26 @@ Fields same as **Create Exam** (all optional for PATCH).
 
 ## 5. Delete Exam
 **Endpoint:** `DELETE /v2/exams/{exam_id}/`  
-**Description:** Removes an exam instance.  
+**Description:** Removes an exam instance. This also automatically removes the associated competition slot, logically designed around stage_id, making it available for other exams.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
 
 ---
 
-## 6. List Exam Questions
+## 6. Retract Exam
+**Endpoint:** `POST /v2/exams/{exam_id}/retract/`  
+**Description:** Retracts a `SCHEDULED` exam, reverting it to `DRAFT` status. This nullifies the `scheduled_date`, `open_duration_hours`, and `countdown_minutes`, and makes it invisible to candidates.  
+**Permissions:** `ActiveAdminPermissions` (Staff only)
+
+### Response Body
+```json
+{
+  "message": "Exam retracted successfully."
+}
+```
+
+---
+
+## 7. List Exam Questions
 **Endpoint:** `GET /v2/exams/{exam_id}/questions/`  
 **Description:** Returns all questions belonging to an exam.  
 **Permissions:** `ActiveAdminPermissions` (Staff only)
@@ -534,6 +548,7 @@ Visibility on the candidate dashboard is primarily controlled by the `is_active`
 - **Draft State:** When an exam is created but not yet scheduled, `StageExam.is_active` is `false`. It will not appear on the dashboard.
 - **Published/Scheduled State:** When an admin sets a `scheduled_date` on an exam, the system automatically flips the linked `StageExam.is_active` to `true`.
 - **Deactivation:** If an exam is marked `is_active = false` on the `Exam` model, the competition slot visibility is also revoked.
+- **Retraction:** When an exam is retracted, it reverts to `DRAFT` status and `StageExam.is_active` is automatically set to `false`, immediately hiding it from candidates.
 
 ### 2. Graceful Visibility (Leniency)
 To prevent issues where an exam is live but the visibility flag was manually unset or missed, the **Candidate Dashboard** applies a leniency rule:

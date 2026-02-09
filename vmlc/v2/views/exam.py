@@ -2,6 +2,8 @@ import logging
 
 from django.db.models import Avg, Count, Q
 
+from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework.generics import (
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -17,7 +19,6 @@ from identity.permissions import ActiveAdminPermissions, CandidatePermissions
 from django.utils import timezone
 from vmlc.models import Exam, Question, CandidateExamResult, ExamAccess
 from vmlc.services.candidate_records import CandidateRecordService
-from vmlc.utils.helpers import invalidate_all_dashboard_caches
 from vmlc.v2.serializers.exam import (
     ExamListV2Serializer,
     ExamDetailV2Serializer,
@@ -27,7 +28,7 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import get_or_set_cache, delete_many_cache, question_pool_aggregate
+from vmlc.v2.utils import get_or_set_cache, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 from vmlc.utils.swagger_schemas import *
@@ -183,7 +184,46 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         )
 
     def perform_destroy(self, instance):
-        instance.delete()
+        instance.competition_slot.delete() # this cascades into instance.delete()
+
+
+class ExamRetractV2View(APIView):
+    """
+    Retract a scheduled exam.
+    Nullifies scheduled_date, open_duration_hours, and countdown_minutes, and sets status to DRAFT.
+    Only allowed if the exam is currently SCHEDULED.
+    """
+
+    permission_classes = ActiveAdminPermissions
+
+    def post(self, request, exam_id):
+        try:
+            exam = Exam.objects.get(pk=exam_id)
+        except Exam.DoesNotExist:
+            raise NotFound("Exam not found.")
+
+        if exam.status != Exam.Status.SCHEDULED:
+            return Response(
+                {
+                    "error": f"Only scheduled exams can be retracted. Current status: {exam.status}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        exam.scheduled_date = None
+        exam.open_duration_hours = None
+        exam.countdown_minutes = None
+        # Note: Exam.status property will now return DRAFT because scheduled_date is None.
+        # Exam.save() will also set competition_slot.is_active to False.
+        exam.save()
+
+        logger.info(f"Exam {exam_id} retracted by user {request.user.id}")
+
+        from vmlc.v2.utils import invalidate_staff_dashboard
+
+        invalidate_staff_dashboard()
+
+        return Response({"message": "Exam retracted successfully."})
 
 
 class ExamResultsV2View(ListAPIView):
