@@ -97,7 +97,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         question = super().create(validated_data)
 
         if exam_ids:
-            from vmlc.v2.utils import delete_many_cache, CacheKeys
+            from vmlc.v2.utils import invalidate_exam_cache, invalidate_question_pool
 
             exams = Exam.objects.filter(id__in=exam_ids)
             for exam in exams:
@@ -106,12 +106,9 @@ class QuestionV2Serializer(serializers.ModelSerializer):
                     exam.questions.add(question)
 
                     # Invalidate caches only for exams where the question was newly added
-                    delete_many_cache(
-                        [
-                            CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
-                            CacheKeys.EXAM_DETAIL.format(exam_id=exam.id),
-                        ]
-                    )
+                    invalidate_exam_cache(exam.id)
+            
+            invalidate_question_pool()
 
         return question
 
@@ -120,7 +117,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         question = super().update(instance, validated_data)
 
         if exam_ids is not None:
-            from vmlc.v2.utils import delete_many_cache, CacheKeys
+            from vmlc.v2.utils import invalidate_exam_cache, invalidate_question_pool
 
             exams = Exam.objects.filter(id__in=exam_ids)
 
@@ -128,12 +125,9 @@ class QuestionV2Serializer(serializers.ModelSerializer):
                 # Only add and invalidate cache if the question is not already in the exam
                 if not exam.questions.filter(id=question.id).exists():
                     exam.questions.add(question)
-                    delete_many_cache(
-                        [
-                            CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id),
-                            CacheKeys.EXAM_DETAIL.format(exam_id=exam.id),
-                        ]
-                    )
+                    invalidate_exam_cache(exam.id)
+            
+            invalidate_question_pool()
 
         return question
 
