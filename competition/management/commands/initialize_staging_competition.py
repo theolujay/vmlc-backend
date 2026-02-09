@@ -95,9 +95,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._clear_data()
             self._create_feature_flags()
-            staff_list = self._create_staff(count=5)
+            # staff_list = self._create_staff(count=5)
             competition, _ = self._create_competition_structure(edition, name)
-            candidates = self._create_candidates(count=50, staff_pool=staff_list)
+            candidates = self._get_all_candidates()
+            # candidates = self._create_candidates(count=50, staff_pool=staff_list)
             self._enroll_candidates_in_screening(candidates, competition)
 
             self.stdout.write(self.style.SUCCESS("Staging competition setup complete."))
@@ -122,20 +123,20 @@ class Command(BaseCommand):
         LeagueLeaderboardEntry.objects.all().delete()
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
-        Exam.objects.all().delete()
-        Question.objects.all().delete()
-        StageExam.objects.all().delete()
+        # Exam.objects.all().delete()
+        # Question.objects.all().delete()
+        # StageExam.objects.all().delete()
         Enrollment.objects.all().delete()
         EnrollmentStageProgress.objects.all().delete()
-        Stage.objects.all().delete()
-        Competition.objects.all().delete()
+        # Stage.objects.all().delete()
+        # Competition.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
         CandidateExamResultSnapshot.objects.all().delete()
-        PreRegUser.objects.all().delete()
-        SupportMessage.objects.all().delete()
-        SupportInquiry.objects.all().delete()
-        Event.objects.all().delete()
-        Notification.objects.all().delete()
+        # PreRegUser.objects.all().delete()
+        # SupportMessage.objects.all().delete()
+        # SupportInquiry.objects.all().delete()
+        # Event.objects.all().delete()
+        # Notification.objects.all().delete()
 
     def _generate_nigerian_phone(self):
         prefix = random.choice(["070", "080", "081", "090", "091"])
@@ -168,7 +169,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            email = f"staff{i+1}@staging.mail.com"  # Use staging-specific email
+            email = f"staff{i+1}@staging.mail.com"
             if User.objects.filter(email=email).exists():
                 staff = Staff.objects.filter(user__email=email).first()
                 if staff:
@@ -255,7 +256,12 @@ class Command(BaseCommand):
             stages[st_type] = stage
             if created:
                 self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
+            else:
+                self.stdout.write(f"  - Stage [{stage.get_type_display()}] already exist in {str(competition)}")
         return competition, stages
+    
+    def _get_all_candidates(self):
+        return Candidate.objects.all()
 
     def _create_candidates(self, count, staff_pool):
         self.stdout.write(f"Creating {count} candidate users...")
