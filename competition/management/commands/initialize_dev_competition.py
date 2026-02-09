@@ -21,12 +21,15 @@ from vmlc.models import (
     CandidateAnswer,
     CandidateExamResult,
     CandidateExamResultSnapshot,
+    Exam,
     FeatureFlag,
     LeaderboardSnapshot,
+    Question,
 )
 from competition.models import (
     Competition,
     Stage,
+    StageExam,
     Enrollment,
     EnrollmentStageProgress,
     RankingSnapshot,
@@ -94,7 +97,13 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._clear_data()
             self._create_feature_flags()
-            competition, _ = self._create_competition_structure(edition, name)
+
+            staff_list = self._create_staff(count=5)
+            questions = self._create_questions(count=50, staff_pool=staff_list)
+
+            competition, stages = self._create_competition_structure(edition, name)
+            self._create_exams(stages, questions, staff_list)
+
             simulation_candidates = self._create_simulation_candidates(
                 count=create_candidates_count
             )
@@ -128,6 +137,9 @@ class Command(BaseCommand):
         LeagueLeaderboardEntry.objects.all().delete()
         CandidateAnswer.objects.all().delete()
         CandidateExamResult.objects.all().delete()
+        Exam.objects.all().delete()
+        StageExam.objects.all().delete()
+        Question.objects.all().delete()
         Enrollment.objects.all().delete()
         EnrollmentStageProgress.objects.all().delete()
         LeaderboardSnapshot.objects.all().delete()
@@ -189,6 +201,23 @@ class Command(BaseCommand):
             staff_list.append(staff)
             self._update_verification(user, staff_list)
         return staff_list
+
+    def _create_questions(self, count, staff_pool):
+        self.stdout.write(f"Creating {count} questions...")
+        questions = []
+        for i in range(count):
+            question = Question.objects.create(
+                text=self.fake.sentence(nb_words=10) + "?",
+                option_a=self.fake.sentence(nb_words=3),
+                option_b=self.fake.sentence(nb_words=3),
+                option_c=self.fake.sentence(nb_words=3),
+                option_d=self.fake.sentence(nb_words=3),
+                correct_answer=random.choice(["A", "B", "C", "D"]),
+                created_by=random.choice(staff_pool) if staff_pool else None,
+                difficulty=random.choice(["easy", "moderate", "hard"]),
+            )
+            questions.append(question)
+        return questions
 
     def _create_competition_structure(self, edition, name):
         self.stdout.write("Creating competition and stages...")
@@ -256,6 +285,49 @@ class Command(BaseCommand):
                     f"  - Stage [{stage.get_type_display()}] already exist in {str(competition)}"
                 )
         return competition, stages
+
+    def _create_exams(self, stages, questions, staff_pool):
+        self.stdout.write("Creating exams...")
+        # Screening
+        screening_stage = stages[Stage.Type.SCREENING]
+        self._create_single_exam(
+            screening_stage, questions, staff_pool, "Screening Exam"
+        )
+
+        # League (6 rounds)
+        league_stage = stages[Stage.Type.LEAGUE]
+        for i in range(1, 7):
+            self._create_single_exam(
+                league_stage, questions, staff_pool, f"League Round {i}", round_num=i
+            )
+
+        # Final
+        final_stage = stages[Stage.Type.FINAL]
+        self._create_single_exam(final_stage, questions, staff_pool, "Final Exam")
+
+    def _create_single_exam(
+        self, stage, questions, staff_pool, description, round_num=None
+    ):
+        slot, _ = StageExam.objects.get_or_create(
+            competition_stage=stage, round=round_num
+        )
+        # Check if exam exists for slot
+        if hasattr(slot, "exam"):
+            return slot.exam
+
+        exam = Exam.objects.create(
+            competition_slot=slot,
+            description=description,
+            created_by=random.choice(staff_pool) if staff_pool else None,
+            is_active=True,
+            # Set to active now so candidates can take it immediately in staging
+            scheduled_date=timezone.now(),
+            open_duration_hours=48,
+            countdown_minutes=45,
+        )
+        if questions:
+            exam.questions.set(random.sample(questions, k=min(len(questions), 15)))
+        return exam
 
     def _get_all_candidates(self):
         return Candidate.objects.all()
