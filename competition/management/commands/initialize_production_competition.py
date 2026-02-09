@@ -112,14 +112,6 @@ class Command(BaseCommand):
                 if created:
                     self.stdout.write(f"  - Created Stage: {stage.get_type_display()}")
 
-            # Feature Flags
-            FeatureFlag.objects.get_or_create(
-                key="candidate_registration", defaults={"value": True}
-            )
-            FeatureFlag.objects.get_or_create(
-                key="staff_registration", defaults={"value": True}
-            )
-
             # Enroll Candidates
             self.stdout.write("Enrolling candidates...")
             try:

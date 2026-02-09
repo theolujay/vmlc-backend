@@ -138,57 +138,8 @@ class Command(BaseCommand):
         return f"{prefix}{random.randint(10000000, 99999999)}"
 
     def _create_feature_flags(self):
-        FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
-        FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
-
-    def _update_verification(self, user, staff_pool=None):
-        statuses = [
-            {"is_pending": True, "is_approved": False, "is_rejected": False},
-            {"is_pending": False, "is_approved": True, "is_rejected": False},
-            {"is_pending": False, "is_approved": False, "is_rejected": True},
-        ]
-        status_data = random.choice(statuses)
-        verification, _ = UserVerification.objects.get_or_create(
-            user=user, defaults=status_data
-        )
-        verification.verification_document_type = random.choice(
-            ["NIN", "Passport", "School ID"]
-        )
-        if staff_pool and (verification.is_approved or verification.is_rejected):
-            verification.action_by = random.choice(staff_pool)
-        if verification.is_rejected:
-            verification.rejection_reason = self.fake.sentence()
-        verification.save()
-
-    def _create_staff(self, count):
-        self.stdout.write(f"Creating {count} staff users...")
-        staff_list = []
-        for i in range(count):
-            email = f"staff{i+1}@staging.mail.com"
-            if User.objects.filter(email=email).exists():
-                staff = Staff.objects.filter(user__email=email).first()
-                if staff:
-                    staff_list.append(staff)
-                continue
-
-            user = User.objects.create_user(
-                email=email,
-                password=os.getenv("ANON_PASSWORD", "SecurePass123!"),
-                first_name=self.fake.first_name()[:29],
-                last_name=self.fake.last_name()[:29],
-                is_email_verified=random.choice([True, False]),
-                phone=self._generate_nigerian_phone(),
-                state=random.choice(["Lagos", "Abuja", "Oyo", "Kano", "Rivers", "Edo"]),
-            )
-
-            staff = Staff.objects.create(
-                user=user,
-                occupation=self.fake.job()[:49],
-                role=random.choice(["admin", "moderator", "volunteer"]),
-            )
-            staff_list.append(staff)
-            self._update_verification(user, staff_list)
-        return staff_list
+        FeatureFlag.objects.get_or_create(key="candidate_registration", defaults={"value": True})
+        FeatureFlag.objects.get_or_create(key="staff_registration", defaults={"value": True})
 
     def _create_competition_structure(self, edition, name):
         self.stdout.write("Creating competition and stages...")

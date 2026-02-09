@@ -29,13 +29,13 @@ from vmlc.models import (
 from competition.models import (
     Competition,
     Stage,
-    StageExam,
     Enrollment,
     EnrollmentStageProgress,
     RankingSnapshot,
     RankingSnapshotEntry,
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
+    StageExam,
 )
 from competition.services.enrollment import EnrollmentService
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Initializes the competition structure (Competition, Stages, and StageExam slots) for staging."
+    help = "Initializes the competition structure (Competition, Stages, and StageExam slots) for development."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--name",
             type=str,
-            default="Staging Verboheit MLC",
+            default="Development Verboheit MLC",
             help="Competition name",
         )
         parser.add_argument(
@@ -97,10 +97,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._clear_data()
             self._create_feature_flags()
-
+            
             staff_list = self._create_staff(count=5)
             questions = self._create_questions(count=50, staff_pool=staff_list)
-
+            
             competition, stages = self._create_competition_structure(edition, name)
             self._create_exams(stages, questions, staff_list)
 
@@ -110,7 +110,7 @@ class Command(BaseCommand):
             candidates = self._get_all_candidates()
             self._enroll_candidates_in_screening(candidates, competition)
 
-            self.stdout.write(self.style.SUCCESS("Staging competition setup complete."))
+            self.stdout.write(self.style.SUCCESS("Development competition setup complete."))
 
             if dry_run:
                 transaction.set_rollback(True)
@@ -122,7 +122,7 @@ class Command(BaseCommand):
                 cache.clear()
                 self.stdout.write(
                     self.style.SUCCESS(
-                        "Staging competition setup complete with simulation candidates."
+                        "Development competition setup complete with simulation candidates."
                     )
                 )
                 self.stdout.write("Printing simulation candidates' email addresses...")
@@ -150,8 +150,8 @@ class Command(BaseCommand):
         return f"{prefix}{random.randint(10000000, 99999999)}"
 
     def _create_feature_flags(self):
-        FeatureFlag.objects.get_or_create(key="candidate_registration", value=True)
-        FeatureFlag.objects.get_or_create(key="staff_registration", value=True)
+        FeatureFlag.objects.get_or_create(key="candidate_registration", defaults={"value": True})
+        FeatureFlag.objects.get_or_create(key="staff_registration", defaults={"value": True})
 
     def _update_verification(self, user, staff_pool=None):
         statuses = [
@@ -176,7 +176,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            email = f"staff{i+1}@staging.mail.com"
+            email = f"staff{i+1}@dev.mail.com"
             if User.objects.filter(email=email).exists():
                 staff = Staff.objects.filter(user__email=email).first()
                 if staff:
@@ -320,7 +320,7 @@ class Command(BaseCommand):
             description=description,
             created_by=random.choice(staff_pool) if staff_pool else None,
             is_active=True,
-            # Set to active now so candidates can take it immediately in staging
+            # Set to active now so candidates can take it immediately in dev
             scheduled_date=timezone.now(),
             open_duration_hours=48,
             countdown_minutes=45,
@@ -338,6 +338,9 @@ class Command(BaseCommand):
         for i in range(count):
             email = f"candidate{i+1}.vmlc@mailsac.com"
             if User.objects.filter(email=email).exists():
+                candidate = Candidate.objects.filter(user__email=email).first()
+                if candidate:
+                    simulation_candidates.append(email)
                 continue
 
             user = User.objects.create_user(
