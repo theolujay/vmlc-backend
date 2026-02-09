@@ -221,16 +221,23 @@ class Command(BaseCommand):
 
     def _create_competition_structure(self, edition, name):
         self.stdout.write("Creating competition and stages...")
-        competition, created = Competition.objects.get_or_create(
-            edition=edition,
-            defaults={
-                "name": name,
-                "status": Competition.Status.ACTIVE,
-                "start_date": timezone.now(),
-            },
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
+
+        competition = Competition.objects.filter(
+            status=Competition.Status.ACTIVE
+        ).first()
+        if not competition:
+            self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
+        
+            competition, created = Competition.objects.get_or_create(
+                edition=edition,
+                defaults={
+                    "name": name,
+                    "status": Competition.Status.ACTIVE,
+                    "start_date": timezone.now(),
+                },
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
         else:
             self.stdout.write(f"Competition already exists: {competition}")
 
@@ -322,8 +329,8 @@ class Command(BaseCommand):
             is_active=True,
             # Set to active now so candidates can take it immediately in dev
             scheduled_date=timezone.now(),
-            open_duration_hours=48,
-            countdown_minutes=45,
+            open_duration_hours=1,
+            countdown_minutes=5,
         )
         if questions:
             exam.questions.set(random.sample(questions, k=min(len(questions), 15)))
@@ -364,4 +371,18 @@ class Command(BaseCommand):
 
     def _enroll_candidates_in_screening(self, candidates, competition):
         self.stdout.write("Enrolling candidates in Screening...")
-        EnrollmentService.enroll_candidates(competition, candidates=candidates)
+        try:
+            from competition.services.enrollment import EnrollmentError
+            created_count = EnrollmentService.enroll_candidates(competition, candidates=candidates)
+            if created_count == 0:
+                self.stdout.write(
+                    self.style.SUCCESS("All candidates are already enrolled.")
+                )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Successfully enrolled {created_count} candidates."
+                    )
+                )
+        except EnrollmentError as e:
+            self.stderr.write(self.style.ERROR(f"Enrollment failed: {str(e)}"))

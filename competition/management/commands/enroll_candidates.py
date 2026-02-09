@@ -1,4 +1,5 @@
 import logging
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from competition.models import Competition
 from identity.models import Candidate
@@ -76,5 +77,7 @@ class Command(BaseCommand):
                         f"Successfully enrolled {created_count} candidates."
                     )
                 )
+            self.stdout.write("Clearing cache...")
+            cache.clear()
         except EnrollmentError as e:
             self.stderr.write(self.style.ERROR(str(e)))

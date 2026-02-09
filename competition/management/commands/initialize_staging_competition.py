@@ -217,6 +217,9 @@ class Command(BaseCommand):
         for i in range(count):
             email = f"candidate{i+1}.vmlc@mailsac.com"
             if User.objects.filter(email=email).exists():
+                candidate = Candidate.objects.filter(user__email=email).first()
+                if candidate:
+                    simulation_candidates.append(email)
                 continue
 
             user = User.objects.create_user(
@@ -240,4 +243,18 @@ class Command(BaseCommand):
 
     def _enroll_candidates_in_screening(self, candidates, competition):
         self.stdout.write("Enrolling candidates in Screening...")
-        EnrollmentService.enroll_candidates(competition, candidates=candidates)
+        try:
+            from competition.services.enrollment import EnrollmentError
+            created_count = EnrollmentService.enroll_candidates(competition, candidates=candidates)
+            if created_count == 0:
+                self.stdout.write(
+                    self.style.SUCCESS("All candidates are already enrolled.")
+                )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Successfully enrolled {created_count} candidates."
+                    )
+                )
+        except EnrollmentError as e:
+            self.stderr.write(self.style.ERROR(f"Enrollment failed: {str(e)}"))
