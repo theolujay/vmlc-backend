@@ -1,4 +1,6 @@
 from django.urls import path
+
+from vmlc.v2.views.exam import ExamRetractV2View
 from .views import (
     RegistrationV2View,
     PreRegistrationView,
@@ -28,6 +30,11 @@ urlpatterns = [
     # =============================================================================
     path("exams/", ExamListV2View.as_view(), name="exam-list"),
     path("exams/<uuid:exam_id>/", ExamDetailV2View.as_view(), name="exam-detail"),
+    path(
+        "exams/<uuid:exam_id>/retract/",
+        ExamRetractV2View.as_view(),
+        name="exam-retract",
+    ),
     path(
         "exams/<uuid:exam_id>/questions/",
         ExamQuestionsV2View.as_view(),

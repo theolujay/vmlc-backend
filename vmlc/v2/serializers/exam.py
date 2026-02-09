@@ -75,7 +75,6 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
             "created_at",
             "created_by",
             "updated_by",
-            "status",
         ]
 
     created_by = MinimalStaffSerializer(read_only=True)
@@ -109,20 +108,20 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if self.instance:
             status = self.instance.status
-            if status in [Exam.Status.CONCLUDED, Exam.Status.CANCELLED]:
+
+            # Handle retraction
+            if attrs.get("status") == Exam.Status.DRAFT:
+                if status != Exam.Status.SCHEDULED:
+                    raise serializers.ValidationError(
+                        f"Cannot retract an exam that is {status}. Only SCHEDULED exams can be retracted."
+                    )
+                return attrs
+
+            if status != Exam.Status.DRAFT:
                 raise serializers.ValidationError(
-                    f"Cannot update an exam that is {status}."
+                    f"Cannot update an exam that is {status}. It must be in DRAFT status."
                 )
 
-            # For ONGOING exams, only allow certain fields if necessary, or block all
-            if status == Exam.Status.ONGOING:
-                allowed_ongoing_updates = [
-                    "is_active"
-                ]  # Example: only allow cancellation
-                if any(k for k in attrs if k not in allowed_ongoing_updates):
-                    raise serializers.ValidationError(
-                        "Cannot update core details of an ONGOING exam. You can only deactivate it."
-                    )
         return attrs
 
     def create(self, validated_data):
@@ -133,6 +132,11 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         return exam
 
     def update(self, instance, validated_data):
+        # Handle retraction logic
+        if validated_data.get("status") == Exam.Status.DRAFT:
+            validated_data["scheduled_date"] = None
+            validated_data["countdown_minutes"] = None
+
         stage_id = validated_data.pop("stage_id", None)
         round = validated_data.pop("round", None)
         instance = super().update(instance, validated_data)
