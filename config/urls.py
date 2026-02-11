@@ -27,6 +27,11 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
 
+admin.site.site_header = "Verboheit MLC Developer Admin"
+admin.site.index_title = "Verboheit MLC"
+admin.site.site_title = "Dev Portal"
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_favicon(request):
