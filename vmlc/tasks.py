@@ -187,7 +187,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
 
         feature_flag.value = False
         feature_flag.save(update_fields=["value"])
-        cache.delete("registration_status")
+        cache.delete("status:registration")
 
         readable_flag_key = feature_flag.key.replace("_", " ").title()
 
