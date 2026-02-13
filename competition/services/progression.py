@@ -192,13 +192,21 @@ class ProgressionService:
             competition=competition, type=from_stage_type
         ).first()
         if from_stage:
+            # Mark promoted as COMPLETED
             EnrollmentStageProgress.objects.filter(
                 enrollment__competition=competition,
-                enrollment__candidate_id__in=(
-                    candidate_ids_to_promote + candidate_ids_to_eliminate
-                ),
+                enrollment__candidate_id__in=candidate_ids_to_promote,
                 stage=from_stage,
             ).update(status=EnrollmentStageProgress.Status.COMPLETED, completed_at=now)
+
+            # Mark eliminated as DISCONTINUED
+            EnrollmentStageProgress.objects.filter(
+                enrollment__competition=competition,
+                enrollment__candidate_id__in=candidate_ids_to_eliminate,
+                stage=from_stage,
+            ).update(
+                status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now
+            )
 
         # Create/Update New StageProgress
         enrollments = Enrollment.objects.filter(
@@ -238,6 +246,60 @@ class ProgressionService:
             f"Successfully promoted {len(candidate_ids_to_promote)} candidates from {from_stage_type} to {to_stage_type}."
         )
         return len(candidate_ids_to_promote)
+
+    @staticmethod
+    @transaction.atomic
+    def disqualify_candidate(candidate_id, competition_id=None, reason=None):
+        """
+        Disqualifies a candidate from the competition.
+        """
+        if competition_id:
+            competition = Competition.objects.get(id=competition_id)
+        else:
+            competition = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
+
+        if not competition:
+            raise ProgressionError("No active competition found.")
+
+        now = timezone.now()
+
+        # Update Enrollment
+        enrollment = Enrollment.objects.filter(
+            competition=competition,
+            candidate_id=candidate_id,
+            status=Enrollment.Status.ACTIVE,
+        ).first()
+
+        if not enrollment:
+            raise ProgressionError(
+                f"No active enrollment found for candidate {candidate_id}."
+            )
+
+        enrollment.status = Enrollment.Status.DISQUALIFIED
+        enrollment.last_active_at = now
+        if reason:
+            if not enrollment.metadata:
+                enrollment.metadata = {}
+            enrollment.metadata["disqualification_reason"] = reason
+        enrollment.save()
+
+        # Update current StageProgress
+        EnrollmentStageProgress.objects.filter(
+            enrollment=enrollment, stage=enrollment.current_stage
+        ).update(
+            status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now
+        )
+
+        # Invalidate Caches
+        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+
+        invalidate_candidate_cache(candidate_id)
+        invalidate_staff_dashboard()
+
+        logger.info(f"Candidate {candidate_id} has been disqualified.")
+        return True
 
     @staticmethod
     def _send_notifications(competition, promoted_ids, eliminated_ids, to_stage_type):
