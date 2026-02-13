@@ -71,6 +71,16 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
             lambda: invalidate_exam_related_caches_task.delay(str(instance.id))
         )
 
+        # Notify candidates if it's a new exam
+        if kwargs.get("created", False):
+            from comms.tasks import notify_candidates_about_exam_task
+
+            transaction.on_commit(
+                lambda: notify_candidates_about_exam_task.delay(
+                    instance.id, "scheduled"
+                )
+            )
+
 
 @receiver(user_logged_in, sender=User)
 def user_logged_in_receiver(sender, request, user, **kwargs):

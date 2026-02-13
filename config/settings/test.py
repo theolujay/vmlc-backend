@@ -96,3 +96,8 @@ TWILIO_AUTH_TOKEN = "test_twilio_token"
 TWILIO_FROM_PHONE = "+15005550006"
 SLACK_WEBHOOK_URL = None
 BROADCAST_WEBHOOK_URL = None
+
+KUDI_API_KEY = "test_kudi_api_key"
+KUDI_SENDER_ID = "TEST"
+KUDI_GATEWAY = "direct-delivery"
+SMS_PROVIDER = "twilio"  # Default to twilio for existing tests

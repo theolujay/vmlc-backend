@@ -1,8 +1,11 @@
+from datetime import timedelta
 import logging
+from typing import List
 
 from django.db import DatabaseError
 from celery import shared_task
 
+from identity.models import User
 from vmlc.utils.exceptions import (
     ServerError,
 )
@@ -101,3 +104,48 @@ def notify_prereg_users_via_whatsapp_task():
         f"Pre-reg WhatsApp notification task completed. "
         f"Success: {result['success_count']}, Failed: {result['failure_count']}"
     )
+
+@shared_task(
+    bind=True,
+    name="notify_user_task",
+    max_retries=3,
+    default_retry_delay=60,
+    queue="comms",
+)
+def notify_user_task(
+    self,
+    user: User,
+    subject: str,
+    message: str,
+    mediums: List[str],
+    type: str,
+):
+    from comms.functions import notify_user
+
+    results = notify_user(
+        user=user,
+        subject=subject,
+        message=message,
+        mediums=mediums,
+        type=type,
+    )
+    if not results["email"]:
+        raise self.retry(exc="Email medium failed", countdown=60)
+
+@shared_task(name="notify_candidates_about_exam_task")
+def notify_candidates_about_exam_task(exam_id, event_type):
+    """
+    Unified task to notify candidates about exam events (scheduled or started).
+    """
+    from vmlc.models import Exam
+    from comms.functions import notify_candidates_about_exam
+
+    try:
+        exam = Exam.objects.select_related("competition_slot__competition_stage").get(
+            id=exam_id
+        )
+
+        notify_candidates_about_exam(exam=exam, event_type=event_type)
+
+    except Exam.DoesNotExist:
+        logger.error(f"Exam {exam_id} not found for notification task.")

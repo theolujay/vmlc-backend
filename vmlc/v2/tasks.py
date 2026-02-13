@@ -124,6 +124,11 @@ def check_exam_status_transitions_task():
             if last_run < exam.scheduled_date <= now:
                 # Started
                 transitioned_exams.append(exam)
+                # Notify candidates that the exam has started
+                from comms.tasks import notify_candidates_about_exam_task
+
+                notify_candidates_about_exam_task.delay(exam.id, "started")
+
             elif last_run < conclusion_time <= now:
                 # Concluded
                 transitioned_exams.append(exam)
