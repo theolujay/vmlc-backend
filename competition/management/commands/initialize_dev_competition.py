@@ -97,10 +97,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._clear_data()
             self._create_feature_flags()
-            
+
             staff_list = self._create_staff(count=5)
             questions = self._create_questions(count=50, staff_pool=staff_list)
-            
+
             competition, stages = self._create_competition_structure(edition, name)
             self._create_exams(stages, questions, staff_list)
 
@@ -227,8 +227,9 @@ class Command(BaseCommand):
         ).first()
         if not competition:
             self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
-        
+
             competition, created = Competition.objects.get_or_create(
+                name=name,
                 edition=edition,
                 defaults={
                     "name": name,
@@ -344,21 +345,24 @@ class Command(BaseCommand):
         simulation_candidates = list()
         for i in range(count):
             email = f"candidate{i+1}.vmlc@mailsac.com"
+            user = None
             if User.objects.filter(email=email).exists():
                 candidate = Candidate.objects.filter(user__email=email).first()
                 if candidate:
                     simulation_candidates.append(email)
-                continue
+                    continue
+                user = User.objects.get(email=email)
 
-            user = User.objects.create_user(
-                email=email,
-                password=os.getenv("ANON_PASSWORD", "password123"),
-                first_name=self.fake.first_name()[:29],
-                last_name=self.fake.last_name()[:29],
-                is_email_verified=True,
-                phone=self._generate_nigerian_phone(),
-                state=random.choice(["Lagos", "Abuja", "Rivers", "Ogun"]),
-            )
+            else:
+                user = User.objects.create_user(
+                    email=email,
+                    password=os.getenv("ANON_PASSWORD", "password123"),
+                    first_name=self.fake.first_name()[:29],
+                    last_name=self.fake.last_name()[:29],
+                    is_email_verified=True,
+                    phone=self._generate_nigerian_phone(),
+                    state=random.choice(["Lagos", "Abuja", "Rivers", "Ogun"]),
+                )
             Candidate.objects.create(
                 user=user,
                 school_name=self.fake.company()[:140] + " High",

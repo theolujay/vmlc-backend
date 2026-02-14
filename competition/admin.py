@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db.models import Count
+from django.urls import reverse
 from django.utils.html import format_html
 from vmlc.v2.utils import (
     invalidate_league_leaderboard,
@@ -50,12 +52,22 @@ class CompetitionAdmin(admin.ModelAdmin):
         "status_display",
         "start_date",
         "end_date",
+        "enrollment_count",
         "created_at",
     )
     list_filter = ("status", "edition")
     search_fields = ("name", "edition")
     inlines = [StageInline]
     date_hierarchy = "start_date"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            enroll_count=Count("enrollments", distinct=True)
+        )
+
+    @admin.display(description="Enrollments", ordering="enroll_count")
+    def enrollment_count(self, obj):
+        return obj.enroll_count
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -138,12 +150,23 @@ class StageAdmin(admin.ModelAdmin):
         "type",
         "order",
         "get_advancement_policy",
+        "exam_count",
         "created_at",
     )
     list_filter = ("competition", "type")
+    search_fields = ("type", "competition__name")
     ordering = ("competition", "order")
     inlines = [StageExamInline]
     list_select_related = ("competition",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            e_count=Count("stage_exams", distinct=True)
+        )
+
+    @admin.display(description="Exams", ordering="e_count")
+    def exam_count(self, obj):
+        return obj.e_count
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -174,12 +197,13 @@ class StageAdmin(admin.ModelAdmin):
 @admin.register(StageExam)
 class StageExamAdmin(admin.ModelAdmin):
     list_display = ("competition_stage", "round", "get_exam", "is_active")
-    list_filter = ("competition_stage__competition", "is_active")
+    list_filter = ("competition_stage__competition", "competition_stage__type", "is_active")
     list_select_related = (
         "competition_stage",
         "competition_stage__competition",
         "exam",
     )
+    autocomplete_fields = ["competition_stage"]
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -196,7 +220,7 @@ class StageExamAdmin(admin.ModelAdmin):
     @admin.display(description="Exam")
     def get_exam(self, obj):
         if hasattr(obj, "exam"):
-            url = f"/admin/vmlc/exam/{obj.exam.id}/change/"
+            url = reverse("admin:vmlc_exam_change", args=[obj.exam.id])
             return format_html('<a href="{}">{}</a>', url, obj.exam)
         return "-"
 
@@ -204,7 +228,8 @@ class StageExamAdmin(admin.ModelAdmin):
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
     list_display = (
-        "candidate",
+        "candidate_email",
+        "candidate_full_name",
         "competition",
         "status_display",
         "current_stage",
@@ -216,7 +241,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
         "candidate__user__first_name",
         "candidate__user__last_name",
     )
-    raw_id_fields = ("candidate", "competition", "current_stage")
+    autocomplete_fields = ["candidate", "competition", "current_stage"]
     list_select_related = (
         "candidate",
         "candidate__user",
@@ -224,6 +249,14 @@ class EnrollmentAdmin(admin.ModelAdmin):
         "current_stage",
     )
     date_hierarchy = "joined_at"
+
+    @admin.display(description="Candidate Email", ordering="candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.candidate.user.email
+
+    @admin.display(description="Full Name", ordering="candidate__user__first_name")
+    def candidate_full_name(self, obj):
+        return obj.candidate.user.get_full_name()
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -258,9 +291,10 @@ class EnrollmentAdmin(admin.ModelAdmin):
 
 @admin.register(EnrollmentStageProgress)
 class EnrollmentStageProgressAdmin(admin.ModelAdmin):
-    list_display = ("enrollment", "stage", "status_display", "updated_at")
+    list_display = ("candidate_email", "stage", "status_display", "updated_at")
     list_filter = ("stage__competition", "stage", "status")
-    raw_id_fields = ("enrollment", "stage")
+    search_fields = ("enrollment__candidate__user__email",)
+    autocomplete_fields = ["enrollment", "stage"]
     list_select_related = (
         "enrollment",
         "enrollment__candidate",
@@ -268,6 +302,10 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
         "stage",
     )
     date_hierarchy = "updated_at"
+
+    @admin.display(description="Candidate Email", ordering="enrollment__candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.enrollment.candidate.user.email
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -306,16 +344,38 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
         "competition",
         "stage",
         "round",
-        "exam",
+        "exam_link",
         "facilitator_system",
         "is_published",
         "published_at",
     )
     list_filter = ("competition", "stage", "facilitator_system", "is_published")
-    raw_id_fields = ("competition", "exam")
+    search_fields = ("exam__description", "competition__name")
+    autocomplete_fields = ["competition", "exam"]
     inlines = [RankingSnapshotEntryInline]
     list_select_related = ("competition", "exam")
     date_hierarchy = "published_at"
+    actions = ["publish_rankings", "unpublish_rankings"]
+
+    @admin.display(description="Exam")
+    def exam_link(self, obj):
+        if obj.exam:
+            url = reverse("admin:vmlc_exam_change", args=[obj.exam.id])
+            return format_html('<a href="{}">{}</a>', url, obj.exam)
+        return "-"
+
+    @admin.action(description="Publish selected rankings")
+    def publish_rankings(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.update(is_published=True, published_at=timezone.now())
+        invalidate_all_dashboard_caches()
+        self.message_user(request, f"{count} rankings published.")
+
+    @admin.action(description="Unpublish selected rankings")
+    def unpublish_rankings(self, request, queryset):
+        count = queryset.update(is_published=False)
+        invalidate_all_dashboard_caches()
+        self.message_user(request, f"{count} rankings unpublished.")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -341,20 +401,24 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(RankingSnapshotEntry)
 class RankingSnapshotEntryAdmin(admin.ModelAdmin):
-    list_display = ("ranking_snapshot", "candidate", "exam_score", "rank", "percentile")
+    list_display = ("ranking_snapshot", "candidate_email", "exam_score", "rank", "percentile")
     list_filter = ("ranking_snapshot__competition", "ranking_snapshot__stage")
     search_fields = (
         "candidate__user__email",
         "candidate__user__first_name",
         "candidate__user__last_name",
     )
-    raw_id_fields = ("ranking_snapshot", "candidate", "enrollment")
+    autocomplete_fields = ["ranking_snapshot", "candidate", "enrollment"]
     list_select_related = (
         "ranking_snapshot",
         "candidate",
         "candidate__user",
         "enrollment",
     )
+
+    @admin.display(description="Candidate", ordering="candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.candidate.user.email
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -377,6 +441,8 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
 class LeagueLeaderboardAdmin(admin.ModelAdmin):
     list_display = ("competition", "stage", "as_of_round", "created_at")
     list_filter = ("competition", "stage")
+    search_fields = ("competition__name",)
+    autocomplete_fields = ["competition"]
     inlines = [LeagueLeaderboardEntryInline]
     list_select_related = ("competition",)
     date_hierarchy = "created_at"
@@ -396,15 +462,19 @@ class LeagueLeaderboardAdmin(admin.ModelAdmin):
 
 @admin.register(LeagueLeaderboardEntry)
 class LeagueLeaderboardEntryAdmin(admin.ModelAdmin):
-    list_display = ("leaderboard", "candidate", "total_score", "overall_rank")
+    list_display = ("leaderboard", "candidate_email", "total_score", "overall_rank")
     list_filter = ("leaderboard__competition", "leaderboard__stage")
     search_fields = (
         "candidate__user__email",
         "candidate__user__first_name",
         "candidate__user__last_name",
     )
-    raw_id_fields = ("leaderboard", "candidate", "enrollment")
+    autocomplete_fields = ["leaderboard", "candidate", "enrollment"]
     list_select_related = ("leaderboard", "candidate", "candidate__user", "enrollment")
+
+    @admin.display(description="Candidate", ordering="candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.candidate.user.email
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)

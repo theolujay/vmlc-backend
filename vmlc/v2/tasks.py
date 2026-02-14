@@ -106,6 +106,17 @@ def check_exam_status_transitions_task():
     # Or just fetch all exams that are recently concluded
     # (where scheduled_date + open_duration_hours is between last_run and now)
 
+    # Passcode Generation: Identify exams that became SCHEDULED since the last run
+    # (Exam status is SCHEDULED if scheduled_date is in the future)
+    newly_scheduled_exams = Exam.objects.filter(
+        is_active=True,
+        scheduled_date__gt=now,
+        updated_at__gt=last_run
+    )
+    for exam in newly_scheduled_exams:
+        generate_and_send_exam_passcodes_task.delay(str(exam.id))
+        logger.info(f"Triggered passcode task for newly scheduled/updated exam {exam.id}")
+
     # Let's just invalidate for any exam that is "Active" and has a
     # scheduled_date in a relevant range.
 
@@ -143,3 +154,15 @@ def check_exam_status_transitions_task():
         )
 
     cache.set("last_exam_status_check_time", now, timeout=86400)
+
+
+@shared_task(name="generate_and_send_exam_passcodes_task")
+def generate_and_send_exam_passcodes_task(exam_id):
+    """
+    Task to generate passcodes and send them via email to eligible candidates.
+    """
+    from vmlc.services.exam_access import ExamAccessService
+    
+    logger.info(f"Generating and sending passcodes for exam {exam_id}")
+    ExamAccessService.generate_passcodes(exam_id)
+    ExamAccessService.send_passcode_emails(exam_id)

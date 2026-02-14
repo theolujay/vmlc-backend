@@ -6,6 +6,7 @@ from .exam import (
     ExamResultsV2View,
     ExamQuestionsV2View,
     ExamHistoryV2View,
+    ExamFaceCaptureView,
     candidate_take_exam_V2,
 )
 from .question import (
@@ -24,6 +25,7 @@ __all__ = [
     "ExamResultsV2View",
     "ExamQuestionsV2View",
     "ExamHistoryV2View",
+    "ExamFaceCaptureView",
     "candidate_take_exam_V2",
     "QuestionListCreateV2View",
     "QuestionDetailV2View",
