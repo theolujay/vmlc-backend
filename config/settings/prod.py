@@ -146,3 +146,11 @@ FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 # === STATIC & MEDIA FILES ===
 # STATIC_ROOT = "/home/verboheit/app/staticfiles"
 # MEDIA_ROOT = "/home/verboheit/app/media"
+
+# === API AND JWT OVERRIDES ===
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {
+        "login": "100/min",  # Increased from 5/min to accommodate 400+ concurrent users
+    }
+)
+REST_FRAMEWORK["NUM_PROXIES"] = 1  # Trust the first proxy's X-Forwarded-For header
