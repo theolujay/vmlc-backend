@@ -129,6 +129,13 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         round = validated_data.pop("round", None)
         exam = super().create(validated_data)
         self._handle_competition_slot(exam, stage_id, round)
+
+        if exam.status == Exam.Status.SCHEDULED:
+            from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+            transaction.on_commit(
+                lambda: generate_and_send_exam_passcodes_task.delay(exam.id)
+            )
+
         return exam
 
     def update(self, instance, validated_data):
@@ -139,8 +146,20 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
         stage_id = validated_data.pop("stage_id", None)
         round = validated_data.pop("round", None)
+        
+        old_status = instance.status
         instance = super().update(instance, validated_data)
         self._handle_competition_slot(instance, stage_id, round)
+
+        if (
+            old_status == Exam.Status.DRAFT 
+            and instance.status == Exam.Status.SCHEDULED
+        ):
+            from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+            transaction.on_commit(
+                lambda: generate_and_send_exam_passcodes_task.delay(instance.id)
+            )
+
         return instance
 
     def _handle_competition_slot(self, exam, stage_id, round):
@@ -283,3 +302,17 @@ class ExamResultV2Serializer(serializers.ModelSerializer):
             "score_submitted_by",
             "recorded_at",
         ]
+
+
+class ExamFaceCaptureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExamAccess
+        fields = ["face_capture"]
+
+    def validate_face_capture(self, value):
+        if not value:
+            raise serializers.ValidationError("Face capture image is required.")
+        from identity.validators import validate_image
+
+        validate_image(value)
+        return value

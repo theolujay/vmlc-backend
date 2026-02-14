@@ -12,7 +12,7 @@ from django.db.models import Avg
 from django.utils import timezone
 
 from identity.validators import validate_image
-from vmlc.storage_backends import PublicMediaStorage
+from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 phone_regex = RegexValidator(
     regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
@@ -665,27 +665,14 @@ class ExamAccess(models.Model):
     facilitator_system = models.CharField(
         max_length=20,
         choices=Facilitator.choices,
+        default=Facilitator.VMLC
     )
-
-    access_url = models.URLField(
-        null=True,
-        blank=True,
-        help_text="Candidate-specific exam URL on the facilitator.",
-    )
-    passcode = models.CharField(
-        max_length=64,
-        null=True,
-        blank=True,
-        help_text="Opaque passcode or token embedded in the URL.",
-    )
-
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.PENDING,
         db_index=True,
     )
-
     issued_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     deadline = models.DateTimeField(null=True, blank=True)
@@ -694,6 +681,13 @@ class ExamAccess(models.Model):
         default=dict,
         blank=True,
         help_text="Raw request/response metadata exchanged with facilitator.",
+    )
+
+    face_capture = models.ImageField(
+        upload_to="exam_face_captures/",
+        blank=True,
+        null=True,
+        storage=PrivateMediaStorage(),
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -708,3 +702,47 @@ class ExamAccess(models.Model):
             models.Index(fields=["exam", "status"]),
             models.Index(fields=["candidate", "status"]),
         ]
+
+class ExamAccessPasscode(models.Model):
+
+    class Status(models.TextChoices):
+        ISSUED = "issued", "Issued"
+        USED = "used", "Used"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    exam_access = models.OneToOneField(
+        "ExamAccess",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="exam_access",
+    )
+    access_url = models.URLField(
+        null=True,
+        blank=True,
+        help_text="Candidate-specific exam URL on the facilitator.",
+    )
+    passcode = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Opaque passcode or token embedded in the URL.",
+    )
+    is_passcode_sent = models.BooleanField(
+        default=False,
+        help_text="Whether the passcode email has been sent to the candidate.",
+    )
+    expiry_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ISSUED,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def regenerate_passcode(self, *args):
+        pass

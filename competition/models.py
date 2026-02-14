@@ -110,6 +110,10 @@ class StageExam(models.Model):
         default=dict, blank=True, help_text="StageExam-specific config."
     )
 
+    def __str__(self):
+        stage_exam_round = self.round if self.round is not None else ""
+        return f"{self.competition_stage} - {stage_exam_round}"
+
     class Meta:
         verbose_name = "Stage Exam"
         verbose_name_plural = "Stage Exams"

@@ -13,6 +13,8 @@ from .models import (
     FeatureFlag,
     CandidateExamResultSnapshot,
     SupportInquiry,
+    ExamAccess,
+    ExamAccessPasscode,
 )
 
 from .utils.helpers import (
@@ -51,6 +53,17 @@ class ExamAdmin(admin.ModelAdmin):
     date_hierarchy = "scheduled_date"
     filter_horizontal = ("questions",)
     list_select_related = ("created_by", "created_by__user", "competition_slot")
+    actions = ["generate_and_send_passcodes"]
+
+    @admin.action(description="Generate and Send Direct Access Passcodes")
+    def generate_and_send_passcodes(self, request, queryset):
+        from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+        for exam in queryset:
+            generate_and_send_exam_passcodes_task.delay(exam.id)
+        self.message_user(
+            request,
+            f"Started passcode generation and email tasks for {queryset.count()} exams.",
+        )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -434,3 +447,77 @@ class SupportInquiryAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     date_hierarchy = "created_at"
     list_select_related = ("user",)
+
+
+@admin.register(ExamAccess)
+class ExamAccessAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "candidate_email",
+        "exam_title",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status", "facilitator_system")
+    search_fields = ("candidate__user__email", "exam__description")
+    list_select_related = ("candidate__user", "exam")
+    readonly_fields = ("created_at",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._invalidate_access_cache(obj)
+
+    def delete_model(self, request, obj):
+        self._invalidate_access_cache(obj)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self._invalidate_access_cache(obj)
+        super().delete_queryset(request, queryset)
+
+    def _invalidate_access_cache(self, access):
+        candidate = access.candidate
+        invalidate_candidate_cache(candidate.pk, candidate.user.id)
+        invalidate_exam_cache(access.exam_id)
+        invalidate_all_dashboard_caches()
+
+    @admin.display(description="Candidate", ordering="candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.candidate.user.email
+
+    @admin.display(description="Exam")
+    def exam_title(self, obj):
+        return obj.exam.get_title()
+
+
+@admin.register(ExamAccessPasscode)
+class ExamAccessPasscodeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "candidate_email",
+        "exam_title",
+        "status",
+        "is_passcode_sent",
+        "expiry_date",
+        "created_at",
+    )
+    list_filter = ("status", "is_passcode_sent", "created_at")
+    search_fields = (
+        "passcode",
+        "exam_access__candidate__user__email",
+        "exam_access__exam__description",
+    )
+    list_select_related = (
+        "exam_access__candidate__user",
+        "exam_access__exam",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Candidate", ordering="exam_access__candidate__user__email")
+    def candidate_email(self, obj):
+        return obj.exam_access.candidate.user.email
+
+    @admin.display(description="Exam")
+    def exam_title(self, obj):
+        return obj.exam_access.exam.get_title()

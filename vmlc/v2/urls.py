@@ -1,6 +1,7 @@
 from django.urls import path
 
 from vmlc.v2.views.exam import ExamRetractV2View
+from vmlc.v2.views.auth import DirectAccessLoginView
 from .views import (
     RegistrationV2View,
     PreRegistrationView,
@@ -10,6 +11,7 @@ from .views import (
     ExamResultsV2View,
     ExamQuestionsV2View,
     ExamHistoryV2View,
+    ExamFaceCaptureView,
     candidate_take_exam_V2,
     QuestionListCreateV2View,
     QuestionDetailV2View,
@@ -22,6 +24,7 @@ app_name = "vmlc-v2"
 
 urlpatterns = [
     path("register/", RegistrationV2View.as_view(), name="register"),
+    path("auth/direct-access/", DirectAccessLoginView.as_view(), name="direct-access-login"),
     path("pre-register/", PreRegistrationView.as_view(), name="pre-register"),
     path("support-us/", SupportUsView.as_view(), name="support-us"),
     path("registration/", registration_status, name="registration-status"),
@@ -61,6 +64,11 @@ urlpatterns = [
     # SUBMISSIONS & SCORING
     # =============================================================================
     path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam_V2, name="take-exam"),
+    path(
+        "exams/<uuid:exam_id>/face-capture/",
+        ExamFaceCaptureView.as_view(),
+        name="exam-face-capture",
+    ),
     path(
         "exams/<uuid:exam_id>/submit/",
         SubmitAnswersV2View.as_view(),

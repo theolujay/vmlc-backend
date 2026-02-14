@@ -4,6 +4,7 @@ from django.db.models import Avg, Count, Q
 
 from rest_framework.views import APIView
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.generics import (
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -24,6 +25,7 @@ from vmlc.v2.serializers.exam import (
     ExamDetailV2Serializer,
     ExamResultV2Serializer,
     CandidateTakeExamSerializer,
+    ExamFaceCaptureSerializer,
 )
 from vmlc.serializers import (
     QuestionListSerializer,
@@ -352,6 +354,46 @@ class ExamHistoryV2View(ListAPIView):
         )
 
 
+class ExamFaceCaptureView(APIView):
+    """
+    API view for candidates to upload their face capture before taking an exam.
+    """
+
+    permission_classes = CandidatePermissions
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, exam_id):
+        candidate = request.user.candidate_profile
+        try:
+            exam = Exam.objects.get(pk=exam_id)
+        except Exam.DoesNotExist:
+            raise NotFound("Exam not found.")
+
+        serializer = ExamFaceCaptureSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        access, created = ExamAccess.objects.get_or_create(
+            candidate=candidate,
+            exam=exam,
+            defaults={
+                "status": ExamAccess.Status.PENDING,
+                "facilitator_system": ExamAccess.Facilitator.VMLC,
+            },
+        )
+
+        access.face_capture = serializer.validated_data["face_capture"]
+        access.status = ExamAccess.Status.PENDING
+        access.save()
+
+        logger.info(
+            f"Face capture uploaded for candidate {candidate.pk}, exam {exam_id}"
+        )
+        return Response(
+            {"message": "Face capture uploaded successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
@@ -373,34 +415,31 @@ def candidate_take_exam_V2(request, exam_id):
 
     # Manage Exam Access
     now = timezone.now()
-    access, created = ExamAccess.objects.get_or_create(
-        candidate=candidate,
-        exam=exam,
-        defaults={
-            "status": ExamAccess.Status.STARTED,
-            "facilitator_system": ExamAccess.Facilitator.VMLC,
-            "started_at": now,
-            "deadline": now + timedelta(minutes=exam.countdown_minutes),
-        },
-    )
+    try:
+        access = ExamAccess.objects.get(candidate=candidate, exam=exam)
+    except ExamAccess.DoesNotExist:
+        raise PermissionDenied(
+            "Identity verification (face capture) required before taking the exam."
+        )
 
-    if not created:
-        # Check if already submitted or expired
-        if access.status in [
-            ExamAccess.Status.SUBMITTED,
-            ExamAccess.Status.EXPIRED,
-            ExamAccess.Status.FAILED,
-        ]:
-            raise PermissionDenied("You have already completed or attempted this exam.")
+    if not access.face_capture:
+        raise PermissionDenied(
+            "Identity verification (face capture) required before taking the exam."
+        )
 
-        # If in PENDING or ISSUED (unlikely for VMLC native, but possible), update to STARTED
-        # TODO: revisit this when Esturdi integration is implemented, especially when fallback feature flag is implemented
-        if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:
-            access.status = ExamAccess.Status.STARTED
-            access.started_at = now
-            access.deadline = now + timedelta(minutes=exam.countdown_minutes)
-            access.save(update_fields=["status", "started_at", "deadline"])
+    # Check if already submitted or expired
+    if access.status in [
+        ExamAccess.Status.SUBMITTED,
+        ExamAccess.Status.EXPIRED,
+        ExamAccess.Status.FAILED,
+    ]:
+        raise PermissionDenied("You have already completed or attempted this exam.")
 
-    return Response(
-        CandidateTakeExamSerializer(exam, context={"request": request}).data
-    )
+    # If in PENDING or ISSUED, update to STARTED
+    if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:
+        access.status = ExamAccess.Status.STARTED
+        access.started_at = now
+        access.deadline = now + timedelta(minutes=exam.countdown_minutes)
+        access.save(update_fields=["status", "started_at", "deadline"])
+
+    return Response(CandidateTakeExamSerializer(exam, context={"request": request}).data)

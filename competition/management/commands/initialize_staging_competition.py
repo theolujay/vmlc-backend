@@ -143,16 +143,24 @@ class Command(BaseCommand):
 
     def _create_competition_structure(self, edition, name):
         self.stdout.write("Creating competition and stages...")
-        competition, created = Competition.objects.get_or_create(
-            edition=edition,
-            defaults={
-                "name": name,
-                "status": Competition.Status.ACTIVE,
-                "start_date": timezone.now(),
-            },
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
+
+        competition = Competition.objects.filter(
+            status=Competition.Status.ACTIVE
+        ).first()
+        if not competition:
+            self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
+
+            competition, created = Competition.objects.get_or_create(
+                name=name,
+                edition=edition,
+                defaults={
+                    "name": name,
+                    "status": Competition.Status.ACTIVE,
+                    "start_date": timezone.now(),
+                },
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
         else:
             self.stdout.write(f"Competition already exists: {competition}")
 
@@ -216,21 +224,24 @@ class Command(BaseCommand):
         simulation_candidates = list()
         for i in range(count):
             email = f"candidate{i+1}.vmlc@mailsac.com"
+            user = None
             if User.objects.filter(email=email).exists():
                 candidate = Candidate.objects.filter(user__email=email).first()
                 if candidate:
                     simulation_candidates.append(email)
-                continue
+                    continue
+                user = User.objects.get(email=email)
 
-            user = User.objects.create_user(
-                email=email,
-                password=os.getenv("ANON_PASSWORD", "password123"),
-                first_name=self.fake.first_name()[:29],
-                last_name=self.fake.last_name()[:29],
-                is_email_verified=True,
-                phone=self._generate_nigerian_phone(),
-                state=random.choice(["Lagos", "Abuja", "Rivers", "Ogun"]),
-            )
+            else:
+                user = User.objects.create_user(
+                    email=email,
+                    password=os.getenv("ANON_PASSWORD", "password123"),
+                    first_name=self.fake.first_name()[:29],
+                    last_name=self.fake.last_name()[:29],
+                    is_email_verified=True,
+                    phone=self._generate_nigerian_phone(),
+                    state=random.choice(["Lagos", "Abuja", "Rivers", "Ogun"]),
+                )
             Candidate.objects.create(
                 user=user,
                 school_name=self.fake.company()[:140] + " High",
