@@ -60,6 +60,9 @@ class SubmitAnswersView(APIView):
         - Creates all answers within a single database transaction.
         - Triggers auto-scoring upon successful submission.
         """
+        from comms.tasks import notify_user_task
+        from comms.models import Broadcast
+
         candidate = request.user.candidate_profile
         exam = get_object_or_404(Exam, pk=exam_id)
         safe_data = sanitize_data(request.data)
@@ -110,7 +113,8 @@ class SubmitAnswersView(APIView):
         serializer.is_valid(raise_exception=True)
         answers_data = serializer.validated_data["answers"]
 
-        # 4. Atomic Bulk Creation
+        # Atomic Bulk Creation
+        # TODO: wrap success logger and notification in the transaction and handle edge case when transaction fails and rolls back
         with transaction.atomic():
             answers_to_create = [
                 CandidateAnswer(
@@ -128,6 +132,15 @@ class SubmitAnswersView(APIView):
             "Candidate %s successfully submitted answers for exam %s.",
             candidate.pk,
             exam.pk,
+        )
+
+        # Send notification
+        notify_user_task.delay(
+            user=request.user,
+            subject=f"Submission Successful: {exam.title}",
+            message=f"Your submission for the exam '{exam.title}' has been received successfully.",
+            mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL, Broadcast.Mediums.SMS],
+            notification_type="success",
         )
 
         return Response(

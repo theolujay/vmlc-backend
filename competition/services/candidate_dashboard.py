@@ -48,15 +48,15 @@ class CandidateDashboardService:
             candidate, active_comp, enrollment
         )
 
-        # 3. Active Exam
+        # Active Exam
         active_exam_data = CandidateDashboardService._get_active_exam(
             candidate, active_comp, enrollment
         )
 
-        # 4. Performance Snapshot
+        # Performance Snapshot
         performance = CandidateDashboardService._get_performance(candidate, active_comp)
 
-        # 5. Exam History
+        # Exam History
         history = CandidateDashboardService._get_exam_history(candidate)
 
         return {
@@ -192,6 +192,23 @@ class CandidateDashboardService:
             ),
         }
 
+        # Fetch full history of stage progress
+        from competition.models import EnrollmentStageProgress
+
+        history = []
+        if enrollment:
+            stage_progresses = EnrollmentStageProgress.objects.filter(
+                enrollment=enrollment
+            ).select_related("stage").order_by("stage__order")
+            for sp in stage_progresses:
+                history.append({
+                    "stage": sp.stage.type,
+                    "status": sp.status,
+                    "started_at": sp.started_at,
+                    "completed_at": sp.completed_at,
+                    "discontinued_at": sp.discontinued_at,
+                })
+
         return {
             "current_stage": current_stage.type,  # TODO: compare with staff's competition dashboard to handle when exam's not started yet
             "current_round": current_round,
@@ -199,6 +216,7 @@ class CandidateDashboardService:
             "published_rounds": published_rounds,
             "has_taken_current_round": has_taken_current_round,
             "qualification_status": qualification_status,
+            "history": history,
         }
 
     @staticmethod

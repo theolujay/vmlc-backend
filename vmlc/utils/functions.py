@@ -73,6 +73,28 @@ def generate_leaderboard_snapshot(staff_id=None):
         is_published=True,
     )
 
+    # Notify candidates who participated in these exams
+    from comms.functions import notify_user
+    from comms.models import Broadcast
+
+    for exam in concluded_exams:
+        results = CandidateExamResult.objects.filter(exam=exam).select_related(
+            "candidate__user"
+        )
+        subject = f"Leaderboard Published: {exam.title}"
+        message = (
+            f"The leaderboard for the exam '{exam.title}' has been published. "
+            f"You can now view your rank and performance on your dashboard."
+        )
+        for result in results:
+            notify_user(
+                user=result.candidate.user,
+                subject=subject,
+                message=message,
+                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                notification_type="success",
+            )
+
     logger.info(
         f"Leaderboard snapshot created by staff {staff.pk if staff else 'system'}. "
         f"Snapshot ID: {snapshot.pk}. "
@@ -314,6 +336,27 @@ def generate_results_snapshot(staff_id=None):
             published_by=staff,
             published_at=timezone.now(),
         )
+
+        # Notify all active candidates
+        from comms.functions import notify_user
+        from comms.models import Broadcast
+
+        subject = "Overall Results Published"
+        message = (
+            "The overall results snapshot has been published. "
+            "Please check your dashboard to see your updated standing and performance across all exams."
+        )
+        active_candidates = Candidate.objects.filter(user__is_active=True).select_related(
+            "user"
+        )
+        for candidate in active_candidates:
+            notify_user(
+                user=candidate.user,
+                subject=subject,
+                message=message,
+                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                notification_type="success",
+            )
 
         logger.info(f"Scores published by staff {staff.pk}. Snapshot ID: {snapshot.pk}")
     except Staff.DoesNotExist:

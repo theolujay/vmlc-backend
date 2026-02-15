@@ -131,6 +131,17 @@ class SubmitAnswersV2View(APIView):
             exam.pk,
         )
 
+        # Send notification
+        from comms.functions import notify_user
+        from comms.models import Broadcast
+        notify_user(
+            user=request.user,
+            subject=f"Submission Successful: {exam.title}",
+            message=f"Your submission for the exam '{exam.title}' has been received successfully.",
+            mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL, Broadcast.Mediums.SMS],
+            notification_type="success",
+        )
+
         return Response(
             {"message": "Answers submitted successfully!"},
             status=status.HTTP_201_CREATED,
