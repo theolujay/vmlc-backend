@@ -477,6 +477,7 @@ def notify_candidates_about_exam(exam, event_type):
     from competition.models import EnrollmentStageProgress
     from comms.tasks import notify_user_task
     from comms.models import Broadcast
+    from comms.utils import format_phone, is_placeholder_phone
 
     logger = logging.getLogger(__name__)
 
@@ -530,36 +531,73 @@ def notify_candidates_about_exam(exam, event_type):
             'conclusion_time': conclusion_time.strftime('%Y-%m-%d %H:%M:%S %Z')
         }
 
-    notification_mediums = [
-        Broadcast.Mediums.PLATFORM,
-        Broadcast.Mediums.EMAIL,
-        Broadcast.Mediums.SMS,
-        Broadcast.Mediums.WHATSAPP,
-    ]
-
-    # Send notifications to each candidate
+    # Send individual notifications (Platform, Email) and group for (SMS, WhatsApp)
+    phone_grouped_users = {}  # {phone: [user1, user2, ...]}
     notification_count = 0
+
     for esp in enrollment_stage_progresses:
         user = esp.enrollment.candidate.user
+        notification_count += 1
 
+        # Individual notifications (Platform & Email)
         format_args = {
             'candidate_name': user.first_name or 'Candidate',
             'exam_title': exam.get_title(),
             **template_kwargs
         }
-
         personalized_message = message_template.format(**format_args)
-        # TODO: reconsider if send_broadcast would be better here
-        # For now, let's use notify_user_task, especially because of the
-        # candidates who share phone numbers, so their names are indicated
         notify_user_task.delay(
             user=user,
             subject=subject,
             message=personalized_message,
-            mediums=notification_mediums,
+            mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
             notification_type='info',
         )
-        notification_count += 1
+
+        # Collect users sharing the same phone number for SMS/WhatsApp
+        if user.phone:
+            phone = user.phone
+            phone = format_phone(phone)
+
+            if is_placeholder_phone(phone):
+                continue
+            if phone not in phone_grouped_users:
+                phone_grouped_users[phone] = []
+            phone_grouped_users[phone].append(user)
+
+    # Send grouped notifications (SMS & WhatsApp)
+    phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
+    for phone, users in phone_grouped_users.items():
+        if len(users) > 1:
+            unique_names = []
+            for u in users:
+                name = u.first_name or 'Candidate'
+                if name not in unique_names:
+                    unique_names.append(name)
+
+            if len(unique_names) > 2:
+                candidate_name = ", ".join(unique_names[:-1]) + f", and {unique_names[-1]}"
+            elif len(unique_names) == 2:
+                candidate_name = " and ".join(unique_names)
+            else:
+                candidate_name = unique_names[0]
+        else:
+            candidate_name = users[0].first_name or 'Candidate'
+
+        format_args = {
+            'candidate_name': candidate_name,
+            'exam_title': exam.get_title(),
+            **template_kwargs
+        }
+        personalized_message = message_template.format(**format_args)
+
+        notify_user_task.delay(
+            user=users[0],
+            subject=subject,
+            message=personalized_message,
+            mediums=phone_mediums,
+            notification_type='info',
+        )
 
     logger.info(
         f"Queued '{event_type}' notifications for exam {exam.id} "

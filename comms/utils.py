@@ -28,7 +28,8 @@ def format_phone(phone):
     return phone
 
 def is_placeholder_phone(phone):
-    return phone == "2349123456789"
+    clean_phone = format_phone(phone)
+    return clean_phone == "2349123456789"
 
 def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
     """
