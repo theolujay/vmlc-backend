@@ -1,17 +1,17 @@
+import io
+from PIL import Image
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.urls import reverse
 from django.utils import timezone
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-from django.contrib.auth import get_user_model
-from datetime import timedelta
-from unittest.mock import patch
-import io
-from PIL import Image
 
 from identity.models import Candidate, Staff
-from competition.models import Competition, Stage, Enrollment
+from competition.models import Competition, Stage, Enrollment, StageExam, EnrollmentStageProgress
 from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
 from vmlc.services.exam_access import ExamAccessService
 
@@ -55,7 +55,12 @@ class ExamAccessTests(APITestCase):
             status=Enrollment.Status.ACTIVE
         )
 
-        from competition.models import StageExam
+        EnrollmentStageProgress.objects.create(
+            enrollment=self.enrollment,
+            stage=self.stage,
+            status=EnrollmentStageProgress.Status.IN_PROGRESS
+        )
+
         self.slot = StageExam.objects.create(
             competition_stage=self.stage,
             is_active=True
@@ -159,13 +164,13 @@ class ExamAccessTests(APITestCase):
     @patch('vmlc.v2.tasks.generate_and_send_exam_passcodes_task.delay')
     def test_passcode_task_triggered_on_scheduled(self, mock_task):
         from vmlc.v2.serializers.exam import ExamDetailV2Serializer
-        
+
         # Create a DRAFT exam
         exam = Exam.objects.create(
             description="Draft Exam",
             created_by=self.staff
         )
-        
+
         # Update it to SCHEDULED
         with self.captureOnCommitCallbacks(using='default') as callbacks:
             serializer = ExamDetailV2Serializer(
@@ -180,9 +185,9 @@ class ExamAccessTests(APITestCase):
             )
             serializer.is_valid(raise_exception=True)
             serializer.save()
-        
+
         # Manually execute the callbacks (transaction.on_commit)
         for callback in callbacks:
             callback()
-            
+
         self.assertTrue(mock_task.called)

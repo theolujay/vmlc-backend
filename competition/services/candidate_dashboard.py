@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
+from django.db.models import Q
 from django.utils import timezone
 
 from competition.models import (
@@ -12,9 +13,13 @@ from competition.models import (
     RankingSnapshot,
     RankingSnapshotEntry,
 )
+from comms.models import Notification
+from competition.services.leaderboard import LeaderboardService
+from competition.services.eligibility import EligibilityService
+from competition.models import EnrollmentStageProgress
 from identity.models import Candidate
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from comms.models import Notification
+from vmlc.v2.utils import truncate_float
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +94,7 @@ class CandidateDashboardService:
                     {
                         "id": n.id,
                         "message": n.message,
+                        "is_read_by_recipient": n.is_read_by_recipient
                     }
                 )
 
@@ -139,8 +145,6 @@ class CandidateDashboardService:
             }
 
         # Rounds in current stage
-        from django.db.models import Q
-
         now = timezone.now()
 
         slots = (
@@ -193,8 +197,6 @@ class CandidateDashboardService:
         }
 
         # Fetch full history of stage progress
-        from competition.models import EnrollmentStageProgress
-
         history = []
         if enrollment:
             stage_progresses = EnrollmentStageProgress.objects.filter(
@@ -239,9 +241,6 @@ class CandidateDashboardService:
             return None
 
         # Get all active slots for current stage
-        from django.db.models import Q
-        from competition.services.eligibility import EligibilityService
-
         now = timezone.now()
 
         slots = (
@@ -353,8 +352,6 @@ class CandidateDashboardService:
         if not active_comp:
             return snapshot
 
-        from django.db.models import Q
-
         # 1. Fetch Screening and Final RankingSnapshot Entries
         entries = RankingSnapshotEntry.objects.filter(
             Q(ranking_snapshot__stage=Stage.Type.SCREENING)
@@ -380,9 +377,7 @@ class CandidateDashboardService:
             elif stage_type == Stage.Type.FINAL:
                 snapshot["final_ranking"] = data
 
-        # 2. League Leaderboard
-        from competition.services.leaderboard import LeaderboardService
-
+        # League Leaderboard
         leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
 
         if leaderboard:
@@ -422,7 +417,7 @@ class CandidateDashboardService:
             ).values_list("exam_id", flat=True)
         )
 
-        from vmlc.v2.utils import truncate_float
+
 
         history = []
         for res in results:
