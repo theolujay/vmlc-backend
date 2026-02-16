@@ -11,21 +11,32 @@ Provides a comprehensive overview for the student, including their notifications
 ```json
 {
   "candidate_context": {
-    "full_name": "John Doe",
+    "id": 12,
+    "user": {
+      "id": 45,
+      "email": "john.doe@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "profile_picture": "https://api.vmlc.com/media/profs/john.jpg",
+      "phone": "+2348012345678",
+      "state": "Lagos"
+    },
     "role": "screening",
-    "profile_picture": "https://api.vmlc.com/media/profs/john.jpg",
-    "is_setup_complete": true,
-    "status": "active",
-    "notifications": {
-      "info": [
-        {
-          "id": 1,
-          "message": "Stay sharp! The league round 3 begins tomorrow."
-        }
-      ],
-      "success": [],
-      "error": []
-    }
+    "school_name": "Verboheit Academy",
+    "school_type": "private",
+    "current_class": "SS3",
+    "status": "active"
+  },
+  "notifications": {
+    "info": [
+      {
+        "id": 1,
+        "message": "Stay sharp! The league round 3 begins tomorrow.",
+        "is_read_by_recipient": false
+      }
+    ],
+    "success": [],
+    "error": []
   },
   "enrollment_stage_progress": {
     "current_stage": "league", 
@@ -39,12 +50,29 @@ Provides a comprehensive overview for the student, including their notifications
           "mode": "top_percent",
           "value": 0.3
       },
-      "message": "You have qualified for the League Stage!"
-    }
+      "message": "You are currently Active in the League Stage stage."
+    },
+    "history": [
+      {
+        "stage": "screening",
+        "status": "completed",
+        "started_at": "2026-01-01T10:00:00Z",
+        "completed_at": "2026-01-20T15:00:00Z",
+        "discontinued_at": null
+      },
+      {
+        "stage": "league",
+        "status": "in_progress",
+        "started_at": "2026-01-21T09:00:00Z",
+        "completed_at": null,
+        "discontinued_at": null
+      }
+    ]
   },
   "active_exam": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "title": "League Round 3",
+    "description": "This exam covers advanced algebra and trigonometry.",
     "stage": "league",
     "round": 3,
     "question_count": 30,

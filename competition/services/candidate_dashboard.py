@@ -40,7 +40,8 @@ class CandidateDashboardService:
                 status=Competition.Status.ACTIVE
             ).first()
 
-        context = CandidateDashboardService._get_context(candidate)
+        # context = CandidateDashboardService._get_context(candidate)
+        # notifications = CandidateDashboardService._get_notifications(candidate)
 
         if active_comp and not enrollment:
             enrollment = (
@@ -65,51 +66,47 @@ class CandidateDashboardService:
         history = CandidateDashboardService._get_exam_history(candidate)
 
         return {
-            "candidate_context": context,
+            # "candidate_context": context,
+            # "notifications": notifications,
             "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
             "performance": performance,
             "exam_history": history,
         }
 
-    @staticmethod
-    def _get_context(candidate: Candidate) -> Dict[str, Any]:
-        # Fetch last 5 unread notifications
-        notifications = Notification.objects.filter(
-            recipient=candidate.user,
-            is_read_by_recipient=False,
-        ).order_by("-created_at")[:5]
+    # @staticmethod
+    # def _get_notifications(candidate: Candidate) -> Dict[str, Any]:
 
-        notification_map = {"info": [], "success": [], "error": []}
-        n_type_key_map = {
-            Notification.Type.INFO: "info",
-            Notification.Type.SUCCESS: "success",
-            Notification.Type.ERROR: "error",
-        }
+    #     # Fetch last 5 unread notifications
+    #     notifications = Notification.objects.filter(
+    #         recipient=candidate.user,
+    #         is_read_by_recipient=False,
+    #     ).order_by("-created_at")[:5]
 
-        for n in notifications:
-            key = n_type_key_map.get(n.type)
-            if key:
-                notification_map[key].append(
-                    {
-                        "id": n.id,
-                        "message": n.message,
-                        "is_read_by_recipient": n.is_read_by_recipient
-                    }
-                )
+    #     notification_map = {"info": [], "success": [], "error": []}
+    #     n_type_key_map = {
+    #         Notification.Type.INFO: "info",
+    #         Notification.Type.SUCCESS: "success",
+    #         Notification.Type.ERROR: "error",
+    #     }
 
-        return {
-            "full_name": candidate.user.get_full_name(),
-            "role": candidate.role,
-            "profile_picture": (
-                candidate.user.profile_picture.url
-                if candidate.user.profile_picture
-                else None
-            ),
-            "is_setup_complete": candidate.user.is_setup_complete,
-            "status": candidate.status,
-            "notifications": notification_map,
-        }
+    #     for n in notifications:
+    #         key = n_type_key_map.get(n.type)
+    #         if key:
+    #             notification_map[key].append(
+    #                 {
+    #                     "id": n.id,
+    #                     "message": n.message,
+    #                     "is_read_by_recipient": n.is_read_by_recipient
+    #                 }
+    #             )
+    #     return notification_map
+
+    # @staticmethod
+    # def _get_context(candidate: Candidate) -> Dict[str, Any]:
+    #     from vmlc.views.user.management import ProfileManager
+
+    #     return ProfileManager.serialize_profile(candidate.user) or {}
 
     @staticmethod
     def _get_enrollment_stage_progress(

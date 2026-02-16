@@ -15,6 +15,7 @@ from .models import (
     SupportInquiry,
     ExamAccess,
     ExamAccessPasscode,
+    CacheManagement,
 )
 
 from .utils.helpers import (
@@ -489,6 +490,42 @@ class ExamAccessAdmin(admin.ModelAdmin):
     @admin.display(description="Exam")
     def exam_title(self, obj):
         return obj.exam.get_title()
+
+
+@admin.register(CacheManagement)
+class CacheManagementAdmin(admin.ModelAdmin):
+    """
+    Admin interface for cache management.
+    """
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return True
+
+    def changelist_view(self, request, extra_context=None):
+        """
+        Redirect the changelist view to the clear cache view or show a button.
+        """
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+
+        if "clear" in request.GET:
+            cache.clear()
+            invalidate_all_dashboard_caches()
+            self.message_user(request, "All caches cleared successfully.", messages.SUCCESS)
+            return redirect("admin:vmlc_cachemanagement_changelist")
+
+        extra_context = extra_context or {}
+        extra_context["title"] = "Cache Management"
+        return render(request, "admin/cache_management.html", extra_context)
 
 
 @admin.register(ExamAccessPasscode)

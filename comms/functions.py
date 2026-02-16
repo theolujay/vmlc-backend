@@ -48,7 +48,7 @@ def notify_user(
     for medium in mediums:
         try:
             # Combine subject and message for mediums that only handle a single body
-            full_body = f"{subject}\n\n{message}" if subject else message
+            full_body = f"{subject}:\n\n{message}" if subject else message
 
             if medium == Broadcast.Mediums.PLATFORM:
                 notification = Notification.objects.create(
@@ -169,7 +169,7 @@ def send_broadcast(broadcast_id):
                     recipients_by_type_and_role[key] = list(
                         Candidate.objects.select_related("user")
                         .filter(role=role, user__is_active=True)
-                        .values("user__id", "user__email")
+                        .values("user__id", "user__email", "user__phone")
                     )
                     logger.info(
                         "Found %d active candidate users for role '%s'",
@@ -303,6 +303,7 @@ def send_broadcast(broadcast_id):
 
     # Invalidate the cache for this broadcast's detail view
     cache.delete(f"broadcast_detail_{broadcast_id}")
+    cache.delete("broadcast_summary_data")
 
     # Return summary for monitoring/debugging
     return {
@@ -334,9 +335,9 @@ def _send_sms_broadcast(broadcast, recipients):
 
     string_list_valid_phones = ",".join(valid_phones)
     try:
-        full_body = f"{broadcast.subject}\n\n{broadcast.message}" if broadcast.subject else broadcast.message
+        full_body = f"{broadcast.subject}:\n\n{broadcast.message}" if broadcast.subject else broadcast.message
         message_length = len(full_body)
-        result = send_bulk_phone_msg(body=full_body, recipients=valid_phones)
+        result = send_bulk_phone_msg(body=full_body, recipients=valid_phones, medium="sms")
         logger.info(
             "SMS broadcast %s: Sent to %d/%d recipients (%d failed)",
             broadcast.id,
@@ -396,11 +397,14 @@ def _send_platform_broadcast(broadcast, recipients):
             f"No user IDs found for role '{broadcast.target_roles}'"
         )
 
-    full_body = f"{broadcast.subject}\n\n{broadcast.message}" if broadcast.subject else broadcast.message
+    full_body = f"{broadcast.subject}:\n\n{broadcast.message}" if broadcast.subject else broadcast.message
 
     notifications_to_create = [
         Notification(
-            recipient_id=user_id, subject=broadcast.subject, message=full_body
+            recipient_id=user_id,
+            subject=broadcast.subject,
+            message=full_body,
+            type=Notification.Type.INFO
         )
         for user_id in user_ids
     ]

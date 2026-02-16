@@ -5,6 +5,46 @@ from django.db.models import Q, QuerySet
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
+from comms.models import Broadcast
+
+
+def filter_broadcasts(queryset: QuerySet[Broadcast], params: Any) -> QuerySet[Broadcast]:
+    """
+    Filter broadcast queryset based on optional query parameters.
+
+    Supported filters:
+        - status: Exact match on broadcast status
+        - medium: Match if the specified medium is in the mediums array
+        - search: Partial match on subject or message
+        - created_at: Exact match on creation date (YYYY-MM-DD)
+
+    Args:
+        queryset (QuerySet): The initial Broadcast queryset.
+        params (QueryDict): The request query parameters.
+
+    Returns:
+        QuerySet: Filtered queryset.
+    """
+    status: Any = params.get("status")
+    medium: Any = params.get("medium")
+    search: Any = params.get("search")
+    created_at: Any = params.get("created_at")
+
+    if status:
+        queryset = queryset.filter(status=status)
+
+    if medium:
+        queryset = queryset.filter(mediums__contains=[medium])
+
+    if search:
+        queryset = queryset.filter(
+            Q(subject__icontains=search) | Q(message__icontains=search)
+        )
+
+    if created_at:
+        queryset = queryset.filter(created_at__date=created_at)
+
+    return queryset
 
 
 def filter_candidates(
