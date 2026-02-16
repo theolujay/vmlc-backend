@@ -718,6 +718,20 @@ token_refresh_response_schema = openapi.Schema(
 broadcast_list_response_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
+        "broadcast_summary_data": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_broadcasts": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "sent_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "pending_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "failed_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "partial_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "email_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "sms_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "whatsapp_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "platform_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
         "results": openapi.Schema(
             type=openapi.TYPE_ARRAY,
             items=openapi.Schema(
@@ -735,8 +749,11 @@ broadcast_list_response_schema = openapi.Schema(
                         items=openapi.Schema(type=openapi.TYPE_STRING),
                     ),
                     "target_roles": openapi.Schema(
-                        type=openapi.TYPE_ARRAY,
-                        items=openapi.Schema(type=openapi.TYPE_STRING),
+                        type=openapi.TYPE_OBJECT,
+                        additional_properties=openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING)
+                        )
                     ),
                 },
             ),
@@ -753,7 +770,11 @@ broadcast_detail_request_body = openapi.Schema(
             type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
         ),
         "target_roles": openapi.Schema(
-            type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
+            type=openapi.TYPE_OBJECT,
+            additional_properties=openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_STRING)
+            )
         ),
     },
 )
@@ -772,7 +793,11 @@ broadcast_detail_response_schema = openapi.Schema(
             type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
         ),
         "target_roles": openapi.Schema(
-            type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
+            type=openapi.TYPE_OBJECT,
+            additional_properties=openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_STRING)
+            )
         ),
         "status": openapi.Schema(type=openapi.TYPE_STRING),
         "last_attempt": openapi.Schema(

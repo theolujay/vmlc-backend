@@ -245,6 +245,12 @@ TWILIO_FROM_PHONE = read_secret("TWILIO_FROM_PHONE")
 SLACK_WEBHOOK_URL = read_secret("SLACK_WEBHOOK_URL")
 BROADCAST_WEBHOOK_URL = SLACK_WEBHOOK_URL
 
+# Kudi SMS Configuration
+KUDI_API_KEY = read_secret("KUDI_API_KEY")
+KUDI_SENDER_ID = read_secret("KUDI_SENDER_ID", "VMLC")
+KUDI_GATEWAY = read_secret("KUDI_GATEWAY", "2")
+SMS_PROVIDER = read_secret("SMS_PROVIDER", "kudi")  # 'twilio' or 'kudi'
+
 # ============================================================================
 # API, JWT, AND CORS CONFIGURATION
 # ============================================================================
@@ -342,8 +348,8 @@ CELERY_TASK_ROUTES = {
     "send_broadcast_task": {"queue": "comms", "priority": 8},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
     "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
-    "validate_user_verification_files_task": {"queue": "files", "priority": 5},
-    "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
+    # "validate_user_verification_files_task": {"queue": "files", "priority": 5},
+    # "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
     "generate_results_snapshot_task": {"queue": "reports", "priority": 3},
     "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
     "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},

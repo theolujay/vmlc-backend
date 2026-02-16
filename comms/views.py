@@ -23,6 +23,7 @@ from comms.tasks import send_broadcast_task
 from comms.utils import send_backup_status_to_slack
 from identity.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
 from vmlc.utils.helpers import sanitize_data
+from vmlc.utils.query_filters import filter_broadcasts
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
@@ -70,37 +71,6 @@ class ListCreateRetrieveAPIView(
         """Handle POST requests for creating new items."""
         return self.create(request, *args, **kwargs)
 
-
-@method_decorator(
-    name="get",
-    decorator=swagger_auto_schema(
-        operation_summary="List/retrieve Broadcast(s)",
-        operation_description="List all broadcasts or retrieve a specific one.",
-        responses={
-            200: broadcast_list_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-        },
-        tags=["Broadcast"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
-@method_decorator(
-    name="post",
-    decorator=swagger_auto_schema(
-        operation_summary="Create Broadcast",
-        operation_description="Create a new broadcast.",
-        request_body=broadcast_detail_request_body,
-        responses={
-            201: broadcast_detail_response_schema,
-            400: error_response_400,
-            401: error_response_401,
-            403: error_response_403,
-        },
-        tags=["Broadcast"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
 class BroadcastView(ListCreateRetrieveAPIView):
     """
     Combined view for broadcasts that handles:
@@ -153,6 +123,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
                 f"for broadcast {self.kwargs.get(lookup_url_kwarg)}"
             )
         else:
+            queryset = filter_broadcasts(queryset, self.request.query_params)
             queryset = queryset.order_by("-created_at")
             safe_params = sanitize_data(self.request.query_params)
             logger.info(
@@ -161,6 +132,51 @@ class BroadcastView(ListCreateRetrieveAPIView):
             )
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """
+        List all broadcasts with summary data.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # --- Caching for broadcast summary data ---
+        cache_key = "broadcast_summary_data"
+        broadcast_summary_data = cache.get(cache_key)
+        if not broadcast_summary_data:
+            logger.info("Broadcast summary data not in cache. Calculating and caching.")
+            broadcast_summary_data = Broadcast.objects.aggregate(
+                total_broadcasts=Count("id"),
+                sent_count=Count("id", filter=Q(status=Broadcast.Status.SENT)),
+                pending_count=Count("id", filter=Q(status=Broadcast.Status.PENDING)),
+                failed_count=Count("id", filter=Q(status=Broadcast.Status.FAILED)),
+                partial_count=Count("id", filter=Q(status=Broadcast.Status.PARTIAL)),
+                email_count=Count(
+                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.EMAIL])
+                ),
+                sms_count=Count(
+                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.SMS])
+                ),
+                whatsapp_count=Count(
+                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.WHATSAPP])
+                ),
+                platform_count=Count(
+                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.PLATFORM])
+                ),
+            )
+            cache.set(cache_key, broadcast_summary_data, timeout=3600)  # Cache for 1 hour
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["broadcast_summary_data"] = broadcast_summary_data
+            response.data["results"] = response.data.pop("results")
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {"broadcast_summary_data": broadcast_summary_data, "results": serializer.data}
+        )
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -195,6 +211,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
         3. Logs the action for auditing
         """
         broadcast = serializer.save(created_by=self.request.user.staff_profile)
+        cache.delete("broadcast_summary_data")
         logger.info(
             "Broadcast %s created by user %s. Subject: '%s'",
             broadcast.pk,

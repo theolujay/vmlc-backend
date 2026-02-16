@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='vmlc' %}">Vmlc</a>
+&rsaquo; Cache Management
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <table style="width: 100%;">
+            <caption>
+                <a href="#" class="section">Cache Actions</a>
+            </caption>
+            <tbody>
+                <tr>
+                    <td style="padding: 20px; text-align: center;">
+                        <p>Clearing the cache will remove all stored temporary data, including dashboard stats, leaderboard snapshots, and session data if stored in cache.</p>
+                        <form action="." method="get">
+                            <input type="hidden" name="clear" value="1">
+                            <button type="submit" class="button" style="background: #ba2121; padding: 10px 20px; font-weight: bold; height: auto;">CLEAR ALL CACHE</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

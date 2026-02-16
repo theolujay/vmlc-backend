@@ -165,7 +165,7 @@ class ExamAccessService:
         exam_access = p_record.exam_access
         if not exam_access:
             return None, "Access record not found."
-            
+
         exam = exam_access.exam
 
         # Check if expired
@@ -202,7 +202,7 @@ class ExamAccessService:
         # Add profile information (candidate or staff)
         profile_data = ProfileManager.serialize_profile(user)
         if profile_data:
-            profile_data["is_setup_complete"] = user.is_setup_complete
+            # profile_data["is_setup_complete"] = user.is_setup_complete
             data["profile"] = profile_data
 
         return data, None

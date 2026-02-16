@@ -705,44 +705,106 @@ class ExamAccess(models.Model):
 
 class ExamAccessPasscode(models.Model):
 
+
+
     class Status(models.TextChoices):
+
         ISSUED = "issued", "Issued"
+
         USED = "used", "Used"
+
         EXPIRED = "expired", "Expired"
 
+
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     exam_access = models.OneToOneField(
+
         "ExamAccess",
+
         blank=True,
+
         null=True,
+
         on_delete=models.CASCADE,
+
         related_name="exam_access",
+
     )
+
     access_url = models.URLField(
+
         null=True,
+
         blank=True,
+
         help_text="Candidate-specific exam URL on the facilitator.",
+
     )
+
     passcode = models.CharField(
+
         max_length=64,
+
         null=True,
+
         blank=True,
+
         db_index=True,
+
         help_text="Opaque passcode or token embedded in the URL.",
+
     )
+
     is_passcode_sent = models.BooleanField(
+
         default=False,
+
         help_text="Whether the passcode email has been sent to the candidate.",
+
     )
+
     expiry_date = models.DateTimeField(null=True, blank=True)
+
     status = models.CharField(
+
         max_length=20,
+
         choices=Status.choices,
+
         default=Status.ISSUED,
+
         db_index=True,
+
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
+
+
     def regenerate_passcode(self, *args):
+
         pass
+
+
+
+
+
+class CacheManagement(models.Model):
+
+    """
+
+    Proxy model for cache management in the admin panel.
+
+    """
+
+    class Meta:
+
+        managed = False
+
+        verbose_name = "Cache Management"
+
+        verbose_name_plural = "Cache Management"

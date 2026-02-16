@@ -83,6 +83,21 @@ class EligibilityService:
             )
             return False
 
+        # Ensure they have an IN_PROGRESS EnrollmentStageProgress for this stage
+        from competition.models import EnrollmentStageProgress
+
+        if enrollment:
+            has_progress = EnrollmentStageProgress.objects.filter(
+                enrollment=enrollment,
+                stage=slot.competition_stage,
+                status=EnrollmentStageProgress.Status.IN_PROGRESS,
+            ).exists()
+            if not has_progress:
+                logger.info(
+                    f"Candidate {candidate.pk} has no IN_PROGRESS progress for stage {slot.competition_stage.type}"
+                )
+                return False
+
         # Check if they have already submitted this exam
         from vmlc.models import ExamAccess
 

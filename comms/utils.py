@@ -18,6 +18,18 @@ twilio_from_phone = settings.TWILIO_FROM_PHONE
 
 twilio_client = TwilioClient(twilio_account_sid, twilio_auth_token)
 
+def format_phone(phone):
+    if not phone:
+        return ""
+    if phone.startswith('0'):
+        return '234' + phone[1:]
+    if phone.startswith('+234'):
+        return phone[1:]
+    return phone
+
+def is_placeholder_phone(phone):
+    clean_phone = format_phone(phone)
+    return clean_phone == "2349123456789"
 
 def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
     """
@@ -39,22 +51,50 @@ def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
 
     try:
         if medium == "sms":
-            message = twilio_client.messages.create(
-                body=body,
-                from_=twilio_from_phone,
-                to=recipient,
-            )
-            logger.info(
-                "Sent SMS to %s (SID: %s)",
-                recipient[:8] + "***",
-                message.sid,
-            )
-            return {
-                "success": True,
-                "recipient": recipient,
-                "error": None,
-                "sid": message.sid,
-            }
+            sms_provider = getattr(settings, "SMS_PROVIDER", "kudi").lower()
+
+            if sms_provider == "kudi":
+                from comms.services import kudi_sms
+
+                # Kudi expects numbers in format like 234803....
+                # recipient here is +234..., we should strip + for kudi
+                kudi_recipient = recipient.lstrip("+")
+                response = kudi_sms.send_bulk_sms(message=body, recipients=kudi_recipient)
+
+                # Kudi response varies, usually has a status or code
+                # Let's assume 'status' == 'success' or 'error' == 0 (common for Nigerian APIs)
+                is_success = response.get("status") == "success" or response.get("error") == 0
+                error_msg = response.get("message") if not is_success else None
+
+                if is_success:
+                    logger.info("Sent SMS via Kudi to %s", recipient[:8] + "***")
+                else:
+                    logger.error("Failed to send SMS via Kudi: %s", error_msg)
+
+                return {
+                    "success": is_success,
+                    "recipient": recipient,
+                    "error": error_msg,
+                    "sid": response.get("request_id") or response.get("msgid"),
+                }
+
+            # Default to Twilio, but it's not setup yet
+            # message = twilio_client.messages.create(
+            #     body=body,
+            #     from_=twilio_from_phone,
+            #     to=recipient,
+            # )
+            # logger.info(
+            #     "Sent SMS to %s (SID: %s)",
+            #     recipient[:8] + "***",
+            #     message.sid,
+            # )
+            # return {
+            #     "success": True,
+            #     "recipient": recipient,
+            #     "error": None,
+            #     "sid": message.sid,
+            # }
 
         elif medium == "whatsapp":
             # TODO: WhatsApp requires approved templates
@@ -91,7 +131,6 @@ def send_phone_msg(body: str, recipient: str, medium: str) -> Dict[str, Any]:
             "sid": None,
         }
 
-
 def send_bulk_phone_msg(
     body: str,
     recipients: List[str],
@@ -126,33 +165,85 @@ def send_bulk_phone_msg(
 
     logger.info("Sending bulk %s to %d recipients", medium.upper(), len(recipients))
 
-    results = []
-    for i, recipient in enumerate(recipients, 1):
-        result = send_phone_msg(body=body, recipient=recipient, medium=medium)
-        results.append(result)
+    sms_provider = getattr(settings, "SMS_PROVIDER", "kudi").lower()
+    if medium == "sms" and sms_provider == "kudi":
+        from comms.services import kudi_sms
 
-        # Rate limiting: don't delay after the last message
-        if i < len(recipients) and delay > 0:
-            sleep(delay)
+        # Predict cost and check balance
+        estimated_cost = kudi_sms.estimate_cost(body, len(recipients))
+        balance_resp = kudi_sms.get_balance()
+        current_balance = kudi_sms.parse_balance(balance_resp.get("balance", "0"))
 
-    success_count = sum(1 for r in results if r["success"])
-    failure_count = len(results) - success_count
-    failed_recipients = [r["recipient"] for r in results if not r["success"]]
+        logger.info(
+            "Kudi SMS Bulk Send: Estimated Cost = %s Naira, Current Balance = %s Naira",
+            estimated_cost,
+            current_balance,
+        )
 
-    logger.info(
-        "Bulk %s complete: %d succeeded, %d failed out of %d total",
-        medium.upper(),
-        success_count,
-        failure_count,
-        len(recipients),
-    )
+        if current_balance < estimated_cost:
+            logger.error(
+                "Insufficient Kudi balance. Required: %s, Available: %s",
+                estimated_cost,
+                current_balance,
+            )
+            return {
+                "success_count": 0,
+                "failure_count": len(recipients),
+                "failed_recipients": recipients,
+                "total": len(recipients),
+                "error": "Insufficient balance",
+            }
 
-    return {
-        "success_count": success_count,
-        "failure_count": failure_count,
-        "failed_recipients": failed_recipients,
-        "total": len(recipients),
-    }
+        # Prepare comma-separated recipients without +
+        kudi_recipients = ",".join([r.lstrip("+") for r in recipients])
+        response = kudi_sms.send_bulk_sms(message=body, recipients=kudi_recipients)
+
+        is_success = response.get("status") == "success" or response.get("error") == 0
+
+        if is_success:
+            logger.info("Bulk SMS via Kudi completed successfully")
+            return {
+                "success_count": len(recipients),
+                "failure_count": 0,
+                "failed_recipients": [],
+                "total": len(recipients),
+            }
+        else:
+            logger.error("Bulk SMS via Kudi failed: %s", response.get("message"))
+            return {
+                "success_count": 0,
+                "failure_count": len(recipients),
+                "failed_recipients": recipients,
+                "total": len(recipients),
+            }
+
+    # results = []
+    # for i, recipient in enumerate(recipients, 1):
+    #     result = send_phone_msg(body=body, recipient=recipient, medium=medium)
+    #     results.append(result)
+
+    #     # Rate limiting: don't delay after the last message
+    #     if i < len(recipients) and delay > 0:
+    #         sleep(delay)
+
+    # success_count = sum(1 for r in results if r["success"])
+    # failure_count = len(results) - success_count
+    # failed_recipients = [r["recipient"] for r in results if not r["success"]]
+
+    # logger.info(
+    #     "Bulk %s complete: %d succeeded, %d failed out of %d total",
+    #     medium.upper(),
+    #     success_count,
+    #     failure_count,
+    #     len(recipients),
+    # )
+
+    # return {
+    #     "success_count": success_count,
+    #     "failure_count": failure_count,
+    #     "failed_recipients": failed_recipients,
+    #     "total": len(recipients),
+    # }
 
 
 def send_backup_status_to_slack(backup_log):

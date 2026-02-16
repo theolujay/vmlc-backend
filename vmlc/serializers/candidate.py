@@ -74,6 +74,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     verification_document = serializers.SerializerMethodField()
     profile_type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    is_setup_complete = serializers.SerializerMethodField()
 
     class Meta:
         model: Candidate = Candidate
@@ -90,8 +91,12 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "records",
+            "is_setup_complete",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
+
+    def get_is_setup_complete(self, obj):
+        return obj.user.is_setup_complete
 
     def get_records(self, obj: Candidate):
         """

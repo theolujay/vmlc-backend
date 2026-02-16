@@ -8,7 +8,6 @@ from django.core.cache import cache
 from django.core.mail import send_mass_mail
 from django.utils import timezone
 
-from celery import shared_task
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
@@ -18,9 +17,103 @@ from vmlc.utils.exceptions import (
     NoRecipientsFoundError,
     InvalidMediumError,
 )
-from comms.utils import send_bulk_phone_msg
+from comms.utils import send_bulk_phone_msg, send_phone_msg
 
 logger = logging.getLogger(__name__)
+
+def notify_user(
+    user,
+    subject,
+    message,
+    mediums=None,
+    notification_type="info",
+):
+    """
+    Sends a notification to a single user via specified mediums.
+
+    Args:
+        user: User instance
+        subject: Notification subject
+        message: Notification message
+        mediums: List of mediums (email, platform, sms, whatsapp). Defaults to ["platform"]
+        notification_type: Type of notification (alert, info, success, warning, error)
+    """
+    from comms.models import Notification, Broadcast
+
+    if mediums is None:
+        mediums = [Broadcast.Mediums.PLATFORM]
+
+    results = {}
+
+    for medium in mediums:
+        try:
+            # Combine subject and message for mediums that only handle a single body
+            full_body = f"{subject}:\n\n{message}" if subject else message
+
+            if medium == Broadcast.Mediums.PLATFORM:
+                notification = Notification.objects.create(
+                    recipient=user,
+                    subject=subject,
+                    message=full_body,  # Use full body for platform UI
+                    type=notification_type,
+                )
+                # Push to channel layer
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    group_name = f"user__{user.id}"
+                    message_payload = {
+                        "type": "notification_activity",
+                        "message": {
+                            "id": notification.id,
+                            "subject": notification.subject,
+                            "message": notification.message,
+                            "type": notification.type,
+                            "is_read_by_recipient": notification.is_read_by_recipient,
+                            "created_at": notification.created_at.isoformat(),
+                        },
+                    }
+                    async_to_sync(channel_layer.group_send)(group_name, message_payload)
+                results["platform"] = True
+
+            elif medium == Broadcast.Mediums.EMAIL:
+                from vmlc.tasks import send_mail_task
+
+                send_mail_task.delay(
+                    subject=subject, message=message, recipient_list=[user.email]
+                )
+                results["email"] = True
+
+            elif medium == Broadcast.Mediums.SMS:
+                if hasattr(user, "phone") and user.phone:
+                    # Clean phone number for Nigerian format if necessary
+                    phone = user.phone
+                    if re.match(r"^(0[789][01]\d{8})$", phone):
+                        phone = "+234" + phone[1:]
+
+                    send_phone_msg(body=full_body, recipient=phone, medium="sms")
+                    results["sms"] = True
+                else:
+                    logger.warning(f"User {user.id} has no phone number for SMS notification")
+                    results["sms"] = False
+
+            elif medium == Broadcast.Mediums.WHATSAPP:
+                if hasattr(user, "phone") and user.phone:
+                    phone = user.phone
+                    if re.match(r"^(0[789][01]\d{8})$", phone):
+                        phone = "+234" + phone[1:]
+
+                    send_phone_msg(body=full_body, recipient=phone, medium="whatsapp")
+                    results["whatsapp"] = True
+                else:
+                    logger.warning(f"User {user.id} has no phone number for WhatsApp notification")
+                    results["whatsapp"] = False
+
+        except Exception as e:
+            logger.error(f"Failed to send {medium} notification to user {user.id}: {e}")
+            results[medium] = False
+
+    return results
+
 
 # TODO: handle emitted events to send notifications
 
@@ -76,7 +169,7 @@ def send_broadcast(broadcast_id):
                     recipients_by_type_and_role[key] = list(
                         Candidate.objects.select_related("user")
                         .filter(role=role, user__is_active=True)
-                        .values("user__id", "user__email")
+                        .values("user__id", "user__email", "user__phone")
                     )
                     logger.info(
                         "Found %d active candidate users for role '%s'",
@@ -210,6 +303,7 @@ def send_broadcast(broadcast_id):
 
     # Invalidate the cache for this broadcast's detail view
     cache.delete(f"broadcast_detail_{broadcast_id}")
+    cache.delete("broadcast_summary_data")
 
     # Return summary for monitoring/debugging
     return {
@@ -224,6 +318,8 @@ def send_broadcast(broadcast_id):
 
 def _send_sms_broadcast(broadcast, recipients):
     """Helper function to handle sending sms"""
+    from comms.utils import format_phone, is_placeholder_phone
+
     from twilio.base.exceptions import TwilioRestException
 
     phones = [r["user__phone"] for r in recipients if r.get("user__phone")]
@@ -231,33 +327,17 @@ def _send_sms_broadcast(broadcast, recipients):
         raise NoRecipientsFoundError("No phone numbers found for recipients")
 
     valid_phones = []
-    invalid_phones = []
     for phone in phones:
-        if re.match(r"^(\+234[789][01]\d{8})$", phone):
-            valid_phones.append(phone)
-        elif re.match(r"^(0[789][01]\d{8})$", phone):
-            clean_phone = "+234" + phone[1:]
-            valid_phones.append(clean_phone)
-        else:
-            invalid_phones.append(phone)
+        clean_phone = format_phone(phone)
+        if is_placeholder_phone(clean_phone):
+            continue
+        valid_phones.append(clean_phone)
 
-    if invalid_phones:
-        logger.warning(
-            "Broadcast %s: Skipping %d invalid phone numbers: %s",
-            broadcast.id,
-            len(invalid_phones),
-            invalid_phones[:5],
-        )
-
-    if not valid_phones:
-        raise ValidationError(
-            f"No valid Nigerian phone numbers found. "
-            f"Expected format: +2347xxxxxxxx or 07xxxxxxxxx"
-        )
-
+    string_list_valid_phones = ",".join(valid_phones)
     try:
-        result = send_bulk_phone_msg(body=broadcast.message, recipients=valid_phones)
-
+        full_body = f"{broadcast.subject}:\n\n{broadcast.message}" if broadcast.subject else broadcast.message
+        message_length = len(full_body)
+        result = send_bulk_phone_msg(body=full_body, recipients=valid_phones, medium="sms")
         logger.info(
             "SMS broadcast %s: Sent to %d/%d recipients (%d failed)",
             broadcast.id,
@@ -317,9 +397,14 @@ def _send_platform_broadcast(broadcast, recipients):
             f"No user IDs found for role '{broadcast.target_roles}'"
         )
 
+    full_body = f"{broadcast.subject}:\n\n{broadcast.message}" if broadcast.subject else broadcast.message
+
     notifications_to_create = [
         Notification(
-            recipient_id=user_id, subject=broadcast.subject, message=broadcast.message
+            recipient_id=user_id,
+            subject=broadcast.subject,
+            message=full_body,
+            type=Notification.Type.INFO
         )
         for user_id in user_ids
     ]
@@ -380,4 +465,145 @@ def _send_platform_broadcast(broadcast, recipients):
         "Platform notifications created and pushed for %d users (roles: %s)",
         len(user_ids),
         ", ".join(broadcast.target_roles),
+    )
+
+def notify_candidates_about_exam(exam, event_type):
+    """
+    Notify all in-progress candidates about exam events.
+
+    Args:
+        exam: Exam instance with scheduled_date, open_duration_hours, and competition_slot
+        event_type: Type of notification - either 'scheduled' or 'started'
+    """
+    import logging
+    from datetime import timedelta
+
+    from competition.models import EnrollmentStageProgress
+    from comms.tasks import notify_user_task
+    from comms.models import Broadcast
+    from comms.utils import format_phone, is_placeholder_phone
+
+    logger = logging.getLogger(__name__)
+
+    if event_type not in ('scheduled', 'started'):
+        logger.warning(f"Invalid event_type: {event_type}. Must be 'scheduled' or 'started'")
+        return
+
+    # Early return if exam has no associated competition slot
+    if exam.competition_slot is None:
+        logger.warning(
+            f"Exam {exam.id} has no competition_slot, skipping {event_type} notifications"
+        )
+        return
+
+    # Fetch candidates who are in progress for this stage
+    stage = exam.competition_slot.competition_stage
+    enrollment_stage_progresses = EnrollmentStageProgress.objects.filter(
+        stage=stage,
+        status=EnrollmentStageProgress.Status.IN_PROGRESS
+    ).select_related('enrollment__candidate__user')
+
+    if not enrollment_stage_progresses.exists():
+        logger.info(f"No candidates to notify for exam {exam.id} ({event_type})")
+        return
+
+    # Configure notification content based on event type
+    if event_type == 'scheduled':
+        subject = f"New Exam Scheduled: {exam.get_title()}"
+        message_template = (
+            "Dear {candidate_name},\n\n"
+            "A new exam '{exam_title}' has been scheduled for your stage.\n"
+            "Start Time: {start_time}\n\n"
+            "Please log in to your dashboard for more details.\n\n"
+            "Regards,\n"
+            "VMLC Team"
+        )
+        template_kwargs = {
+            'start_time': exam.scheduled_date.strftime('%Y-%m-%d %H:%M:%S %Z') if exam.scheduled_date else 'N/A'
+        }
+    else:  # event_type == 'started'
+        conclusion_time = exam.scheduled_date + timedelta(hours=exam.open_duration_hours)
+        subject = f"Exam Started: {exam.get_title()}"
+        message_template = (
+            "Dear {candidate_name},\n\n"
+            "The exam '{exam_title}' has started and is now open for taking.\n"
+            "It will remain open until {conclusion_time}.\n\n"
+            "Good luck,\n"
+            "VMLC Team"
+        )
+        template_kwargs = {
+            'conclusion_time': conclusion_time.strftime('%Y-%m-%d %H:%M:%S %Z')
+        }
+
+    # Send individual notifications (Platform, Email) and group for (SMS, WhatsApp)
+    phone_grouped_users = {}  # {phone: [user1, user2, ...]}
+    notification_count = 0
+
+    for esp in enrollment_stage_progresses:
+        user = esp.enrollment.candidate.user
+        notification_count += 1
+
+        # Individual notifications (Platform & Email)
+        format_args = {
+            'candidate_name': user.first_name or 'Candidate',
+            'exam_title': exam.get_title(),
+            **template_kwargs
+        }
+        personalized_message = message_template.format(**format_args)
+        notify_user_task.delay(
+            user=user,
+            subject=subject,
+            message=personalized_message,
+            mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+            notification_type='info',
+        )
+
+        # Collect users sharing the same phone number for SMS/WhatsApp
+        if user.phone:
+            phone = user.phone
+            phone = format_phone(phone)
+
+            if is_placeholder_phone(phone):
+                continue
+            if phone not in phone_grouped_users:
+                phone_grouped_users[phone] = []
+            phone_grouped_users[phone].append(user)
+
+    # Send grouped notifications (SMS & WhatsApp)
+    phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
+    for phone, users in phone_grouped_users.items():
+        if len(users) > 1:
+            unique_names = []
+            for u in users:
+                name = u.first_name or 'Candidate'
+                if name not in unique_names:
+                    unique_names.append(name)
+
+            if len(unique_names) > 2:
+                candidate_name = ", ".join(unique_names[:-1]) + f", and {unique_names[-1]}"
+            elif len(unique_names) == 2:
+                candidate_name = " and ".join(unique_names)
+            else:
+                candidate_name = unique_names[0]
+        else:
+            candidate_name = users[0].first_name or 'Candidate'
+
+        format_args = {
+            'candidate_name': candidate_name,
+            'exam_title': exam.get_title(),
+            **template_kwargs
+        }
+        personalized_message = message_template.format(**format_args)
+
+        notify_user_task.delay(
+            user=users[0],
+            subject=subject,
+            message=personalized_message,
+            mediums=phone_mediums,
+            notification_type='info',
+        )
+
+    logger.info(
+        f"Queued '{event_type}' notifications for exam {exam.id} "
+        f"to {notification_count} candidate(s)"
     )

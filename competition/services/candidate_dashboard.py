@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
+from django.db.models import Q
 from django.utils import timezone
 
 from competition.models import (
@@ -12,9 +13,13 @@ from competition.models import (
     RankingSnapshot,
     RankingSnapshotEntry,
 )
+from comms.models import Notification
+from competition.services.leaderboard import LeaderboardService
+from competition.services.eligibility import EligibilityService
+from competition.models import EnrollmentStageProgress
 from identity.models import Candidate
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from comms.models import Notification
+from vmlc.v2.utils import truncate_float
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +40,8 @@ class CandidateDashboardService:
                 status=Competition.Status.ACTIVE
             ).first()
 
-        context = CandidateDashboardService._get_context(candidate)
+        # context = CandidateDashboardService._get_context(candidate)
+        # notifications = CandidateDashboardService._get_notifications(candidate)
 
         if active_comp and not enrollment:
             enrollment = (
@@ -48,62 +54,59 @@ class CandidateDashboardService:
             candidate, active_comp, enrollment
         )
 
-        # 3. Active Exam
+        # Active Exam
         active_exam_data = CandidateDashboardService._get_active_exam(
             candidate, active_comp, enrollment
         )
 
-        # 4. Performance Snapshot
+        # Performance Snapshot
         performance = CandidateDashboardService._get_performance(candidate, active_comp)
 
-        # 5. Exam History
+        # Exam History
         history = CandidateDashboardService._get_exam_history(candidate)
 
         return {
-            "candidate_context": context,
+            # "candidate_context": context,
+            # "notifications": notifications,
             "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
             "performance": performance,
             "exam_history": history,
         }
 
-    @staticmethod
-    def _get_context(candidate: Candidate) -> Dict[str, Any]:
-        # Fetch last 5 unread notifications
-        notifications = Notification.objects.filter(
-            recipient=candidate.user,
-            is_read_by_recipient=False,
-        ).order_by("-created_at")[:5]
+    # @staticmethod
+    # def _get_notifications(candidate: Candidate) -> Dict[str, Any]:
 
-        notification_map = {"info": [], "success": [], "error": []}
-        n_type_key_map = {
-            Notification.Type.INFO: "info",
-            Notification.Type.SUCCESS: "success",
-            Notification.Type.ERROR: "error",
-        }
+    #     # Fetch last 5 unread notifications
+    #     notifications = Notification.objects.filter(
+    #         recipient=candidate.user,
+    #         is_read_by_recipient=False,
+    #     ).order_by("-created_at")[:5]
 
-        for n in notifications:
-            key = n_type_key_map.get(n.type)
-            if key:
-                notification_map[key].append(
-                    {
-                        "id": n.id,
-                        "message": n.message,
-                    }
-                )
+    #     notification_map = {"info": [], "success": [], "error": []}
+    #     n_type_key_map = {
+    #         Notification.Type.INFO: "info",
+    #         Notification.Type.SUCCESS: "success",
+    #         Notification.Type.ERROR: "error",
+    #     }
 
-        return {
-            "full_name": candidate.user.get_full_name(),
-            "role": candidate.role,
-            "profile_picture": (
-                candidate.user.profile_picture.url
-                if candidate.user.profile_picture
-                else None
-            ),
-            "is_setup_complete": candidate.user.is_setup_complete,
-            "status": candidate.status,
-            "notifications": notification_map,
-        }
+    #     for n in notifications:
+    #         key = n_type_key_map.get(n.type)
+    #         if key:
+    #             notification_map[key].append(
+    #                 {
+    #                     "id": n.id,
+    #                     "message": n.message,
+    #                     "is_read_by_recipient": n.is_read_by_recipient
+    #                 }
+    #             )
+    #     return notification_map
+
+    # @staticmethod
+    # def _get_context(candidate: Candidate) -> Dict[str, Any]:
+    #     from vmlc.views.user.management import ProfileManager
+
+    #     return ProfileManager.serialize_profile(candidate.user) or {}
 
     @staticmethod
     def _get_enrollment_stage_progress(
@@ -139,8 +142,6 @@ class CandidateDashboardService:
             }
 
         # Rounds in current stage
-        from django.db.models import Q
-
         now = timezone.now()
 
         slots = (
@@ -192,6 +193,21 @@ class CandidateDashboardService:
             ),
         }
 
+        # Fetch full history of stage progress
+        history = []
+        if enrollment:
+            stage_progresses = EnrollmentStageProgress.objects.filter(
+                enrollment=enrollment
+            ).select_related("stage").order_by("stage__order")
+            for sp in stage_progresses:
+                history.append({
+                    "stage": sp.stage.type,
+                    "status": sp.status,
+                    "started_at": sp.started_at,
+                    "completed_at": sp.completed_at,
+                    "discontinued_at": sp.discontinued_at,
+                })
+
         return {
             "current_stage": current_stage.type,  # TODO: compare with staff's competition dashboard to handle when exam's not started yet
             "current_round": current_round,
@@ -199,6 +215,7 @@ class CandidateDashboardService:
             "published_rounds": published_rounds,
             "has_taken_current_round": has_taken_current_round,
             "qualification_status": qualification_status,
+            "history": history,
         }
 
     @staticmethod
@@ -221,9 +238,6 @@ class CandidateDashboardService:
             return None
 
         # Get all active slots for current stage
-        from django.db.models import Q
-        from competition.services.eligibility import EligibilityService
-
         now = timezone.now()
 
         slots = (
@@ -335,8 +349,6 @@ class CandidateDashboardService:
         if not active_comp:
             return snapshot
 
-        from django.db.models import Q
-
         # 1. Fetch Screening and Final RankingSnapshot Entries
         entries = RankingSnapshotEntry.objects.filter(
             Q(ranking_snapshot__stage=Stage.Type.SCREENING)
@@ -362,9 +374,7 @@ class CandidateDashboardService:
             elif stage_type == Stage.Type.FINAL:
                 snapshot["final_ranking"] = data
 
-        # 2. League Leaderboard
-        from competition.services.leaderboard import LeaderboardService
-
+        # League Leaderboard
         leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
 
         if leaderboard:
@@ -404,7 +414,7 @@ class CandidateDashboardService:
             ).values_list("exam_id", flat=True)
         )
 
-        from vmlc.v2.utils import truncate_float
+
 
         history = []
         for res in results:

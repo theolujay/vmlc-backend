@@ -38,6 +38,7 @@ x-vmlc-base-env: &vmlc-base-env
   EMAIL_PORT: 587
   EMAIL_USE_TLS: "true"
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+  KUDI_API_KEY_FILE: /run/secrets/kudi-api-key
   SECRET_KEY_FILE: /run/secrets/django-secret-key
   SUPERUSER_EMAIL_FILE: /run/secrets/su-email
   SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
@@ -59,7 +60,7 @@ x-vmlc-base-env: &vmlc-base-env
   OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
   OTEL_LOGS_EXPORTER: otlp
   USE_S3: "true"
-  
+
 x-vmlc-service-base: &vmlc-service-base
   secrets: *vmlc-secrets
   volumes:
@@ -395,15 +396,17 @@ secrets:
     external: true
   database-url:
     external: true
+  db-password:
+    external: true
+  django-secret-key:
+    external: true
   django-admin-url:
     external: true
   gmail-host-user:
     external: true
   gmail-host-password:
     external: true
-  db-password:
-    external: true
-  django-secret-key:
+  kudi-api-key:
     external: true
   su-email:
     external: true
