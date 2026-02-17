@@ -136,23 +136,23 @@ def send_bulk_phone_msg(
     recipients: List[str],
     medium: str,
     delay: float = 0.1,  # 100ms default (10 msgs/sec)
+    broadcast_log_id: int = None,
 ) -> Dict[str, Any]:
     """
     Send messages to multiple recipients via SMS or WhatsApp.
+
+    For SMS, this method asynchronously queues the sending task.
+    For other mediums, it sends synchronously (if implemented).
 
     Args:
         body: Message content
         recipients: List of phone numbers in E.164 format
         medium: Either "sms" or "whatsapp"
-        delay: Seconds to wait between sends (default: 0.1)
+        delay: Seconds to wait between sends (for synchronous methods)
+        broadcast_log_id: The ID of the BroadcastLog to update
 
     Returns:
-        dict: {
-            "success_count": int,
-            "failure_count": int,
-            "failed_recipients": List[str],
-            "total": int
-        }
+        A dictionary confirming the task was queued (for SMS) or send results.
     """
     if not recipients:
         logger.warning("No recipients provided for bulk %s", medium)
@@ -163,87 +163,100 @@ def send_bulk_phone_msg(
             "total": 0,
         }
 
-    logger.info("Sending bulk %s to %d recipients", medium.upper(), len(recipients))
+    logger.info("Processing bulk %s to %d recipients", medium.upper(), len(recipients))
 
     sms_provider = getattr(settings, "SMS_PROVIDER", "kudi").lower()
     if medium == "sms" and sms_provider == "kudi":
-        from comms.services import kudi_sms
-
-        # Predict cost and check balance
-        estimated_cost = kudi_sms.estimate_cost(body, len(recipients))
-        balance_resp = kudi_sms.get_balance()
-        current_balance = kudi_sms.parse_balance(balance_resp.get("balance", "0"))
-
-        logger.info(
-            "Kudi SMS Bulk Send: Estimated Cost = %s Naira, Current Balance = %s Naira",
-            estimated_cost,
-            current_balance,
+        from comms.tasks import send_bulk_sms_task
+        send_bulk_sms_task.delay(
+            body=body, recipients=recipients, broadcast_log_id=broadcast_log_id
         )
+        logger.info("Queued bulk SMS task for %d recipients (log: %s).", len(recipients), broadcast_log_id)
+        # Return an immediate response indicating queuing success.
+        return {
+            "status": "QUEUED",
+            "message": f"Task queued to send SMS to {len(recipients)} recipients.",
+            "total": len(recipients),
+        }
 
-        if current_balance < estimated_cost:
-            logger.error(
-                "Insufficient Kudi balance. Required: %s, Available: %s",
-                estimated_cost,
-                current_balance,
-            )
-            return {
-                "success_count": 0,
-                "failure_count": len(recipients),
-                "failed_recipients": recipients,
-                "total": len(recipients),
-                "error": "Insufficient balance",
+    # Fallback for other mediums or providers (current synchronous implementation)
+    # This part is currently not hit for sms, but kept for whatsapp and future providers
+    results = []
+    for i, recipient in enumerate(recipients, 1):
+        result = send_phone_msg(body=body, recipient=recipient, medium=medium)
+        results.append(result)
+
+        if i < len(recipients) and delay > 0:
+            sleep(delay)
+
+    success_count = sum(1 for r in results if r["success"])
+    failure_count = len(results) - success_count
+    failed_recipients = [r["recipient"] for r in results if not r["success"]]
+
+    logger.info(
+        "Bulk %s complete: %d succeeded, %d failed out of %d total",
+        medium.upper(),
+        success_count,
+        failure_count,
+        len(recipients),
+    )
+
+    return {
+        "success_count": success_count,
+        "failure_count": failure_count,
+        "failed_recipients": failed_recipients,
+        "total": len(recipients),
+    }
+
+
+def send_low_kudi_balance_to_slack(
+    current_balance: float, estimated_cost: float, recipient_count: int
+):
+    """Sends a notification about low Kudi SMS balance to a Slack channel."""
+    slack_webhook_url = getattr(settings, "SLACK_WEBHOOK_URL", None)
+    if not slack_webhook_url:
+        logger.warning(
+            "SLACK_WEBHOOK_URL is not configured. Skipping Slack notification."
+        )
+        return
+
+    payload = {
+        "text": ":warning: Low Kudi SMS Balance Alert",
+        "attachments": [
+            {
+                "color": "danger",
+                "fields": [
+                    {
+                        "title": "Environment",
+                        "value": settings.APP_ENVIRONMENT.title(),
+                        "short": True,
+                    },
+                    {
+                        "title": "Action",
+                        "value": "Top-up Kudi SMS account",
+                        "short": True,
+                    },
+                    {
+                        "title": "Current Balance",
+                        "value": f"₦{current_balance:,.2f}",
+                        "short": True,
+                    },
+                    {
+                        "title": "Required for Send",
+                        "value": f"₦{estimated_cost:,.2f} for {recipient_count} recipients",
+                        "short": True,
+                    },
+                ],
             }
+        ],
+    }
 
-        # Prepare comma-separated recipients without +
-        kudi_recipients = ",".join([r.lstrip("+") for r in recipients])
-        response = kudi_sms.send_bulk_sms(message=body, recipients=kudi_recipients)
-
-        is_success = response.get("status") == "success" or response.get("error") == 0
-
-        if is_success:
-            logger.info("Bulk SMS via Kudi completed successfully")
-            return {
-                "success_count": len(recipients),
-                "failure_count": 0,
-                "failed_recipients": [],
-                "total": len(recipients),
-            }
-        else:
-            logger.error("Bulk SMS via Kudi failed: %s", response.get("message"))
-            return {
-                "success_count": 0,
-                "failure_count": len(recipients),
-                "failed_recipients": recipients,
-                "total": len(recipients),
-            }
-
-    # results = []
-    # for i, recipient in enumerate(recipients, 1):
-    #     result = send_phone_msg(body=body, recipient=recipient, medium=medium)
-    #     results.append(result)
-
-    #     # Rate limiting: don't delay after the last message
-    #     if i < len(recipients) and delay > 0:
-    #         sleep(delay)
-
-    # success_count = sum(1 for r in results if r["success"])
-    # failure_count = len(results) - success_count
-    # failed_recipients = [r["recipient"] for r in results if not r["success"]]
-
-    # logger.info(
-    #     "Bulk %s complete: %d succeeded, %d failed out of %d total",
-    #     medium.upper(),
-    #     success_count,
-    #     failure_count,
-    #     len(recipients),
-    # )
-
-    # return {
-    #     "success_count": success_count,
-    #     "failure_count": failure_count,
-    #     "failed_recipients": failed_recipients,
-    #     "total": len(recipients),
-    # }
+    try:
+        response = requests.post(slack_webhook_url, json=payload, timeout=10)
+        response.raise_for_status()
+        logger.info("Slack notification sent for low Kudi balance.")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send Slack notification for low Kudi balance: {e}")
 
 
 def send_backup_status_to_slack(backup_log):

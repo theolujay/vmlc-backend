@@ -46,30 +46,50 @@ def estimate_cost(message: str, recipient_count: int) -> float:
     return pages * recipient_count * COST_PER_MSG
 
 
-def _make_request(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def _make_request(
+    url: str, payload: Dict[str, Any], method: str = "POST"
+) -> Dict[str, Any]:
     """
     Internal helper to handle requests to Kudi SMS API.
     """
-    headers = {"Content-Type": "application/json"}
+    headers = {}
     try:
-        response = requests.post(
-            url,
-            headers=headers,
-            data=json.dumps(payload),
-            timeout=30,
-        )
+        if method.upper() == "POST":
+            headers["Content-Type"] = "application/json"
+            response = requests.post(
+                url,
+                headers=headers,
+                data=json.dumps(payload),
+                timeout=30,
+            )
+        else:  # GET
+            response = requests.get(
+                url,
+                params=payload,
+                timeout=30,
+            )
+
         response.raise_for_status()
         data = response.json()
-        
-        # Log balance if present in response
+
+        # Handle the specific format of the balance API response
+        if "api/balance" in url:
+            if data.get("status") == "success" and "msg" in data:
+                return {"balance": data["msg"]}
+            else:
+                # Return a structure that indicates failure but can be parsed
+                return {"balance": "0", "error": data.get("msg", "Unknown error")}
+
+        # Log balance if present in response from other endpoints
         if "balance" in data:
             current_balance = parse_balance(data["balance"])
             logger.info(f"Kudi SMS Balance: {current_balance} Naira")
-            
+
             # Cache the balance for 1 hour
             from django.core.cache import cache
+
             cache.set("kudi_sms_balance", current_balance, 3600)
-            
+
         return data
     except requests.exceptions.RequestException as e:
         logger.error(f"Kudi SMS API error: {e}")
@@ -77,6 +97,7 @@ def _make_request(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             logger.error(f"Response: {e.response.text}")
         return {"status": "error", "message": str(e)}
     except json.JSONDecodeError:
+        # This case is now for non-balance endpoints that fail to return valid JSON
         logger.error(f"Kudi SMS API returned invalid JSON: {response.text}")
         return {"status": "error", "message": "Invalid JSON response"}
 
@@ -118,7 +139,8 @@ def get_balance() -> Dict[str, Any]:
     Check the current Kudi SMS wallet balance.
     """
     payload = {"token": API_KEY}
-    return _make_request(KudiURL.BALANCE.value, payload)
+    return _make_request(KudiURL.BALANCE.value, payload, method="GET")
+
 
 # This requires a Corporate Sender ID, so it's not to be used until we have that
 def send_otp(mobile: str, message: Optional[str] = None) -> Dict[str, Any]:
