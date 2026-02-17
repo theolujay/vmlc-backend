@@ -18,6 +18,7 @@ from .tasks import (
     generate_stats_overview_task,
     update_staff_dashboard_cache_task,
 )
+from competition.models import Competition, Stage, RankingSnapshot, Enrollment
 
 
 def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
@@ -48,7 +49,6 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         invalidate_staff_dashboard,
         invalidate_league_leaderboard,
     )
-    from competition.models import Competition, Stage, RankingSnapshot, Enrollment
 
     if isinstance(instance, Candidate):
         invalidate_candidate_cache(instance.pk, user_id=instance.user_id)
@@ -94,9 +94,9 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
     # Accurately identify first login by checking the database value
     # before it was potentially updated by Django's update_last_login receiver.
-    user_from_db = User.objects.filter(pk=user.pk).values("last_login").first()
+    # user_from_db = User.objects.filter(pk=user.pk).values("last_login").first()
     # TODO: consider using this `is_first_login` to prompt users to change their passwods on the frontend
-    is_first_login = user_from_db and user_from_db["last_login"] is None
+    # is_first_login = user_from_db and user_from_db["last_login"] is None
 
     # Set email as verified on login if not already verified.
     # This effectively verifies the email on the first successful login.
@@ -116,7 +116,6 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
 # Invalidate stats cache on changes to relevant models.
 # This is a broad approach, but ensures data freshness for the overview.
-from competition.models import Competition, Stage, RankingSnapshot, Enrollment
 
 models_to_watch = [
     User,

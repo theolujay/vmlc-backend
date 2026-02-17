@@ -37,7 +37,6 @@ from vmlc.serializers import (
 )
 from vmlc.utils.dashboard import (
     get_staff_dashboard_data,
-    get_candidate_dashboard_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,9 +73,10 @@ def generate_leaderboard_snapshot(staff_id=None):
     )
 
     # Notify candidates who participated in these exams
-    from comms.functions import notify_user
+    from comms.services.notification import NotificationService
     from comms.models import Broadcast
 
+    notification_service = NotificationService()
     for exam in concluded_exams:
         results = CandidateExamResult.objects.filter(exam=exam).select_related(
             "candidate__user"
@@ -87,7 +87,7 @@ def generate_leaderboard_snapshot(staff_id=None):
             f"You can now view your rank and performance on your dashboard."
         )
         for result in results:
-            notify_user(
+            notification_service.notify_user(
                 user=result.candidate.user,
                 subject=subject,
                 message=message,
@@ -338,9 +338,10 @@ def generate_results_snapshot(staff_id=None):
         )
 
         # Notify all active candidates
-        from comms.functions import notify_user
+        from comms.services.notification import NotificationService
         from comms.models import Broadcast
 
+        notification_service = NotificationService()
         subject = "Overall Results Published"
         message = (
             "The overall results snapshot has been published. "
@@ -350,7 +351,7 @@ def generate_results_snapshot(staff_id=None):
             "user"
         )
         for candidate in active_candidates:
-            notify_user(
+            notification_service.notify_user(
                 user=candidate.user,
                 subject=subject,
                 message=message,

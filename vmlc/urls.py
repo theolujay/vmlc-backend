@@ -51,7 +51,6 @@ from .views import (
     StaffMeView,
     StaffRegistrationView,
     SubmitAnswersView,
-    SubmitScoreView,
     UserDetailView,
     UserListView,
     UserVerificationActionView,

@@ -144,4 +144,5 @@ __all__ = [
     "CandidateInviteView",
     "UserListView",
     "UserDetailView",
+    "RegistrationMetricsView",
 ]

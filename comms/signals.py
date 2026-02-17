@@ -1,6 +1,6 @@
 import logging
 from django.conf import settings
-from django.dispatch import Signal, receiver
+from django.dispatch import Signal
 from django.core.mail import mail_admins
 from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete

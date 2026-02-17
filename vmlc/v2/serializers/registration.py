@@ -189,7 +189,7 @@ class RegistrationV2Serializer(serializers.Serializer):
         )
 
         # Create UserVerification
-        verification = UserVerification.objects.create(
+        UserVerification.objects.create(
             user=user,
             verification_document_type=document_type,
         )
@@ -207,7 +207,6 @@ class RegistrationV2Serializer(serializers.Serializer):
             from competition.models import (
                 Competition,
                 Enrollment,
-                Stage,
                 EnrollmentStageProgress,
             )
 

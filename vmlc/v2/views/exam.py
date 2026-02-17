@@ -33,7 +33,7 @@ from vmlc.serializers import (
 from vmlc.v2.utils import get_or_set_cache, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
-from vmlc.utils.swagger_schemas import *
+
 
 logger = logging.getLogger(__name__)
 

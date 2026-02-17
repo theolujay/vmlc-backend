@@ -1,4 +1,3 @@
-import uuid
 import logging
 import secrets
 from datetime import timedelta
@@ -9,7 +8,7 @@ from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
 from competition.models import Enrollment
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from vmlc.utils.exceptions import ServerError, PermissionDenied
+from vmlc.utils.exceptions import ServerError
 
 logger = logging.getLogger(__name__)
 

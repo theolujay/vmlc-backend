@@ -3,7 +3,6 @@ from unittest.mock import patch
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from rest_framework_api_key.models import APIKey
 
 from vmlc.models import SupportInquiry
 

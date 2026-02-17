@@ -20,16 +20,12 @@ from comms.serializers import (
     NotificationSerializer,
 )
 from comms.tasks import send_broadcast_task
-from comms.utils import send_backup_status_to_slack
 from identity.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts
 from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
-    broadcast_detail_request_body,
-    broadcast_detail_response_schema,
-    broadcast_list_response_schema,
     error_response_400,
     error_response_401,
     error_response_403,
@@ -281,7 +277,7 @@ class DatabaseBackupWebhookView(APIView):
 
     def post(self, request, *args, **kwargs):
         data = request.data
-
+        from comms.services.slack import SlackService
         try:
             backup_log = BackupLog.objects.create(
                 status=data.get("status"),
@@ -291,8 +287,9 @@ class DatabaseBackupWebhookView(APIView):
                 error_message=data.get("error_message"),
             )
             logger.info(f"DB backup log created: {backup_log.id}")
+            slack_service = SlackService()
 
-            send_backup_status_to_slack(backup_log)
+            slack_service.send_backup_status(backup_log)
 
         except Exception as e:
             logger.error(f"Error processing DB backup webhook: {e}")

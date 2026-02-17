@@ -2,13 +2,10 @@ import logging
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
 from identity.permissions import HasXAPIKey
 from vmlc.services.exam_access import ExamAccessService
-from vmlc.utils.helpers import sanitize_data
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +16,6 @@ class DirectAccessLoginView(APIView):
     permission_classes = [HasXAPIKey]
 
     def post(self, request):
-        safe_data = sanitize_data(request.data)
         passcode = request.data.get('passcode')
 
         if not passcode:
@@ -33,5 +29,5 @@ class DirectAccessLoginView(APIView):
             logger.warning(f"Direct access login failed: {error}")
             return Response({'detail': error}, status=status.HTTP_403_FORBIDDEN)
 
-        logger.info(f"Direct access login successful for user {data["profile"]["user"]["email"]}")
+        logger.info(f"Direct access login successful for user {data['profile']['user']['email']}")
         return Response(data, status=status.HTTP_200_OK)

@@ -3,7 +3,6 @@ import logging
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from rest_framework.generics import (
-    RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
     RetrieveAPIView,
@@ -11,7 +10,6 @@ from rest_framework.generics import (
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
 from identity.models import Candidate
 from identity.permissions import (
@@ -20,7 +18,6 @@ from identity.permissions import (
     ActiveAdminPermissions,
 )
 from ..serializers import (
-    CandidateDetailSerializer,
     CandidateListSerializer,
     CandidateRoleSerializer,
     MinimalCandidateSerializer,
@@ -30,7 +27,6 @@ from ..utils.swagger_schemas import (
     bearer_auth,
     candidate_me_response_schema,
     candidate_list_response_schema,
-    candidate_detail_response_schema,
     candidate_role_request_body,
     error_response_400,
     error_response_401,

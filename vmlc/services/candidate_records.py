@@ -1,9 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
-from django.db.models import Count, Avg, Max, Min, Q, Sum, Window, F
-from django.db.models.functions import Rank
-from django.utils import timezone
-from django.apps import apps
+from django.db.models import Count, Avg, Max, Min, Sum
 
 from identity.models import Candidate
 from vmlc.models import Exam, CandidateExamResult, CandidateExamResultSnapshot

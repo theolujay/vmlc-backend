@@ -1,7 +1,6 @@
 import pytest
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
-from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 
 from comms.consumers import NotificationConsumer
 from comms.models import Notification
@@ -33,7 +32,7 @@ async def test_notification_consumer_receives_broadcast():
     assert connected, "WebSocket connection failed"
 
     # 4. Create a notification for the user (this should trigger the model_observer)
-    notification = await Notification.objects.acreate(
+    await Notification.objects.acreate(
         recipient=user,
         subject="Async Test Subject",
         message="This is a test message from pytest.",

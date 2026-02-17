@@ -315,7 +315,7 @@ def send_welcome_email(user: User | PreRegUser, generated_password: str = None) 
     try:
         from ..tasks import send_mail_task
 
-        if type(user) == User:
+        if isinstance(user, User):
             subject: str = "Welcome to Verboheit MLC!"
 
             if hasattr(user, "candidate_profile"):

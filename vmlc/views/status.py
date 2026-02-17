@@ -1,24 +1,19 @@
 import logging
-from datetime import datetime, timedelta
 from django.utils import timezone
 
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle
 
 from django.conf import settings
-from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from vmlc.models import FeatureFlag
 from identity.permissions import (
-    ActiveModeratorPermissions,
     ActiveVolunteerPermissions,
 )
-from ..tasks import generate_stats_overview_task
 
 logger = logging.getLogger(__name__)
 

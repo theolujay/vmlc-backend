@@ -3,9 +3,7 @@ import logging
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from rest_framework.generics import (
-    RetrieveUpdateDestroyAPIView,
     ListAPIView,
     UpdateAPIView,
     RetrieveAPIView,
@@ -20,7 +18,6 @@ from identity.permissions import (
     ActiveManagerPermissions,
 )
 from ..serializers import (
-    StaffDetailSerializer,
     StaffListSerializer,
     StaffRoleSerializer,
     MinimalStaffSerializer,
@@ -30,7 +27,6 @@ from ..utils.swagger_schemas import (
     bearer_auth,
     staff_me_response_schema,
     staff_list_response_schema,
-    staff_detail_response_schema,
     staff_role_request_body,
     error_response_400,
     error_response_401,

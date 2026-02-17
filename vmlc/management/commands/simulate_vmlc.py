@@ -1,12 +1,10 @@
 import os
 import random
-from typing import Any, List, Dict
+from typing import Any
 
 from django.core.cache import cache
-from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Avg, Count, Sum
+from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db import transaction
 
 from dotenv import load_dotenv
 from faker import Faker

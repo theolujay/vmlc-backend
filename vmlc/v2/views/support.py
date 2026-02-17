@@ -159,7 +159,7 @@ class SupportReplyView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        message = serializer.save(
+        serializer.save(
             inquiry=inquiry,
             sender=request.user,
             sender_profile=role,

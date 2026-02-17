@@ -19,7 +19,7 @@ class Command(BaseCommand):
             exam = Exam.objects.get(id=exam_id)
         except Exam.DoesNotExist:
             raise CommandError(f"Exam with ID {exam_id} does not exist.")
-        except Exception as e:
+        except Exception:
             raise CommandError(f"Invalid UUID: {exam_id}")
 
         questions_data = []

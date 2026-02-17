@@ -6,4 +6,4 @@ class VmlcConfig(AppConfig):
     name = "vmlc"
 
     def ready(self) -> None:
-        import vmlc.signals
+        pass

@@ -1,6 +1,5 @@
 import logging
 
-from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework import status, parsers
@@ -15,7 +14,6 @@ from vmlc.models import FeatureFlag
 from vmlc.v2.serializers.registration import (
     PreRegUserSerializer,
     RegistrationV2Serializer,
-    SupportInquirySerializer,
 )
 from vmlc.utils.exceptions import PermissionDenied
 from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards

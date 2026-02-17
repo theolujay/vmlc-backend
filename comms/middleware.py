@@ -92,7 +92,7 @@ class DualAuthMiddleware:
             )
             return await self.app(scope, receive, send)
 
-        logger.info(f"Validating JWT token")
+        logger.info("Validating JWT token")
 
         try:
             access_token = AccessToken(token)

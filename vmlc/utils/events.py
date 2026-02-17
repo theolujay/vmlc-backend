@@ -1,5 +1,4 @@
 import logging
-from django.apps import apps
 from vmlc.models import Event
 
 logger = logging.getLogger(__name__)

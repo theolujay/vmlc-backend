@@ -148,6 +148,7 @@ dev = [
     "moto>=5.1.12",
     "responses>=0.25.8",
     "daphne>=4.2.1",
+    "ruff>=0.15.1",
 ]
 
 # Testing tools
