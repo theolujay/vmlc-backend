@@ -149,3 +149,79 @@ def notify_candidates_about_exam_task(exam_id, event_type):
 
     except Exam.DoesNotExist:
         logger.error(f"Exam {exam_id} not found for notification task.")
+
+
+@shared_task(
+    bind=True,
+    name="send_bulk_sms_task",
+    max_retries=12,
+    default_retry_delay=3600,  # 1 hour
+    queue="comms",
+)
+def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id: int = None):
+    """
+    Sends bulk SMS and retries if the balance is insufficient.
+    Updates the BroadcastLog status if broadcast_log_id is provided.
+    """
+    from comms.services import kudi_sms
+    from comms.utils import send_low_kudi_balance_to_slack
+    from comms.models import BroadcastLog
+
+    log = None
+    if broadcast_log_id:
+        try:
+            log = BroadcastLog.objects.get(id=broadcast_log_id)
+        except BroadcastLog.DoesNotExist:
+            logger.error(f"BroadcastLog with id {broadcast_log_id} not found.")
+            # Don't retry if the log doesn't exist, as it's a permanent failure.
+            return
+
+    try:
+        estimated_cost = kudi_sms.estimate_cost(body, len(recipients))
+        balance_resp = kudi_sms.get_balance()
+        current_balance = kudi_sms.parse_balance(balance_resp.get("balance", "0"))
+
+        logger.info(
+            "Kudi SMS Task: Cost ~%s N, Balance: %s N",
+            estimated_cost,
+            current_balance,
+        )
+
+        if current_balance < estimated_cost:
+            logger.warning(
+                "Insufficient Kudi balance for bulk SMS (log: %s). Retrying in 1 hour.", broadcast_log_id
+            )
+            if self.request.retries == 0:
+                send_low_kudi_balance_to_slack(
+                    current_balance, estimated_cost, len(recipients)
+                )
+            raise self.retry(countdown=3600)
+
+        kudi_recipients = ",".join([r.lstrip("+") for r in recipients])
+        response = kudi_sms.send_bulk_sms(message=body, recipients=kudi_recipients)
+
+        is_success = response.get("status") == "success" or response.get("error") == 0
+
+        if is_success:
+            logger.info("Bulk SMS via Kudi sent successfully for log %s.", broadcast_log_id)
+            if log:
+                log.status = BroadcastLog.MediumStatus.SENT
+                log.message = f"Successfully sent to {len(recipients)} recipients."
+                log.save(update_fields=["status", "message"])
+            return {"status": "SUCCESS", "count": len(recipients)}
+        else:
+            message = response.get("message", "Unknown error from Kudi")
+            logger.error("Bulk SMS via Kudi failed for log %s: %s. Retrying in 5 mins.", broadcast_log_id, message)
+            if log:
+                log.message = f"Kudi API Error: {message}. Retrying..."
+                log.save(update_fields=["message"])
+            raise self.retry(countdown=300)
+
+    except Exception as e:
+        logger.exception("Unexpected error in send_bulk_sms_task for log %s.", broadcast_log_id)
+        if log:
+            log.status = BroadcastLog.MediumStatus.FAILED
+            log.message = f"Fatal Error: {str(e)}"
+            log.save(update_fields=["status", "message"])
+        # Re-raise to let Celery handle it as a task failure
+        raise

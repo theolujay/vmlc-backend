@@ -212,7 +212,7 @@ def send_broadcast(broadcast_id):
                     elif medium == Broadcast.Mediums.PLATFORM:
                         _send_platform_broadcast(broadcast, recipients)
                     elif medium == Broadcast.Mediums.SMS:
-                        _send_sms_broadcast(broadcast, recipients)
+                        _send_sms_broadcast(broadcast, recipients, log)
                     elif medium == Broadcast.Mediums.WHATSAPP:
                         raise NotImplementedError("WhatsApp medium is not implemented.")
                     else:
@@ -316,11 +316,9 @@ def send_broadcast(broadcast_id):
     }
 
 
-def _send_sms_broadcast(broadcast, recipients):
+def _send_sms_broadcast(broadcast, recipients, log):
     """Helper function to handle sending sms"""
     from comms.utils import format_phone, is_placeholder_phone
-
-    from twilio.base.exceptions import TwilioRestException
 
     phones = [r["user__phone"] for r in recipients if r.get("user__phone")]
     if not phones:
@@ -333,32 +331,29 @@ def _send_sms_broadcast(broadcast, recipients):
             continue
         valid_phones.append(clean_phone)
 
-    string_list_valid_phones = ",".join(valid_phones)
+    if not valid_phones:
+        raise NoRecipientsFoundError("No valid, non-placeholder phone numbers found")
+
     try:
         full_body = f"{broadcast.subject}:\n\n{broadcast.message}" if broadcast.subject else broadcast.message
-        message_length = len(full_body)
-        result = send_bulk_phone_msg(body=full_body, recipients=valid_phones, medium="sms")
-        logger.info(
-            "SMS broadcast %s: Sent to %d/%d recipients (%d failed)",
-            broadcast.id,
-            result["success_count"],
-            len(valid_phones),
-            result["failure_count"],
+        send_bulk_phone_msg(
+            body=full_body,
+            recipients=valid_phones,
+            medium="sms",
+            broadcast_log_id=log.id,
         )
-        if result["failure_count"] > 0:
-            logger.warning(
-                "SMS broadcast %s: Failed recipients: %s",
-                broadcast.id,
-                result["failed_recipients"][:5],
-            )
-
-    except TwilioRestException as e:
+        logger.info(
+            "SMS broadcast %s queued for %d recipients.", broadcast.id, len(valid_phones)
+        )
+    except Exception as e:
+        # This will catch errors during task queuing, not sending.
         logger.error(
-            "Twilio API error for broadcast %s: %s",
+            "Failed to queue SMS broadcast task for broadcast %s: %s",
             broadcast.id,
             str(e),
         )
-        raise ValidationError(f"SMS service error: {str(e)}") from e
+        # Re-raise to let the main broadcast loop handle it as a failure
+        raise ValidationError(f"SMS task queuing error: {str(e)}") from e
 
 
 def _send_email_broadcast(broadcast, recipients):
