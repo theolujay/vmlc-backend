@@ -23,7 +23,7 @@ class SupportUsViewTests(APITestCase):
 
     def test_submit_support_inquiry_success(self):
         """Test successful support inquiry submission."""
-        with patch("vmlc.tasks.send_system_email_task") as mock_send_email:
+        with patch("comms.tasks.send_system_email_task") as mock_send_email:
             response = self.client.post(
                 self.url,
                 self.valid_payload,

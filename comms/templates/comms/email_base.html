@@ -1,156 +1,7 @@
-import logging
-from typing import Optional, Tuple
-
-from django.conf import settings
-
-from identity.models import User, PreRegUser
-from vmlc.models import SupportInquiry, FeatureFlag
-
-logger = logging.getLogger(__name__)
-
-
-def send_system_email(
-    subject: str,
-    message: str,
-    recipient_email: str,
-) -> None:
-    try:
-        from vmlc.tasks import send_mail_task
-
-        send_mail_task.delay(
-            subject=subject,
-            message=message,
-            recipient_list=[recipient_email],
-        )
-    except Exception as e:
-        logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
-
-
-def build_registration_welcome_email(
-    user: User,
-    generated_password: Optional[str] = None,
-) -> Tuple[str, str]:
-    login_url = settings.FRONTEND_LOGIN
-    password_msg = ""
-
-    if generated_password:
-        password_msg = (
-            f"Your generated password is: {generated_password}\n"
-            "Please use 'Forgot Password' to set your own password.\n\n"
-        )
-
-    subject = "Welcome to Verboheit MLC!"
-
-    if hasattr(user, "candidate_profile"):
-        message = (
-            f"Hi {user.first_name},\n\n"
-            "You have successfully registered for the Verboheit Mathematics League Competition.\n\n"
-            "We're excited to have you participate and compete with students across regions.\n\n"
-            f"{password_msg}"
-            f"Login here: {login_url}\n\n"
-            "Best regards,\n"
-            "The VMLC Team"
-        )
-
-    elif hasattr(user, "staff_profile"):
-        message = (
-            f"Hi {user.first_name},\n\n"
-            "Thank you for volunteering to support the Verboheit Mathematics League Competition.\n\n"
-            "We appreciate your willingness to contribute to the success of this initiative.\n\n"
-            f"{password_msg}"
-            f"Login here: {login_url}\n\n"
-            "Best regards,\n"
-            "The VMLC Team"
-        )
-
-    else:
-        raise ValueError("User must have either candidate or staff profile")
-
-    return subject, message
-
-
-def build_pre_registration_email(
-    user: PreRegUser,
-) -> Tuple[str, str]:
-    registration_url = f"{settings.LANDING_BASE_URL}/register"
-    interest_type = user.interest_type
-
-    feature_flag_key = (
-        "candidate_registration"
-        if interest_type == "candidate"
-        else "staff_registration"
-    )
-
-    if FeatureFlag.get_bool(feature_flag_key, default=False):
-        subject = "Registration Is Now Open - Verboheit MLC"
-        message = (
-            f"Hi {user.full_name},\n\n"
-            f"You previously expressed interest in the Verboheit Mathematics League Competition "
-            f"as a {interest_type}.\n\n"
-            "Registration is now open. You can complete your registration using the link below:\n\n"
-            f"{registration_url}\n\n"
-            "We look forward to having you on board.\n\n"
-            "Best regards,\n"
-            "The Verboheit MLC Team"
-        )
-    else:
-        subject = "Your Interest Has Been Recorded - Verboheit MLC"
-        message = (
-            f"Hi {user.full_name},\n\n"
-            f"Thank you for expressing interest in the Verboheit Mathematics League Competition "
-            f"as a {interest_type}.\n\n"
-            "We'll notify you once registration opens.\n\n"
-            f"If you have any questions, contact us at {settings.SUPPORT_EMAIL}.\n\n"
-            "Best regards,\n"
-            "The Verboheit MLC Team"
-        )
-
-    return subject, message
-
-
-def build_support_confirmation_email(
-    inquiry: SupportInquiry,
-) -> Tuple[str, str]:
-    subject = "Thank You for Supporting Verboheit"
-
-    message = (
-        f"Dear {inquiry.full_name},\n\n"
-        "Thank you for reaching out to support the Verboheit Mathematics League Competition.\n\n"
-        f"We've received your inquiry regarding {inquiry.support_type} support. "
-        "A member of our team will review your message and follow up if necessary.\n\n"
-        "We truly appreciate your interest in supporting this initiative.\n\n"
-        "Best regards,\n"
-        "The Verboheit MLC Team"
-    )
-
-    return subject, message
-
-
-def build_support_notification_email(
-    inquiry: SupportInquiry,
-) -> Tuple[str, str]:
-    subject = f"New Support Inquiry: {inquiry.support_type}"
-
-    message = (
-        f"A new support inquiry has been received.\n\n"
-        f"Name: {inquiry.full_name}\n"
-        f"Email: {inquiry.email}\n"
-        f"Phone: {inquiry.phone}\n"
-        f"Organization: {inquiry.organization}\n"
-        f"Support Type: {inquiry.support_type}\n\n"
-        f"Message:\n{inquiry.message}\n\n"
-        "Please review and follow up."
-    )
-
-    return subject, message
-
-
-def create_email_html(subject, message, otp=None, otp_message=None):
-    html_template = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
 <head>
-<title></title>
+<title>{{ subject }}</title>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <!--[if !mso]>-->
@@ -265,7 +116,7 @@ text-decoration: none
 </style>
 <!--[if !mso]>-->
 <link href="https://fonts.googleapis.com/css2?family=Arimo:wght @700&amp;family=Roboto+Mono:wght @600&amp;family=Open+Sans:ital,wght @0,400;0,600;1,400&amp;display=swap" rel="stylesheet" type="text/css" />
-<!--<![endif]-->
+<!--[endif]-->
 <!--[if mso]>
 <xml>
 <o:OfficeDocumentSettings>
@@ -289,15 +140,25 @@ text-decoration: none
 </td></tr></table>
 </td></tr><tr><td><div class="t5" style="mso-line-height-rule:exactly;mso-line-height-alt:10px;line-height:10px;font-size:1px;display:block;">&nbsp;&nbsp;</div></td></tr><tr><td align="center">
 <table class="t10" role="presentation" cellpadding="0" cellspacing="0" style="Margin-left:auto;Margin-right:auto;"><tr><td width="514" class="t9" style="width:600px;">
-<table class="t8" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t7" style="border-bottom:1px solid #EFF1F4;padding:0 0 12px 0;"><h1 class="t6" style="margin:0;Margin:0;font-family:Arimo,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:20px;font-weight:700;font-style:normal;font-size:20px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:left;mso-line-height-rule:exactly;">Your OTP Code</h1></td></tr></table>
+<table class="t8" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t7" style="border-bottom:1px solid #EFF1F4;padding:0 0 12px 0;"><h1 class="t6" style="margin:0;Margin:0;font-family:Arimo,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:20px;font-weight:700;font-style:normal;font-size:20px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:left;mso-line-height-rule:exactly;">{{ subject }}</h1></td></tr></table>
 </td></tr></table>
 </td></tr><tr><td><div class="t11" style="mso-line-height-rule:exactly;mso-line-height-alt:15px;line-height:15px;font-size:1px;display:block;">&nbsp;&nbsp;</div></td></tr><tr><td align="center">
 <table class="t16" role="presentation" cellpadding="0" cellspacing="0" style="Margin-left:auto;Margin-right:auto;"><tr><td width="305" class="t15" style="width:305px;">
-<table class="t14" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t13" style="padding:20px 0 40px 0;"><p class="t12" style="margin:0;Margin:0;font-family:Roboto Mono,monospace;line-height:25px;font-weight:600;font-style:normal;font-size:40px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:center;mso-line-height-rule:exactly;mso-text-raise:-4px;">123456</p></td></tr></table>
+<table class="t14" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t13" style="padding:20px 0 40px 0;">
+{% if otp %}
+<p class="t12" style="margin:0;Margin:0;font-family:Roboto Mono,monospace;line-height:25px;font-weight:600;font-style:normal;font-size:40px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:center;mso-line-height-rule:exactly;mso-text-raise:-4px;">{{ otp }}</p>
+{% else %}
+<p style="font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif; line-height: 25px; font-size: 16px; color: #141414; text-align: left; white-space: pre-wrap; word-break: break-word;">{{ message }}</p>
+{% endif %}
+</td></tr></table>
 </td></tr></table>
 </td></tr><tr><td align="center">
 <table class="t21" role="presentation" cellpadding="0" cellspacing="0" style="Margin-left:auto;Margin-right:auto;"><tr><td width="514" class="t20" style="width:600px;">
-<table class="t19" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t18"><p class="t17" style="margin:0;Margin:0;font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:25px;font-weight:400;font-style:italic;font-size:12px;text-decoration:none;text-transform:none;letter-spacing:-0.1px;direction:ltr;color:#141414;text-align:right;mso-line-height-rule:exactly;mso-text-raise:4px;">...expires in 10 minutes.</p></td></tr></table>
+<table class="t19" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr><td class="t18">
+{% if otp %}
+<p class="t17" style="margin:0;Margin:0;font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:25px;font-weight:400;font-style:italic;font-size:12px;text-decoration:none;text-transform:none;letter-spacing:-0.1px;direction:ltr;color:#141414;text-align:right;mso-line-height-rule:exactly;mso-text-raise:4px;">{% if otp_message %}{{ otp_message|safe }}{% else %}...expires in 10 minutes.{% endif %}</p>
+{% endif %}
+</td></tr></table>
 </td></tr></table>
 </td></tr><tr><td><div class="t30" style="mso-line-height-rule:exactly;mso-line-height-alt:10px;line-height:10px;font-size:1px;display:block;">&nbsp;&nbsp;</div></td></tr><tr><td align="center">
 <table class="t34" role="presentation" cellpadding="0" cellspacing="0" style="Margin-left:auto;Margin-right:auto;"><tr><td width="514" class="t33" style="width:600px;">
@@ -311,24 +172,4 @@ text-decoration: none
 </td></tr></table></td></tr></table>
 </td></tr></table>
 </td></tr><tr><td><div class="t40" style="mso-line-height-rule:exactly;mso-line-height-alt:50px;line-height:50px;font-size:1px;display:block;">&nbsp;&nbsp;</div></td></tr></table></td></tr></table></div><div class="gmail-fix" style="display: none; white-space: nowrap; font: 15px courier; line-height: 0;">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</div></body>
-</html>"""
-
-    html_message = html_template.replace("Your OTP Code", subject)
-
-    if otp:
-        html_message = html_message.replace("123456", otp)
-        if otp_message:
-            html_message = html_message.replace(
-                "...expires in 10 minutes.", otp_message
-            )
-    else:
-        html_message = html_message.replace(
-            '<p class="t12" style="margin:0;Margin:0;font-family:Roboto Mono,monospace;line-height:25px;font-weight:600;font-style:normal;font-size:40px;text-decoration:none;text-transform:none;letter-spacing:2px;direction:ltr;color:#141414;text-align:center;mso-line-height-rule:exactly;mso-text-raise:-4px;">123456</p>',
-            f'<p style="font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif; line-height: 25px; font-size: 16px; color: #141414; text-align: left; white-space: pre-wrap; word-break: break-word;">{message}</p>',
-        )
-        html_message = html_message.replace(
-            '<p class="t17" style="margin:0;Margin:0;font-family:Open Sans,BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif;line-height:25px;font-weight:400;font-style:italic;font-size:12px;text-decoration:none;text-transform:none;letter-spacing:-0.1px;direction:ltr;color:#141414;text-align:right;mso-line-height-rule:exactly;mso-text-raise:4px;">...expires in 10 minutes.</p>',
-            "",
-        )
-
-    return html_message
+</html>

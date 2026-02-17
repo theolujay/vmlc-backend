@@ -81,7 +81,7 @@ class NotificationService:
                     results["platform"] = True
 
                 elif medium == Broadcast.Mediums.EMAIL:
-                    from vmlc.tasks import send_mail_task
+                    from comms.tasks import send_mail_task
                     send_mail_task.delay(
                         subject=subject, message=message, recipient_list=[user.email]
                     )

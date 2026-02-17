@@ -102,8 +102,8 @@ class ExamAccessService:
         """
         Sends emails with access URLs to all candidates who have an unsent passcode for the exam.
         """
-        from vmlc.tasks import send_mail_task
-        from vmlc.utils.email import create_email_html
+        from comms.tasks import send_mail_task
+        from comms.services.email import create_email_html
 
         passcode_records = ExamAccessPasscode.objects.filter(
             exam_access__exam_id=exam_id,

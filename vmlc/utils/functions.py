@@ -418,7 +418,7 @@ def validate_user_verification_files(user_verification_id):
     """
     Celery task to validate user verification files.
     """
-    from vmlc.tasks import send_mail_task
+    from comms.tasks import send_mail_task
 
     try:
         verification = UserVerification.objects.get(pk=user_verification_id)

@@ -28,7 +28,8 @@ from vmlc.serializers import (
     UserVerificationStatusSerializer,
     UserVerificationUploadSerializer,
 )
-from vmlc.tasks import send_mail_task, validate_user_verification_files_task
+from vmlc.tasks import validate_user_verification_files_task
+from comms.tasks import send_mail_task
 from vmlc.utils.exceptions import (
     APIException,
     NotFound,

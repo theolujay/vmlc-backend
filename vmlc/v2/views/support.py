@@ -32,7 +32,7 @@ class SupportUsView(CreateAPIView):
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        from vmlc.tasks import send_system_email_task
+        from comms.tasks import send_system_email_task
 
         safe_data = sanitize_data(request.data)
         logger.info(f"Support inquiry submission attempt with data: {safe_data}")

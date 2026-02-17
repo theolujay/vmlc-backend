@@ -58,9 +58,9 @@ from vmlc.serializers import (
     UserProfileDetailSerializer,
 )
 from vmlc.tasks import (
-    send_mail_task,
     revoke_user_invite_task,
 )
+from comms.tasks import send_mail_task
 from vmlc.utils.stats import generate_stats_overview_data
 from vmlc.utils.query_filters import (
     filter_pre_reg_users,

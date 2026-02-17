@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.permissions import AllowAny
 
-from vmlc.tasks import send_welcome_mail_task
+from comms.tasks import send_welcome_mail_task
 from identity.models import Candidate, Staff
 from vmlc.models import FeatureFlag
 from vmlc.v2.serializers.registration import (

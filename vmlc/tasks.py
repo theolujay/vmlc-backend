@@ -14,62 +14,6 @@ from vmlc.utils import generate_stats_overview_data
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
-    bind=True,
-    name="send_mail_task",
-    max_retries=3,
-    default_retry_delay=60,
-    queue="comms",
-)
-def send_mail_task(self, subject, message, recipient_list, html_message=None):
-    """
-    Celery task to send an email asynchronously.
-
-    It will automatically retry up to 3 times if it fails,
-    with a 60-second delay between retries.
-    """
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=recipient_list,
-            fail_silently=False,
-            html_message=html_message,
-        )
-        logger.info(f"Successfully sent email to {recipient_list}")
-    except Exception as exc:
-        logger.error(f"Failed to send email to {recipient_list}: {exc}")
-        # The `self.retry` call will re-queue the task.
-        # The `bind=True` and `max_retries` arguments in the decorator handle this automatically.
-        raise self.retry(exc=exc, countdown=60)
-
-
-@shared_task(
-    bind=True,
-    name="send_otp_on_registration_task",
-    max_retries=3,
-    default_retry_delay=60,
-    queue="comms",
-)
-def send_otp_on_registration_task(self, user_id):
-    """
-    Celery task to send OTP to user on registration.
-    """
-    from identity.models import User
-    from vmlc.utils.auth import send_otp_to_email
-
-    try:
-        user = User.objects.get(pk=user_id)
-        send_otp_to_email(user)
-        logger.info(f"Successfully sent OTP to {user.email}")
-    except User.DoesNotExist:
-        logger.error(f"User with id {user_id} does not exist.")
-    except Exception as exc:
-        logger.error(f"Failed to send OTP to user with id {user_id}: {exc}")
-        raise self.retry(exc=exc, countdown=60)
-
-
 @shared_task(name="compute_candidate_result_task")
 def compute_candidate_result_task(candidate_result_id):
     """
@@ -198,6 +142,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
         # Send notification email to admins
         admin_emails = [email for _, email in settings.ADMINS]
         if admin_emails:
+            from comms.tasks import send_mail_task
             send_mail_task.delay(
                 subject=f"{readable_flag_key} Auto-Disabled - System Notification",
                 message=(
@@ -271,6 +216,7 @@ def revoke_user_invite_task(user_id):
         user = User.objects.get(pk=user_id)
         if user.last_login is None:
             user.delete()
+            from comms.tasks import send_mail_task
             send_mail_task.delay(
                 subject="Your account has been revoked",
                 message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
@@ -283,131 +229,6 @@ def revoke_user_invite_task(user_id):
             logger.info(f"User {user.email} has logged in. No action taken.")
     except User.DoesNotExist:
         logger.warning(f"User with id {user_id} not found for invite revocation.")
-
-
-@shared_task(bind=True, name="send_system_email_task", max_retries=20)
-def send_system_email_task(
-    self,
-    obj_id=None,
-    generated_password=None,
-    is_pre_reg=False,
-    is_full_reg=False,
-    is_support_inquiry=False,
-    is_support_notification=False,
-):
-    """
-    Send system emails for user registration and support inquiries.
-
-    Args:
-        obj_id: Primary key of the object (User, PreRegUser, or SupportInquiry)
-        generated_password: Auto-generated password for full registration
-        is_pre_reg: Flag for pre-registration email
-        is_full_reg: Flag for full registration email
-        is_support_inquiry: Flag for support inquiry confirmation
-        is_support_notification: Flag for internal support notification
-    """
-    from vmlc.utils.email import (
-        send_system_email,
-        build_registration_welcome_email,
-        build_pre_registration_email,
-        build_support_confirmation_email,
-        build_support_notification_email,
-    )
-    from identity.models import User, PreRegUser
-    from vmlc.models import SupportInquiry
-
-    if not obj_id:
-        logger.error("No object ID provided for email task")
-        return
-
-    try:
-        # Determine object type and build email content
-        if is_pre_reg:
-            user = PreRegUser.objects.get(pk=obj_id)
-            subject, message = build_pre_registration_email(user=user)
-            recipient_email = user.email
-            email_type = "pre-registration"
-
-        elif is_full_reg:
-            user = User.objects.get(pk=obj_id)
-            subject, message = build_registration_welcome_email(
-                user=user, generated_password=generated_password
-            )
-            recipient_email = user.email
-            email_type = "full registration"
-
-        elif is_support_inquiry:
-            inquiry = SupportInquiry.objects.get(pk=obj_id)
-            subject, message = build_support_confirmation_email(inquiry=inquiry)
-            recipient_email = inquiry.email
-            email_type = "support inquiry"
-
-        elif is_support_notification:
-            inquiry = SupportInquiry.objects.get(pk=obj_id)
-            subject, message = build_support_notification_email(inquiry=inquiry)
-            recipient_email = settings.SUPPORT_EMAIL
-            email_type = "support notification"
-
-        else:
-            logger.error(f"No valid email type specified for object ID {obj_id}")
-            return
-
-    except (
-        User.DoesNotExist,
-        PreRegUser.DoesNotExist,
-        SupportInquiry.DoesNotExist,
-    ) as e:
-        logger.error(f"Object not found for email task: {e}")
-        return
-
-    # Send email with retry logic
-    try:
-        send_system_email(subject, message, recipient_email)
-        logger.info(
-            f"{email_type.capitalize()} email sent successfully to {recipient_email}"
-        )
-
-    except Exception as e:
-        logger.error(
-            f"Failed to send {email_type} email to {recipient_email} "
-            f"(attempt {self.request.retries + 1}/{self.max_retries}): {e}"
-        )
-
-        if self.request.retries >= self.max_retries - 1:
-            logger.error(
-                f"Max retries reached for {email_type} email to {recipient_email}. "
-                f"Object ID: {obj_id}"
-            )
-            return
-
-        raise self.retry(exc=e, countdown=60)
-
-
-@shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)
-def send_welcome_mail_task(
-    self, user_id=None, generated_password=None, is_pre_reg=False
-):
-    """Send welcome email to newly registered user."""
-    from .utils.auth import send_welcome_email
-    from identity.models import User, PreRegUser
-
-    if is_pre_reg:
-        user = PreRegUser.objects.get(pk=user_id)
-    else:
-        user = User.objects.get(pk=user_id)
-
-    try:
-        send_welcome_email(user, generated_password)
-        logger.info(f"Welcome email sent to {user.email}")
-    except Retry:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to send welcome email to {user.email}: {e}")
-        if self.request.retries >= 3:
-            logger.error(f"Max retries reached for user {user_id}. Giving up.")
-            return
-
-        raise self.retry(exc=e, countdown=60)
 
 
 @shared_task(name="generate_stats_overview_task")

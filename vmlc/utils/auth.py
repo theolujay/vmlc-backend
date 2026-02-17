@@ -10,7 +10,7 @@ from rest_framework import serializers
 
 from identity.models import EmailOTP, PreRegUser, User
 from vmlc.models import FeatureFlag
-from .email import create_email_html
+from comms.services.email import create_email_html
 
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ def send_otp_to_email(user: User, is_resend: bool = False) -> None:
         is_resend: Whether this is a resend request
     """
     try:
-        from ..tasks import send_mail_task
+        from comms.tasks import send_mail_task
 
         # Check rate limiting for resends
         if is_resend:
@@ -195,7 +195,7 @@ def send_password_change_otp(user: User) -> None:
         user: User object with email attribute
     """
     try:
-        from ..tasks import send_mail_task
+        from comms.tasks import send_mail_task
 
         # Check rate limiting
         can_resend: bool
@@ -291,98 +291,3 @@ def verify_otp_for_password_change(user: User, otp_code: str) -> bool:
             f"Error verifying password change OTP for user {user.id}: {str(e)}"
         )
         return False
-
-
-def send_welcome_email(user: User | PreRegUser, generated_password: str = None) -> None:
-    """
-    Sends a welcome email to the newly registered user.
-
-    Args:
-        user: User or PreRegUser object
-        generated_password: Optional generated password for the user
-    """
-    login_url = f"{settings.FRONTEND_LOGIN}"
-    registration_url = f"{settings.LANDING_BASE_URL}/register"
-    subject = ""
-    message = ""
-    generated_password_msg = ""
-    if generated_password is not None:
-        generated_password_msg = (
-            f"Your generated password is: \n"
-            f"{generated_password}\n"
-            f"Please use 'Forgot Password' to set your own password.\n"
-        )
-    try:
-        from ..tasks import send_mail_task
-
-        if isinstance(user, User):
-            subject: str = "Welcome to Verboheit MLC!"
-
-            if hasattr(user, "candidate_profile"):
-                message: str = (
-                    f"Hi!\n\n"
-                    f"Good to have you onboard, {user.first_name}. "
-                    f"You have successfully registered for the next edition of the Verboheit Mathematics League Competition. "
-                    f"An opportunity to journey with your mates far and near to compete against one another awaits you.\n\n"
-                    f"Kindly follow the login link below to begin.\n\n"
-                    f"{generated_password_msg}"
-                    f"Login: {login_url}\n\n"
-                    "Best regards,\n"
-                    "The VMLC Team."
-                )
-            elif hasattr(user, "staff_profile"):
-                message: str = (
-                    f"Welcome onboard, {user.first_name},\n\n"
-                    f"You have chosen to be a part of the Verboheit Mathematics League Competition."
-                    f"Glad to have you volunteering to make this competition a success. We look forward "
-                    f"to your contributions. First things first, please follow the link below to log in "
-                    f"to get started.\n\n"
-                    f"{generated_password_msg}"
-                    f"Login: {login_url}\n\n"
-                    "Looking forward to achieving great things together!\n\n"
-                    "Best regards,\n"
-                    "The VMLC Team."
-                )
-            logger.info(f"Welcome email sent successfully to user {user.id}")
-        else:  # PreRegUser
-            interest_type = user.interest_type
-            feature_flag_key = None
-            if interest_type == "candidate":
-                feature_flag_key = "candidate_registration"
-            else:
-                feature_flag_key = "staff_registration"
-
-            if feature_flag_key is not None and FeatureFlag.get_bool(
-                feature_flag_key, default=False
-            ):
-                subject = "Thanks for Your Interest in Verboheit MLC!"
-                message = (
-                    f"Hi {user.full_name},\n\n"
-                    f"We get that you're interested in the Verboheit Mathematics League Competition "
-                    f"as a {interest_type}.\n\n"
-                    f"Great news! Registration is now open. You can complete your full registration "
-                    f"by visiting the link below:\n\n"
-                    f"Register: {registration_url}\n\n"
-                    f"We look forward to having you participate in this year's competition.\n\n"
-                    "Best regards,\n"
-                    "The VMLC Team."
-                )
-            else:
-                subject = "Your Interest at Verboheit MLC is Confirmed"
-                message = (
-                    f"Hi {user.full_name},\n\n"
-                    f"Thank you for expressing interest in the Verboheit Mathematics League Competition "
-                    f"as a {interest_type}.\n\n"
-                    f"We've acknowledged your interest and will notify you via email as soon as "
-                    f"full registration opens.\n\n"
-                    f"In the meantime, feel free to reach out at {settings.SUPPORT_EMAIL} if you have any questions.\n\n"
-                    "Best regards,\n"
-                    "The VMLC Team."
-                )
-
-        send_mail_task.delay(
-            subject=subject, message=message, recipient_list=[user.email]
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to send welcome email to user {user.id}: {str(e)}")
