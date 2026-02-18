@@ -227,6 +227,13 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
                         broadcast.sent_at = timezone.now()
                     broadcast.save(update_fields=["status", "sent_at"])
 
+                    # Invalidate cache
+                    from django.core.cache import cache
+                    from vmlc.v2.utils import CacheKeys
+                    cache.delete(CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast.pk))
+                    cache.delete(CacheKeys.BROADCAST_SUMMARY)
+                    logger.info(f"Invalidated broadcast cache for broadcast {broadcast.pk} from task.")
+
             return {"status": "SUCCESS", "count": len(recipients)}
         else:
             message = response.get("message", "Unknown error from Kudi")

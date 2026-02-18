@@ -33,7 +33,6 @@ urlpatterns = [
         StaffSupportThreadDetailView.as_view(),
         name="staff-support-thread-detail",
     ),
-    # Support & Conversations (Legacy/Old paths - maybe keep or remove?)
     path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
     # Broadcasts
     path("broadcasts/", BroadcastView.as_view(), name="broadcast-list-create"),

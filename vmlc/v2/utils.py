@@ -46,6 +46,20 @@ class CacheKeys:
     # Feature Flags
     FEATURE_FLAG = "feature:flag:{key}"
 
+    # Broadcasts
+    BROADCAST_DETAIL = "broadcast_detail_{broadcast_id}"
+    BROADCAST_SUMMARY = "broadcast_summary_data"
+
+    # Notifications
+    NOTIFICATIONS_VERSION = "notifications_version_{user_id}"
+    NOTIFICATIONS_LIST = "notifications_{user_id}_{version}_{query_hash}"
+    NOTIFICATION_STATS = "notification_stats_{user_id}_{version}"
+
+    # Support Chats
+    SUPPORT_THREAD_DETAIL = "support:thread:detail:{thread_id}"
+    SUPPORT_THREADS_VERSION_STAFF = "support_threads_version_staff"
+    SUPPORT_THREAD_LIST_STAFF = "support:threads:staff:{user_id}_{version}_{query_hash}"
+
     # Legacy keys (for invalidation during transition)
     _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"
     _LEGACY_CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"

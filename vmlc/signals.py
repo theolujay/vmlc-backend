@@ -16,7 +16,7 @@ from vmlc.models import (
 )
 from .tasks import (
     generate_stats_overview_task,
-    update_staff_dashboard_cache_task,
+    # update_staff_dashboard_cache_task,
 )
 from competition.models import Competition, Stage, RankingSnapshot, Enrollment
 
@@ -106,12 +106,12 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
     # Update dashboard caches for verified users.
     # We ensure these are triggered for newly verified users as well.
-    if (
-        hasattr(user, "staff_profile")
-        and user.is_email_verified
-        and user.staff_profile.is_active
-    ):
-        update_staff_dashboard_cache_task.delay(user.id)
+    # if (
+    #     hasattr(user, "staff_profile")
+    #     and user.is_email_verified
+    #     and user.staff_profile.is_active
+    # ):
+    #     update_staff_dashboard_cache_task.delay(user.id)
 
 
 # Invalidate stats cache on changes to relevant models.

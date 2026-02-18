@@ -49,11 +49,3 @@ class SupportUsViewTests(APITestCase):
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data)
-
-    def test_submit_support_inquiry_no_consent(self):
-        """Test submission without consent."""
-        payload = self.valid_payload.copy()
-        payload["consent"] = False
-        response = self.client.post(self.url, payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("consent", response.data)

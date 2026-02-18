@@ -20,10 +20,6 @@ from .candidate import (
     AssignCandidateRoleView,
     CandidateMeView,
 )
-from .dashboard import (
-    CandidateDashboardView,
-    StaffDashboardView,
-)
 from .exam import (
     ExamListView,
     ExamDetailView,
@@ -44,12 +40,6 @@ from .question import (
     QuestionExamAssociationView,
     BulkAddQuestionsToExamsView,
     BulkQuestionArchiveView,
-)
-from .registration import (
-    CandidateRegistrationView,
-    StaffRegistrationView,
-    ToggleCandidateRegistrationView,
-    ToggleStaffRegistrationView,
 )
 from .exam_result import (
     SubmitScoreView,
@@ -97,8 +87,6 @@ __all__ = [
     "CandidateListView",
     "AssignCandidateRoleView",
     # dashboard
-    "CandidateDashboardView",
-    "StaffDashboardView",
     "AccountManagementView",
     # exam
     "ExamListView",
@@ -117,11 +105,6 @@ __all__ = [
     "QuestionExamAssociationView",
     "BulkAddQuestionsToExamsView",
     "BulkQuestionArchiveView",
-    # registration
-    "CandidateRegistrationView",
-    "StaffRegistrationView",
-    "ToggleCandidateRegistrationView",
-    "ToggleStaffRegistrationView",
     # status
     "health_check",
     "stats_overview",

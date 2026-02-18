@@ -45,6 +45,7 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts
+from vmlc.v2.utils import CacheKeys
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +135,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
         queryset = self.filter_queryset(self.get_queryset())
 
         # --- Caching for broadcast summary data ---
-        cache_key = "broadcast_summary_data"
+        cache_key = CacheKeys.BROADCAST_SUMMARY
         broadcast_summary_data = cache.get(cache_key)
         if not broadcast_summary_data:
             logger.info("Broadcast summary data not in cache. Calculating and caching.")
@@ -183,7 +184,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
         The cache is invalidated when the broadcast task completes.
         """
         broadcast_id = self.kwargs.get(self.lookup_url_kwarg)
-        cache_key = f"broadcast_detail_{broadcast_id}"
+        cache_key = CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast_id)
 
         # Try to fetch from cache first
         cached_data = cache.get(cache_key)
@@ -205,7 +206,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
         Handle the creation of a new broadcast.
         """
         broadcast = serializer.save(created_by=self.request.user.staff_profile)
-        cache.delete("broadcast_summary_data")
+        cache.delete(CacheKeys.BROADCAST_SUMMARY)
 
         logger.info(
             "Broadcast %s created by user %s. Scheduled: %s",
@@ -285,9 +286,12 @@ class NotificationHistory(ListAPIView):
     def list(self, request, *args, **kwargs):
         user = request.user
         # Get current version (defaults to 0 if not set)
-        version = cache.get(f"notifications_version_{user.id}", 0)
+        version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
+        version = cache.get(version_key, 0)
         query_hash = hash(frozenset(request.query_params.items()))
-        cache_key = f"notifications_{user.id}_{version}_{query_hash}"
+        cache_key = CacheKeys.NOTIFICATIONS_LIST.format(
+            user_id=user.id, version=version, query_hash=query_hash
+        )
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -297,7 +301,7 @@ class NotificationHistory(ListAPIView):
         queryset = self.filter_queryset(self.get_queryset())
 
         # Stats cache also includes version
-        stats_cache_key = f"notification_stats_{user.id}_{version}"
+        stats_cache_key = CacheKeys.NOTIFICATION_STATS.format(user_id=user.id, version=version)
         stats = cache.get(stats_cache_key)
         if not stats:
             logger.info(
@@ -352,9 +356,11 @@ class MarkNotificationAsReadView(APIView):
                 notification.save()
 
                 # Invalidate all notification caches by incrementing version
-                version_key = f"notifications_version_{user.id}"
-                current_version = cache.get(version_key, 0)
-                cache.set(version_key, current_version + 1, timeout=86400)
+                version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
+                try:
+                    cache.incr(version_key)
+                except ValueError:
+                    cache.set(version_key, 1, timeout=86400)
 
                 logger.info(
                     f"Notification {notification_id} marked as read for user {user.id}"
@@ -381,9 +387,11 @@ class MarkAllNotificationsAsReadView(APIView):
 
         if updated_count > 0:
             # Invalidate all notification caches by incrementing version
-            version_key = f"notifications_version_{user.id}"
-            current_version = cache.get(version_key, 0)
-            cache.set(version_key, current_version + 1, timeout=86400)
+            version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
+            try:
+                cache.incr(version_key)
+            except ValueError:
+                cache.set(version_key, 1, timeout=86400)
 
             logger.info(
                 f"All notifications ({updated_count}) marked as read for user {user.id}"
@@ -415,7 +423,13 @@ class PublicSupportRequestView(CreateAPIView):
 
         support_request = serializer.save()
 
+        # Send confirmation email to the user
         send_system_email_task.delay(obj_id=support_request.id, is_public_support=True)
+
+        # Send notification email to the support desk
+        send_system_email_task.delay(
+            obj_id=support_request.id, is_support_notification=True
+        )
 
         logger.info(f"Public support request created: {support_request.id}")
 
@@ -438,6 +452,7 @@ class SupportThreadView(APIView):
             return Response({"error": "Only candidates can create support threads."}, status=status.HTTP_403_FORBIDDEN)
 
         thread, created = SupportChatThread.objects.get_or_create(candidate=user.candidate_profile)
+        cache_key = CacheKeys.SUPPORT_THREAD_DETAIL.format(thread_id=thread.id)
 
         if created:
             # Insert system message on creation
@@ -447,16 +462,25 @@ class SupportThreadView(APIView):
                 sender_type=ThreadMessage.SenderType.SYSTEM,
                 text=f"Hello, {user.get_full_name()}. How can we help you today?"
             )
+            # No need to check cache on creation
+        else:
+            # Check for unread messages first
+            unread_messages = thread.messages.exclude(reads__user=user)
+            if not unread_messages.exists():
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    logger.info(f"Returning cached support thread detail for thread {thread.id}")
+                    return Response(cached_data)
 
-        # Mark unread messages as read for this candidate
-        unread_messages = thread.messages.exclude(reads__user=user)
-        if unread_messages.exists():
-            MessageRead.objects.bulk_create(
-                [MessageRead(message=msg, user=user) for msg in unread_messages],
-                ignore_conflicts=True,
-            )
+            # Mark unread messages as read (if any)
+            if unread_messages.exists():
+                MessageRead.objects.bulk_create(
+                    [MessageRead(message=msg, user=user) for msg in unread_messages],
+                    ignore_conflicts=True,
+                )
 
         serializer = SupportChatThreadDetailSerializer(thread, context={"request": request})
+        cache.set(cache_key, serializer.data, timeout=3600)
         return Response(serializer.data)
 
 
@@ -472,16 +496,34 @@ class StaffSupportThreadDetailView(RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object()
+        cache_key = CacheKeys.SUPPORT_THREAD_DETAIL.format(thread_id=instance.id)
 
-        # Mark unread messages as read for this staff user
+        # Check for unread messages first
         unread_messages = instance.messages.exclude(reads__user=request.user)
+
+        # Only use cache if there are no unread messages
+        if not unread_messages.exists():
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                logger.info(f"Returning cached support thread detail for thread {instance.id}")
+                return Response(cached_data)
+
+        # Mark unread messages as read (if any)
         if unread_messages.exists():
             MessageRead.objects.bulk_create(
                 [MessageRead(message=msg, user=request.user) for msg in unread_messages],
                 ignore_conflicts=True,
             )
+            # Invalidate staff list cache since unread count will change
+            try:
+                cache.incr(CacheKeys.SUPPORT_THREADS_VERSION_STAFF)
+            except ValueError:
+                cache.set(CacheKeys.SUPPORT_THREADS_VERSION_STAFF, 1, timeout=86400)
 
-        return super().get(request, *args, **kwargs)
+
+        response = super().get(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=3600)
+        return response
 
 
 class StaffSupportThreadListView(ListAPIView):
@@ -491,6 +533,24 @@ class StaffSupportThreadListView(ListAPIView):
     """
     permission_classes = ActiveModeratorPermissions
     serializer_class = SupportChatThreadListSerializer
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        # Versioning for staff list
+        version = cache.get(CacheKeys.SUPPORT_THREADS_VERSION_STAFF, 0)
+        query_hash = hash(frozenset(request.query_params.items()))
+        cache_key = CacheKeys.SUPPORT_THREAD_LIST_STAFF.format(
+            user_id=user.id, version=version, query_hash=query_hash
+        )
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached support threads for staff {user.id}")
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=3600)
+        return response
 
     def get_queryset(self):
         # Unread count annotation

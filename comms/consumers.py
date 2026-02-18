@@ -123,13 +123,14 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
         ).update(is_read=True)
 
         if updated_count > 0:
-            # Invalidate cache
-            cache.delete(f"notification_stats_{user.id}")
-            cache.set(
-                f"notifications_version_{user.id}",
-                cache.get(f"notifications_version_{user.id}", 1) + 1,
-                timeout=86400,
-            )
+            # Invalidate cache by incrementing version
+            version_key = f"notifications_version_{user.id}"
+            current_version = cache.get(version_key, 0)
+            cache.set(version_key, current_version + 1, timeout=86400)
+            
+            # Also delete stats cache for the old version specifically (optional but cleaner)
+            cache.delete(f"notification_stats_{user.id}_{current_version}")
+            
         return updated_count
 
     async def send_error(self, message):

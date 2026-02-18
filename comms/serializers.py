@@ -33,6 +33,13 @@ class PublicSupportRequestSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def validate_consent(self, value):
+        if value is not True:
+            raise serializers.ValidationError(
+                "You must consent to us contacting you about this inquiry."
+            )
+        return value
+
 
 # ============================================================
 # Thread Messages
