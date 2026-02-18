@@ -44,7 +44,7 @@ async def test_notification_consumer_receives_broadcast():
     # 6. Assert the received data is correct
     assert response["subject"] == "Async Test Subject"
     assert response["message"] == "This is a test message from pytest."
-    assert response["is_read_by_recipient"] is False
+    assert response["is_read"] is False
 
     # 7. Disconnect
     await communicator.disconnect()

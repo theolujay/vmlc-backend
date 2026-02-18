@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Count
 
+from comms.models import SupportInquiry
 from .models import (
     Exam,
     Question,
@@ -12,7 +13,6 @@ from .models import (
     LeaderboardSnapshot,
     FeatureFlag,
     CandidateExamResultSnapshot,
-    SupportInquiry,
     ExamAccess,
     ExamAccessPasscode,
     CacheManagement,

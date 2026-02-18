@@ -49,7 +49,7 @@ class NotificationHTTPTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.n1.refresh_from_db()
-        self.assertTrue(self.n1.is_read_by_recipient)
+        self.assertTrue(self.n1.is_read)
 
         # Verify cache invalidation (stats should be recalculated on next GET)
         url_list = reverse("comms:notifications-history")
@@ -64,8 +64,8 @@ class NotificationHTTPTest(APITestCase):
 
         self.n1.refresh_from_db()
         self.n2.refresh_from_db()
-        self.assertTrue(self.n1.is_read_by_recipient)
-        self.assertTrue(self.n2.is_read_by_recipient)
+        self.assertTrue(self.n1.is_read)
+        self.assertTrue(self.n2.is_read)
 
         # Verify cache invalidation
         url_list = reverse("comms:notifications-history")

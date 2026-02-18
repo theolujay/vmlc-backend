@@ -65,7 +65,7 @@ from .views import (
     registration_status,
 )
 
-from .v2.views.support import (
+from comms.views import (
     SupportConversationListView,
     SupportConversationDetailView,
     SupportReplyView,

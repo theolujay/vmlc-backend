@@ -256,7 +256,7 @@ def send_system_email_task(
     generated_password=None,
     is_pre_reg=False,
     is_full_reg=False,
-    is_support_inquiry=False,
+    is_public_support=False,
     is_support_notification=False,
 ):
     """
@@ -270,7 +270,7 @@ def send_system_email_task(
         build_support_notification_email,
     )
     from identity.models import User, PreRegUser
-    from vmlc.models import SupportInquiry
+    from comms.models import SupportInquiry
 
     if not obj_id:
         logger.error("No object ID provided for email task")
@@ -292,7 +292,7 @@ def send_system_email_task(
             recipient_email = user.email
             email_type = "full registration"
 
-        elif is_support_inquiry:
+        elif is_public_support:
             inquiry = SupportInquiry.objects.get(pk=obj_id)
             subject, message = build_support_confirmation_email(inquiry=inquiry)
             recipient_email = inquiry.email

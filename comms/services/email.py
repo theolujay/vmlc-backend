@@ -5,7 +5,8 @@ from django.conf import settings
 from django.template.loader import render_to_string
 
 from identity.models import User, PreRegUser
-from vmlc.models import SupportInquiry, FeatureFlag
+from comms.models import PublicSupportRequest, SupportTicket, TicketMessage
+from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
 
@@ -133,14 +134,15 @@ def build_pre_registration_email(
 
 
 def build_support_confirmation_email(
-    inquiry: SupportInquiry,
+    inquiry: PublicSupportRequest,
 ) -> Tuple[str, str]:
     subject = "Thank You for Supporting Verboheit"
+    support_label = inquiry.get_type_display()
 
     message = (
         f"Dear {inquiry.full_name},\n\n"
         "Thank you for reaching out to support the Verboheit Mathematics League Competition.\n\n"
-        f"We've received your inquiry regarding {inquiry.support_type} support. "
+        f"We've received your inquiry regarding {support_label} support. "
         "A member of our team will review your message and follow up if necessary.\n\n"
         "We truly appreciate your interest in supporting this initiative.\n\n"
         "Best regards,\n"
@@ -151,9 +153,10 @@ def build_support_confirmation_email(
 
 
 def build_support_notification_email(
-    inquiry: SupportInquiry,
+    inquiry: PublicSupportRequest,
 ) -> Tuple[str, str]:
-    subject = f"New Support Inquiry: {inquiry.support_type}"
+    support_label = inquiry.get_type_display()
+    subject = f"New Support Inquiry: {support_label}"
 
     message = (
         f"A new support inquiry has been received.\n\n"
@@ -161,12 +164,48 @@ def build_support_notification_email(
         f"Email: {inquiry.email}\n"
         f"Phone: {inquiry.phone}\n"
         f"Organization: {inquiry.organization}\n"
-        f"Support Type: {inquiry.support_type}\n\n"
+        f"Support Type: {support_label}\n\n"
         f"Message:\n{inquiry.message}\n\n"
         "Please review and follow up."
     )
 
     return subject, message
+
+
+def build_ticket_notification_email(
+    ticket: SupportTicket,
+) -> Tuple[str, str]:
+    priority_label = ticket.get_priority_display()
+    subject = f"[{priority_label}] New Support Ticket: {ticket.user.email if ticket.user else 'Anonymous'}"
+
+    message = (
+        f"A new authenticated support ticket has been received.\n\n"
+        f"User: {ticket.user.get_full_name() if ticket.user else 'Anonymous'}\n"
+        f"Email: {ticket.user.email if ticket.user else 'N/A'}\n"
+        f"Priority: {priority_label}\n"
+        f"Status: {ticket.get_status_display()}\n\n"
+        f"Message:\n{ticket.message}\n\n"
+        "Please review and follow up."
+    )
+
+    return subject, message
+
+
+def build_ticket_reply_email(
+    message: TicketMessage,
+) -> Tuple[str, str]:
+    ticket = message.ticket
+    subject = f"Re: Support Ticket #{ticket.id}"
+
+    reply_content = (
+        f"A new reply has been posted to your support ticket regarding: {ticket.message[:50]}...\n\n"
+        f"Reply:\n{message.text}\n\n"
+        f"You can view the full conversation and reply on your dashboard.\n\n"
+        "Best regards,\n"
+        "The Verboheit MLC Team"
+    )
+
+    return subject, reply_content
 
 
 def send_welcome_email(user: User | PreRegUser, generated_password: str = None) -> None:

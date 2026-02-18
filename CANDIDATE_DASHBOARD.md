@@ -32,14 +32,14 @@ Provides a comprehensive overview for the student, including their notifications
       {
         "id": 1,
         "message": "Stay sharp! The league round 3 begins tomorrow.",
-        "is_read_by_recipient": false
+        "is_read": false
       }
     ],
     "success": [],
     "error": []
   },
   "enrollment_stage_progress": {
-    "current_stage": "league", 
+    "current_stage": "league",
     "current_round": 3,
     "total_rounds": 6,
     "published_rounds": 2,
@@ -100,7 +100,7 @@ Provides a comprehensive overview for the student, including their notifications
       "overall_rank": 12,
       "total_candidates": 850,
       "total_score": 175.5,
-      "rank_change": 2, 
+      "rank_change": 2,
       "as_of_round": 2,
       "is_active": true
     },
@@ -119,8 +119,8 @@ Provides a comprehensive overview for the student, including their notifications
       "exam_title": "Screening Exam",
       "stage": "screening",
       "round": null,
-      "score": 88.5, 
-      "percentage": 88.5, 
+      "score": 88.5,
+      "percentage": 88.5,
       "date": "2026-01-15T10:00:00Z",
       "status": "concluded",
       "is_published": true
@@ -153,7 +153,7 @@ The `access_status` tracks the student's personal interaction with the exam:
 ## Take Exam (V2)
 `GET /v2/exams/<uuid:exam_id>/take-exam/`
 
-Returns the exam details and questions for a candidate to start the exam. 
+Returns the exam details and questions for a candidate to start the exam.
 
 ### Behavioral Note:
 Calling this endpoint marks the exam as **"started"** for the student. The personal countdown begins immediately.

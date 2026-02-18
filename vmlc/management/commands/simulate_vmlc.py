@@ -9,7 +9,7 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from comms.models import Notification
+from comms.models import SupportInquiry, SupportMessage, Notification
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -25,8 +25,6 @@ from vmlc.models import (
     FeatureFlag,
     LeaderboardSnapshot,
     Question,
-    SupportInquiry,
-    SupportMessage,
     Event,
 )
 from competition.models import (
@@ -413,7 +411,7 @@ class Command(BaseCommand):
                     recipient=cand.user,
                     subject=self.fake.sentence(nb_words=5),
                     message=self.fake.text(),
-                    is_read_by_recipient=False,
+                    is_read=False,
                 )
 
     def _clear_cache(self):

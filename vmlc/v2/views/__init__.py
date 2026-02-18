@@ -1,5 +1,5 @@
+from comms.views import SupportUsView
 from .registration import RegistrationV2View, PreRegistrationView
-from .support import SupportUsView
 from .exam import (
     ExamListV2View,
     ExamDetailV2View,

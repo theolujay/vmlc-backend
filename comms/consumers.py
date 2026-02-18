@@ -116,8 +116,8 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
 
         user = self.scope["user"]
         updated_count = Notification.objects.filter(
-            id=notification_id, recipient=user, is_read_by_recipient=False
-        ).update(is_read_by_recipient=True)
+            id=notification_id, recipient=user, is_read=False
+        ).update(is_read=True)
 
         if updated_count > 0:
             # Invalidate cache

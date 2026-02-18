@@ -4,33 +4,44 @@ from datetime import datetime
 from django.core.cache import cache
 from django.db import models, transaction
 from django.db.models import Count, Q
-from django.utils.decorators import method_decorator
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import mixins
-from rest_framework.generics import GenericAPIView, ListAPIView
+from rest_framework import mixins, status
+from rest_framework.generics import (
+    GenericAPIView,
+    ListAPIView,
+    CreateAPIView,
+    RetrieveAPIView,
+)
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 
-from comms.models import BackupLog, Broadcast, BroadcastLog, Notification
+from comms.models import (
+    BackupLog,
+    Broadcast,
+    BroadcastLog,
+    Notification,
+    SupportTicket,
+    MessageRead,
+)
 from comms.serializers import (
     BroadcastDetailSerializer,
     BroadcastListSerializer,
     NotificationSerializer,
+    PublicSupportRequestSerializer,
+    SupportTicketDetailSerializer,
+    SupportTicketListSerializer,
+    TicketMessageSerializer,
 )
 from comms.tasks import send_broadcast_task
-from identity.permissions import AuthenticatedUser, HasXAPIKey, ActiveManagerPermissions
+from identity.permissions import (
+    HasXAPIKey,
+    AuthenticatedUser,
+    ActiveManagerPermissions,
+    ActiveModeratorPermissions,
+)
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts
-from vmlc.utils.swagger_schemas import (
-    api_key,
-    bearer_auth,
-    error_response_400,
-    error_response_401,
-    error_response_403,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +77,7 @@ class ListCreateRetrieveAPIView(
     def post(self, request, *args, **kwargs):
         """Handle POST requests for creating new items."""
         return self.create(request, *args, **kwargs)
+
 
 class BroadcastView(ListCreateRetrieveAPIView):
     """
@@ -159,7 +171,9 @@ class BroadcastView(ListCreateRetrieveAPIView):
                     "id", filter=Q(mediums__contains=[Broadcast.Mediums.PLATFORM])
                 ),
             )
-            cache.set(cache_key, broadcast_summary_data, timeout=3600)  # Cache for 1 hour
+            cache.set(
+                cache_key, broadcast_summary_data, timeout=3600
+            )  # Cache for 1 hour
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -171,7 +185,10 @@ class BroadcastView(ListCreateRetrieveAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(
-            {"broadcast_summary_data": broadcast_summary_data, "results": serializer.data}
+            {
+                "broadcast_summary_data": broadcast_summary_data,
+                "results": serializer.data,
+            }
         )
 
     def retrieve(self, request, *args, **kwargs):
@@ -237,47 +254,13 @@ class BroadcastView(ListCreateRetrieveAPIView):
         transaction.on_commit(on_commit_hook)
 
 
-@method_decorator(
-    name="post",
-    decorator=swagger_auto_schema(
-        operation_summary="Webhook for Database Backups",
-        operation_description="Receives status updates from the database backup script. This endpoint is protected by an API Key.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "status": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Backup status (e.g., 'success', 'first_failure', 'final_failure')",
-                ),
-                "environment": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Environment (e.g., 'prod', 'staging')",
-                ),
-                "timestamp": openapi.Schema(
-                    type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME
-                ),
-                "backup_filename": openapi.Schema(type=openapi.TYPE_STRING),
-                "error_message": openapi.Schema(
-                    type=openapi.TYPE_STRING, nullable=True
-                ),
-            },
-            required=["status", "environment", "timestamp", "backup_filename"],
-        ),
-        responses={
-            200: openapi.Response("Webhook received successfully."),
-            400: error_response_400,
-            403: error_response_403,
-        },
-        tags=["Webhooks"],
-        manual_parameters=[api_key],
-    ),
-)
 class DatabaseBackupWebhookView(APIView):
     permission_classes = [HasXAPIKey]
 
     def post(self, request, *args, **kwargs):
         data = request.data
         from comms.services.slack import SlackService
+
         try:
             backup_log = BackupLog.objects.create(
                 status=data.get("status"),
@@ -298,28 +281,6 @@ class DatabaseBackupWebhookView(APIView):
         return Response({"status": "received"}, status=200)
 
 
-@method_decorator(
-    name="get",
-    decorator=swagger_auto_schema(
-        operation_summary="List notifications",
-        operation_description="List all notifications for the authenticated user. Can be filtered by 'status' (read/unread).",
-        manual_parameters=[
-            api_key,
-            bearer_auth,
-            openapi.Parameter(
-                "status",
-                openapi.IN_QUERY,
-                description="Filter by status: 'read' or 'unread'",
-                type=openapi.TYPE_STRING,
-            ),
-        ],
-        responses={
-            200: NotificationSerializer(many=True),
-            401: error_response_401,
-        },
-        tags=["Notifications"],
-    ),
-)
 class NotificationHistory(ListAPIView):
     """
     List all notifications for authenticated user and optional filtering.
@@ -353,8 +314,8 @@ class NotificationHistory(ListAPIView):
             )
             stats = Notification.objects.filter(recipient=user).aggregate(
                 total_count=Count("id"),
-                unread_count=Count("id", filter=Q(is_read_by_recipient=False)),
-                read_count=Count("id", filter=Q(is_read_by_recipient=True)),
+                unread_count=Count("id", filter=Q(is_read=False)),
+                read_count=Count("id", filter=Q(is_read=True)),
             )
             cache.set(stats_cache_key, stats, timeout=3600)
 
@@ -377,9 +338,9 @@ class NotificationHistory(ListAPIView):
 
         status = self.request.query_params.get("status")
         if status == "read":
-            queryset = queryset.filter(is_read_by_recipient=True)
+            queryset = queryset.filter(is_read=True)
         elif status == "unread":
-            queryset = queryset.filter(is_read_by_recipient=False)
+            queryset = queryset.filter(is_read=False)
 
         return queryset
 
@@ -391,23 +352,12 @@ class MarkNotificationAsReadView(APIView):
 
     permission_classes = AuthenticatedUser
 
-    @swagger_auto_schema(
-        operation_summary="Mark notification as read",
-        operation_description="Mark a single notification as read by its ID.",
-        manual_parameters=[api_key, bearer_auth],
-        responses={
-            200: openapi.Response("Notification marked as read."),
-            404: error_response_400,
-            401: error_response_401,
-        },
-        tags=["Notifications"],
-    )
     def patch(self, request, notification_id):
         user = request.user
         try:
             notification = Notification.objects.get(id=notification_id, recipient=user)
-            if not notification.is_read_by_recipient:
-                notification.is_read_by_recipient = True
+            if not notification.is_read:
+                notification.is_read = True
                 notification.save()
 
                 # Invalidate all notification caches by incrementing version
@@ -432,21 +382,11 @@ class MarkAllNotificationsAsReadView(APIView):
 
     permission_classes = AuthenticatedUser
 
-    @swagger_auto_schema(
-        operation_summary="Mark all notifications as read",
-        operation_description="Mark all unread notifications for the authenticated user as read.",
-        manual_parameters=[api_key, bearer_auth],
-        responses={
-            200: openapi.Response("All notifications marked as read."),
-            401: error_response_401,
-        },
-        tags=["Notifications"],
-    )
     def patch(self, request):
         user = request.user
         updated_count = Notification.objects.filter(
-            recipient=user, is_read_by_recipient=False
-        ).update(is_read_by_recipient=True)
+            recipient=user, is_read=False
+        ).update(is_read=True)
 
         if updated_count > 0:
             # Invalidate all notification caches by incrementing version
@@ -461,3 +401,106 @@ class MarkAllNotificationsAsReadView(APIView):
         return Response(
             {"status": "success", "updated_count": updated_count}, status=200
         )
+
+
+class PublicSupportRequestView(CreateAPIView):
+    """
+    Public website support form (anonymous).
+    Creates a PublicSupportRequest.
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = PublicSupportRequestSerializer
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        from comms.tasks import send_system_email_task
+
+        safe_data = sanitize_data(request.data)
+        logger.info(f"Public support submission attempt: {safe_data}")
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        support_request = serializer.save()
+
+        send_system_email_task.delay(obj_id=support_request.id, is_public_support=True)
+
+        logger.info(f"Public support request created: {support_request.id}")
+
+        return Response(
+            {"status": "success", "message": "Support request submitted successfully."},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SupportConversationListView(ListAPIView):
+    """
+    List all support tickets (portal side).
+    """
+
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = SupportTicketListSerializer
+
+    def get_queryset(self):
+        return (
+            SupportTicket.objects.select_related("assigned_to")
+            .prefetch_related("messages__reads")
+            .order_by("-last_message_at")
+        )
+
+
+class SupportConversationDetailView(RetrieveAPIView):
+    """
+    Retrieve full support ticket and mark messages as read.
+    """
+
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = SupportTicketDetailSerializer
+    queryset = SupportTicket.objects.prefetch_related("messages__reads")
+    lookup_field = "id"
+
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Mark unread messages as read for this staff user
+        unread_messages = instance.messages.exclude(reads__user=request.user)
+
+        MessageRead.objects.bulk_create(
+            [MessageRead(message=msg, user=request.user) for msg in unread_messages],
+            ignore_conflicts=True,
+        )
+
+        return super().get(request, *args, **kwargs)
+
+
+class SupportReplyView(CreateAPIView):
+    """
+    Staff reply to a support ticket.
+    """
+
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = TicketMessageSerializer
+
+    @transaction.atomic
+    def post(self, request, ticket_id, *args, **kwargs):
+        try:
+            ticket = SupportTicket.objects.get(id=ticket_id)
+        except SupportTicket.DoesNotExist:
+            return Response(
+                {"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        message = serializer.save(
+            ticket=ticket,
+            sender=request.user,
+        )
+
+        # Update last message timestamp
+        ticket.last_message_at = message.created_at
+        ticket.save(update_fields=["last_message_at"])
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
