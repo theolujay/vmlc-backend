@@ -40,7 +40,7 @@ class SupportUsViewTests(APITestCase):
         del payload["full_name"]
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("full_name", response.data["errors"])
+        self.assertIn("full_name", response.data)
 
     def test_submit_support_inquiry_invalid_email(self):
         """Test submission with invalid email."""
@@ -48,7 +48,7 @@ class SupportUsViewTests(APITestCase):
         payload["email"] = "invalid-email"
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data["errors"])
+        self.assertIn("email", response.data)
 
     def test_submit_support_inquiry_no_consent(self):
         """Test submission without consent."""
@@ -56,4 +56,4 @@ class SupportUsViewTests(APITestCase):
         payload["consent"] = False
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("consent", response.data["errors"])
+        self.assertIn("consent", response.data)
