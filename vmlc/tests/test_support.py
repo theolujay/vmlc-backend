@@ -9,7 +9,7 @@ from comms.models import PublicSupportRequest
 
 class SupportUsViewTests(APITestCase):
     def setUp(self):
-        self.url = reverse("comms:support-inquiry")
+        self.url = reverse("comms:support-us-inquiry")
         # _, self.api_key = APIKey.objects.create_key(name="test-key")
         self.valid_payload = {
             "full_name": "Test User",
