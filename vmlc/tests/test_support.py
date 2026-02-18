@@ -4,17 +4,17 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from comms.models import SupportInquiry
+from comms.models import PublicSupportRequest
 
 
 class SupportUsViewTests(APITestCase):
     def setUp(self):
-        self.url = reverse("vmlc-v2:support-us")
+        self.url = reverse("comms:support-inquiry")
         # _, self.api_key = APIKey.objects.create_key(name="test-key")
         self.valid_payload = {
             "full_name": "Test User",
             "email": "test@example.com",
-            "support_type": "sponsorship",
+            "type": "sponsorship",
             "message": "I want to sponsor.",
             "consent": True,
             "organization": "Test Org",
@@ -30,7 +30,7 @@ class SupportUsViewTests(APITestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-            self.assertEqual(SupportInquiry.objects.count(), 1)
+            self.assertEqual(PublicSupportRequest.objects.count(), 1)
             # Should call send_system_email twice (confirmation + notification)
             self.assertEqual(mock_send_email.delay.call_count, 2)
 

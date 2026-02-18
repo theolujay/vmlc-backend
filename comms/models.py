@@ -3,6 +3,7 @@ import uuid
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 from identity.models import Candidate, Staff, User
 
@@ -56,15 +57,15 @@ class PublicSupportRequest(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Support Ticketing
+# Support Threading
 # ---------------------------------------------------------------------------
-class SupportTicket(models.Model):
+class SupportChatThread(models.Model):
     """
     Represents an authenticated support conversation between a user and staff.
 
-    Tickets progress through statuses (Open → In Progress → Resolved) and can
-    be assigned to a specific staff member. Each ticket contains one or more
-    TicketMessage records. Deletion is soft — records are flagged with
+    Threads progress through statuses (Open → In Progress → Resolved) and can
+    be assigned to a specific staff member. Each thread contains one or more
+    ThreadMessage records. Deletion is soft — records are flagged with
     is_deleted rather than removed from the database.
     """
 
@@ -83,15 +84,15 @@ class SupportTicket(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="support_tickets",
-        help_text="Authenticated user who submitted the ticket, if applicable.",
+        related_name="support_chat_threads",
+        help_text="Authenticated user who submitted the thread, if applicable.",
     )
     assigned_to = models.ForeignKey(
         "identity.Staff",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="assigned_tickets",
+        related_name="assigned_chat_threads",
     )
     message = models.TextField(help_text="Initial message from the user.")
     status = models.CharField(
@@ -112,8 +113,8 @@ class SupportTicket(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Support Ticket"
-        verbose_name_plural = "Support Tickets"
+        verbose_name = "Support Chat Thread"
+        verbose_name_plural = "Support Chat Threads"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["status", "priority"]),
@@ -125,18 +126,18 @@ class SupportTicket(models.Model):
         return f"{actor} - {self.status}"
 
     def delete(self, *args, **kwargs) -> None:
-        """Soft-delete: marks the ticket as deleted instead of removing it."""
+        """Soft-delete: marks the thread as deleted instead of removing it."""
         self.is_deleted = True
         self.save(update_fields=["is_deleted"])
 
 
-class TicketMessage(models.Model):
+class ThreadMessage(models.Model):
     """
-    An individual message within a SupportTicket conversation.
+    An individual message within a SupportChatThread conversation.
 
     Messages are immutable once created — save() is intentionally
     restricted to new instances only. When a new message is saved, the parent
-    ticket's last_message_at timestamp is updated atomically.
+    thread's last_message_at timestamp is updated atomically.
 
     Supports text, image, and file attachment types. System-generated messages
     (e.g. status changes) use MessageType.SYSTEM.
@@ -154,8 +155,8 @@ class TicketMessage(models.Model):
         SYSTEM = "system", "System"
 
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    ticket = models.ForeignKey(
-        SupportTicket,
+    thread = models.ForeignKey(
+        SupportChatThread,
         on_delete=models.CASCADE,
         related_name="messages",
     )
@@ -183,7 +184,7 @@ class TicketMessage(models.Model):
     class Meta:
         ordering = ["created_at"]
         indexes = [
-            models.Index(fields=["ticket", "created_at"]),
+            models.Index(fields=["thread", "created_at"]),
         ]
 
     def __str__(self) -> str:
@@ -204,26 +205,26 @@ class TicketMessage(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         """
-        Persists the message and, on creation, updates the parent ticket's
+        Persists the message and, on creation, updates the parent thread's
         last_message_at field via a single atomic UPDATE query.
         """
         is_new = self._state.adding
         super().save(*args, **kwargs)
         if is_new:
-            SupportTicket.objects.filter(pk=self.ticket_id).update(
+            SupportChatThread.objects.filter(pk=self.thread_id).update(
                 last_message_at=self.created_at
             )
 
 
 class MessageRead(models.Model):
     """
-    Tracks which users have read a given TicketMessage.
+    Tracks which users have read a given ThreadMessage.
 
     Used to drive unread-message indicators in the support UI.
     """
 
     message = models.ForeignKey(
-        "TicketMessage",
+        "ThreadMessage",
         on_delete=models.CASCADE,
         related_name="reads",
     )
@@ -266,6 +267,7 @@ class Broadcast(models.Model):
         SENT = "sent", "Sent"
         PARTIAL = "partial", "Partial Success"
         FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
 
     id = models.AutoField(primary_key=True)
     created_by = models.ForeignKey(
@@ -296,16 +298,37 @@ class Broadcast(models.Model):
         default=Status.PENDING,
         help_text="Overall broadcast delivery status.",
     )
-    total_recipients = models.IntegerField(default=0)
-    last_attempt = models.DateTimeField(null=True, blank=True)
+    total_recipients = models.IntegerField(
+        default=0,
+        help_text="Total number of unique users targeted by this broadcast.",
+    )
+    scheduled_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Future date/time when this broadcast should be dispatched. If null, sent immediately.",
+    )
+    last_attempt = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="The timestamp of the most recent delivery attempt.",
+    )
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="The timestamp when the broadcast successfully completed all delivery paths.",
+    )
+    retry_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of times this broadcast has been retried after partial or total failure.",
+    )
     task_id = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        help_text="Celery task ID for async tracking.",
+        help_text="Celery task ID for async tracking and potential cancellation.",
     )
-    scheduled_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         verbose_name = "Broadcast"
         verbose_name_plural = "Broadcasts"
@@ -320,6 +343,34 @@ class Broadcast(models.Model):
             target_parts.append(f"Candidate: {', '.join(self.target_roles['candidate'])}")
         target_roles = " | ".join(target_parts) if target_parts else "No targets"
         return f"{self.subject} [{mediums}] -> [{target_roles}] ({self.status})"
+
+    @property
+    def is_scheduled(self) -> bool:
+        """Checks if the broadcast is scheduled for the future."""
+        return self.scheduled_at is not None and self.scheduled_at > timezone.now()
+
+    @property
+    def is_sent(self) -> bool:
+        """Checks if the broadcast has completed sending."""
+        return self.status in [self.Status.SENT, self.Status.PARTIAL]
+
+    @property
+    def duration(self):
+        """Calculates the time taken from the first attempt to completion."""
+        if self.last_attempt and self.sent_at:
+            return self.sent_at - self.last_attempt
+        return None
+
+    def cancel(self) -> bool:
+        """
+        Attempts to cancel a pending or scheduled broadcast.
+        Returns True if cancelled, False if already in progress or sent.
+        """
+        if self.status in [self.Status.PENDING, self.Status.FAILED_TO_QUEUE]:
+            self.status = self.Status.CANCELLED
+            self.save(update_fields=["status"])
+            return True
+        return False
 
     def clean(self) -> None:
         """
@@ -389,7 +440,16 @@ class BroadcastLog(models.Model):
         choices=MediumStatus.choices,
         default=MediumStatus.PENDING,
     )
+    recipient_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of recipients within this specific medium-role slice.",
+    )
     message = models.TextField(blank=True, help_text="Error or status message.")
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="The timestamp when this specific delivery path finished.",
+    )
     attempted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -401,8 +461,15 @@ class BroadcastLog(models.Model):
         return (
             f"{self.broadcast.subject} "
             f"[{self.medium} -> {self.role_type}:{self.target_role}] "
-            f"{self.status}"
+            f"{self.status} ({self.recipient_count} sent)"
         )
+
+    @property
+    def duration(self):
+        """Time taken for this specific log entry to complete."""
+        if self.attempted_at and self.sent_at:
+            return self.sent_at - self.attempted_at
+        return None
 
 
 # ---------------------------------------------------------------------------

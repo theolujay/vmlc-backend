@@ -15,8 +15,6 @@ from identity.models import (
     validate_document_file,
     validate_face_id,
 )
-from comms.models import SupportInquiry
-from comms.serializers import SupportInquirySerializer
 from vmlc.utils.auth import generate_password
 from vmlc.utils.user import normalize_title
 

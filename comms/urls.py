@@ -6,11 +6,33 @@ from .views import (
     MarkAllNotificationsAsReadView,
     MarkNotificationAsReadView,
     NotificationHistory,
+    SupportConversationDetailView,
+    SupportConversationListView,
+    SupportReplyView,
+    PublicSupportRequestView,
 )
 
 app_name = "comms"
 
 urlpatterns = [
+    # Support & Conversations
+    path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
+    path(
+        "support/conversations/",
+        SupportConversationListView.as_view(),
+        name="support-conversations",
+    ),
+    path(
+        "support/conversations/<int:id>/",
+        SupportConversationDetailView.as_view(),
+        name="support-conversation-detail",
+    ),
+    path(
+        "support/conversations/<int:chat_thread_id>/reply/",
+        SupportReplyView.as_view(),
+        name="support-reply",
+    ),
+    # Broadcasts
     path("broadcasts/", BroadcastView.as_view(), name="broadcast-list-create"),
     path(
         "broadcasts/<int:broadcast_id>/",

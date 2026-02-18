@@ -23,7 +23,7 @@ The `vmlc` Django application serves as the core backend for the Verboheit Mathe
     -   **`LeaderboardSnapshot`**: Captures historical states of the competition leaderboard.
     -   **`CandidateExamResultSnapshot`**: Stores historical snapshots of candidate results.
     -   **`FeatureFlag`**: Manages application-wide feature toggles, allowing dynamic enabling/disabling of functionalities.
-    -   **`SupportInquiry`**: Stores details of support requests submitted by users.
+    -   **`PublicSupportRequest`**: Stores details of support requests submitted by users.
     -   **`PreRegUser`**: Holds data for users who have expressed pre-registration interest.
     It also includes custom model managers, validation functions for file uploads, and various utility properties.
 -   **`pagination.py`**: Provides `StandardResultsSetPagination` for consistent and customizable pagination across API list responses.

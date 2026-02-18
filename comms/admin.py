@@ -7,8 +7,30 @@ from comms.models import (
     BroadcastLog,
     Notification,
     BackupLog,
+    PublicSupportRequest,
+    SupportChatThread,
+    ThreadMessage,
 )
 
+@admin.register(PublicSupportRequest)
+class PublicSupportRequestAdmin(admin.ModelAdmin):
+    list_display = ["full_name", "email", "type", "organization", "created_at"]
+    list_filter = ["type", "created_at"]
+    search_fields = ["full_name", "email", "organization", "message"]
+    date_hierarchy = "created_at"
+
+class ThreadMessageInline(admin.TabularInline):
+    model = ThreadMessage
+    extra = 1
+    readonly_fields = ["created_at"]
+
+@admin.register(SupportChatThread)
+class SupportChatThreadAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "assigned_to", "status", "priority", "last_message_at", "created_at"]
+    list_filter = ["status", "priority", "is_deleted", "created_at"]
+    search_fields = ["user__email", "message", "assigned_to__user__email"]
+    inlines = [ThreadMessageInline]
+    date_hierarchy = "created_at"
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):
@@ -17,17 +39,19 @@ class BroadcastAdmin(admin.ModelAdmin):
         "subject",
         "status",
         "created_by",
+        "scheduled_at",
+        "sent_at",
+        "retry_count",
         "created_at",
-        "task_status_display",
     ]
-    list_filter = ["status", "created_at", "mediums", "created_by"]
+    list_filter = ["status", "created_at", "mediums", "created_by", "retry_count"]
     search_fields = [
         "subject",
         "message",
         "created_by__email",
         "created_by__user__first_name",
     ]
-    readonly_fields = ["task_result_display"]
+    readonly_fields = ["task_result_display", "sent_at", "last_attempt"]
     autocomplete_fields = ["created_by"]
     list_select_related = ["created_by", "created_by__user"]
     date_hierarchy = "created_at"
@@ -95,11 +119,13 @@ class BroadcastLogAdmin(admin.ModelAdmin):
         "target_role",
         "role_type",
         "status",
+        "recipient_count",
+        "sent_at",
         "attempted_at",
     ]
-    list_filter = ["status", "medium", "role_type", "attempted_at"]
+    list_filter = ["status", "medium", "role_type", "attempted_at", "sent_at"]
     search_fields = ["broadcast__subject", "message"]
-    readonly_fields = ["attempted_at"]
+    readonly_fields = ["attempted_at", "sent_at"]
     list_select_related = ["broadcast"]
     date_hierarchy = "attempted_at"
 

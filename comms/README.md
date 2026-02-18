@@ -1,6 +1,6 @@
 # `comms` Application
 
-The `comms` application is the central communication hub of the VMLC backend. It manages mass broadcasts, real-time user notifications, support ticketing, and system alerts. It leverages Celery for asynchronous processing and WebSockets for live updates.
+The `comms` application is the central communication hub of the VMLC backend. It manages mass broadcasts, real-time user notifications, support chat_threading, and system alerts. It leverages Celery for asynchronous processing and WebSockets for live updates.
 
 ## Key Modules and Their Responsibilities
 
@@ -13,7 +13,7 @@ The `comms` application is the central communication hub of the VMLC backend. It
     -   `Broadcast`: Represents a mass message with targeted roles (Staff/Candidate) and mediums.
     -   `BroadcastLog`: Tracks the success/failure of each medium-role combination in a broadcast.
     -   `Notification`: Stores individual real-time alerts for specific users.
-    -   `SupportTicket` & `TicketMessage`: Powers the internal support system for tracking and responding to user inquiries.
+    -   `SupportChatThread` & `ThreadMessage`: Powers the internal support system for tracking and responding to user inquiries.
     -   `PublicSupportRequest`: Captures public/anonymous inquiries from the landing page.
     -   `BackupLog`: Records the outcome of database backup operations.
 -   **`consumers.py`**: Implements `NotificationConsumer` using Django Channels for real-time delivery of notifications over WebSockets.
@@ -36,7 +36,7 @@ The `comms` app uses **Django Channels** to push notifications directly to the u
 ### Support System
 The application provides a two-tier support system:
 1.  **Public Inquiries**: Captured via `PublicSupportRequest` from non-authenticated users.
-2.  **Conversations**: Authenticated users and staff interact via `SupportTicket` and `TicketMessage`, allowing for threaded, persistent support history.
+2.  **Conversations**: Authenticated users and staff interact via `SupportChatThread` and `ThreadMessage`, allowing for threaded, persistent support history.
 
 ### External Services
 -   **Kudi SMS**: Primary provider for SMS delivery in Nigeria. Includes balance monitoring and low-balance alerts.

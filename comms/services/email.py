@@ -5,7 +5,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 
 from identity.models import User, PreRegUser
-from comms.models import PublicSupportRequest, SupportTicket, TicketMessage
+from comms.models import PublicSupportRequest, SupportChatThread, ThreadMessage
 from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
@@ -172,33 +172,33 @@ def build_support_notification_email(
     return subject, message
 
 
-def build_ticket_notification_email(
-    ticket: SupportTicket,
+def build_chat_thread_notification_email(
+    thread: SupportChatThread,
 ) -> Tuple[str, str]:
-    priority_label = ticket.get_priority_display()
-    subject = f"[{priority_label}] New Support Ticket: {ticket.user.email if ticket.user else 'Anonymous'}"
+    priority_label = thread.get_priority_display()
+    subject = f"[{priority_label}] New Support Chat Thread: {thread.user.email if thread.user else 'Anonymous'}"
 
     message = (
-        f"A new authenticated support ticket has been received.\n\n"
-        f"User: {ticket.user.get_full_name() if ticket.user else 'Anonymous'}\n"
-        f"Email: {ticket.user.email if ticket.user else 'N/A'}\n"
+        f"A new authenticated support thread has been received.\n\n"
+        f"User: {thread.user.get_full_name() if thread.user else 'Anonymous'}\n"
+        f"Email: {thread.user.email if thread.user else 'N/A'}\n"
         f"Priority: {priority_label}\n"
-        f"Status: {ticket.get_status_display()}\n\n"
-        f"Message:\n{ticket.message}\n\n"
+        f"Status: {thread.get_status_display()}\n\n"
+        f"Message:\n{thread.message}\n\n"
         "Please review and follow up."
     )
 
     return subject, message
 
 
-def build_ticket_reply_email(
-    message: TicketMessage,
+def build_chat_thread_reply_email(
+    message: ThreadMessage,
 ) -> Tuple[str, str]:
-    ticket = message.ticket
-    subject = f"Re: Support Ticket #{ticket.id}"
+    thread = message.thread
+    subject = f"Re: Support Chat Thread #{thread.id}"
 
     reply_content = (
-        f"A new reply has been posted to your support ticket regarding: {ticket.message[:50]}...\n\n"
+        f"A new reply has been posted to your support thread regarding: {thread.message[:50]}...\n\n"
         f"Reply:\n{message.text}\n\n"
         f"You can view the full conversation and reply on your dashboard.\n\n"
         "Best regards,\n"

@@ -9,7 +9,7 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from comms.models import SupportInquiry, SupportMessage, Notification
+from comms.models import PublicSupportRequest, ThreadMessage, Notification
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -168,8 +168,8 @@ class Command(BaseCommand):
         LeaderboardSnapshot.objects.all().delete()
         CandidateExamResultSnapshot.objects.all().delete()
         PreRegUser.objects.all().delete()
-        SupportMessage.objects.all().delete()
-        SupportInquiry.objects.all().delete()
+        ThreadMessage.objects.all().delete()
+        PublicSupportRequest.objects.all().delete()
         Event.objects.all().delete()
         Notification.objects.all().delete()
 
@@ -383,26 +383,42 @@ class Command(BaseCommand):
             )
 
     def _create_support_data(self, candidates, staff_pool):
-        for _ in range(15):
-            linked_user = (
-                random.choice(candidates).user if random.random() < 0.3 else None
+        from comms.models import SupportChatThread
+        self.stdout.write("Creating public support requests...")
+        for _ in range(10):
+            PublicSupportRequest.objects.create(
+                full_name=self.fake.name(),
+                email=self.fake.email(),
+                organization=self.fake.company(),
+                phone=f"080{random.randint(10000000, 99999999)}",
+                type=random.choice(PublicSupportRequest.Type.values),
+                message=self.fake.paragraph(),
+                consent=True,
             )
-            inquiry = SupportInquiry.objects.create(
-                user=linked_user,
-                full_name=(
-                    linked_user.get_full_name() if linked_user else self.fake.name()
-                ),
-                email=linked_user.email if linked_user else self.fake.email(),
-                support_type=random.choice(SupportInquiry.SupportType.values),
-                message=self.fake.text(),
-                status=random.choice(SupportInquiry.Status.values),
+
+        self.stdout.write("Creating authenticated support threads...")
+        for _ in range(10):
+            candidate = random.choice(candidates)
+            thread = SupportChatThread.objects.create(
+                user=candidate.user,
+                message=self.fake.paragraph(),
+                status=random.choice(SupportChatThread.Status.values),
+                priority=random.choice(SupportChatThread.Priority.values),
             )
-            SupportMessage.objects.create(
-                inquiry=inquiry,
-                sender=linked_user,
-                sender_profile="candidate" if linked_user else "guest",
-                text=inquiry.message,
+            ThreadMessage.objects.create(
+                thread=thread,
+                sender=candidate.user,
+                text=thread.message,
             )
+            if random.random() < 0.5:
+                staff = random.choice(staff_pool)
+                thread.assigned_to = staff
+                thread.save()
+                ThreadMessage.objects.create(
+                    thread=thread,
+                    sender=staff.user,
+                    text=self.fake.paragraph(),
+                )
 
     def _create_candidate_notifications(self, candidates):
         for cand in candidates[:20]:

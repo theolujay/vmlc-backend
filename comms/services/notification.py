@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mass_mail
 from django.db import DatabaseError
+from django.db.models import F
 from django.utils import timezone
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioClient
@@ -141,14 +142,20 @@ class NotificationService:
             logger.error("Broadcast not found (id=%s)", broadcast_id)
             return {"error": "Broadcast not found", "broadcast_id": broadcast_id}
 
+        # Handle retry logic and initial status
+        if broadcast.status in [Broadcast.Status.FAILED, Broadcast.Status.PARTIAL]:
+            broadcast.retry_count += 1
+
         broadcast.status = Broadcast.Status.IN_PROGRESS
         broadcast.last_attempt = timezone.now()
-        broadcast.save(update_fields=["status", "last_attempt"])
+        broadcast.save(update_fields=["status", "last_attempt", "retry_count"])
 
-        logger.info("Starting broadcast %s: '%s'", broadcast_id, broadcast.subject)
+        logger.info("Starting broadcast %s (retry #%d): '%s'", 
+                    broadcast_id, broadcast.retry_count, broadcast.subject)
 
         total_attempts = 0
         successful_attempts = 0
+        total_recipients_reached = 0
 
         recipients_by_key = self._resolve_recipients(broadcast, Staff, Candidate)
 
@@ -157,6 +164,8 @@ class NotificationService:
                 for role in roles:
                     total_attempts += 1
                     key = f"{user_type}_{role}"
+                    recipients = recipients_by_key.get(key, [])
+                    count = len(recipients)
 
                     log = BroadcastLog.objects.create(
                         broadcast=broadcast,
@@ -164,11 +173,10 @@ class NotificationService:
                         target_role=role,
                         role_type=user_type,
                         status=BroadcastLog.MediumStatus.PENDING,
+                        recipient_count=count,
                     )
 
                     try:
-                        recipients = recipients_by_key.get(key, [])
-
                         if not recipients:
                             raise NoRecipientsFoundError(
                                 "No active %s found for role '%s'" % (user_type, role)
@@ -179,21 +187,23 @@ class NotificationService:
                         elif medium == Broadcast.Mediums.PLATFORM:
                             self._send_platform_broadcast(broadcast, recipients, role)
                         elif medium == Broadcast.Mediums.SMS:
+                            # Note: Bulk SMS task might update this log asynchronously
                             self._send_sms_broadcast(broadcast, recipients, log)
                         elif medium == Broadcast.Mediums.WHATSAPP:
-                            pass
-                            # raise NotImplementedError(
-                            #     "WhatsApp medium is not yet implemented."
-                            # )
+                            pass # Not yet implemented
                         else:
                             raise InvalidMediumError(
                                 "Unknown medium specified: %s" % medium
                             )
 
-                        log.status = BroadcastLog.MediumStatus.SENT
-                        log.message = "Successfully sent to %d recipients" % len(recipients)
-                        log.save(update_fields=["status", "message"])
-                        successful_attempts += 1
+                        # For synchronous mediums (Email, Platform), we mark as sent here
+                        if medium in [Broadcast.Mediums.EMAIL, Broadcast.Mediums.PLATFORM]:
+                            log.status = BroadcastLog.MediumStatus.SENT
+                            log.sent_at = timezone.now()
+                            log.message = "Successfully sent to %d recipients" % count
+                            log.save(update_fields=["status", "sent_at", "message"])
+                            successful_attempts += 1
+                            total_recipients_reached += count
 
                     except (
                         SMTPException,
@@ -212,30 +222,30 @@ class NotificationService:
                             broadcast_id, medium, user_type, role, e,
                         )
 
-        final_status = self._resolve_broadcast_status(
-            total_attempts, successful_attempts
-        )
-        broadcast.status = final_status
-        broadcast.save(update_fields=["status"])
+        # Final status resolution: only if no logs are still PENDING
+        if not broadcast.logs.filter(status=BroadcastLog.MediumStatus.PENDING).exists():
+            final_status = self._resolve_broadcast_status(
+                total_attempts, successful_attempts
+            )
+            broadcast.status = final_status
+            if final_status == Broadcast.Status.SENT:
+                broadcast.sent_at = timezone.now()
+        
+        # Atomically increment total_recipients
+        if total_recipients_reached > 0:
+            broadcast.total_recipients = F("total_recipients") + total_recipients_reached
+        
+        broadcast.save(update_fields=["status", "total_recipients", "sent_at"])
 
         cache.delete("broadcast_detail_%s" % broadcast_id)
         cache.delete("broadcast_summary_data")
-
-        if final_status == Broadcast.Status.SENT:
-            logger.info("Broadcast %s completed successfully.", broadcast_id)
-        elif final_status == Broadcast.Status.PARTIAL:
-            logger.warning(
-                "Broadcast %s completed with partial success (%d/%d successful).",
-                broadcast_id, successful_attempts, total_attempts,
-            )
-        else:
-            logger.error("Broadcast %s failed completely.", broadcast_id)
 
         return {
             "broadcast_id": broadcast_id,
             "status": broadcast.status,
             "total_attempts": total_attempts,
             "successful_attempts": successful_attempts,
+            "total_recipients_reached_now": total_recipients_reached,
             "subject": broadcast.subject,
             "completed_at": timezone.now().isoformat(),
         }

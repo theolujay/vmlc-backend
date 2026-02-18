@@ -4,7 +4,6 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Count
 
-from comms.models import SupportInquiry
 from .models import (
     Exam,
     Question,
@@ -431,23 +430,6 @@ class FeatureFlagAdmin(admin.ModelAdmin):
             invalidate_feature_flag(obj.key)
             invalidate_registration_status()
         super().delete_queryset(request, queryset)
-
-
-@admin.register(SupportInquiry)
-class SupportInquiryAdmin(admin.ModelAdmin):
-    list_display = (
-        "full_name",
-        "email",
-        "support_type",
-        "organization",
-        "status",
-        "created_at",
-    )
-    list_filter = ("support_type", "status", "created_at")
-    search_fields = ("full_name", "email", "message", "organization")
-    readonly_fields = ("created_at",)
-    date_hierarchy = "created_at"
-    list_select_related = ("user",)
 
 
 @admin.register(ExamAccess)

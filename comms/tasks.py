@@ -202,9 +202,31 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
         if is_success:
             logger.info("Bulk SMS via Kudi sent successfully for log %s.", broadcast_log_id)
             if log:
+                from django.utils import timezone
+                from django.db.models import F
                 log.status = BroadcastLog.MediumStatus.SENT
+                log.sent_at = timezone.now()
+                log.recipient_count = len(recipients)
                 log.message = f"Successfully sent to {len(recipients)} recipients."
-                log.save(update_fields=["status", "message"])
+                log.save(update_fields=["status", "sent_at", "recipient_count", "message"])
+
+                # Update broadcast stats and potentially final status
+                broadcast = log.broadcast
+                broadcast.total_recipients = F("total_recipients") + len(recipients)
+                broadcast.save(update_fields=["total_recipients"])
+                broadcast.refresh_from_db()
+                
+                # Check if this was the last pending medium/role
+                if not broadcast.logs.filter(status=BroadcastLog.MediumStatus.PENDING).exists():
+                    from comms.services.notification import NotificationService
+                    ns = NotificationService()
+                    total = broadcast.logs.count()
+                    success = broadcast.logs.filter(status=BroadcastLog.MediumStatus.SENT).count()
+                    broadcast.status = ns._resolve_broadcast_status(total, success)
+                    if broadcast.status == broadcast.Status.SENT:
+                        broadcast.sent_at = timezone.now()
+                    broadcast.save(update_fields=["status", "sent_at"])
+
             return {"status": "SUCCESS", "count": len(recipients)}
         else:
             message = response.get("message", "Unknown error from Kudi")
@@ -270,7 +292,7 @@ def send_system_email_task(
         build_support_notification_email,
     )
     from identity.models import User, PreRegUser
-    from comms.models import SupportInquiry
+    from comms.models import PublicSupportRequest
 
     if not obj_id:
         logger.error("No object ID provided for email task")
@@ -293,13 +315,13 @@ def send_system_email_task(
             email_type = "full registration"
 
         elif is_public_support:
-            inquiry = SupportInquiry.objects.get(pk=obj_id)
+            inquiry = PublicSupportRequest.objects.get(pk=obj_id)
             subject, message = build_support_confirmation_email(inquiry=inquiry)
             recipient_email = inquiry.email
             email_type = "support inquiry"
 
         elif is_support_notification:
-            inquiry = SupportInquiry.objects.get(pk=obj_id)
+            inquiry = PublicSupportRequest.objects.get(pk=obj_id)
             subject, message = build_support_notification_email(inquiry=inquiry)
             recipient_email = settings.SUPPORT_EMAIL
             email_type = "support notification"
@@ -311,7 +333,7 @@ def send_system_email_task(
     except (
         User.DoesNotExist,
         PreRegUser.DoesNotExist,
-        SupportInquiry.DoesNotExist,
+        PublicSupportRequest.DoesNotExist,
     ) as e:
         logger.error(f"Object not found for email task: {e}")
         return

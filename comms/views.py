@@ -4,6 +4,7 @@ from datetime import datetime
 from django.core.cache import cache
 from django.db import models, transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.generics import (
     GenericAPIView,
@@ -21,7 +22,7 @@ from comms.models import (
     Broadcast,
     BroadcastLog,
     Notification,
-    SupportTicket,
+    SupportChatThread,
     MessageRead,
 )
 from comms.serializers import (
@@ -29,9 +30,9 @@ from comms.serializers import (
     BroadcastListSerializer,
     NotificationSerializer,
     PublicSupportRequestSerializer,
-    SupportTicketDetailSerializer,
-    SupportTicketListSerializer,
-    TicketMessageSerializer,
+    SupportChatThreadDetailSerializer,
+    SupportChatThreadListSerializer,
+    ThreadMessageSerializer,
 )
 from comms.tasks import send_broadcast_task
 from identity.permissions import (
@@ -97,10 +98,6 @@ class BroadcastView(ListCreateRetrieveAPIView):
     def get_serializer_class(self):
         """
         Choose the appropriate serializer based on the action.
-
-        - For POST (create): Use detailed serializer for more fields
-        - For GET with ID (retrieve): Use detailed serializer for full info
-        - For GET without ID (list): Use list serializer for performance
         """
         if self.request.method == "POST":
             return BroadcastDetailSerializer
@@ -112,10 +109,6 @@ class BroadcastView(ListCreateRetrieveAPIView):
     def get_queryset(self):
         """
         Get the base queryset with appropriate optimizations.
-
-        Different operations need different query optimizations:
-        - List: Basic select_related for created_by__user (for MinimalStaffSerializer)
-        - Retrieve: Additional prefetch_related for logs (for BroadcastDetailSerializer)
         """
         queryset = Broadcast.objects.select_related("created_by__user")
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -126,18 +119,9 @@ class BroadcastView(ListCreateRetrieveAPIView):
                     "logs", queryset=BroadcastLog.objects.order_by("-attempted_at")
                 )
             ).order_by("-created_at")
-            logger.info(
-                f"BroadcastView (retrieve): request from user {self.request.user.pk} "
-                f"for broadcast {self.kwargs.get(lookup_url_kwarg)}"
-            )
         else:
             queryset = filter_broadcasts(queryset, self.request.query_params)
             queryset = queryset.order_by("-created_at")
-            safe_params = sanitize_data(self.request.query_params)
-            logger.info(
-                f"BroadcastView (list): request from user {self.request.user.pk} "
-                f"with query params: {safe_params}"
-            )
 
         return queryset
 
@@ -217,29 +201,34 @@ class BroadcastView(ListCreateRetrieveAPIView):
     def perform_create(self, serializer):
         """
         Handle the creation of a new broadcast.
-
-        This method:
-        1. Saves the broadcast with the current user as creator
-        2. Triggers the async task to send the broadcast (after commit)
-        3. Logs the action for auditing
         """
         broadcast = serializer.save(created_by=self.request.user.staff_profile)
         cache.delete("broadcast_summary_data")
+
         logger.info(
-            "Broadcast %s created by user %s. Subject: '%s'",
+            "Broadcast %s created by user %s. Scheduled: %s",
             broadcast.pk,
             self.request.user.pk,
-            broadcast.subject,
+            broadcast.scheduled_at,
         )
 
         def on_commit_hook():
             try:
-                task_result = send_broadcast_task.delay(broadcast.pk)
+                eta = None
+                if broadcast.scheduled_at and broadcast.scheduled_at > timezone.now():
+                    eta = broadcast.scheduled_at
+
+                task_result = send_broadcast_task.apply_async(
+                    args=[broadcast.pk],
+                    eta=eta
+                )
+
                 Broadcast.objects.filter(pk=broadcast.pk).update(task_id=task_result.id)
                 logger.info(
-                    "Broadcast task queued for broadcast %s with task ID %s",
+                    "Broadcast task queued for broadcast %s with task ID %s (ETA: %s)",
                     broadcast.pk,
                     task_result.id,
+                    eta
                 )
             except Exception as e:
                 logger.error(
@@ -436,15 +425,15 @@ class PublicSupportRequestView(CreateAPIView):
 
 class SupportConversationListView(ListAPIView):
     """
-    List all support tickets (portal side).
+    List all support chat_threads (portal side).
     """
 
     permission_classes = ActiveModeratorPermissions
-    serializer_class = SupportTicketListSerializer
+    serializer_class = SupportChatThreadListSerializer
 
     def get_queryset(self):
         return (
-            SupportTicket.objects.select_related("assigned_to")
+            SupportChatThread.objects.select_related("user", "assigned_to")
             .prefetch_related("messages__reads")
             .order_by("-last_message_at")
         )
@@ -452,12 +441,12 @@ class SupportConversationListView(ListAPIView):
 
 class SupportConversationDetailView(RetrieveAPIView):
     """
-    Retrieve full support ticket and mark messages as read.
+    Retrieve full support thread and mark messages as read.
     """
 
     permission_classes = ActiveModeratorPermissions
-    serializer_class = SupportTicketDetailSerializer
-    queryset = SupportTicket.objects.prefetch_related("messages__reads")
+    serializer_class = SupportChatThreadDetailSerializer
+    queryset = SupportChatThread.objects.select_related("user", "assigned_to").prefetch_related("messages__reads")
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
@@ -466,41 +455,38 @@ class SupportConversationDetailView(RetrieveAPIView):
         # Mark unread messages as read for this staff user
         unread_messages = instance.messages.exclude(reads__user=request.user)
 
-        MessageRead.objects.bulk_create(
-            [MessageRead(message=msg, user=request.user) for msg in unread_messages],
-            ignore_conflicts=True,
-        )
+        if unread_messages.exists():
+            MessageRead.objects.bulk_create(
+                [MessageRead(message=msg, user=request.user) for msg in unread_messages],
+                ignore_conflicts=True,
+            )
 
         return super().get(request, *args, **kwargs)
 
 
 class SupportReplyView(CreateAPIView):
     """
-    Staff reply to a support ticket.
+    Staff reply to a support thread.
     """
 
     permission_classes = ActiveModeratorPermissions
-    serializer_class = TicketMessageSerializer
+    serializer_class = ThreadMessageSerializer
 
     @transaction.atomic
-    def post(self, request, ticket_id, *args, **kwargs):
+    def post(self, request, chat_thread_id, *args, **kwargs):
         try:
-            ticket = SupportTicket.objects.get(id=ticket_id)
-        except SupportTicket.DoesNotExist:
+            thread = SupportChatThread.objects.get(id=chat_thread_id)
+        except SupportChatThread.DoesNotExist:
             return Response(
-                {"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND
+                {"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         message = serializer.save(
-            ticket=ticket,
+            thread=thread,
             sender=request.user,
         )
-
-        # Update last message timestamp
-        ticket.last_message_at = message.created_at
-        ticket.save(update_fields=["last_message_at"])
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
