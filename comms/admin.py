@@ -21,16 +21,18 @@ class PublicSupportRequestAdmin(admin.ModelAdmin):
 
 class ThreadMessageInline(admin.TabularInline):
     model = ThreadMessage
-    extra = 1
+    extra = 0
     readonly_fields = ["created_at"]
+    fields = ["sender", "sender_type", "text", "metadata", "created_at"]
 
 @admin.register(SupportChatThread)
 class SupportChatThreadAdmin(admin.ModelAdmin):
-    list_display = ["id", "user", "assigned_to", "status", "priority", "last_message_at", "created_at"]
-    list_filter = ["status", "priority", "is_deleted", "created_at"]
-    search_fields = ["user__email", "message", "assigned_to__user__email"]
+    list_display = ["id", "candidate", "assigned_staff", "status", "priority", "last_message_at", "created_at"]
+    list_filter = ["status", "priority", "created_at"]
+    search_fields = ["candidate__email", "candidate__first_name", "candidate__last_name", "assigned_staff__user__email"]
     inlines = [ThreadMessageInline]
     date_hierarchy = "created_at"
+    autocomplete_fields = ["candidate", "assigned_staff"]
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):

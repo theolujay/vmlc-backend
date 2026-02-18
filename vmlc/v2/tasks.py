@@ -4,6 +4,8 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
+def do_nothing():
+    pass
 
 @shared_task(name="invalidate_exam_related_caches_task")
 def invalidate_exam_related_caches_task(exam_id):
@@ -167,7 +169,7 @@ def generate_and_send_exam_passcodes_task(exam_id):
     Task to generate passcodes and send them via email to eligible candidates.
     """
     from vmlc.services.exam_access import ExamAccessService
-    
+
     logger.info(f"Generating and sending passcodes for exam {exam_id}")
     ExamAccessService.generate_passcodes(exam_id)
     ExamAccessService.send_passcode_emails(exam_id)

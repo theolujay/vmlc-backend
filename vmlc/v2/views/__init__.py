@@ -1,4 +1,3 @@
-from comms.views import SupportUsView
 from .registration import RegistrationV2View, PreRegistrationView
 from .exam import (
     ExamListV2View,
@@ -19,7 +18,6 @@ from .answer import SubmitAnswersV2View
 __all__ = [
     "RegistrationV2View",
     "PreRegistrationView",
-    "SupportUsView",
     "ExamListV2View",
     "ExamDetailV2View",
     "ExamResultsV2View",

@@ -24,6 +24,7 @@ from comms.models import (
     Notification,
     SupportChatThread,
     MessageRead,
+    ThreadMessage,
 )
 from comms.serializers import (
     BroadcastDetailSerializer,
@@ -38,6 +39,7 @@ from comms.tasks import send_broadcast_task
 from identity.permissions import (
     HasXAPIKey,
     AuthenticatedUser,
+    CandidatePermissions,
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
 )
@@ -423,30 +425,49 @@ class PublicSupportRequestView(CreateAPIView):
         )
 
 
-class SupportConversationListView(ListAPIView):
+class SupportThreadView(APIView):
     """
-    List all support chat_threads (portal side).
+    Get or create a support thread for the authenticated candidate.
+    GET /support/thread/
     """
+    permission_classes = AuthenticatedUser
 
-    permission_classes = ActiveModeratorPermissions
-    serializer_class = SupportChatThreadListSerializer
+    def get(self, request):
+        user = request.user
+        if not hasattr(user, "candidate_profile"):
+            return Response({"error": "Only candidates can create support threads."}, status=status.HTTP_403_FORBIDDEN)
 
-    def get_queryset(self):
-        return (
-            SupportChatThread.objects.select_related("user", "assigned_to")
-            .prefetch_related("messages__reads")
-            .order_by("-last_message_at")
-        )
+        thread, created = SupportChatThread.objects.get_or_create(candidate=user.candidate_profile)
+
+        if created:
+            # Insert system message on creation
+            ThreadMessage.objects.create(
+                thread=thread,
+                sender=None,
+                sender_type=ThreadMessage.SenderType.SYSTEM,
+                text=f"Hello, {user.get_full_name()}. How can we help you today?"
+            )
+
+        # Mark unread messages as read for this candidate
+        unread_messages = thread.messages.exclude(reads__user=user)
+        if unread_messages.exists():
+            MessageRead.objects.bulk_create(
+                [MessageRead(message=msg, user=user) for msg in unread_messages],
+                ignore_conflicts=True,
+            )
+
+        serializer = SupportChatThreadDetailSerializer(thread, context={"request": request})
+        return Response(serializer.data)
 
 
-class SupportConversationDetailView(RetrieveAPIView):
+class StaffSupportThreadDetailView(RetrieveAPIView):
     """
-    Retrieve full support thread and mark messages as read.
+    Retrieve full support thread and mark messages as read for staff.
+    GET /staff/support/threads/{id}/
     """
-
     permission_classes = ActiveModeratorPermissions
     serializer_class = SupportChatThreadDetailSerializer
-    queryset = SupportChatThread.objects.select_related("user", "assigned_to").prefetch_related("messages__reads")
+    queryset = SupportChatThread.objects.select_related("candidate", "assigned_staff__user").prefetch_related("messages__reads")
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
@@ -454,7 +475,6 @@ class SupportConversationDetailView(RetrieveAPIView):
 
         # Mark unread messages as read for this staff user
         unread_messages = instance.messages.exclude(reads__user=request.user)
-
         if unread_messages.exists():
             MessageRead.objects.bulk_create(
                 [MessageRead(message=msg, user=request.user) for msg in unread_messages],
@@ -464,29 +484,121 @@ class SupportConversationDetailView(RetrieveAPIView):
         return super().get(request, *args, **kwargs)
 
 
-class SupportReplyView(CreateAPIView):
+class StaffSupportThreadListView(ListAPIView):
     """
-    Staff reply to a support thread.
+    List all support threads for staff, ordered by unread count, online status, and last message.
+    GET /staff/support/threads/
     """
-
     permission_classes = ActiveModeratorPermissions
+    serializer_class = SupportChatThreadListSerializer
+
+    def get_queryset(self):
+        # Unread count annotation
+        user = self.request.user
+        queryset = SupportChatThread.objects.select_related("candidate", "assigned_staff__user") \
+            .prefetch_related("messages__reads") \
+            .annotate(
+                unread_cnt=Count(
+                    "messages",
+                    filter=~Q(messages__reads__user=user),
+                    distinct=True
+                )
+            )
+
+        # Ordering:
+        # 1. Unread count (desc)
+        # 2. Candidate online status (online first) - Hard to do in DB since it's in Redis
+        # 3. last_message_at (desc)
+        # We'll order by unread_cnt and last_message_at in DB,
+        # then sort by online status if necessary or just leave it for now.
+        return queryset.order_by("-unread_cnt", "-last_message_at")
+
+
+class SupportThreadMessageView(CreateAPIView):
+    """
+    Post a message to a support thread.
+    POST /support/thread/{thread_id}/message/
+    """
+    permission_classes = AuthenticatedUser
     serializer_class = ThreadMessageSerializer
 
     @transaction.atomic
-    def post(self, request, chat_thread_id, *args, **kwargs):
+    def post(self, request, thread_id):
         try:
-            thread = SupportChatThread.objects.get(id=chat_thread_id)
+            thread = SupportChatThread.objects.get(id=thread_id)
         except SupportChatThread.DoesNotExist:
-            return Response(
-                {"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Validate user is either: Thread owner or Staff (Moderator+)
+        is_staff = False
+        if hasattr(request.user, "staff_profile"):
+            from identity.permissions import StaffRoleHierarchy
+            from identity.models import Staff
+            is_staff = StaffRoleHierarchy.has_minimum_role(request.user.staff_profile.role, Staff.Roles.MODERATOR)
+
+        is_owner = hasattr(request.user, "candidate_profile") and thread.candidate_id == request.user.candidate_profile.pk
+
+        if not is_staff and not is_owner:
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        sender_type = ThreadMessage.SenderType.STAFF if is_staff else ThreadMessage.SenderType.CANDIDATE
         message = serializer.save(
             thread=thread,
             sender=request.user,
+            sender_type=sender_type
         )
 
+        # Broadcast via WebSocket group
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from comms.serializers import WebSocketThreadMessageSerializer
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"support_thread_{thread.id}",
+            {
+                "type": "chat.message",
+                "message": WebSocketThreadMessageSerializer(message).data
+            }
+        )
+
+        # Trigger staff load balancing if first staff reply
+        if is_staff and thread.assigned_staff is None:
+            self.assign_staff_automatically(thread, request.user.staff_profile)
+
+        # Trigger escalation check if candidate sent message
+        if sender_type == ThreadMessage.SenderType.CANDIDATE:
+            from comms.tasks import support_escalation_task
+            support_escalation_task.apply_async(
+                args=[message.id],
+                eta=message.created_at + timezone.timedelta(minutes=2)
+            )
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def assign_staff_automatically(self, thread, current_staff):
+        """
+        Assign thread automatically to the staff with the lowest load.
+        """
+        from identity.models import Staff
+
+        # Define active staff roles allowed to handle support
+        support_roles = [Staff.Roles.SUPERADMIN, Staff.Roles.MANAGER, Staff.Roles.ADMIN, Staff.Roles.MODERATOR]
+
+        # Find staff with lowest load (active threads they are assigned to)
+        best_staff = Staff.objects.filter(
+            user__is_active=True,
+            role__in=support_roles
+        ).annotate(
+            load=Count(
+                "assigned_chat_threads",
+                filter=Q(assigned_chat_threads__status=SupportChatThread.Status.IN_PROGRESS)
+            )
+        ).order_by("load").first()
+
+        if best_staff:
+            thread.assigned_staff = best_staff
+            thread.status = SupportChatThread.Status.IN_PROGRESS
+            thread.save(update_fields=["assigned_staff", "status"])

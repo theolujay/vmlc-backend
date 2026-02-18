@@ -18,7 +18,7 @@ from .base import *
 # STAGING-SPECIFIC SETTINGS
 # ============================================================================
 
-
+APP_ENVIRONMENT = "staging"
 # === S3 CONFIGURATION ===
 
 # AWS S3 Location Prefix for staging

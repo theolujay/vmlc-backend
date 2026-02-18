@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from channels.db import database_sync_to_async
 from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 
@@ -116,7 +117,9 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
 
         user = self.scope["user"]
         updated_count = Notification.objects.filter(
-            id=notification_id, recipient=user, is_read=False
+            id=notification_id,
+            recipient=user,
+            is_read=False
         ).update(is_read=True)
 
         if updated_count > 0:
@@ -140,3 +143,131 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
         message payload to the connected client.
         """
         await self.send_json(dict(message))
+
+
+class SupportChatConsumer(GenericAsyncAPIConsumer):
+    """
+    Handles real-time support chat, presence, and typing indicators.
+    """
+
+    async def connect(self):
+        is_fully_authenticated = self.scope.get("fully_authenticated", False)
+
+        if not is_fully_authenticated:
+            api_key_ok = self.scope.get("api_key_authenticated", False)
+            jwt_ok = self.scope.get("jwt_authenticated", False)
+
+            if not api_key_ok and not jwt_ok:
+                logger.warning(
+                    "Connection rejected: Missing both API Key and JWT token"
+                )
+            elif not api_key_ok:
+                logger.warning("Connection rejected: Invalid or missing API key")
+            elif not jwt_ok:
+                logger.warning("Connection rejected: Invalid or missing JWT token")
+            await self.close(code=4003)
+            return
+
+        user = self.scope["user"]
+        logger.info(f"Connecting user: {user}")
+
+        self.thread_id = self.scope["url_route"]["kwargs"].get("thread_id")
+        if not self.thread_id:
+            await self.close()
+            return
+
+        # Validate membership (Staff or Thread Owner)
+        has_access = await self.check_thread_access(user, self.thread_id)
+        if not has_access:
+            await self.close(code=4003)
+            return
+
+        self.group_name = f"support_thread_{self.thread_id}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+        # Presence Detection (Redis-Based)
+        await self.set_presence(user.id, True)
+
+        await self.accept()
+
+        # Start presence refresh task
+        self.presence_task = asyncio.create_task(self.refresh_presence_periodically(user.id))
+
+    async def disconnect(self, close_code):
+        user = self.scope.get("user")
+        if user and user.is_authenticated:
+            if hasattr(self, "group_name"):
+                await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+            # Stop presence refresh task
+            if hasattr(self, "presence_task"):
+                self.presence_task.cancel()
+
+            # Clear presence
+            await self.set_presence(user.id, False)
+
+    async def receive_json(self, content, **kwargs):
+        action = content.get("type")
+        user = self.scope["user"]
+
+        if action == "chat.typing":
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "chat.typing",
+                    "user_id": str(user.id),
+                    "is_typing": content.get("is_typing", False)
+                }
+            )
+
+    async def chat_message(self, event):
+        """Forward message to WebSocket."""
+        await self.send_json(event)
+
+    async def chat_typing(self, event):
+        """Forward typing status to WebSocket."""
+        # Don't send back to the user who is typing
+        if event["user_id"] != str(self.scope["user"].id):
+            await self.send_json(event)
+
+    @database_sync_to_async
+    def check_thread_access(self, user, thread_id):
+        from .models import SupportChatThread
+        from identity.models import Staff
+        try:
+            thread = SupportChatThread.objects.get(id=thread_id)
+
+            # Staff check: Must be at least Moderator
+            if hasattr(user, "staff_profile"):
+                role = user.staff_profile.role
+                role_levels = {
+                    Staff.Roles.VOLUNTEER: 1,
+                    Staff.Roles.SPONSOR: 2,
+                    Staff.Roles.MODERATOR: 3,
+                    Staff.Roles.ADMIN: 4,
+                    Staff.Roles.MANAGER: 5,
+                    Staff.Roles.SUPERADMIN: 6,
+                }
+                return role_levels.get(role, 0) >= role_levels.get(Staff.Roles.MODERATOR)
+
+            # Candidate check: Must be the owner
+            return hasattr(user, "candidate_profile") and thread.candidate_id == user.candidate_profile.pk
+        except (SupportChatThread.DoesNotExist, AttributeError):
+            return False
+
+    async def set_presence(self, user_id, is_online):
+        from django.core.cache import cache
+        key = f"user_online_{user_id}"
+        if is_online:
+            cache.set(key, 1, timeout=60)
+        else:
+            cache.delete(key)
+
+    async def refresh_presence_periodically(self, user_id):
+        from django.core.cache import cache
+        try:
+            while True:
+                await asyncio.sleep(30)
+                cache.set(f"user_online_{user_id}", 1, timeout=60)
+        except asyncio.CancelledError:
+            pass

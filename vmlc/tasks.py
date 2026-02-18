@@ -5,12 +5,13 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.files import File
 from django.core.cache import cache
-from django.core.mail import send_mail
 from celery import shared_task
 from celery.exceptions import Retry
 
 from vmlc.utils import generate_stats_overview_data
+from vmlc.v2 import tasks as v2_tasks # this helps celery_find the tasks in /vmlc/v2
 
+v2_tasks.do_nothing() # this helps bypass linters flagging v2_tasks as unused
 logger = logging.getLogger(__name__)
 
 

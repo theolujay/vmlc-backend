@@ -61,12 +61,9 @@ class PublicSupportRequest(models.Model):
 # ---------------------------------------------------------------------------
 class SupportChatThread(models.Model):
     """
-    Represents an authenticated support conversation between a user and staff.
+    Represents an authenticated support conversation between a candidate and staff.
 
-    Threads progress through statuses (Open → In Progress → Resolved) and can
-    be assigned to a specific staff member. Each thread contains one or more
-    ThreadMessage records. Deletion is soft — records are flagged with
-    is_deleted rather than removed from the database.
+    Threads are persistent and unique per candidate (1:1).
     """
 
     class Status(models.TextChoices):
@@ -79,22 +76,20 @@ class SupportChatThread(models.Model):
         MEDIUM = "medium", "Medium"
         HIGH = "high", "High"
 
-    user = models.ForeignKey(
-        "identity.User",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="support_chat_threads",
-        help_text="Authenticated user who submitted the thread, if applicable.",
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    candidate = models.OneToOneField(
+        "identity.Candidate",
+        on_delete=models.CASCADE,
+        related_name="support_chat_thread",
+        help_text="Candidate who owns this support thread.",
     )
-    assigned_to = models.ForeignKey(
+    assigned_staff = models.ForeignKey(
         "identity.Staff",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="assigned_chat_threads",
     )
-    message = models.TextField(help_text="Initial message from the user.")
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -107,7 +102,6 @@ class SupportChatThread(models.Model):
         default=Priority.MEDIUM,
         db_index=True,
     )
-    is_deleted = models.BooleanField(default=False)
     last_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -115,46 +109,26 @@ class SupportChatThread(models.Model):
     class Meta:
         verbose_name = "Support Chat Thread"
         verbose_name_plural = "Support Chat Threads"
-        ordering = ["-created_at"]
+        ordering = ["-last_message_at"]
         indexes = [
-            models.Index(fields=["status", "priority"]),
-            models.Index(fields=["assigned_to"]),
+            models.Index(fields=["last_message_at"]),
+            models.Index(fields=["assigned_staff"]),
         ]
 
     def __str__(self) -> str:
-        actor = self.user.email if self.user else "Anonymous"
-        return f"{actor} - {self.status}"
-
-    def delete(self, *args, **kwargs) -> None:
-        """Soft-delete: marks the thread as deleted instead of removing it."""
-        self.is_deleted = True
-        self.save(update_fields=["is_deleted"])
+        return f"Support Thread: {self.candidate.user.email} ({self.status})"
 
 
 class ThreadMessage(models.Model):
     """
-    An individual message within a SupportChatThread conversation.
-
-    Messages are immutable once created — save() is intentionally
-    restricted to new instances only. When a new message is saved, the parent
-    thread's last_message_at timestamp is updated atomically.
-
-    Supports text, image, and file attachment types. System-generated messages
-    (e.g. status changes) use MessageType.SYSTEM.
+    An individual message within a SupportChatThread.
     """
 
     class SenderType(models.TextChoices):
-        CANDIDATE = "user", "Candidate"
+        CANDIDATE = "candidate", "Candidate"
         STAFF = "staff", "Staff"
         SYSTEM = "system", "System"
 
-    class MessageType(models.TextChoices):
-        TEXT = "text", "Text"
-        IMAGE = "image", "Image"
-        FILE = "file", "File"
-        SYSTEM = "system", "System"
-
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     thread = models.ForeignKey(
         SupportChatThread,
         on_delete=models.CASCADE,
@@ -167,19 +141,14 @@ class ThreadMessage(models.Model):
         blank=True,
         related_name="sent_support_messages",
     )
-    message_type = models.CharField(
+    sender_type = models.CharField(
         max_length=20,
-        choices=MessageType.choices,
-        default=MessageType.TEXT,
+        choices=SenderType.choices,
+        default=SenderType.SYSTEM,
     )
     text = models.TextField()
-    attachment = models.FileField(
-        upload_to="support_attachments/",
-        null=True,
-        blank=True,
-    )
+    metadata = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-
 
     class Meta:
         ordering = ["created_at"]
@@ -189,24 +158,11 @@ class ThreadMessage(models.Model):
 
     def __str__(self) -> str:
         actor = self.sender.email if self.sender else "System"
-        return f"{actor} - {self.created_at}"
-
-    @property
-    def sender_type(self) -> str:
-        """
-        Derives sender type from the related User instance.
-
-        Returns 'staff' when the sender has an associated Staff
-        profile, otherwise 'candidate'.
-        """
-        if self.sender and hasattr(self.sender, "staff_profile"):
-            return self.SenderType.STAFF
-        return self.SenderType.CANDIDATE
+        return f"{actor} ({self.sender_type}) - {self.created_at}"
 
     def save(self, *args, **kwargs) -> None:
         """
-        Persists the message and, on creation, updates the parent thread's
-        last_message_at field via a single atomic UPDATE query.
+        Updates the parent thread's last_message_at field.
         """
         is_new = self._state.adding
         super().save(*args, **kwargs)
@@ -218,9 +174,7 @@ class ThreadMessage(models.Model):
 
 class MessageRead(models.Model):
     """
-    Tracks which users have read a given ThreadMessage.
-
-    Used to drive unread-message indicators in the support UI.
+    Tracks message read status per user.
     """
 
     message = models.ForeignKey(

@@ -11,7 +11,7 @@ from .base import *
 SECRET_KEY = "dummy"
 DEBUG = False
 TESTING = True
-
+APP_ENVIRONMENT = "test"
 # Add daphne for testing ASGI applications
 if "daphne" not in INSTALLED_APPS:
     INSTALLED_APPS.insert(0, "daphne")

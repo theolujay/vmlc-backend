@@ -1,17 +1,21 @@
 from rest_framework import serializers
-from django.db.models import Count, Q
 
+from identity.models import User
 from vmlc.serializers.staff import MinimalStaffSerializer
 
 from .models import (
     PublicSupportRequest,
     SupportChatThread,
     ThreadMessage,
-    MessageRead,
     Broadcast,
     BroadcastLog,
     Notification,
 )
+
+class UUIDPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_representation(self, value):
+        return str(value)
+
 
 class PublicSupportRequestSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,7 +42,6 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
         source="sender.get_full_name",
         read_only=True
     )
-    sender_type = serializers.CharField(read_only=True)
     is_read = serializers.SerializerMethodField()
 
     class Meta:
@@ -48,16 +51,16 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
             "sender",
             "sender_name",
             "sender_type",
-            "message_type",
             "text",
-            "attachment",
+            "metadata",
             "is_read",
             "created_at",
         ]
         read_only_fields = [
             "id",
-            "created_at",
+            "sender",
             "sender_type",
+            "created_at",
         ]
 
     def get_is_read(self, obj):
@@ -69,22 +72,26 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
 
 class SupportChatThreadListSerializer(serializers.ModelSerializer):
     unread_count = serializers.SerializerMethodField()
-    user_email = serializers.CharField(source="user.email", read_only=True)
-    assigned_to_name = serializers.CharField(source="assigned_to.user.get_full_name", read_only=True)
+    candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
+    candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
+    assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
     last_message_preview = serializers.SerializerMethodField()
+    is_online = serializers.SerializerMethodField()
 
     class Meta:
         model = SupportChatThread
         fields = [
             "id",
-            "user_email",
-            "assigned_to_name",
+            "candidate_email",
+            "candidate_name",
+            "assigned_staff",
+            "assigned_staff_name",
             "status",
             "priority",
-            "message",
             "last_message_at",
             "unread_count",
             "last_message_preview",
+            "is_online",
             "created_at",
         ]
 
@@ -98,7 +105,11 @@ class SupportChatThreadListSerializer(serializers.ModelSerializer):
         last_msg = obj.messages.order_by("-created_at").first()
         if last_msg:
             return last_msg.text[:100] + ("..." if len(last_msg.text) > 100 else "")
-        return obj.message[:100] + ("..." if len(obj.message) > 100 else "")
+        return ""
+
+    def get_is_online(self, obj):
+        from django.core.cache import cache
+        return cache.get(f"user_online_{obj.candidate.user_id}") is not None
 
 
 # ============================================================
@@ -106,19 +117,19 @@ class SupportChatThreadListSerializer(serializers.ModelSerializer):
 # ============================================================
 class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
     messages = ThreadMessageSerializer(many=True, read_only=True)
-    user_name = serializers.CharField(source="user.get_full_name", read_only=True)
-    user_email = serializers.CharField(source="user.email", read_only=True)
-
+    candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
+    candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
+    assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
     class Meta:
         model = SupportChatThread
         fields = [
             "id",
-            "user_name",
-            "user_email",
-            "assigned_to",
+            "candidate_name",
+            "candidate_email",
+            "assigned_staff",
+            "assigned_staff_name",
             "status",
             "priority",
-            "message",
             "last_message_at",
             "messages",
             "created_at",
@@ -233,5 +244,24 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "created_at",
+        ]
+
+class WebSocketThreadMessageSerializer(serializers.ModelSerializer):
+    sender = UUIDPrimaryKeyRelatedField(queryset=User.objects.all())
+    sender_name = serializers.CharField(
+        source="sender.get_full_name",
+        read_only=True
+    )
+
+    class Meta:
+        model = ThreadMessage
+        fields = [
+            "id",
+            "sender",
+            "sender_name",
+            "sender_type",
+            "text",
+            "metadata",
             "created_at",
         ]

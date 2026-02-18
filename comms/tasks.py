@@ -215,7 +215,7 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
                 broadcast.total_recipients = F("total_recipients") + len(recipients)
                 broadcast.save(update_fields=["total_recipients"])
                 broadcast.refresh_from_db()
-                
+
                 # Check if this was the last pending medium/role
                 if not broadcast.logs.filter(status=BroadcastLog.MediumStatus.PENDING).exists():
                     from comms.services.notification import NotificationService
@@ -412,4 +412,66 @@ def send_otp_on_registration_task(self, user_id):
     except Exception as exc:
         logger.error(f"Failed to send OTP to user with id {user_id}: {exc}")
         raise self.retry(exc=exc, countdown=60)
+
+@shared_task(name="support_escalation_task", queue="comms")
+def support_escalation_task(message_id):
+    """
+    Check if a support message from a candidate has been replied to within 2 minutes.
+    If not, escalate to admins and managers.
+    """
+    from comms.models import ThreadMessage, SupportChatThread
+    from identity.models import Staff
+
+    try:
+        message = ThreadMessage.objects.select_related("thread__candidate").get(id=message_id)
+        thread = message.thread
+
+        # Get the absolute latest message in this thread
+        latest_message = thread.messages.order_by("-created_at").first()
+
+        # If the latest message is still from a candidate (could be the same one or a newer one)
+        # and it's been at least 2 minutes since the triggered message
+        if latest_message and latest_message.sender_type == ThreadMessage.SenderType.CANDIDATE:
+            logger.info(f"Escalating support thread {thread.id} - no staff reply after 2 minutes.")
+
+            # 1. Send Slack Alert
+            slack_service.send_support_escalation_alert(thread, latest_message)
+
+            # 2. Get admins and managers for Email/SMS
+            escalation_targets = Staff.objects.filter(
+                role__in=[Staff.Roles.MANAGER, Staff.Roles.ADMIN],
+                user__is_active=True
+            ).select_related("user")
+
+            subject = f"URGENT: Support Escalation - {thread.candidate.user.get_full_name()}"
+            body = (
+                f"Support thread for {thread.candidate.user.get_full_name()} ({thread.candidate.user.email}) "
+                f"has been waiting for a reply for over 2 minutes.\n\n"
+                f"Latest Message: {latest_message.text}"
+            )
+
+            for staff in escalation_targets:
+                # Send Email
+                notification_service.notify_user(
+                    user=staff.user,
+                    subject=subject,
+                    message=body,
+                    mediums=["email"],
+                    type="alert"
+                )
+
+                # Send SMS (Optional: maybe only for HIGH priority or certain roles)
+                if staff.user.phone:
+                    notification_service.notify_user(
+                        user=staff.user,
+                        subject=subject,
+                        message=body,
+                        mediums=["sms"],
+                        type="alert"
+                    )
+
+    except ThreadMessage.DoesNotExist:
+        logger.error(f"Message {message_id} not found for escalation task.")
+    except Exception as e:
+        logger.exception(f"Error in support_escalation_task: {e}")
 

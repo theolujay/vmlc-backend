@@ -5,7 +5,6 @@ from vmlc.v2.views.auth import DirectAccessLoginView
 from .views import (
     RegistrationV2View,
     PreRegistrationView,
-    SupportUsView,
     ExamListV2View,
     ExamDetailV2View,
     ExamResultsV2View,
@@ -26,7 +25,6 @@ urlpatterns = [
     path("register/", RegistrationV2View.as_view(), name="register"),
     path("auth/direct-access/", DirectAccessLoginView.as_view(), name="direct-access-login"),
     path("pre-register/", PreRegistrationView.as_view(), name="pre-register"),
-    path("support-us/", SupportUsView.as_view(), name="support-us"),
     path("registration/", registration_status, name="registration-status"),
     # =============================================================================
     # EXAM & QUESTION MANAGEMENT

@@ -107,3 +107,42 @@ class SlackService:
             )
 
         return self._send_notification(payload)
+
+    def send_support_escalation_alert(self, thread, latest_message):
+        """Sends a notification about a pending support message to a Slack channel."""
+        payload = {
+            "text": ":rotating_light: Support Escalation Alert",
+            "attachments": [
+                {
+                    "color": "danger",
+                    "fields": [
+                        {
+                            "title": "Candidate",
+                            "value": thread.candidate.user.get_full_name(),
+                            "short": True,
+                        },
+                        {
+                            "title": "Email",
+                            "value": thread.candidate.user.email,
+                            "short": True,
+                        },
+                        {
+                            "title": "Thread ID",
+                            "value": f"{thread.id}",
+                            "short": True,
+                        },
+                        {
+                            "title": "Waiting For",
+                            "value": "Over 2 minutes",
+                            "short": True,
+                        },
+                        {
+                            "title": "Latest Message",
+                            "value": latest_message.text,
+                            "short": False,
+                        },
+                    ],
+                }
+            ],
+        }
+        return self._send_notification(payload)

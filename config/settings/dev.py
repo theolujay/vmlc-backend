@@ -22,7 +22,7 @@ if not SECRET_KEY:
 # DEVELOPMENT-SPECIFIC SETTINGS
 # ============================================================================
 DEBUG = True
-
+APP_ENVIRONMENT = "development"
 # Use NeonDB if URL is provided, otherwise default to SQLite
 DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
 DATABASES = {"default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))}

@@ -6,32 +6,35 @@ from .views import (
     MarkAllNotificationsAsReadView,
     MarkNotificationAsReadView,
     NotificationHistory,
-    SupportConversationDetailView,
-    SupportConversationListView,
-    SupportReplyView,
+    StaffSupportThreadDetailView,
+    StaffSupportThreadListView,
+    SupportThreadMessageView,
+    SupportThreadView,
     PublicSupportRequestView,
 )
 
 app_name = "comms"
 
 urlpatterns = [
-    # Support & Conversations
+    # Support Chat
+    path("support/thread/", SupportThreadView.as_view(), name="support-thread"),
+    path(
+        "support/thread/<uuid:thread_id>/message/",
+        SupportThreadMessageView.as_view(),
+        name="support-thread-message",
+    ),
+    path(
+        "staff/support/threads/",
+        StaffSupportThreadListView.as_view(),
+        name="staff-support-threads",
+    ),
+    path(
+        "staff/support/threads/<uuid:id>/",
+        StaffSupportThreadDetailView.as_view(),
+        name="staff-support-thread-detail",
+    ),
+    # Support & Conversations (Legacy/Old paths - maybe keep or remove?)
     path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
-    path(
-        "support/conversations/",
-        SupportConversationListView.as_view(),
-        name="support-conversations",
-    ),
-    path(
-        "support/conversations/<int:id>/",
-        SupportConversationDetailView.as_view(),
-        name="support-conversation-detail",
-    ),
-    path(
-        "support/conversations/<int:chat_thread_id>/reply/",
-        SupportReplyView.as_view(),
-        name="support-reply",
-    ),
     # Broadcasts
     path("broadcasts/", BroadcastView.as_view(), name="broadcast-list-create"),
     path(
