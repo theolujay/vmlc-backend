@@ -247,7 +247,7 @@ BROADCAST_WEBHOOK_URL = SLACK_WEBHOOK_URL
 
 # Kudi SMS Configuration
 KUDI_API_KEY = read_secret("KUDI_API_KEY")
-KUDI_SENDER_ID = read_secret("KUDI_SENDER_ID", "VMLC")
+KUDI_SENDER_ID = read_secret("KUDI_SENDER_ID", "Verboheit")
 KUDI_GATEWAY = read_secret("KUDI_GATEWAY", "2")
 SMS_PROVIDER = read_secret("SMS_PROVIDER", "kudi")  # 'twilio' or 'kudi'
 

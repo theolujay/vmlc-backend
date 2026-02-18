@@ -19,9 +19,9 @@ class KudiURL(Enum):
 
 class KudiSmsService:
     def __init__(self):
-        self.sender_id = getattr(settings, "KUDI_SENDER_ID", "VMLC")
-        self.api_key = getattr(settings, "KUDI_API_KEY", "")
-        self.gateway = getattr(settings, "KUDI_GATEWAY", "direct-delivery")
+        self.sender_id = getattr(settings, "KUDI_SENDER_ID")
+        self.api_key = getattr(settings, "KUDI_API_KEY")
+        self.gateway = getattr(settings, "KUDI_GATEWAY")
         self.cost_per_msg = 5.6  # Default cost in Naira
 
     def parse_balance(self, balance_str: str) -> float:
@@ -43,7 +43,7 @@ class KudiSmsService:
         else:
             import math
             pages = math.ceil(msg_len / 153)
-        
+
         return pages * recipient_count * self.cost_per_msg
 
     def _make_request(

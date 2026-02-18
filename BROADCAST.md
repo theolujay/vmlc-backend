@@ -1,26 +1,30 @@
-# Broadcast API Documentation
+# Broadcast & Notifications API Documentation
 
-The Broadcast API allows staff members with managerial permissions to send messages to multiple users across various communication channels (Email, SMS, WhatsApp, and Platform Notifications).
-
-## Endpoints Summary
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/v1/broadcasts/` | Create and send a new broadcast |
-| `GET` | `/v1/broadcasts/` | List all broadcasts (paginated) |
-| `GET` | `/v1/broadcasts/<int:broadcast_id>/` | Retrieve details of a specific broadcast |
+The Broadcast and Notifications API allows staff members to send mass messages across various communication channels and manage real-time platform notifications.
 
 ---
 
-## Create Broadcast
+## 1. Broadcasts
+
+Broadcasts are mass messages dispatched to specific user roles via Email, SMS, WhatsApp, and Platform Notifications.
+
+### Endpoints Summary
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/v1/broadcasts/` | List all broadcasts (with pagination and summary) |
+| `POST` | `/v1/broadcasts/` | Create and send (or schedule) a new broadcast |
+| `GET` | `/v1/broadcasts/<int:broadcast_id>/` | Retrieve details of a specific broadcast |
+
+### Create / Schedule Broadcast
 `POST /v1/broadcasts/`
 
-Creates a broadcast record and asynchronously triggers the sending process.
+Creates a broadcast record and triggers the sending process. If `scheduled_at` is provided, the delivery is delayed until the specified time.
 
-### Permissions
+#### Permissions
 - **Active Manager Permissions**: Requires the user to be an active staff member with at least a `manager` role.
 
-### Request Body
+#### Request Body
 ```json
 {
   "subject": "System Maintenance",
@@ -29,7 +33,8 @@ Creates a broadcast record and asynchronously triggers the sending process.
   "target_roles": {
     "staff": ["volunteer", "moderator"],
     "candidate": ["league", "final"]
-  }
+  },
+  "scheduled_at": "2026-02-20T02:00:00Z"
 }
 ```
 
@@ -38,9 +43,10 @@ Creates a broadcast record and asynchronously triggers the sending process.
 | `subject` | `string` | Yes | Title of the broadcast (max 100 characters). |
 | `message` | `string` | Yes | The body of the message. |
 | `mediums` | `array` | Yes | List of channels: `platform`, `email`, `whatsapp`, `sms`. |
-| `target_roles` | `object` | Yes | Dictionary mapping user types to roles. Valid keys: `staff`, `candidate`. |
+| `target_roles` | `object` | Yes | Dictionary mapping user types (`staff`, `candidate`) to lists of roles. |
+| `scheduled_at` | `string` | No | ISO 8601 timestamp for future delivery. |
 
-### Response (`201 Created`)
+#### Response (`201 Created`)
 ```json
 {
   "id": 42,
@@ -53,61 +59,60 @@ Creates a broadcast record and asynchronously triggers the sending process.
       "last_name": "User"
     }
   },
-  "created_at": "2026-02-15T12:00:00Z",
+  "status": "pending",
   "mediums": ["platform", "email", "sms"],
   "target_roles": {
     "staff": ["volunteer", "moderator"],
     "candidate": ["league", "final"]
   },
-  "status": "pending",
-  "last_attempt": null,
-  "logs": []
+  "scheduled_at": "2026-02-20T02:00:00Z",
+  "created_at": "2026-02-18T12:00:00Z"
 }
 ```
 
 ---
 
-## List Broadcasts
-`GET /v1/broadcasts/`
+## 2. Platform Notifications
 
-Returns a paginated list of all broadcasts with aggregate summary data.
+Notifications are real-time, in-platform messages delivered to specific users.
 
-### Query Parameters
+### Endpoints Summary
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/v1/notifications/` | List notifications for the authenticated user |
+| `PATCH` | `/v1/notifications/<int:id>/mark-as-read/` | Mark a specific notification as read |
+| `PATCH` | `/v1/notifications/mark-all-as-read/` | Mark all notifications as read |
+
+### List Notifications
+`GET /v1/notifications/`
+
+Returns a paginated list of notifications for the current user, along with status statistics.
+
+#### Query Parameters
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
-| `status` | `string` | Filter by status (e.g., `sent`, `pending`, `failed`, `partial`). |
-| `medium` | `string` | Filter by medium (e.g., `email`, `sms`, `whatsapp`, `platform`). |
-| `search` | `string` | Partial match search on subject or message content. |
-| `created_at` | `string` | Filter by creation date (`YYYY-MM-DD`). |
+| `status` | `string` | Filter by `read` or `unread`. |
 
-### Response (`200 OK`)
+#### Response (`200 OK`)
 ```json
 {
-  "broadcast_summary_data": {
-    "total_broadcasts": 42,
-    "sent_count": 38,
-    "pending_count": 1,
-    "failed_count": 2,
-    "partial_count": 1,
-    "email_count": 40,
-    "sms_count": 10,
-    "whatsapp_count": 5,
-    "platform_count": 42
+  "stats": {
+    "total_count": 15,
+    "unread_count": 3,
+    "read_count": 12
   },
-  "count": 42,
+  "count": 15,
   "next": null,
   "previous": null,
   "results": [
     {
-      "id": 42,
-      "subject": "System Maintenance",
-      "message": "The platform will be down for maintenance...",
-      "created_by": { ... },
-      "created_at": "2026-02-15T12:00:00Z",
-      "mediums": ["platform", "email"],
-      "target_roles": {
-        "candidate": ["league"]
-      }
+      "id": 120,
+      "type": "info",
+      "subject": "Welcome!",
+      "message": "Welcome to the platform.",
+      "is_read": false,
+      "created_at": "2026-02-18T10:00:00Z"
     }
   ]
 }
@@ -115,64 +120,42 @@ Returns a paginated list of all broadcasts with aggregate summary data.
 
 ---
 
-## Retrieve Broadcast Detail
-`GET /v1/broadcasts/<int:broadcast_id>/`
+## 3. Support Chat
 
-Returns full details of a specific broadcast, including the status of each medium-role combination.
+The system supports 1:1 chat between candidates and staff for technical or academic support.
 
-### Response (`200 OK`)
-```json
-{
-  "id": 42,
-  "subject": "System Maintenance",
-  "message": "...",
-  "status": "sent",
-  "last_attempt": "2026-02-15T12:05:00Z",
-  "logs": [
-    {
-      "id": 150,
-      "medium": "email",
-      "target_role": "league",
-      "role_type": "candidate",
-      "status": "sent",
-      "message": "Successfully sent to 850 recipients",
-      "attempted_at": "2026-02-15T12:05:00Z"
-    },
-    {
-      "id": 151,
-      "medium": "platform",
-      "target_role": "league",
-      "role_type": "candidate",
-      "status": "sent",
-      "message": "Successfully sent to 850 recipients",
-      "attempted_at": "2026-02-15T12:05:05Z"
-    }
-  ]
-}
-```
+### Endpoints Summary
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/v1/support/thread/` | Get or create support thread (Candidate) |
+| `POST` | `/v1/support/thread/<uuid:id>/message/` | Send message to thread |
+| `GET` | `/v1/staff/support/threads/` | List all support threads (Staff) |
+| `GET` | `/v1/staff/support/threads/<uuid:id>/` | Retrieve specific thread (Staff) |
+
+#### Escalation Logic
+If a candidate sends a message and there is no staff reply within **2 minutes**, the system automatically escalates the thread:
+- A Slack alert is sent to the `#support` channel.
+- Email and SMS alerts are sent to all active Admins and Managers.
 
 ---
 
-## Behavioral Specifications
+## 4. Behavioral & Implementation Details
 
-### 1. Asynchronous Execution
-When a broadcast is created, the API returns immediately with a `201 Created` status. The actual delivery happens in the background via Celery. The broadcast status will transition from `pending` -> `in_progress` -> `sent` (or `partial` / `failed`).
+### Asynchronous Processing
+All broadcasts are handled via Celery.
+- **Immediate Broadcasts**: Queued immediately upon creation.
+- **Scheduled Broadcasts**: Queued with an `ETA` based on `scheduled_at`.
+- **Bulk SMS**: Uses the **Kudi SMS** provider. Includes automatic balance checks and 1-hour retries if credit is insufficient.
 
-### 2. Targeting Logic
-- The system identifies all active users matching the specified roles.
-- If multiple roles are selected, the broadcast is sent to the union of all matching users.
-- For `platform` notifications, a `Notification` record is created for each recipient, and a real-time message is pushed via WebSockets (Django Channels).
+### Real-time Delivery
+- **Platform Notifications**: Dispatched via WebSockets (Django Channels) to the `user__<user_id>` group.
+- **Support Chat**: Dispatched via WebSockets to the `support_thread_<thread_id>` group.
 
-### 3. Medium-Specific Logic
-- **Email**: Uses `send_mass_mail` for efficient delivery.
-- **SMS**: Sends through the configured SMS provider (e.g., Kudi).
-- **WhatsApp**: (Current Implementation Note) WhatsApp delivery might require pre-approved templates depending on the provider configuration.
-- **Platform**: Creates internal notifications visible in the candidate/staff dashboards.
+### Caching Strategy
+- **Broadcast Summary**: Cached for 1 hour; invalidated on new broadcast creation.
+- **Broadcast Detail**: Cached for 1 hour; invalidated upon completion of the background task.
+- **Notifications**: Versioned caching is used for user notification lists. Caches are invalidated when notifications are marked as read.
 
-### 4. Logging and Retries
-- Every attempt to send a broadcast to a specific role-medium combination is logged in `BroadcastLog`.
-- If an entire broadcast fails due to a retryable error (like a database connection issue), the Celery task will retry up to 3 times with a 60-second delay.
-
-### 5. Caching
-- Broadcast details are cached for 1 hour to reduce database load. 
-- The cache for a specific broadcast is automatically invalidated once the background sending task completes.
+### Broadcast Logs
+Each broadcast creates `BroadcastLog` entries for every medium-role combination. This allows tracking the exact number of recipients reached per channel (e.g., "Successfully sent to 850 recipients via Email").
