@@ -113,25 +113,18 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
     @database_sync_to_async
     def mark_notification_as_read(self, notification_id):
         """Marks a notification as read in the database and invalidates cache."""
-        from django.core.cache import cache
-
         user = self.scope["user"]
-        updated_count = Notification.objects.filter(
-            id=notification_id,
-            recipient=user,
-            is_read=False
-        ).update(is_read=True)
-
-        if updated_count > 0:
-            # Invalidate cache by incrementing version
-            version_key = f"notifications_version_{user.id}"
-            current_version = cache.get(version_key, 0)
-            cache.set(version_key, current_version + 1, timeout=86400)
-            
-            # Also delete stats cache for the old version specifically (optional but cleaner)
-            cache.delete(f"notification_stats_{user.id}_{current_version}")
-            
-        return updated_count
+        try:
+            notification = Notification.objects.get(
+                id=notification_id,
+                recipient=user,
+                is_read=False
+            )
+            notification.is_read = True
+            notification.save() # Triggers signals for invalidation
+            return 1
+        except Notification.DoesNotExist:
+            return 0
 
     async def send_error(self, message):
         """Sends a standardized error message to the client."""

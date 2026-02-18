@@ -133,6 +133,7 @@ urlpatterns = [
         UserVerificationActionView.as_view(),
         name="user-verification-action",
     ),
+    path("user/list/", UserListView.as_view(), name="user-list"),
     # =============================================================================
     # USER & ACCOUNT MANAGEMENT
     # =============================================================================

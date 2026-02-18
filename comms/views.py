@@ -355,13 +355,6 @@ class MarkNotificationAsReadView(APIView):
                 notification.is_read = True
                 notification.save()
 
-                # Invalidate all notification caches by incrementing version
-                version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
-                try:
-                    cache.incr(version_key)
-                except ValueError:
-                    cache.set(version_key, 1, timeout=86400)
-
                 logger.info(
                     f"Notification {notification_id} marked as read for user {user.id}"
                 )
