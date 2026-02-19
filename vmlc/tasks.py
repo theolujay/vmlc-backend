@@ -30,9 +30,10 @@ def generate_leaderboard_snapshot_task(staff_id=None):
     """
     Celery task to generate and publish the leaderboard snapshot.
     """
-    from vmlc.utils.functions import generate_leaderboard_snapshot
+    pass
+    # from vmlc.utils.functions import generate_leaderboard_snapshot
 
-    return generate_leaderboard_snapshot(staff_id)
+    # return generate_leaderboard_snapshot(staff_id)
 
 
 @shared_task(name="generate_results_snapshot_task")
@@ -60,9 +61,10 @@ def update_staff_dashboard_cache_task(staff_id=None):
     """
     Celery task to update the staff dashboard cache.
     """
-    from vmlc.utils.functions import update_staff_dashboard_cache
+    pass
+    # from vmlc.utils.functions import update_staff_dashboard_cache
 
-    update_staff_dashboard_cache(staff_id)
+    # update_staff_dashboard_cache(staff_id)
 
 
 @shared_task(name="update_candidate_dashboard_cache_task")
@@ -70,9 +72,10 @@ def update_candidate_dashboard_cache_task(candidate_id=None):
     """
     Celery task to update the candidate dashboard cache.
     """
-    from vmlc.utils.functions import update_candidate_dashboard_cache
+    pass
+    # from vmlc.utils.functions import update_candidate_dashboard_cache
 
-    update_candidate_dashboard_cache(candidate_id)
+    # update_candidate_dashboard_cache(candidate_id)
 
 
 @shared_task(name="update_candidate_ranking_cache_task")
@@ -80,9 +83,10 @@ def update_candidate_ranking_cache_task():
     """
     Celery task to update the candidate ranking cache for all league candidates.
     """
-    from vmlc.utils.functions import update_candidate_ranking_cache
+    pass
+    # from vmlc.utils.functions import update_candidate_ranking_cache
 
-    update_candidate_ranking_cache()
+    # update_candidate_ranking_cache()
 
 
 @shared_task(

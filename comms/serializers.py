@@ -5,7 +5,7 @@ from vmlc.serializers.staff import MinimalStaffSerializer
 
 from .models import (
     PublicSupportRequest,
-    SupportChatThread,
+    HelpdeskThread,
     ThreadMessage,
     Broadcast,
     BroadcastLog,
@@ -77,7 +77,7 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
         return obj.reads.filter(user=request.user).exists()
 
 
-class SupportChatThreadListSerializer(serializers.ModelSerializer):
+class HelpdeskThreadListSerializer(serializers.ModelSerializer):
     unread_by_staff_count = serializers.SerializerMethodField()
     candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
     candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
@@ -86,7 +86,7 @@ class SupportChatThreadListSerializer(serializers.ModelSerializer):
     is_online = serializers.SerializerMethodField()
 
     class Meta:
-        model = SupportChatThread
+        model = HelpdeskThread
         fields = [
             "id",
             "candidate_email",
@@ -121,9 +121,9 @@ class SupportChatThreadListSerializer(serializers.ModelSerializer):
 
 
 # ============================================================
-# Support Thread (Detail)
+# Helpdesk Thread (Detail)
 # ============================================================
-class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
+class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
     messages = ThreadMessageSerializer(many=True, read_only=True)
     candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
     candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
@@ -132,7 +132,7 @@ class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
     participating_staff_names = serializers.SerializerMethodField()
 
     class Meta:
-        model = SupportChatThread
+        model = HelpdeskThread
         fields = [
             "id",
             "candidate_name",
@@ -162,8 +162,8 @@ class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
     def get_participating_staff_names(self, obj):
         # Retrieve unique staff members who have sent messages in this thread
         staff_users = User.objects.filter(
-            sent_support_messages__thread=obj,
-            sent_support_messages__sender_type=ThreadMessage.SenderType.STAFF
+            sent_helpdesk_messages__thread=obj,
+            sent_helpdesk_messages__sender_type=ThreadMessage.SenderType.STAFF
         ).distinct()
         return [user.get_full_name() for user in staff_users]
 
@@ -247,6 +247,30 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
             "logs",
             "created_at",
         ]
+
+    def validate_target_roles(self, value):
+        from identity.models import Staff, Candidate
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("target_roles must be a dictionary.")
+
+        valid_keys = {"staff", "candidate"}
+        invalid_keys = set(value.keys()) - valid_keys
+        if invalid_keys:
+            raise serializers.ValidationError(f"Invalid keys in target_roles: {invalid_keys}")
+
+        if "staff" in value:
+            valid_staff_roles = {choice[0] for choice in Staff.Roles.choices}
+            invalid = set(value["staff"]) - valid_staff_roles
+            if invalid:
+                raise serializers.ValidationError(f"Invalid staff roles: {invalid}")
+
+        if "candidate" in value:
+            valid_candidate_roles = {choice[0] for choice in Candidate.Roles.choices}
+            invalid = set(value["candidate"]) - valid_candidate_roles
+            if invalid:
+                raise serializers.ValidationError(f"Invalid candidate roles: {invalid}")
+
+        return value
 
 
 # ============================================================

@@ -6,32 +6,32 @@ from .views import (
     MarkAllNotificationsAsReadView,
     MarkNotificationAsReadView,
     NotificationHistory,
-    StaffSupportThreadDetailView,
-    StaffSupportThreadListView,
-    SupportThreadMessageView,
-    SupportThreadView,
+    StaffHelpdeskThreadDetailView,
+    StaffHelpdeskThreadListView,
+    HelpdeskThreadMessageView,
+    HelpdeskThreadView,
     PublicSupportRequestView,
 )
 
 app_name = "comms"
 
 urlpatterns = [
-    # Support Chat
-    path("support/thread/", SupportThreadView.as_view(), name="support-thread"),
+    # Helpdesk
+    path("helpdesk/thread/", HelpdeskThreadView.as_view(), name="helpdesk-thread"),
     path(
-        "support/thread/<uuid:thread_id>/message/",
-        SupportThreadMessageView.as_view(),
-        name="support-thread-message",
+        "helpdesk/thread/<uuid:thread_id>/message/",
+        HelpdeskThreadMessageView.as_view(),
+        name="helpdesk-thread-message",
     ),
     path(
-        "staff/support/threads/",
-        StaffSupportThreadListView.as_view(),
-        name="staff-support-threads",
+        "staff/helpdesk/threads/",
+        StaffHelpdeskThreadListView.as_view(),
+        name="staff-helpdesk-threads",
     ),
     path(
-        "staff/support/threads/<uuid:id>/",
-        StaffSupportThreadDetailView.as_view(),
-        name="staff-support-thread-detail",
+        "staff/helpdesk/threads/<uuid:id>/",
+        StaffHelpdeskThreadDetailView.as_view(),
+        name="staff-helpdesk-thread-detail",
     ),
     path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
     # Broadcasts

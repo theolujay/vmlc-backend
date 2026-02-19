@@ -420,41 +420,93 @@ def send_otp_on_registration_task(self, user_id):
         logger.error(f"Failed to send OTP to user with id {user_id}: {exc}")
         raise self.retry(exc=exc, countdown=60)
 
-@shared_task(name="support_escalation_task", queue="comms")
-def support_escalation_task(message_id):
+@shared_task(name="helpdesk_escalation_task", queue="comms")
+def helpdesk_escalation_task(message_id):
     """
     Check if a support message from a candidate has been replied to within 2 minutes.
     If not, escalate to admins and managers.
     """
-    from comms.models import ThreadMessage, SupportChatThread
+    from comms.models import ThreadMessage, HelpdeskThread
     from identity.models import Staff
+    from vmlc.models import ExamAccess, Exam
+    from django.db.models import Q
+    from django.utils import timezone
 
     try:
         message = ThreadMessage.objects.select_related("thread__candidate").get(id=message_id)
         thread = message.thread
+        candidate = thread.candidate
 
         # Get the absolute latest message in this thread
         latest_message = thread.messages.order_by("-created_at").first()
-
-        # If the latest message is still from a candidate (could be the same one or a newer one)
-        # and it's been at least 2 minutes since the triggered message
+        exam_title = None
+        # Only proceed if the latest message is still from a candidate
         if latest_message and latest_message.sender_type == ThreadMessage.SenderType.CANDIDATE:
-            logger.info(f"Escalating support thread {thread.id} - no staff reply after 2 minutes.")
+            exam_id = message.metadata.get("exam_id") if message.metadata else None
+            is_ongoing_exam = False
+
+            if exam_id:
+                try:
+                    # Check for an active ExamAccess record for this candidate and exam
+                    exam_access = ExamAccess.objects.get(
+                        candidate=candidate,
+                        exam_id=exam_id,
+                        status=ExamAccess.Status.STARTED,
+                        deadline__gt=timezone.now(),
+                    )
+                    # Additionally, check if the parent Exam itself is considered 'ONGOING'
+                    # The Exam.status property handles scheduled_date and open_duration_hours logic
+                    exam = exam_access.exam
+                    exam_title = exam.get_title()
+                    if exam.status == Exam.Status.ONGOING:
+                        is_ongoing_exam = True
+                        logger.info(
+                            f"Exam {exam_id} is ongoing for candidate {candidate.user.email}."
+                        )
+                    else:
+                        logger.info(
+                            f"Exam {exam_id} is NOT ongoing for candidate {candidate.user.email} (status: {exam.status})."
+                        )
+
+                except ExamAccess.DoesNotExist:
+                    logger.info(
+                        f"No active ExamAccess found for candidate {candidate.user.email} for exam {exam_id}."
+                    )
+                except Exam.DoesNotExist:
+                    logger.warning(
+                        f"Exam {exam_id} referenced in metadata not found for candidate {candidate.user.email}."
+                    )
+                except Exception as e:
+                    logger.exception(
+                        f"Error checking ongoing exam status for candidate {candidate.user.email}, exam {exam_id}: {e}"
+                    )
+
+            if not exam_id or not is_ongoing_exam:
+                logger.info(
+                    f"Skipping helpdesk escalation for thread {thread.id}. No exam_id in metadata or exam not ongoing."
+                )
+                return
+
+            # If we reach here, it means the candidate is in an ongoing exam and
+            # the latest message is still from them. Proceed with escalation.
+            logger.info(f"Escalating helpdesk thread {thread.id} - candidate in ongoing exam, no staff reply after 2 minutes.")
 
             # 1. Send Slack Alert
             slack_service.send_support_escalation_alert(thread, latest_message)
 
             # 2. Get admins and managers for Email/SMS
             escalation_targets = Staff.objects.filter(
-                role__in=[Staff.Roles.MANAGER, Staff.Roles.ADMIN],
+                Q(role=Staff.Roles.MANAGER) | Q(role=Staff.Roles.ADMIN),
                 user__is_active=True
             ).select_related("user")
 
-            subject = f"URGENT: Support Escalation - {thread.candidate.user.get_full_name()}"
+            subject = f"URGENT: Helpdesk Escalation - {thread.candidate.user.get_full_name()} - {exam_title}"
             body = (
-                f"Support thread for {thread.candidate.user.get_full_name()} ({thread.candidate.user.email}) "
-                f"has been waiting for a reply for over 2 minutes.\n\n"
-                f"Latest Message: {latest_message.text}"
+                f"Helpdesk thread for {thread.candidate.user.get_full_name()} ({thread.candidate.user.email}) "
+                f"has a new message during an ongoing exam and has been waiting for a reply for over 2 minutes.\\n\\n"
+                f"Exam ID: {exam_id}\\n"
+                f"Latest Message: {latest_message.text}\\n\\n"
+                f"Please review and respond immediately."
             )
 
             for staff in escalation_targets:
@@ -463,11 +515,10 @@ def support_escalation_task(message_id):
                     user=staff.user,
                     subject=subject,
                     message=body,
-                    mediums=["email"],
+                    mediums=["email", "platform"],
                     type="alert"
                 )
-
-                # Send SMS (Optional: maybe only for HIGH priority or certain roles)
+                # Send SMS
                 if staff.user.phone:
                     notification_service.notify_user(
                         user=staff.user,
@@ -480,5 +531,4 @@ def support_escalation_task(message_id):
     except ThreadMessage.DoesNotExist:
         logger.error(f"Message {message_id} not found for escalation task.")
     except Exception as e:
-        logger.exception(f"Error in support_escalation_task: {e}")
-
+        logger.exception(f"Error in helpdesk_escalation_task: {e}")

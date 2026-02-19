@@ -1,11 +1,11 @@
-# Support Chat API Specification
+# Helpdesk API Specification
 
-This document defines the REST API and WebSocket behavior for the real-time in-app support chat system.
+This document defines the REST API and WebSocket behavior for the real-time in-app helpdesk system.
 
 ## 1. REST API Endpoints
 
-### A. Get or Create Support Thread (Candidate)
-**Endpoint:** `GET /v1/support/thread/`
+### A. Get or Create Helpdesk Thread (Candidate)
+**Endpoint:** `GET /v1/helpdesk/thread/`
 **Permission:** Candidate only.
 
 **Behavior:**
@@ -20,6 +20,7 @@ This document defines the REST API and WebSocket behavior for the real-time in-a
     "id": "uuid-string",
     "candidate_name": "John Doe",
     "candidate_email": "john.doe@example.com",
+    "candidate_phone": "2348012345678",
     "assigned_staff": null,
     "assigned_staff_name": null,
     "participating_staff_names": [],
@@ -46,14 +47,14 @@ This document defines the REST API and WebSocket behavior for the real-time in-a
 ---
 
 ### B. Post Message
-**Endpoint:** `POST /v1/support/thread/{thread_id}/message/`
+**Endpoint:** `POST /v1/helpdesk/thread/{thread_id}/message/`
 **Permission:** Authenticated User (Thread owner or Staff (Moderator+)).
 
 **Behavior:**
 - Validates that the sender is either the candidate who owns the thread or a staff member with at least a **Moderator** role.
 - Saves the `ThreadMessage`.
 - Automatically updates `thread.last_message_at`.
-- **WebSocket Broadcast:** Sends a `chat.message` event to the group `support_thread_{thread_id}`.
+- **WebSocket Broadcast:** Sends a `chat.message` event to the group `helpdesk_thread_{thread_id}`.
 - **Staff Load Balancing:** If this is the first staff reply to an unassigned thread, it automatically assigns the thread to the active staff member with the lowest load and updates status to `in_progress`.
 - **Escalation:** If the sender is a candidate, schedules a Celery task to check for escalation in 2 minutes.
 
@@ -87,12 +88,12 @@ This document defines the REST API and WebSocket behavior for the real-time in-a
 
 ---
 
-### C. Staff Thread List
-**Endpoint:** `GET /v1/staff/support/threads/`
+### C. Staff Helpdesk Thread List
+**Endpoint:** `GET /v1/staff/helpdesk/threads/`
 **Permission:** Staff (Moderator+).
 
 **Behavior:**
-- Returns a list of all support threads.
+- Returns a list of all helpdesk threads.
 - **Ordering:**
     1. Unread count (descending)
     2. Last message timestamp (descending)
@@ -125,8 +126,8 @@ This document defines the REST API and WebSocket behavior for the real-time in-a
 
 ---
 
-### D. Staff Thread Detail
-**Endpoint:** `GET /v1/staff/support/threads/{id}/`
+### D. Staff Helpdesk Thread Detail
+**Endpoint:** `GET /v1/staff/helpdesk/threads/{id}/`
 **Permission:** Staff (Moderator+).
 
 **Behavior:**
@@ -134,13 +135,13 @@ This document defines the REST API and WebSocket behavior for the real-time in-a
 - Marks all unread messages as read for the authenticated staff user.
 
 **Response Body (200 OK):**
-Same as **Get or Create Thread (Candidate)**.
+Same as **Get or Create Helpdesk Thread (Candidate)**.
 
 ---
 
 ## 2. WebSocket Interface
 
-**URL:** `ws://{host}/v1/ws/support/thread/{thread_id}/`
+**URL:** `ws://{host}/v1/ws/helpdesk/thread/{thread_id}/`
 
 ### Connection Behavior
 - **Authentication:** Requires valid JWT or API Key (handled via `Channels` middleware).

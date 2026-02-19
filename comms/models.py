@@ -57,11 +57,11 @@ class PublicSupportRequest(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Support Threading
+# Helpdesk Threading
 # ---------------------------------------------------------------------------
-class SupportChatThread(models.Model):
+class HelpdeskThread(models.Model):
     """
-    Represents an authenticated support conversation between a candidate and staff.
+    Represents an authenticated helpdesk conversation between a candidate and staff.
 
     Threads are persistent and unique per candidate (1:1).
     """
@@ -80,15 +80,15 @@ class SupportChatThread(models.Model):
     candidate = models.OneToOneField(
         "identity.Candidate",
         on_delete=models.CASCADE,
-        related_name="support_chat_thread",
-        help_text="Candidate who owns this support thread.",
+        related_name="helpdesk_thread",
+        help_text="Candidate who owns this helpdesk thread.",
     )
     assigned_staff = models.ForeignKey(
         "identity.Staff",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="assigned_chat_threads",
+        related_name="assigned_helpdesk_threads",
     )
     status = models.CharField(
         max_length=20,
@@ -107,8 +107,8 @@ class SupportChatThread(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Support Chat Thread"
-        verbose_name_plural = "Support Chat Threads"
+        verbose_name = "Helpdesk Thread"
+        verbose_name_plural = "Helpdesk Threads"
         ordering = ["-last_message_at"]
         indexes = [
             models.Index(fields=["last_message_at"]),
@@ -116,12 +116,12 @@ class SupportChatThread(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"Support Thread: {self.candidate.user.email} ({self.status})"
+        return f"Helpdesk Thread: {self.candidate.user.email} ({self.status})"
 
 
 class ThreadMessage(models.Model):
     """
-    An individual message within a SupportChatThread.
+    An individual message within a HelpdeskThread.
     """
 
     class SenderType(models.TextChoices):
@@ -130,7 +130,7 @@ class ThreadMessage(models.Model):
         SYSTEM = "system", "System"
 
     thread = models.ForeignKey(
-        SupportChatThread,
+        HelpdeskThread,
         on_delete=models.CASCADE,
         related_name="messages",
     )
@@ -139,7 +139,7 @@ class ThreadMessage(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="sent_support_messages",
+        related_name="sent_helpdesk_messages",
     )
     sender_type = models.CharField(
         max_length=20,
@@ -167,7 +167,7 @@ class ThreadMessage(models.Model):
         is_new = self._state.adding
         super().save(*args, **kwargs)
         if is_new:
-            SupportChatThread.objects.filter(pk=self.thread_id).update(
+            HelpdeskThread.objects.filter(pk=self.thread_id).update(
                 last_message_at=self.created_at
             )
 

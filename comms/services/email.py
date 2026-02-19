@@ -5,7 +5,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 
 from identity.models import User, PreRegUser
-from comms.models import PublicSupportRequest, SupportChatThread, ThreadMessage
+from comms.models import PublicSupportRequest, HelpdeskThread, ThreadMessage
 from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
@@ -172,11 +172,11 @@ def build_support_notification_email(
     return subject, message
 
 
-def build_chat_thread_notification_email(
-    thread: SupportChatThread,
+def build_helpdesk_thread_notification_email(
+    thread: HelpdeskThread,
 ) -> Tuple[str, str]:
     priority_label = thread.get_priority_display()
-    subject = f"[{priority_label}] New Support Chat Thread: {thread.user.email if thread.user else 'Anonymous'}"
+    subject = f"[{priority_label}] New Helpdesk Thread: {thread.user.email if thread.user else 'Anonymous'}"
 
     message = (
         f"A new authenticated support thread has been received.\n\n"
@@ -191,14 +191,14 @@ def build_chat_thread_notification_email(
     return subject, message
 
 
-def build_chat_thread_reply_email(
+def build_helpdesk_thread_reply_email(
     message: ThreadMessage,
 ) -> Tuple[str, str]:
     thread = message.thread
-    subject = f"Re: Support Chat Thread #{thread.id}"
+    subject = f"Re: Helpdesk Thread #{thread.id}"
 
     reply_content = (
-        f"A new reply has been posted to your support thread regarding: {thread.message[:50]}...\n\n"
+        f"A new reply has been posted to your helpdesk thread regarding: {thread.message[:50]}...\n\n"
         f"Reply:\n{message.text}\n\n"
         f"You can view the full conversation and reply on your dashboard.\n\n"
         "Best regards,\n"
