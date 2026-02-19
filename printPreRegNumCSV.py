@@ -2,7 +2,7 @@ code = r"""
 from identity.models import Candidate
 from collections import defaultdict
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -20,7 +20,7 @@ phone_to_candidates = defaultdict(list)
 all_candidates = Candidate.objects.all()
 
 for candidate in all_candidates:
-    clean_phone = format_phone(candidate.user.phone)
+    clean_phone = _normalize_phone(candidate.user.phone)
     if not is_placeholder(clean_phone):
         phone_to_candidates[clean_phone].append({
             'name': candidate.user.get_full_name(),
@@ -93,7 +93,7 @@ exec(code)
 code = r"""
 from identity.models import Candidate
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -111,7 +111,7 @@ sms_ready_phones = []
 all_candidates = Candidate.objects.all()
 
 for candidate in all_candidates:
-    clean_phone = format_phone(candidate.user.phone)
+    clean_phone = _normalize_phone(candidate.user.phone)
     if is_placeholder(clean_phone):
         placeholder_users.append(
             [
@@ -143,7 +143,7 @@ exec(code)
 code = """
 from identity.models import Staff
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -153,7 +153,7 @@ def format_phone(phone):
     return phone
 
 phones = Staff.objects.values_list('user__phone', flat=True)
-formatted_phones = [format_phone(p) for p in phones if p]
+formatted_phones = [_normalize_phone(p) for p in phones if p]
 print(','.join(formatted_phones))
 """
 exec(code)
@@ -161,7 +161,7 @@ exec(code)
 code = """
 from identity.models import PreRegUser
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -171,7 +171,7 @@ def format_phone(phone):
     return phone
 
 phones = PreRegUser.objects.filter(interest_type=PreRegUser.InterestType.CANDIDATE).values_list('phone', flat=True)
-formatted_phones = [format_phone(p) for p in phones if p]
+formatted_phones = [_normalize_phone(p) for p in phones if p]
 print(','.join(formatted_phones))
 """
 exec(code)

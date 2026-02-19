@@ -501,7 +501,6 @@ class CacheManagementAdmin(admin.ModelAdmin):
 
         if "clear" in request.GET:
             cache.clear()
-            invalidate_all_dashboard_caches()
             self.message_user(request, "All caches cleared successfully.", messages.SUCCESS)
             return redirect("admin:vmlc_cachemanagement_changelist")
 

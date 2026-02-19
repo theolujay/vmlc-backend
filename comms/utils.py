@@ -1,5 +1,5 @@
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -9,5 +9,5 @@ def format_phone(phone):
     return phone
 
 def is_placeholder_phone(phone):
-    clean_phone = format_phone(phone)
+    clean_phone = _normalize_phone(phone)
     return clean_phone == "2349123456789"

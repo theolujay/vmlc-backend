@@ -641,6 +641,7 @@ class SupportThreadMessageView(CreateAPIView):
         support_roles = [Staff.Roles.SUPERADMIN, Staff.Roles.MANAGER, Staff.Roles.ADMIN, Staff.Roles.MODERATOR]
 
         # Find staff with lowest load (active threads they are assigned to)
+        # TODO: Improve this to auto-assign based on ongoing exams
         best_staff = Staff.objects.filter(
             user__is_active=True,
             role__in=support_roles

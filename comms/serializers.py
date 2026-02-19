@@ -78,11 +78,11 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
 
 
 class SupportChatThreadListSerializer(serializers.ModelSerializer):
-    unread_count = serializers.SerializerMethodField()
+    unread_by_staff_count = serializers.SerializerMethodField()
     candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
     candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
     assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
-    last_message_preview = serializers.SerializerMethodField()
+    candidate_last_msg_preview = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
 
     class Meta:
@@ -96,22 +96,23 @@ class SupportChatThreadListSerializer(serializers.ModelSerializer):
             "status",
             "priority",
             "last_message_at",
-            "unread_count",
-            "last_message_preview",
+            "unread_by_staff_count",
+            "candidate_last_msg_preview",
             "is_online",
             "created_at",
         ]
 
-    def get_unread_count(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-        return obj.messages.exclude(reads__user=request.user).count()
+    def get_unread_by_staff_count(self, obj):
+        return obj.messages.filter(
+            sender_type=ThreadMessage.SenderType.CANDIDATE
+        ).exclude(
+            reads__user__staff_profile__isnull=False
+        ).count()
 
-    def get_last_message_preview(self, obj):
-        last_msg = obj.messages.order_by("-created_at").first()
-        if last_msg:
-            return last_msg.text[:100] + ("..." if len(last_msg.text) > 100 else "")
+    def get_candidate_last_msg_preview(self, obj):
+        candidate_last_msg = obj.messages.filter(sender_type="candidate").order_by("-created_at").first()
+        if candidate_last_msg:
+            return candidate_last_msg.text[:100] + ("..." if len(candidate_last_msg.text) > 100 else "")
         return ""
 
     def get_is_online(self, obj):
@@ -126,15 +127,20 @@ class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
     messages = ThreadMessageSerializer(many=True, read_only=True)
     candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
     candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
+    candidate_phone = serializers.CharField(source="candidate.user.phone", read_only=True)
     assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
+    participating_staff_names = serializers.SerializerMethodField()
+
     class Meta:
         model = SupportChatThread
         fields = [
             "id",
             "candidate_name",
             "candidate_email",
+            "candidate_phone",
             "assigned_staff",
             "assigned_staff_name",
+            "participating_staff_names",
             "status",
             "priority",
             "last_message_at",
@@ -148,6 +154,18 @@ class SupportChatThreadDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_candidate_phone(self, obj):
+        from comms.utils import _normalize_phone
+        return _normalize_phone(self.candidate_phone)
+
+    def get_participating_staff_names(self, obj):
+        # Retrieve unique staff members who have sent messages in this thread
+        staff_users = User.objects.filter(
+            sent_support_messages__thread=obj,
+            sent_support_messages__sender_type=ThreadMessage.SenderType.STAFF
+        ).distinct()
+        return [user.get_full_name() for user in staff_users]
 
 
 class BroadcastLogSerializer(serializers.ModelSerializer):
