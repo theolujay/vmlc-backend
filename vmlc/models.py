@@ -194,6 +194,13 @@ class Exam(models.Model):
         related_name="exams_updated",
         on_delete=models.SET_NULL,
     )
+    _status_override = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        null=True,
+        blank=True,
+        help_text="For testing only: temporarily override the computed status."
+    )
 
     def retract(self):
         """
@@ -275,6 +282,7 @@ class Exam(models.Model):
     def status(self):
         """
         Returns the current status of the exam.
+        If _status_override is set, it will return that value.
 
         Status flow:
         - DRAFT: No scheduled date set
@@ -283,6 +291,9 @@ class Exam(models.Model):
         - ONGOING: Currently open for taking
         - CONCLUDED: Past the end time
         """
+        if self._status_override:
+            return self._status_override
+
         if self.scheduled_date is None or self.open_duration_hours is None:
             return self.Status.DRAFT
 

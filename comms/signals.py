@@ -8,7 +8,7 @@ from celery.signals import task_success, task_failure
 
 from vmlc.utils.exceptions import ValidationError
 from vmlc.v2.utils import CacheKeys
-from .models import Notification, Broadcast, SupportChatThread, ThreadMessage
+from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
 
 logger = logging.getLogger(__name__)
 notifications_created = Signal()
@@ -53,30 +53,30 @@ post_save.connect(invalidate_broadcast_cache, sender=Broadcast)
 post_delete.connect(invalidate_broadcast_cache, sender=Broadcast)
 
 
-def invalidate_support_chat_cache(sender, instance, **kwargs):
-    """Invalidates support chat thread detail and staff list caches."""
-    if isinstance(instance, SupportChatThread):
+def invalidate_helpdesk_cache(sender, instance, **kwargs):
+    """Invalidates helpdesk thread detail and staff list caches."""
+    if isinstance(instance, HelpdeskThread):
         thread_id = instance.pk
     elif isinstance(instance, ThreadMessage):
         thread_id = instance.thread_id
     else:
         return
 
-    cache.delete(CacheKeys.SUPPORT_THREAD_DETAIL.format(thread_id=thread_id))
+    cache.delete(CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=thread_id))
 
     # Invalidate staff list version to force reload for all staff
     try:
-        cache.incr(CacheKeys.SUPPORT_THREADS_VERSION_STAFF)
+        cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
     except ValueError:
-        cache.set(CacheKeys.SUPPORT_THREADS_VERSION_STAFF, 1, timeout=86400)
+        cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
 
-    logger.info(f"Invalidated support chat cache for thread {thread_id}")
+    logger.info(f"Invalidated helpdesk cache for thread {thread_id}")
 
 
-post_save.connect(invalidate_support_chat_cache, sender=SupportChatThread)
-post_save.connect(invalidate_support_chat_cache, sender=ThreadMessage)
-post_delete.connect(invalidate_support_chat_cache, sender=SupportChatThread)
-post_delete.connect(invalidate_support_chat_cache, sender=ThreadMessage)
+post_save.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)
+post_save.connect(invalidate_helpdesk_cache, sender=ThreadMessage)
+post_delete.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)
+post_delete.connect(invalidate_helpdesk_cache, sender=ThreadMessage)
 
 
 @task_success.connect

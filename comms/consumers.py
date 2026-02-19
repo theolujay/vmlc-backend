@@ -139,9 +139,9 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
         await self.send_json(dict(message))
 
 
-class SupportChatConsumer(GenericAsyncAPIConsumer):
+class HelpdeskConsumer(GenericAsyncAPIConsumer):
     """
-    Handles real-time support chat, presence, and typing indicators.
+    Handles real-time helpdesk chat, presence, and typing indicators.
     """
 
     async def connect(self):
@@ -176,7 +176,7 @@ class SupportChatConsumer(GenericAsyncAPIConsumer):
             await self.close(code=4003)
             return
 
-        self.group_name = f"support_thread_{self.thread_id}"
+        self.group_name = f"helpdesk_thread_{self.thread_id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
         # Presence Detection (Redis-Based)
@@ -226,10 +226,10 @@ class SupportChatConsumer(GenericAsyncAPIConsumer):
 
     @database_sync_to_async
     def check_thread_access(self, user, thread_id):
-        from .models import SupportChatThread
+        from .models import HelpdeskThread
         from identity.models import Staff
         try:
-            thread = SupportChatThread.objects.get(id=thread_id)
+            thread = HelpdeskThread.objects.get(id=thread_id)
 
             # Staff check: Must be at least Moderator
             if hasattr(user, "staff_profile"):
@@ -246,7 +246,7 @@ class SupportChatConsumer(GenericAsyncAPIConsumer):
 
             # Candidate check: Must be the owner
             return hasattr(user, "candidate_profile") and thread.candidate_id == user.candidate_profile.pk
-        except (SupportChatThread.DoesNotExist, AttributeError):
+        except (HelpdeskThread.DoesNotExist, AttributeError):
             return False
 
     async def set_presence(self, user_id, is_online):

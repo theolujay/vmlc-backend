@@ -55,10 +55,10 @@ class CacheKeys:
     NOTIFICATIONS_LIST = "notifications_{user_id}_{version}_{query_hash}"
     NOTIFICATION_STATS = "notification_stats_{user_id}_{version}"
 
-    # Support Chats
-    SUPPORT_THREAD_DETAIL = "support:thread:detail:{thread_id}"
-    SUPPORT_THREADS_VERSION_STAFF = "support_threads_version_staff"
-    SUPPORT_THREAD_LIST_STAFF = "support:threads:staff:{user_id}_{version}_{query_hash}"
+    # Helpdesk
+    HELPDESK_THREAD_DETAIL = "helpdesk:thread:detail:{thread_id}"
+    HELPDESK_THREADS_VERSION_STAFF = "helpdesk_threads_version_staff"
+    HELPDESK_THREAD_LIST_STAFF = "helpdesk:threads:staff:{user_id}_{version}_{query_hash}"
 
     # Legacy keys (for invalidation during transition)
     _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"

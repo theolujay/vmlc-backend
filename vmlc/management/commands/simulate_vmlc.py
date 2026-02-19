@@ -9,7 +9,7 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from comms.models import PublicSupportRequest, ThreadMessage, Notification
+from comms.models import PublicSupportRequest, ThreadMessage, Notification, HelpdeskThread
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -383,7 +383,7 @@ class Command(BaseCommand):
             )
 
     def _create_support_data(self, candidates, staff_pool):
-        from comms.models import SupportChatThread
+        from comms.models import HelpdeskThread
         self.stdout.write("Creating public support requests...")
         for _ in range(10):
             PublicSupportRequest.objects.create(
@@ -396,23 +396,22 @@ class Command(BaseCommand):
                 consent=True,
             )
 
-        self.stdout.write("Creating authenticated support threads...")
+        self.stdout.write("Creating authenticated helpdesk threads...")
         for _ in range(10):
             candidate = random.choice(candidates)
-            thread = SupportChatThread.objects.create(
-                user=candidate.user,
-                message=self.fake.paragraph(),
-                status=random.choice(SupportChatThread.Status.values),
-                priority=random.choice(SupportChatThread.Priority.values),
+            thread = HelpdeskThread.objects.create(
+                candidate=candidate,
+                status=random.choice(HelpdeskThread.Status.values),
+                priority=random.choice(HelpdeskThread.Priority.values),
             )
             ThreadMessage.objects.create(
                 thread=thread,
                 sender=candidate.user,
-                text=thread.message,
+                text=self.fake.paragraph(),
             )
             if random.random() < 0.5:
                 staff = random.choice(staff_pool)
-                thread.assigned_to = staff
+                thread.assigned_staff = staff
                 thread.save()
                 ThreadMessage.objects.create(
                     thread=thread,

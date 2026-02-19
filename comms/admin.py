@@ -8,7 +8,7 @@ from comms.models import (
     Notification,
     BackupLog,
     PublicSupportRequest,
-    SupportChatThread,
+    HelpdeskThread,
     ThreadMessage,
 )
 
@@ -25,8 +25,8 @@ class ThreadMessageInline(admin.TabularInline):
     readonly_fields = ["created_at"]
     fields = ["sender", "sender_type", "text", "metadata", "created_at"]
 
-@admin.register(SupportChatThread)
-class SupportChatThreadAdmin(admin.ModelAdmin):
+@admin.register(HelpdeskThread)
+class HelpdeskThreadAdmin(admin.ModelAdmin):
     list_display = ["id", "candidate", "assigned_staff", "status", "priority", "last_message_at", "created_at"]
     list_filter = ["status", "priority", "created_at"]
     search_fields = ["candidate__email", "candidate__first_name", "candidate__last_name", "assigned_staff__user__email"]

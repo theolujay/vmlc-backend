@@ -22,7 +22,7 @@ from comms.models import (
     Broadcast,
     BroadcastLog,
     Notification,
-    SupportChatThread,
+    HelpdeskThread,
     MessageRead,
     ThreadMessage,
 )
@@ -31,8 +31,8 @@ from comms.serializers import (
     BroadcastListSerializer,
     NotificationSerializer,
     PublicSupportRequestSerializer,
-    SupportChatThreadDetailSerializer,
-    SupportChatThreadListSerializer,
+    HelpdeskThreadDetailSerializer,
+    HelpdeskThreadListSerializer,
     ThreadMessageSerializer,
 )
 from comms.tasks import send_broadcast_task
@@ -432,20 +432,20 @@ class PublicSupportRequestView(CreateAPIView):
         )
 
 
-class SupportThreadView(APIView):
+class HelpdeskThreadView(APIView):
     """
-    Get or create a support thread for the authenticated candidate.
-    GET /support/thread/
+    Get or create a helpdesk thread for the authenticated candidate.
+    GET /helpdesk/thread/
     """
     permission_classes = AuthenticatedUser
 
     def get(self, request):
         user = request.user
         if not hasattr(user, "candidate_profile"):
-            return Response({"error": "Only candidates can create support threads."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only candidates can create helpdesk threads."}, status=status.HTTP_403_FORBIDDEN)
 
-        thread, created = SupportChatThread.objects.get_or_create(candidate=user.candidate_profile)
-        cache_key = CacheKeys.SUPPORT_THREAD_DETAIL.format(thread_id=thread.id)
+        thread, created = HelpdeskThread.objects.get_or_create(candidate=user.candidate_profile)
+        cache_key = CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=thread.id)
 
         if created:
             # Insert system message on creation
@@ -462,7 +462,7 @@ class SupportThreadView(APIView):
             if not unread_messages.exists():
                 cached_data = cache.get(cache_key)
                 if cached_data:
-                    logger.info(f"Returning cached support thread detail for thread {thread.id}")
+                    logger.info(f"Returning cached helpdesk thread detail for thread {thread.id}")
                     return Response(cached_data)
 
             # Mark unread messages as read (if any)
@@ -472,24 +472,24 @@ class SupportThreadView(APIView):
                     ignore_conflicts=True,
                 )
 
-        serializer = SupportChatThreadDetailSerializer(thread, context={"request": request})
+        serializer = HelpdeskThreadDetailSerializer(thread, context={"request": request})
         cache.set(cache_key, serializer.data, timeout=3600)
         return Response(serializer.data)
 
 
-class StaffSupportThreadDetailView(RetrieveAPIView):
+class StaffHelpdeskThreadDetailView(RetrieveAPIView):
     """
-    Retrieve full support thread and mark messages as read for staff.
-    GET /staff/support/threads/{id}/
+    Retrieve full helpdesk thread and mark messages as read for staff.
+    GET /staff/helpdesk/threads/{id}/
     """
     permission_classes = ActiveModeratorPermissions
-    serializer_class = SupportChatThreadDetailSerializer
-    queryset = SupportChatThread.objects.select_related("candidate", "assigned_staff__user").prefetch_related("messages__reads")
+    serializer_class = HelpdeskThreadDetailSerializer
+    queryset = HelpdeskThread.objects.select_related("candidate", "assigned_staff__user").prefetch_related("messages__reads")
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object()
-        cache_key = CacheKeys.SUPPORT_THREAD_DETAIL.format(thread_id=instance.id)
+        cache_key = CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=instance.id)
 
         # Check for unread messages first
         unread_messages = instance.messages.exclude(reads__user=request.user)
@@ -498,7 +498,7 @@ class StaffSupportThreadDetailView(RetrieveAPIView):
         if not unread_messages.exists():
             cached_data = cache.get(cache_key)
             if cached_data:
-                logger.info(f"Returning cached support thread detail for thread {instance.id}")
+                logger.info(f"Returning cached helpdesk thread detail for thread {instance.id}")
                 return Response(cached_data)
 
         # Mark unread messages as read (if any)
@@ -509,9 +509,9 @@ class StaffSupportThreadDetailView(RetrieveAPIView):
             )
             # Invalidate staff list cache since unread count will change
             try:
-                cache.incr(CacheKeys.SUPPORT_THREADS_VERSION_STAFF)
+                cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
             except ValueError:
-                cache.set(CacheKeys.SUPPORT_THREADS_VERSION_STAFF, 1, timeout=86400)
+                cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
 
 
         response = super().get(request, *args, **kwargs)
@@ -519,26 +519,26 @@ class StaffSupportThreadDetailView(RetrieveAPIView):
         return response
 
 
-class StaffSupportThreadListView(ListAPIView):
+class StaffHelpdeskThreadListView(ListAPIView):
     """
-    List all support threads for staff, ordered by unread count, online status, and last message.
-    GET /staff/support/threads/
+    List all helpdesk threads for staff, ordered by unread count, online status, and last message.
+    GET /staff/helpdesk/threads/
     """
     permission_classes = ActiveModeratorPermissions
-    serializer_class = SupportChatThreadListSerializer
+    serializer_class = HelpdeskThreadListSerializer
 
     def list(self, request, *args, **kwargs):
         user = request.user
         # Versioning for staff list
-        version = cache.get(CacheKeys.SUPPORT_THREADS_VERSION_STAFF, 0)
+        version = cache.get(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 0)
         query_hash = hash(frozenset(request.query_params.items()))
-        cache_key = CacheKeys.SUPPORT_THREAD_LIST_STAFF.format(
+        cache_key = CacheKeys.HELPDESK_THREAD_LIST_STAFF.format(
             user_id=user.id, version=version, query_hash=query_hash
         )
 
         cached_data = cache.get(cache_key)
         if cached_data:
-            logger.info(f"Returning cached support threads for staff {user.id}")
+            logger.info(f"Returning cached helpdesk threads for staff {user.id}")
             return Response(cached_data)
 
         response = super().list(request, *args, **kwargs)
@@ -548,7 +548,7 @@ class StaffSupportThreadListView(ListAPIView):
     def get_queryset(self):
         # Unread count annotation
         user = self.request.user
-        queryset = SupportChatThread.objects.select_related("candidate", "assigned_staff__user") \
+        queryset = HelpdeskThread.objects.select_related("candidate", "assigned_staff__user") \
             .prefetch_related("messages__reads") \
             .annotate(
                 unread_cnt=Count(
@@ -567,10 +567,10 @@ class StaffSupportThreadListView(ListAPIView):
         return queryset.order_by("-unread_cnt", "-last_message_at")
 
 
-class SupportThreadMessageView(CreateAPIView):
+class HelpdeskThreadMessageView(CreateAPIView):
     """
-    Post a message to a support thread.
-    POST /support/thread/{thread_id}/message/
+    Post a message to a helpdesk thread.
+    POST /helpdesk/thread/{thread_id}/message/
     """
     permission_classes = AuthenticatedUser
     serializer_class = ThreadMessageSerializer
@@ -578,8 +578,8 @@ class SupportThreadMessageView(CreateAPIView):
     @transaction.atomic
     def post(self, request, thread_id):
         try:
-            thread = SupportChatThread.objects.get(id=thread_id)
-        except SupportChatThread.DoesNotExist:
+            thread = HelpdeskThread.objects.get(id=thread_id)
+        except HelpdeskThread.DoesNotExist:
             return Response({"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Validate user is either: Thread owner or Staff (Moderator+)
@@ -610,7 +610,7 @@ class SupportThreadMessageView(CreateAPIView):
         from comms.serializers import WebSocketThreadMessageSerializer
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"support_thread_{thread.id}",
+            f"helpdesk_thread_{thread.id}",
             {
                 "type": "chat.message",
                 "message": WebSocketThreadMessageSerializer(message).data
@@ -623,8 +623,8 @@ class SupportThreadMessageView(CreateAPIView):
 
         # Trigger escalation check if candidate sent message
         if sender_type == ThreadMessage.SenderType.CANDIDATE:
-            from comms.tasks import support_escalation_task
-            support_escalation_task.apply_async(
+            from comms.tasks import helpdesk_escalation_task
+            helpdesk_escalation_task.apply_async(
                 args=[message.id],
                 eta=message.created_at + timezone.timedelta(minutes=2)
             )
@@ -637,7 +637,7 @@ class SupportThreadMessageView(CreateAPIView):
         """
         from identity.models import Staff
 
-        # Define active staff roles allowed to handle support
+        # Define active staff roles allowed to handle helpdesk
         support_roles = [Staff.Roles.SUPERADMIN, Staff.Roles.MANAGER, Staff.Roles.ADMIN, Staff.Roles.MODERATOR]
 
         # Find staff with lowest load (active threads they are assigned to)
@@ -647,12 +647,12 @@ class SupportThreadMessageView(CreateAPIView):
             role__in=support_roles
         ).annotate(
             load=Count(
-                "assigned_chat_threads",
-                filter=Q(assigned_chat_threads__status=SupportChatThread.Status.IN_PROGRESS)
+                "assigned_helpdesk_threads",
+                filter=Q(assigned_helpdesk_threads__status=HelpdeskThread.Status.IN_PROGRESS)
             )
         ).order_by("load").first()
 
         if best_staff:
             thread.assigned_staff = best_staff
-            thread.status = SupportChatThread.Status.IN_PROGRESS
+            thread.status = HelpdeskThread.Status.IN_PROGRESS
             thread.save(update_fields=["assigned_staff", "status"])
