@@ -1,8 +1,7 @@
 from datetime import timedelta
 import re
-from django.db.models import F, Count, Q, ExpressionWrapper, DateTimeField
+from django.db.models import F, Count, ExpressionWrapper, DateTimeField
 from django.utils import timezone
-from django.db.models.functions import Now
 from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
 from ..models import Exam

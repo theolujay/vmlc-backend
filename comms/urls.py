@@ -6,11 +6,35 @@ from .views import (
     MarkAllNotificationsAsReadView,
     MarkNotificationAsReadView,
     NotificationHistory,
+    StaffHelpdeskThreadDetailView,
+    StaffHelpdeskThreadListView,
+    HelpdeskThreadMessageView,
+    HelpdeskThreadView,
+    PublicSupportRequestView,
 )
 
 app_name = "comms"
 
 urlpatterns = [
+    # Helpdesk
+    path("helpdesk/thread/", HelpdeskThreadView.as_view(), name="helpdesk-thread"),
+    path(
+        "helpdesk/thread/<uuid:thread_id>/message/",
+        HelpdeskThreadMessageView.as_view(),
+        name="helpdesk-thread-message",
+    ),
+    path(
+        "staff/helpdesk/threads/",
+        StaffHelpdeskThreadListView.as_view(),
+        name="staff-helpdesk-threads",
+    ),
+    path(
+        "staff/helpdesk/threads/<uuid:id>/",
+        StaffHelpdeskThreadDetailView.as_view(),
+        name="staff-helpdesk-thread-detail",
+    ),
+    path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
+    # Broadcasts
     path("broadcasts/", BroadcastView.as_view(), name="broadcast-list-create"),
     path(
         "broadcasts/<int:broadcast_id>/",

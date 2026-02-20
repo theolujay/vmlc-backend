@@ -29,8 +29,8 @@ from ..serializers import (
     SendEmailOTPSerializer,
     VerifyEmailOTPSerializer,
 )
-from ..tasks import send_mail_task
-from ..utils.email import create_email_html
+from comms.tasks import send_mail_task
+from comms.services.email import create_email_html
 from ..utils.exceptions import (
     InvalidTokenError,
     NotFound,
@@ -101,7 +101,7 @@ class VerifyEmailOTPView(APIView):
         return self._verify_email(request.data)
 
     def _verify_email(self, data):
-        from vmlc.tasks import send_welcome_mail_task
+        from comms.tasks import send_welcome_mail_task
 
         serializer = VerifyEmailOTPSerializer(data=data)
         if serializer.is_valid():

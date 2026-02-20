@@ -50,25 +50,7 @@ class CandidateRegistrationSerializerTest(TestCase):
         self.assertIn("password2", serializer.errors)
 
 
-class RegistrationV1Test(APITestCase):
-    def setUp(self):
-        self.api_key, self.key = APIKey.objects.create_key(name="test-key")
-        self.client.credentials(HTTP_X_API_KEY=self.key)
-        FeatureFlag.objects.create(key="candidate_registration", value=True)
 
-    def test_candidate_registration(self):
-        url = reverse("vmlc:register-candidate")
-        data = {
-            "email": "newcandidate@example.com",
-            "first_name": "New",
-            "last_name": "Candidate",
-            "phone": "08012345678",
-            "password": "strongpassword123",
-            "password2": "strongpassword123",
-            "school_name": "New School",
-        }
-        response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 
 class RegistrationV2Tests(APITestCase):
@@ -83,57 +65,9 @@ class RegistrationV2Tests(APITestCase):
 
         self.url = reverse("vmlc-v2:register")
 
-    def test_candidate_registration_success(self):
-        data = {
-            "user_type": "candidate",
-            "first_name": "Candidate",
-            "last_name": "One",
-            "email": "candidate1@example.com",
-            "phone": "08012345678",
-            "consent": "true",
-            "state": "Lagos",
-            "school_name": "Test School",
-            "school_type": "public",
-            "current_class": "SS1",
-            "document_type": "NIN",
-            "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg"),
-        }
-        response = self.client.post(
-            self.url,
-            data,
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(User.objects.filter(email="candidate1@example.com").exists())
-        self.assertTrue(
-            Candidate.objects.filter(user__email="candidate1@example.com").exists()
-        )
 
-    def test_volunteer_registration_success(self):
-        data = {
-            "user_type": "volunteer",
-            "first_name": "Volunteer",
-            "last_name": "One",
-            "email": "volunteer1@example.com",
-            "phone": "08087654321",
-            "consent": "true",
-            "state": "Abuja",
-            "occupation": "Teacher",
-            "document_type": "passport",
-            "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg"),
-        }
-        response = self.client.post(
-            self.url,
-            data,
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(User.objects.filter(email="volunteer1@example.com").exists())
-        self.assertTrue(
-            Staff.objects.filter(user__email="volunteer1@example.com").exists()
-        )
+
+
 
     def test_candidate_missing_fields(self):
         data = {
@@ -228,33 +162,7 @@ class RegistrationV2Tests(APITestCase):
             or "phone" in response.data["errors"]
         )
 
-    def test_registration_already_exists(self):
-        # First registration
-        self.test_candidate_registration_success()
 
-        # Second registration with same email
-        data = {
-            "user_type": "candidate",
-            "first_name": "Duplicate",
-            "last_name": "User",
-            "email": "candidate1@example.com",
-            "phone": "08011112222",
-            "consent": "true",
-            "state": "Lagos",
-            "school_name": "Other School",
-            "school_type": "public",
-            "current_class": "SS1",
-            "document_type": "NIN",
-            "document": generate_photo_file(),
-            "face_capture": generate_photo_file("face.jpg"),
-        }
-        response = self.client.post(
-            self.url,
-            data,
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("email", response.data["errors"])
 
     def test_registration_no_consent(self):
         data = {

@@ -22,7 +22,7 @@ if not SECRET_KEY:
 # DOCKER DEVELOPMENT-SPECIFIC SETTINGS
 # ============================================================================
 DEBUG = True
-
+APP_ENVIRONMENT = "development"
 # if "test" not in sys.argv:
 #     INSTALLED_APPS += ["debug_toolbar", "django_extensions"]
 #     MIDDLEWARE.insert(

@@ -80,7 +80,7 @@ class CandidateDashboardService:
     #     # Fetch last 5 unread notifications
     #     notifications = Notification.objects.filter(
     #         recipient=candidate.user,
-    #         is_read_by_recipient=False,
+    #         is_read=False,
     #     ).order_by("-created_at")[:5]
 
     #     notification_map = {"info": [], "success": [], "error": []}
@@ -97,7 +97,7 @@ class CandidateDashboardService:
     #                 {
     #                     "id": n.id,
     #                     "message": n.message,
-    #                     "is_read_by_recipient": n.is_read_by_recipient
+    #                     "is_read": n.is_read
     #                 }
     #             )
     #     return notification_map

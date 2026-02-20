@@ -33,7 +33,7 @@ from vmlc.serializers import (
 from vmlc.v2.utils import get_or_set_cache, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
-from vmlc.utils.swagger_schemas import *
+
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +150,8 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         from vmlc.v2.utils import CacheKeys
 
         cache_key = CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)
+        query_params_str = str(sorted(request.query_params.items()))
+        cache_key = f"{cache_key}_{query_params_str}"
 
         def build():
             instance = self.get_object()
@@ -158,16 +160,21 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             qs = instance.questions.filter(is_archived=False)
             page = self.paginate_queryset(qs)
 
-            serialized = QuestionListSerializer(
-                page or qs, many=True, context={"request": request}
-            ).data
+            if page is not None:
+                serialized = QuestionListSerializer(
+                    page, many=True, context={"request": request}
+                ).data
+                paginated_response = self.get_paginated_response(serialized)
+                data["questions"] = paginated_response.data
+                data["questions"]["question_pool_data"] = question_pool_aggregate(qs)
+                return data
 
+            serialized = QuestionListSerializer(
+                qs, many=True, context={"request": request}
+            ).data
             data["questions"] = {
-                "question_pool_data": question_pool_aggregate(qs),
                 "results": serialized,
-                "count": qs.count(),
-                "next": None,
-                "previous": None,
+                "question_pool_data": question_pool_aggregate(qs),
             }
 
             return data

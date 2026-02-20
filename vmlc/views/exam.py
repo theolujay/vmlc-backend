@@ -24,7 +24,6 @@ from ..serializers import (
     ExamResultSerializer,
     QuestionListSerializer,
     CandidateExamSerializer,
-    CandidateExamScoreSerializer,
 )
 from identity.permissions import (
     ActiveAdminPermissions,

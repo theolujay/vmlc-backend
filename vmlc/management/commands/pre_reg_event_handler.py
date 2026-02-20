@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 from identity.models import PreRegUser, User
 from vmlc.models import Event
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                     metadata={"email": email, "interest_type": interest_type},
                 )
                 return True
-            except Exception as e:
+            except Exception:
                 # Consider logging this exception for debugging
                 return False
 

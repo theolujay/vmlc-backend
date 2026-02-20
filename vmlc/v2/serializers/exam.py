@@ -163,7 +163,6 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         return instance
 
     def _handle_competition_slot(self, exam, stage_id, round):
-        from django.utils import timezone
         from competition.models import Competition, Stage, StageExam
 
         stage = None

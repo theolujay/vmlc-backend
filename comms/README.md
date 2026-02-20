@@ -1,39 +1,56 @@
 # `comms` Application
 
-The `comms` Django application is responsible for managing all communication functionalities within the VMLC backend, including broadcasting messages, sending notifications, handling real-time updates via WebSockets, and logging communication activities. It integrates with Celery for asynchronous task processing and Twilio for SMS/WhatsApp messaging.
+The `comms` application is the central communication hub of the VMLC backend. It manages mass broadcasts, real-time user notifications, helpdesk chat threading, and system alerts. It leverages Celery for asynchronous processing and WebSockets for live updates.
 
 ## Key Modules and Their Responsibilities
 
--   **`admin.py`**: Configures the Django Admin interface for `Broadcast`, `BroadcastLog`, `Notification`, and `BackupLog` models. It provides custom displays for monitoring broadcast task statuses and results.
--   **`apps.py`**: Django application configuration for `comms`.
--   **`consumers.py`**: Contains the `NotificationConsumer`, an asynchronous WebSocket consumer that manages real-time notifications for users. It handles WebSocket connections, disconnections, and enables users to mark notifications as read.
--   **`functions.py`**: Houses the core logic for sending various types of messages.
-    -   `send_broadcast`: Orchestrates the process of sending mass messages (email, SMS, platform notifications) to target user roles (staff or candidates) using Celery tasks.
-    -   `_send_sms_broadcast`, `_send_email_broadcast`, `_send_platform_broadcast`: Helper functions that encapsulate the specific logic for sending messages via different mediums.
--   **`middleware.py`**: Implements `DualAuthMiddleware` for WebSocket connections, ensuring that both an API key and a JWT token are present and valid for authentication.
--   **`models.py`**: Defines the database schemas for communication-related data:
-    -   `Broadcast`: Represents a mass message intended for multiple recipients, specifying subject, message content, communication mediums (platform, email, WhatsApp, SMS), and target user roles.
-    -   `BroadcastLog`: Records the outcome of each individual message attempt within a broadcast, including medium, target role, status (pending, sent, failed), and any associated messages.
-    -   `Notification`: Stores individual real-time notifications destined for a specific user, tracking subject, message, and read status.
-    -   `BackupLog`: Stores logs related to database backup operations.
--   **`routing.py`**: Defines the URL routing for WebSocket connections, mapping `/v1/ws/notifications/` to the `NotificationConsumer`.
--   **`serializers.py`**: Provides Django REST Framework serializers for `Broadcast` (list and detail views), `BroadcastLog`, and `Notification` models, facilitating data serialization and deserialization for API interactions.
--   **`signals.py`**: Connects Celery task success and failure signals to handle post-task logic, such as alerting administrators about low broadcast success rates via email. It also defines a `notifications_created` signal for custom listeners.
--   **`tasks.py`**: Contains Celery tasks for asynchronous execution of communication operations, notably `send_broadcast_task`, which delegates to `comms.functions.send_broadcast`.
--   **`urls.py`**: Maps API endpoints related to broadcast management (`/broadcasts/`) and a webhook for database backup status (`/webhooks/db-backup/`).
--   **`utils.py`**: Contains utility functions for interacting with external communication services:
-    -   `send_phone_msg`, `send_bulk_phone_msg`: Functions for sending single and bulk SMS/WhatsApp messages using the Twilio API.
-    -   `send_backup_status_to_slack`: Integrates with Slack to send notifications regarding database backup statuses.
+-   **`services/`**: Houses the core business logic for communication, decoupled from Django models and views.
+    -   `notification.py`: Orchestrates notifications across multiple mediums (Platform, Email, SMS, WhatsApp) and manages the `send_broadcast` lifecycle.
+    -   `email.py`: Handles email template building for registrations, support inquiries, and system alerts.
+    -   `kudi_sms.py`: Integration with Kudi SMS API for bulk and transactional messaging.
+    -   `slack.py`: Manages outbound Slack notifications for system events like backup status and low SMS balance alerts.
+-   **`models.py`**: Defines the data structures for communication:
+    -   `Broadcast`: Represents a mass message with targeted roles (Staff/Candidate) and mediums.
+    -   `BroadcastLog`: Tracks the success/failure of each medium-role combination in a broadcast.
+    -   `Notification`: Stores individual real-time alerts for specific users.
+    -   `HelpdeskThread` & `ThreadMessage`: Powers the internal helpdesk system for tracking and responding to user inquiries.
+    -   `PublicSupportRequest`: Captures public/anonymous inquiries from the landing page.
+    -   `BackupLog`: Records the outcome of database backup operations.
+-   **`consumers.py`**: Implements WebSocket consumers for real-time features.
+    -   `NotificationConsumer`: Real-time delivery of notifications over WebSockets.
+    -   `HelpdeskConsumer`: Real-time helpdesk chat, presence, and typing indicators.
+-   **`tasks.py`**: Celery tasks for background processing:
+    -   `send_broadcast_task`: Triggers the asynchronous broadcast engine.
+    -   `send_mail_task` & `send_bulk_sms_task`: Generic tasks for sending individual or bulk messages.
+    -   `notify_candidates_about_exam_task`: Handles automated exam reminders.
+    -   `helpdesk_escalation_task`: Schedules alerts for unresponded helpdesk messages.
+-   **`middleware.py`**: Provides `DualAuthMiddleware` for WebSocket connections, ensuring secure authentication via API Keys and JWT tokens.
+-   **`routing.py`**: Maps WebSocket connections (e.g., `/v1/ws/notifications/`, `/v1/ws/helpdesk/thread/`) to consumers.
+-   **`urls.py`**: Defines REST API endpoints for broadcast management, notification history, helpdesk, and backup webhooks.
+
+## Architecture & Integration
+
+### Asynchronous Execution
+Critical or time-consuming operations (e.g., sending 1000+ emails/SMS) are offloaded to **Celery**. This ensures the API remains responsive while background workers handle the heavy lifting.
+
+### Real-Time Updates
+The `comms` app uses **Django Channels** to push notifications and chat messages directly to the user's dashboard.
+-   **Notifications**: Broadcast to the user's specific WebSocket group (`user__<id>`).
+-   **Helpdesk**: Broadcast to a shared thread group (`helpdesk_thread_<uuid>`).
+
+### Helpdesk & Support
+The application provides a two-tier support system:
+1.  **Public Inquiries**: Captured via `PublicSupportRequest` from non-authenticated users.
+2.  **Helpdesk**: Authenticated users and staff interact via `HelpdeskThread` and `ThreadMessage`, allowing for threaded, persistent, and real-time support history.
+
+### External Services
+-   **Kudi SMS**: Primary provider for SMS delivery in Nigeria. Includes balance monitoring and low-balance alerts.
+-   **Twilio**: Backup provider for SMS and primary for WhatsApp messaging.
+-   **Slack**: Used for internal engineering alerts (Backups, System Health, Support Escalation).
+-   **Django Mail**: Used for transactional and mass email delivery.
 
 ## Interconnections
 
--   **`vmlc.models`**: The `comms` app extensively uses `vmlc.models.Staff` and `vmlc.models.Candidate` to identify and target users for broadcasts and notifications. The `User` model from `vmlc.models` is the recipient of `Notification` objects.
--   **`vmlc.utils.exceptions`**: Custom exceptions defined in the `vmlc` app are used for error handling within `comms.functions`.
--   **`vmlc.tasks`**: Celery tasks are defined in `comms.tasks` and integrated into `comms.functions` and `comms.signals` for asynchronous processing and monitoring.
--   **Channels**: The `comms` app leverages `channels` for WebSocket communication, utilizing `channels.layers` for real-time notification delivery.
--   **Celery**: Critical communication tasks like `send_broadcast` are executed asynchronously via Celery, ensuring non-blocking operations.
--   **Twilio**: Used by `comms.utils` for sending SMS and WhatsApp messages.
--   **Slack**: Integrated via `comms.utils` to send notifications about database backup events.
--   **Django Cache**: Used for caching broadcast details and other data to improve performance.
-
-The `comms` application is a central hub for various communication streams, ensuring timely and targeted delivery of information within the VMLC ecosystem, with robust error handling and asynchronous processing capabilities.
+-   **`identity`**: Uses `User`, `Staff`, and `Candidate` models to resolve recipients and roles.
+-   **`vmlc`**: Integrates with `Exam` and `Competition` logic to trigger automated event-based notifications.
+-   **`vmlc.utils`**: Uses shared exceptions, security helpers, and X-API-Key validation.

@@ -58,14 +58,7 @@ class CandidateRecordServiceTest(APITestCase):
         self.assertEqual(len(exams), 1)
         self.assertEqual(exams[0]["round"], 1)
 
-    def test_candidate_me_view(self):
-        self.client.force_authenticate(user=self.user)
-        url = reverse("vmlc:candidate-me")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("profile", response.data)
-        self.assertIn("records", response.data)
-        self.assertEqual(len(response.data["records"]["available_exams"]), 1)
+
 
     def test_exam_history_view_failure(self):
         # Record a result

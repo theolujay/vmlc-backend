@@ -3,7 +3,6 @@ import os
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
-from datetime import timedelta
 from io import StringIO
 
 from vmlc.models import Exam, Question

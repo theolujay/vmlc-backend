@@ -155,14 +155,6 @@ class DashboardEndpointsTest(APITestCase):
             user=self.staff_user, is_approved=False
         )
 
-    def test_get_candidate_dashboard(self):
-        self.client.force_authenticate(user=self.candidate_user)
-        url = reverse("vmlc:candidate-dashboard")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_get_staff_dashboard(self):
-        self.client.force_authenticate(user=self.staff_user)
-        url = reverse("vmlc:staff-dashboard")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+

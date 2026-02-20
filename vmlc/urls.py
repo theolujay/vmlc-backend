@@ -20,11 +20,8 @@ from .views import (
     AssignStaffRoleView,
     BulkAddQuestionsToExamsView,
     BulkQuestionArchiveView,
-    CandidateDashboardView,
     CandidateInviteView,
     CandidateListView,
-    CandidateMeView,
-    CandidateRegistrationView,
     ExamDetailView,
     ExamHistoryView,
     ExamListView,
@@ -45,13 +42,9 @@ from .views import (
     RequestPasswordChangeView,
     ResendPasswordChangeOTPView,
     SendEmailOTPView,
-    StaffDashboardView,
     StaffInviteView,
     StaffListView,
-    StaffMeView,
-    StaffRegistrationView,
     SubmitAnswersView,
-    SubmitScoreView,
     UserDetailView,
     UserListView,
     UserVerificationActionView,
@@ -66,13 +59,6 @@ from .views import (
     registration_status,
 )
 
-from .v2.views.support import (
-    SupportConversationListView,
-    SupportConversationDetailView,
-    SupportReplyView,
-    SupportUsView,
-)
-
 app_name = "vmlc"
 
 urlpatterns = [
@@ -81,25 +67,6 @@ urlpatterns = [
     # =============================================================================
     path("health/", health_check, name="health-check"),
     path("registration/", registration_status, name="registration-status"),
-    # =============================================================================
-    # SUPPORT & CONVERSATIONS
-    # =============================================================================
-    path("support/inquiry/", SupportUsView.as_view(), name="support-inquiry"),
-    path(
-        "support/conversations/",
-        SupportConversationListView.as_view(),
-        name="support-conversations",
-    ),
-    path(
-        "support/conversations/<int:id>/",
-        SupportConversationDetailView.as_view(),
-        name="support-conversation-detail",
-    ),
-    path(
-        "support/conversations/<int:inquiry_id>/reply/",
-        SupportReplyView.as_view(),
-        name="support-reply",
-    ),
     # =============================================================================
     # AUTHENTICATION
     # =============================================================================
@@ -127,15 +94,6 @@ urlpatterns = [
         ResendPasswordChangeOTPView.as_view(),
         name="resend-password-change-otp",
     ),
-    # =============================================================================
-    # REGISTRATION & VERIFICATION
-    # =============================================================================
-    path(
-        "register/candidate/",
-        CandidateRegistrationView.as_view(),
-        name="register-candidate",
-    ),
-    path("register/staff/", StaffRegistrationView.as_view(), name="register-staff"),
     # Email Verification
     path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
     path("send-email-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
@@ -175,12 +133,10 @@ urlpatterns = [
         UserVerificationActionView.as_view(),
         name="user-verification-action",
     ),
+    path("user/list/", UserListView.as_view(), name="user-list"),
     # =============================================================================
     # USER & ACCOUNT MANAGEMENT
     # =============================================================================
-    path("user/list/", UserListView.as_view(), name="user-list"),
-    path("candidates/me/", CandidateMeView.as_view(), name="candidate-me"),
-    path("staff/me/", StaffMeView.as_view(), name="staff-me"),
     path(
         "account-management/",
         AccountManagementView.as_view(),
@@ -286,15 +242,6 @@ urlpatterns = [
         LoadLeaderboardDetailView.as_view(),
         name="load-leaderboard-detail",
     ),
-    # =============================================================================
-    # DASHBOARD & STATS
-    # =============================================================================
-    path(
-        "dashboard/candidate/",
-        CandidateDashboardView.as_view(),
-        name="candidate-dashboard",
-    ),
-    path("dashboard/staff/", StaffDashboardView.as_view(), name="staff-dashboard"),
     path("stats/overview/", stats_overview, name="stats-overview"),
     path(
         "stats/registration-trends/",

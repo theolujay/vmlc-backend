@@ -37,152 +37,152 @@ from vmlc.serializers import (
 )
 from vmlc.utils.dashboard import (
     get_staff_dashboard_data,
-    get_candidate_dashboard_data,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def generate_leaderboard_snapshot(staff_id=None):
-    """
-    Celery task to generate and publish the leaderboard snapshot.
-    """
+# def generate_leaderboard_snapshot(staff_id=None):
+#     """
+#     Celery task to generate and publish the leaderboard snapshot.
+#     """
 
-    now = timezone.now()
-    concluded_exams = _get_concluded_exams(now)
+#     now = timezone.now()
+#     concluded_exams = _get_concluded_exams(now)
 
-    if not concluded_exams.exists():
-        logger.info(
-            f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
-        )
-        return
+#     if not concluded_exams.exists():
+#         logger.info(
+#             f"Leaderboard snapshot triggered by {staff_id} ignored - No concluded exams yet"
+#         )
+#         return
 
-    staff = Staff.objects.get(pk=staff_id) if staff_id else None
-    all_leaderboards = {}
+#     staff = Staff.objects.get(pk=staff_id) if staff_id else None
+#     all_leaderboards = {}
 
-    for exam in concluded_exams:
-        stage_display = f"{exam.stage_display}"
-        leaderboard_entries = _build_leaderboard_entries(exam)
-        all_leaderboards[stage_display] = _create_exam_leaderboard_data(
-            exam, leaderboard_entries, stage_display
-        )
+#     for exam in concluded_exams:
+#         stage_display = f"{exam.stage_display}"
+#         leaderboard_entries = _build_leaderboard_entries(exam)
+#         all_leaderboards[stage_display] = _create_exam_leaderboard_data(
+#             exam, leaderboard_entries, stage_display
+#         )
 
-    snapshot = LeaderboardSnapshot.objects.create(
-        data=all_leaderboards,
-        published_by=staff,
-        is_published=True,
-    )
+#     snapshot = LeaderboardSnapshot.objects.create(
+#         data=all_leaderboards,
+#         published_by=staff,
+#         is_published=True,
+#     )
 
-    # Notify candidates who participated in these exams
-    from comms.functions import notify_user
-    from comms.models import Broadcast
+#     # Notify candidates who participated in these exams
+#     from comms.services.notification import NotificationService
+#     from comms.models import Broadcast
 
-    for exam in concluded_exams:
-        results = CandidateExamResult.objects.filter(exam=exam).select_related(
-            "candidate__user"
-        )
-        subject = f"Leaderboard Published: {exam.title}"
-        message = (
-            f"The leaderboard for the exam '{exam.title}' has been published. "
-            f"You can now view your rank and performance on your dashboard."
-        )
-        for result in results:
-            notify_user(
-                user=result.candidate.user,
-                subject=subject,
-                message=message,
-                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
-                notification_type="success",
-            )
+#     notification_service = NotificationService()
+#     for exam in concluded_exams:
+#         results = CandidateExamResult.objects.filter(exam=exam).select_related(
+#             "candidate__user"
+#         )
+#         subject = f"Leaderboard Published: {exam.title}"
+#         message = (
+#             f"The leaderboard for the exam '{exam.title}' has been published. "
+#             f"You can now view your rank and performance on your dashboard."
+#         )
+#         for result in results:
+#             notification_service.notify_user(
+#                 user=result.candidate.user,
+#                 subject=subject,
+#                 message=message,
+#                 mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+#                 notification_type="success",
+#             )
 
-    logger.info(
-        f"Leaderboard snapshot created by staff {staff.pk if staff else 'system'}. "
-        f"Snapshot ID: {snapshot.pk}. "
-        f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
-    )
-
-
-def _get_concluded_exams(now):
-    """Helper to get all concluded exams."""
-
-    return (
-        Exam.objects.annotate(
-            conclusion_time=ExpressionWrapper(
-                F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
-                output_field=DateTimeField(),
-            )
-        )
-        .filter(is_active=True, conclusion_time__lte=now)
-        .annotate(average_score=Avg("results__score"))
-        .order_by("stage", "round")
-    )
+#     logger.info(
+#         f"Leaderboard snapshot created by staff {staff.pk if staff else 'system'}. "
+#         f"Snapshot ID: {snapshot.pk}. "
+#         f"Leaderboards generated: {', '.join(all_leaderboards.keys())}"
+#     )
 
 
-def _build_leaderboard_entries(exam):
-    """Helper to build leaderboard entries for a given exam."""
+# def _get_concluded_exams(now):
+#     """Helper to get all concluded exams."""
 
-    results = (
-        CandidateExamResult.objects.filter(exam=exam)
-        .select_related("candidate__user")
-        .prefetch_related("answers__question")
-        .order_by("-score")
-    )
-
-    leaderboard_entries = []
-    for index, result in enumerate(results):
-        candidate_data = CandidateLeaderboardPerfSerializer(result.candidate).data
-        answers = result.answers.all()
-        submission_list = []
-        for answer in answers:
-            submission_list.append(
-                {
-                    "question_id": answer.question.id,
-                    "question_text": answer.question.text,
-                    "option_a": answer.question.option_a,
-                    "option_b": answer.question.option_b,
-                    "option_c": answer.question.option_c,
-                    "option_d": answer.question.option_d,
-                    "correct_answer": answer.question.correct_answer,
-                    "selected_option": answer.selected_option,
-                    "is_correct": (answer.selected_option or "").strip().upper()
-                    == (answer.question.correct_answer or "").strip().upper(),
-                    # "answered_at": answer.answered_at.isoformat(),
-                }
-            )
-        candidate_data["submissions"] = submission_list
-        leaderboard_entries.append(
-            {
-                "rank": index + 1,
-                "score": float(result.score),
-                "percentage": (
-                    round((float(result.score) / exam.questions.count() * 100), 2)
-                    if exam.questions.count() > 0
-                    else 0
-                ),
-                "participated_at": str(result.recorded_at),
-                "candidate": candidate_data,
-            }
-        )
-    return leaderboard_entries
+#     return (
+#         Exam.objects.annotate(
+#             conclusion_time=ExpressionWrapper(
+#                 F("scheduled_date") + F("open_duration_hours") * timedelta(hours=1),
+#                 output_field=DateTimeField(),
+#             )
+#         )
+#         .filter(is_active=True, conclusion_time__lte=now)
+#         .annotate(average_score=Avg("results__score"))
+#         .order_by("stage", "round")
+#     )
 
 
-def _create_exam_leaderboard_data(exam, leaderboard_entries, stage_display):
-    """Helper to create the final data structure for an exam's leaderboard."""
-    return {
-        "exam_id": str(exam.id),
-        "exam_title": exam.title,
-        "exam_description": exam.description,
-        "stage": exam.stage,
-        "round": exam.round,
-        "stage_display": stage_display,
-        "scheduled_date": exam.scheduled_date.isoformat(),
-        "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
-        "status": exam.status,
-        "total_questions": exam.questions.count(),
-        "average_score": float(exam.average_score) if exam.average_score else 0.0,
-        "total_candidates": len(leaderboard_entries),
-        "entries": leaderboard_entries,
-    }
+# def _build_leaderboard_entries(exam):
+#     """Helper to build leaderboard entries for a given exam."""
+
+#     results = (
+#         CandidateExamResult.objects.filter(exam=exam)
+#         .select_related("candidate__user")
+#         .prefetch_related("answers__question")
+#         .order_by("-score")
+#     )
+
+#     leaderboard_entries = []
+#     for index, result in enumerate(results):
+#         candidate_data = CandidateLeaderboardPerfSerializer(result.candidate).data
+#         answers = result.answers.all()
+#         submission_list = []
+#         for answer in answers:
+#             submission_list.append(
+#                 {
+#                     "question_id": answer.question.id,
+#                     "question_text": answer.question.text,
+#                     "option_a": answer.question.option_a,
+#                     "option_b": answer.question.option_b,
+#                     "option_c": answer.question.option_c,
+#                     "option_d": answer.question.option_d,
+#                     "correct_answer": answer.question.correct_answer,
+#                     "selected_option": answer.selected_option,
+#                     "is_correct": (answer.selected_option or "").strip().upper()
+#                     == (answer.question.correct_answer or "").strip().upper(),
+#                     # "answered_at": answer.answered_at.isoformat(),
+#                 }
+#             )
+#         candidate_data["submissions"] = submission_list
+#         leaderboard_entries.append(
+#             {
+#                 "rank": index + 1,
+#                 "score": float(result.score),
+#                 "percentage": (
+#                     round((float(result.score) / exam.questions.count() * 100), 2)
+#                     if exam.questions.count() > 0
+#                     else 0
+#                 ),
+#                 "participated_at": str(result.recorded_at),
+#                 "candidate": candidate_data,
+#             }
+#         )
+#     return leaderboard_entries
+
+
+# def _create_exam_leaderboard_data(exam, leaderboard_entries, stage_display):
+#     """Helper to create the final data structure for an exam's leaderboard."""
+#     return {
+#         "exam_id": str(exam.id),
+#         "exam_title": exam.title,
+#         "exam_description": exam.description,
+#         "stage": exam.stage,
+#         "round": exam.round,
+#         "stage_display": stage_display,
+#         "scheduled_date": exam.scheduled_date.isoformat(),
+#         "concluded_at": exam.concluded_at.isoformat() if exam.concluded_at else None,
+#         "status": exam.status,
+#         "total_questions": exam.questions.count(),
+#         "average_score": float(exam.average_score) if exam.average_score else 0.0,
+#         "total_candidates": len(leaderboard_entries),
+#         "entries": leaderboard_entries,
+#     }
 
 
 def compute_candidate_result(candidate_result_id):
@@ -338,9 +338,10 @@ def generate_results_snapshot(staff_id=None):
         )
 
         # Notify all active candidates
-        from comms.functions import notify_user
+        from comms.services.notification import NotificationService
         from comms.models import Broadcast
 
+        notification_service = NotificationService()
         subject = "Overall Results Published"
         message = (
             "The overall results snapshot has been published. "
@@ -350,7 +351,7 @@ def generate_results_snapshot(staff_id=None):
             "user"
         )
         for candidate in active_candidates:
-            notify_user(
+            notification_service.notify_user(
                 user=candidate.user,
                 subject=subject,
                 message=message,
@@ -417,7 +418,7 @@ def validate_user_verification_files(user_verification_id):
     """
     Celery task to validate user verification files.
     """
-    from vmlc.tasks import send_mail_task
+    from comms.tasks import send_mail_task
 
     try:
         verification = UserVerification.objects.get(pk=user_verification_id)
@@ -486,65 +487,94 @@ def validate_user_verification_files(user_verification_id):
         )
 
 
-def update_staff_dashboard_cache(staff_id=None):
-    """
-    Celery task to update the staff dashboard cache.
-    If a staff_id is provided, it updates the cache for that specific staff member.
-    Otherwise, it updates the cache for all staff members.
-    """
+# def update_staff_dashboard_cache(staff_id=None):
+#     """
+#     Celery task to update the staff dashboard cache.
+#     If a staff_id is provided, it updates the cache for that specific staff member.
+#     Otherwise, it updates the cache for all staff members.
+#     """
 
-    try:
-        if staff_id:
-            staff_members = Staff.objects.filter(pk=staff_id)
-            if not staff_members.exists():
-                logger.error(f"Staff with id {staff_id} does not exist.")
-        else:
-            staff_members = Staff.objects.all()
+#     try:
+#         if staff_id:
+#             staff_members = Staff.objects.filter(pk=staff_id)
+#             if not staff_members.exists():
+#                 logger.error(f"Staff with id {staff_id} does not exist.")
+#         else:
+#             staff_members = Staff.objects.all()
 
-        for staff in staff_members:
-            dashboard_data = get_staff_dashboard_data(staff)
-            cache.set(
-                f"staff_dashboard_data_{staff.user_id}", dashboard_data, timeout=3600
-            )  # Cache for 1 hour
-            logger.info(f"Successfully updated cache for staff {staff.user_id}")
+#         for staff in staff_members:
+#             dashboard_data = get_staff_dashboard_data(staff)
+#             cache.set(
+#                 f"staff_dashboard_data_{staff.user_id}", dashboard_data, timeout=3600
+#             )  # Cache for 1 hour
+#             logger.info(f"Successfully updated cache for staff {staff.user_id}")
 
-    except Exception as e:
-        logger.error(
-            f"Failed to update staff dashboard cache for staff {staff_id}: {e}"
-        )
+#     except Exception as e:
+#         logger.error(
+#             f"Failed to update staff dashboard cache for staff {staff_id}: {e}"
+#         )
 
 
-def update_candidate_ranking_cache():
-    """
-    Celery task to update the candidate ranking cache for all league candidates.
-    """
+# def update_candidate_dashboard_cache(candidate_id=None):
+#     """
+#     Celery task to update the candidate dashboard cache.
+#     If a candidate_id is provided, it updates the cache for that specific candidate.
+#     Otherwise, it updates the cache for all active candidates.
+#     """
+#     from competition.services.candidate_dashboard import CandidateDashboardService
 
-    try:
-        league_candidates = Candidate.objects.filter(role=Candidate.Roles.LEAGUE)
-        latest_snapshot = (
-            CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
-            .order_by("-published_at")
-            .first()
-        )
+#     try:
+#         if candidate_id:
+#             candidates = Candidate.objects.filter(pk=candidate_id)
+#             if not candidates.exists():
+#                 logger.error(f"Candidate with id {candidate_id} does not exist.")
+#         else:
+#             candidates = Candidate.objects.filter(user__is_active=True)
 
-        if latest_snapshot:
-            ranked_candidates = league_candidates.annotate(
-                total_score=Sum(
-                    "results__score",
-                    filter=Q(results__recorded_at__lte=latest_snapshot.published_at),
-                    default=0.0,
-                ),
-                rank=Window(
-                    expression=functions.Rank(),
-                    order_by=F("total_score").desc(nulls_last=True),
-                ),
-            )
+#         for candidate in candidates:
+#             dashboard_data = CandidateDashboardService.get_dashboard_data(candidate)
+#             cache.set(
+#                 f"candidate_dashboard_{candidate.pk}", dashboard_data, timeout=3600
+#             )  # Cache for 1 hour
+#             logger.info(f"Successfully updated cache for candidate {candidate.pk}")
 
-            for candidate in ranked_candidates:
-                cache.set(
-                    f"candidate_rank_{candidate.pk}", candidate.rank, timeout=3600
-                )  # Cache for 1 hour
+#     except Exception as e:
+#         logger.error(
+#             f"Failed to update candidate dashboard cache for candidate {candidate_id}: {e}"
+#         )
 
-            logger.info("Successfully updated candidate ranking cache.")
-    except Exception as e:
-        logger.error(f"Failed to update candidate ranking cache: {e}")
+
+# def update_candidate_ranking_cache():
+#     """
+#     Celery task to update the candidate ranking cache for all league candidates.
+#     """
+
+#     try:
+#         league_candidates = Candidate.objects.filter(role=Candidate.Roles.LEAGUE)
+#         latest_snapshot = (
+#             CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
+#             .order_by("-published_at")
+#             .first()
+#         )
+
+#         if latest_snapshot:
+#             ranked_candidates = league_candidates.annotate(
+#                 total_score=Sum(
+#                     "results__score",
+#                     filter=Q(results__recorded_at__lte=latest_snapshot.published_at),
+#                     default=0.0,
+#                 ),
+#                 rank=Window(
+#                     expression=functions.Rank(),
+#                     order_by=F("total_score").desc(nulls_last=True),
+#                 ),
+#             )
+
+#             for candidate in ranked_candidates:
+#                 cache.set(
+#                     f"candidate_rank_{candidate.pk}", candidate.rank, timeout=3600
+#                 )  # Cache for 1 hour
+
+#             logger.info("Successfully updated candidate ranking cache.")
+#     except Exception as e:
+#         logger.error(f"Failed to update candidate ranking cache: {e}")

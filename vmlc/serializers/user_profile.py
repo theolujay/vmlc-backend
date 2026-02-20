@@ -80,7 +80,7 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_user(self, obj):
 
-        from identity.models import User, PreRegUser
+        from identity.models import PreRegUser
 
         if isinstance(obj, User):
 
@@ -111,7 +111,7 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_profile_type(self, obj):
 
-        from identity.models import User, PreRegUser
+        from identity.models import PreRegUser
 
         if isinstance(obj, User):
 
@@ -135,7 +135,7 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_role(self, obj):
 
-        from identity.models import User, PreRegUser
+        from identity.models import PreRegUser
 
         if isinstance(obj, User):
 
@@ -155,7 +155,7 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_status(self, obj):
 
-        from identity.models import User, PreRegUser
+        from identity.models import PreRegUser
 
         if isinstance(obj, User):
 
@@ -177,7 +177,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_occupation(self, obj):
 
-        from identity.models import User
 
         if isinstance(obj, User) and hasattr(obj, "staff_profile"):
 
@@ -187,7 +186,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_school_name(self, obj):
 
-        from identity.models import User
 
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 
@@ -197,7 +195,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_school_type(self, obj):
 
-        from identity.models import User
 
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 
@@ -207,7 +204,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_current_class(self, obj):
 
-        from identity.models import User
 
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 

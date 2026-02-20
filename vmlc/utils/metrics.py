@@ -1,5 +1,5 @@
 from datetime import timedelta
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncWeek
 from django.utils import timezone
 from identity.models import User, Candidate, Staff, PreRegUser

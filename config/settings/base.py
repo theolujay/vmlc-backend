@@ -247,7 +247,7 @@ BROADCAST_WEBHOOK_URL = SLACK_WEBHOOK_URL
 
 # Kudi SMS Configuration
 KUDI_API_KEY = read_secret("KUDI_API_KEY")
-KUDI_SENDER_ID = read_secret("KUDI_SENDER_ID", "VMLC")
+KUDI_SENDER_ID = read_secret("KUDI_SENDER_ID", "Verboheit")
 KUDI_GATEWAY = read_secret("KUDI_GATEWAY", "2")
 SMS_PROVIDER = read_secret("SMS_PROVIDER", "kudi")  # 'twilio' or 'kudi'
 
@@ -351,8 +351,8 @@ CELERY_TASK_ROUTES = {
     # "validate_user_verification_files_task": {"queue": "files", "priority": 5},
     # "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
     "generate_results_snapshot_task": {"queue": "reports", "priority": 3},
-    "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
-    "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},
+    # "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
+    # "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},
 }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ACKS_LATE = True

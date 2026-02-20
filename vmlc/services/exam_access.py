@@ -1,4 +1,3 @@
-import uuid
 import logging
 import secrets
 from datetime import timedelta
@@ -9,7 +8,7 @@ from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
 from competition.models import Enrollment
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from vmlc.utils.exceptions import ServerError, PermissionDenied
+from vmlc.utils.exceptions import ServerError
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +102,8 @@ class ExamAccessService:
         """
         Sends emails with access URLs to all candidates who have an unsent passcode for the exam.
         """
-        from vmlc.tasks import send_mail_task
-        from vmlc.utils.email import create_email_html
+        from comms.tasks import send_mail_task
+        from comms.services.email import create_email_html
 
         passcode_records = ExamAccessPasscode.objects.filter(
             exam_access__exam_id=exam_id,

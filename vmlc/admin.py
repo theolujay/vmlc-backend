@@ -12,7 +12,6 @@ from .models import (
     LeaderboardSnapshot,
     FeatureFlag,
     CandidateExamResultSnapshot,
-    SupportInquiry,
     ExamAccess,
     ExamAccessPasscode,
     CacheManagement,
@@ -433,23 +432,6 @@ class FeatureFlagAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
 
-@admin.register(SupportInquiry)
-class SupportInquiryAdmin(admin.ModelAdmin):
-    list_display = (
-        "full_name",
-        "email",
-        "support_type",
-        "organization",
-        "status",
-        "created_at",
-    )
-    list_filter = ("support_type", "status", "created_at")
-    search_fields = ("full_name", "email", "message", "organization")
-    readonly_fields = ("created_at",)
-    date_hierarchy = "created_at"
-    list_select_related = ("user",)
-
-
 @admin.register(ExamAccess)
 class ExamAccessAdmin(admin.ModelAdmin):
     list_display = (
@@ -519,7 +501,6 @@ class CacheManagementAdmin(admin.ModelAdmin):
 
         if "clear" in request.GET:
             cache.clear()
-            invalidate_all_dashboard_caches()
             self.message_user(request, "All caches cleared successfully.", messages.SUCCESS)
             return redirect("admin:vmlc_cachemanagement_changelist")
 

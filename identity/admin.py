@@ -1,10 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
-from django.urls import reverse
 from django.db.models import Count, Sum
 from django import forms
 from django.template.response import TemplateResponse
@@ -19,12 +17,8 @@ from identity.models import (
 )
 
 # These are imported from vmlc as they are core to the application's admin functionality
-from vmlc.tasks import send_mail_task
-from vmlc.utils.email import create_email_html
-from vmlc.utils.helpers import (
-    invalidate_all_dashboard_caches,
-    invalidate_all_staff_dashboards,
-)
+from comms.tasks import send_mail_task
+from comms.services.email import create_email_html
 from vmlc.v2.utils import (
     invalidate_user_cache,
     invalidate_candidate_cache,

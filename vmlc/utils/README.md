@@ -16,13 +16,7 @@ This directory serves as a collection of utility functions, helper classes, and 
     -   `get_candidate_dashboard_data`: Gathers comprehensive data for a candidate's dashboard (results, exams, rankings).
     -   `get_staff_dashboard_data`: Gathers various statistics and recent activities for a staff member's dashboard.
     -   Includes helper functions for internal computations like score submission stats, available/concluded exams, and leaderboard ranking.
--   **`email.py`**: Centralizes functions for building and sending various system-generated emails.
-    -   `send_system_email`: Generic function to send an email using Celery tasks.
-    -   `build_registration_welcome_email`: Constructs the content for welcome emails after registration.
-    -   `build_pre_registration_email`: Creates email content for pre-registered users.
-    -   `build_support_confirmation_email`: Generates confirmation emails for support inquiries.
-    -   `build_support_notification_email`: Creates internal notification emails for new support inquiries.
-    -   `create_email_html`: A utility function to generate an HTML email body from a template.
+-   **Email Utilities**: Email building and sending functions have been moved to the `comms` application.
 -   **`exception_handlers.py`**: Defines a custom exception handler for Django REST Framework.
     -   `custom_exception_handler`: Standardizes the format of error responses across the API, especially for validation errors.
 -   **`exceptions.py`**: Contains custom exception classes specific to the VMLC application.

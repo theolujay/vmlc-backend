@@ -7,8 +7,32 @@ from comms.models import (
     BroadcastLog,
     Notification,
     BackupLog,
+    PublicSupportRequest,
+    HelpdeskThread,
+    ThreadMessage,
 )
 
+@admin.register(PublicSupportRequest)
+class PublicSupportRequestAdmin(admin.ModelAdmin):
+    list_display = ["full_name", "email", "type", "organization", "created_at"]
+    list_filter = ["type", "created_at"]
+    search_fields = ["full_name", "email", "organization", "message"]
+    date_hierarchy = "created_at"
+
+class ThreadMessageInline(admin.TabularInline):
+    model = ThreadMessage
+    extra = 0
+    readonly_fields = ["created_at"]
+    fields = ["sender", "sender_type", "text", "metadata", "created_at"]
+
+@admin.register(HelpdeskThread)
+class HelpdeskThreadAdmin(admin.ModelAdmin):
+    list_display = ["id", "candidate", "assigned_staff", "status", "priority", "last_message_at", "created_at"]
+    list_filter = ["status", "priority", "created_at"]
+    search_fields = ["candidate__email", "candidate__first_name", "candidate__last_name", "assigned_staff__user__email"]
+    inlines = [ThreadMessageInline]
+    date_hierarchy = "created_at"
+    autocomplete_fields = ["candidate", "assigned_staff"]
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):
@@ -17,17 +41,19 @@ class BroadcastAdmin(admin.ModelAdmin):
         "subject",
         "status",
         "created_by",
+        "scheduled_at",
+        "sent_at",
+        "retry_count",
         "created_at",
-        "task_status_display",
     ]
-    list_filter = ["status", "created_at", "mediums", "created_by"]
+    list_filter = ["status", "created_at", "mediums", "created_by", "retry_count"]
     search_fields = [
         "subject",
         "message",
         "created_by__email",
         "created_by__user__first_name",
     ]
-    readonly_fields = ["task_result_display"]
+    readonly_fields = ["task_result_display", "sent_at", "last_attempt"]
     autocomplete_fields = ["created_by"]
     list_select_related = ["created_by", "created_by__user"]
     date_hierarchy = "created_at"
@@ -95,11 +121,13 @@ class BroadcastLogAdmin(admin.ModelAdmin):
         "target_role",
         "role_type",
         "status",
+        "recipient_count",
+        "sent_at",
         "attempted_at",
     ]
-    list_filter = ["status", "medium", "role_type", "attempted_at"]
+    list_filter = ["status", "medium", "role_type", "attempted_at", "sent_at"]
     search_fields = ["broadcast__subject", "message"]
-    readonly_fields = ["attempted_at"]
+    readonly_fields = ["attempted_at", "sent_at"]
     list_select_related = ["broadcast"]
     date_hierarchy = "attempted_at"
 
@@ -110,10 +138,10 @@ class NotificationAdmin(admin.ModelAdmin):
         "recipient",
         "subject",
         "type",
-        "is_read_by_recipient",
+        "is_read",
         "created_at",
     ]
-    list_filter = ["type", "is_read_by_recipient", "created_at"]
+    list_filter = ["type", "is_read", "created_at"]
     search_fields = ["recipient__email", "recipient__first_name", "subject", "message"]
     readonly_fields = ["created_at"]
     list_select_related = ["recipient"]

@@ -15,9 +15,6 @@ from identity.models import (
     validate_document_file,
     validate_face_id,
 )
-from vmlc.models import (
-    SupportInquiry,
-)
 from vmlc.utils.auth import generate_password
 from vmlc.utils.user import normalize_title
 
@@ -189,7 +186,7 @@ class RegistrationV2Serializer(serializers.Serializer):
         )
 
         # Create UserVerification
-        verification = UserVerification.objects.create(
+        UserVerification.objects.create(
             user=user,
             verification_document_type=document_type,
         )
@@ -207,7 +204,6 @@ class RegistrationV2Serializer(serializers.Serializer):
             from competition.models import (
                 Competition,
                 Enrollment,
-                Stage,
                 EnrollmentStageProgress,
             )
 
@@ -317,29 +313,3 @@ class PreRegUserSerializer(serializers.ModelSerializer):
         return normalize_title(value)
 
 
-class SupportInquirySerializer(serializers.ModelSerializer):
-
-    # full_name = serializers.CharField(max_length=50)
-    # email = serializers.EmailField()
-    # phone = serializers.CharField(max_length=17)
-    # support_type = serializers.ChoiceField(
-    #     choices=[
-    #         "sponsorship", "partnership", "media_support", "other"
-    #     ]
-    # )
-    # message = serializers.CharField(required=True)
-
-    class Meta:
-        model = SupportInquiry
-        fields = [
-            "full_name",
-            "email",
-            "phone",
-            "support_type",
-            "message",
-            "organization",
-        ]
-
-    def validate_full_name(self, value):
-        """Normalize full name to title case."""
-        return normalize_title(value)

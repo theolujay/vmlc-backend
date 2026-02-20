@@ -2,7 +2,7 @@ code = r"""
 from identity.models import Candidate
 from collections import defaultdict, Counter
 
-def format_phone(phone):
+def _normalize_phone(phone):
     if not phone:
         return ""
     if phone.startswith('0'):
@@ -22,7 +22,7 @@ sms_ready_phones = []
 all_candidates = Candidate.objects.all()
 
 for candidate in all_candidates:
-    clean_phone = format_phone(candidate.user.phone)
+    clean_phone = _normalize_phone(candidate.user.phone)
     if is_placeholder(clean_phone):
         placeholder_users.append({
             'name': candidate.user.get_full_name(),

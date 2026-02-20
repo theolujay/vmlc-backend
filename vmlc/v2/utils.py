@@ -46,6 +46,20 @@ class CacheKeys:
     # Feature Flags
     FEATURE_FLAG = "feature:flag:{key}"
 
+    # Broadcasts
+    BROADCAST_DETAIL = "broadcast_detail_{broadcast_id}"
+    BROADCAST_SUMMARY = "broadcast_summary_data"
+
+    # Notifications
+    NOTIFICATIONS_VERSION = "notifications_version_{user_id}"
+    NOTIFICATIONS_LIST = "notifications_{user_id}_{version}_{query_hash}"
+    NOTIFICATION_STATS = "notification_stats_{user_id}_{version}"
+
+    # Helpdesk
+    HELPDESK_THREAD_DETAIL = "helpdesk:thread:detail:{thread_id}"
+    HELPDESK_THREADS_VERSION_STAFF = "helpdesk_threads_version_staff"
+    HELPDESK_THREAD_LIST_STAFF = "helpdesk:threads:staff:{user_id}_{version}_{query_hash}"
+
     # Legacy keys (for invalidation during transition)
     _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"
     _LEGACY_CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"
@@ -199,6 +213,16 @@ def invalidate_registration_status():
     """Clear registration status cache."""
     cache.delete(CacheKeys.REGISTRATION_STATUS)
     cache.delete(CacheKeys._LEGACY_REGISTRATION_STATUS)
+
+
+def invalidate_notifications(user_id):
+    """Increment the notification version in the cache for a given user ID."""
+    version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user_id)
+    try:
+        cache.incr(version_key)
+    except ValueError:
+        # First time, set to 1 (next read will be version 1)
+        cache.set(version_key, 1, 86400)
 
 
 def question_pool_aggregate(qs):

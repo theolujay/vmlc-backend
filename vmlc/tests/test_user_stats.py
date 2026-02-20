@@ -1,7 +1,6 @@
 from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from identity.models import Candidate, Staff, PreRegUser, User
 from vmlc.models import Exam
 from vmlc.utils.user import get_user_status_counts
@@ -81,7 +80,7 @@ class UserStatsRefactorTest(TestCase):
     def test_model_status_property_simplification(self):
         # Create a user with pending verification (using a mock or actual UserVerification if it exists)
         user = self.create_user("pending@example.com", last_login_days_ago=1)
-        candidate = self.create_candidate(user)
+        self.create_candidate(user)
 
         from identity.models import UserVerification
 

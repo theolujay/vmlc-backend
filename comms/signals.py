@@ -1,13 +1,14 @@
 import logging
 from django.conf import settings
-from django.dispatch import Signal, receiver
+from django.dispatch import Signal
 from django.core.mail import mail_admins
 from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
 from vmlc.utils.exceptions import ValidationError
-from .models import Notification
+from vmlc.v2.utils import CacheKeys, invalidate_notifications
+from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
 
 logger = logging.getLogger(__name__)
 notifications_created = Signal()
@@ -16,13 +17,7 @@ notifications_created = Signal()
 def invalidate_notification_cache(sender, instance, **kwargs):
     """Invalidates the notification cache for a user and their dashboard."""
     user_id = instance.recipient_id
-    version_key = f"notifications_version_{user_id}"
-
-    try:
-        cache.incr(version_key)
-    except ValueError:
-        # First time, set to 1 (next read will be version 1)
-        cache.set(version_key, 1, timeout=86400)
+    invalidate_notifications(user_id)
 
     # Also invalidate candidate dashboard if they have one
     from vmlc.v2.utils import invalidate_candidate_cache
@@ -39,6 +34,43 @@ def invalidate_notification_cache(sender, instance, **kwargs):
 
 post_save.connect(invalidate_notification_cache, sender=Notification)
 post_delete.connect(invalidate_notification_cache, sender=Notification)
+
+
+def invalidate_broadcast_cache(sender, instance, **kwargs):
+    """Invalidates broadcast detail and summary caches."""
+    cache.delete(CacheKeys.BROADCAST_DETAIL.format(broadcast_id=instance.pk))
+    cache.delete(CacheKeys.BROADCAST_SUMMARY)
+    logger.info(f"Invalidated broadcast cache for broadcast {instance.pk}")
+
+
+post_save.connect(invalidate_broadcast_cache, sender=Broadcast)
+post_delete.connect(invalidate_broadcast_cache, sender=Broadcast)
+
+
+def invalidate_helpdesk_cache(sender, instance, **kwargs):
+    """Invalidates helpdesk thread detail and staff list caches."""
+    if isinstance(instance, HelpdeskThread):
+        thread_id = instance.pk
+    elif isinstance(instance, ThreadMessage):
+        thread_id = instance.thread_id
+    else:
+        return
+
+    cache.delete(CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=thread_id))
+
+    # Invalidate staff list version to force reload for all staff
+    try:
+        cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
+    except ValueError:
+        cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+    logger.info(f"Invalidated helpdesk cache for thread {thread_id}")
+
+
+post_save.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)
+post_save.connect(invalidate_helpdesk_cache, sender=ThreadMessage)
+post_delete.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)
+post_delete.connect(invalidate_helpdesk_cache, sender=ThreadMessage)
 
 
 @task_success.connect

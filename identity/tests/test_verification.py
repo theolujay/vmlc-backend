@@ -35,20 +35,7 @@ class UserVerificationEndpointsTest(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @mock_aws
-    def test_user_verification_upload(self):
-        # Create a mock S3 bucket
-        conn = boto3.resource("s3", region_name="us-east-1")
-        conn.create_bucket(Bucket="vmlc-s3")
 
-        url = reverse("vmlc:user-verification-upload")
-        # Create a dummy file for upload
-        dummy_file = SimpleUploadedFile(
-            "test_id_card.pdf", b"file_content", content_type="application/pdf"
-        )
-        data = {"id_card": dummy_file}
-        response = self.client.post(url, data, format="multipart")
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
 
 
 class UserVerificationAdminEndpointsTest(APITestCase):

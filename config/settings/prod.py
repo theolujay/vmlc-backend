@@ -17,7 +17,7 @@ from .base import *
 # PRODUCTION-SPECIFIC SETTINGS
 # ============================================================================
 
-
+APP_ENVIRONMENT = "production"
 # === S3 CONFIGURATION ===
 
 # AWS S3 Location Prefix for production
