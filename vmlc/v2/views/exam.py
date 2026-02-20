@@ -150,6 +150,8 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         from vmlc.v2.utils import CacheKeys
 
         cache_key = CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)
+        query_params_str = str(sorted(request.query_params.items()))
+        cache_key = f"{cache_key}_{query_params_str}"
 
         def build():
             instance = self.get_object()
@@ -158,18 +160,21 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             qs = instance.questions.filter(is_archived=False)
             page = self.paginate_queryset(qs)
 
+            if page is not None:
+                serialized = QuestionListSerializer(
+                    page, many=True, context={"request": request}
+                ).data
+                paginated_response = self.get_paginated_response(serialized)
+                data["questions"] = paginated_response.data
+                data["questions"]["question_pool_data"] = question_pool_aggregate(qs)
+                return data
+
             serialized = QuestionListSerializer(
-                page or qs, many=True, context={"request": request}
+                qs, many=True, context={"request": request}
             ).data
-
-            paginated_questions = self.paginator.get_paginated_response_data(serialized)
-
             data["questions"] = {
+                "results": serialized,
                 "question_pool_data": question_pool_aggregate(qs),
-                "results": paginated_questions["results"],
-                "count": paginated_questions["pagination"]["count"],
-                "next": paginated_questions["pagination"]["next"],
-                "previous": paginated_questions["pagination"]["previous"],
             }
 
             return data
