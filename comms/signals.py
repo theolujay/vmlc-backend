@@ -7,7 +7,7 @@ from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
 from vmlc.utils.exceptions import ValidationError
-from vmlc.v2.utils import CacheKeys
+from vmlc.v2.utils import CacheKeys, invalidate_notifications
 from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
 
 logger = logging.getLogger(__name__)
@@ -17,13 +17,7 @@ notifications_created = Signal()
 def invalidate_notification_cache(sender, instance, **kwargs):
     """Invalidates the notification cache for a user and their dashboard."""
     user_id = instance.recipient_id
-    version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user_id)
-
-    try:
-        cache.incr(version_key)
-    except ValueError:
-        # First time, set to 1 (next read will be version 1)
-        cache.set(version_key, 1, timeout=86400)
+    invalidate_notifications(user_id)
 
     # Also invalidate candidate dashboard if they have one
     from vmlc.v2.utils import invalidate_candidate_cache

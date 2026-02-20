@@ -1,3 +1,5 @@
+from django.db import transaction
+import hashlib
 import logging
 from datetime import datetime
 
@@ -45,7 +47,8 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts
-from vmlc.v2.utils import CacheKeys
+from vmlc.v2.utils import CacheKeys, invalidate_notifications
+
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +291,11 @@ class NotificationHistory(ListAPIView):
         # Get current version (defaults to 0 if not set)
         version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
         version = cache.get(version_key, 0)
-        query_hash = hash(frozenset(request.query_params.items()))
+
+        # Use a deterministic hash for query params
+        sorted_params = sorted(request.query_params.items())
+        query_hash = hashlib.md5(str(sorted_params).encode()).hexdigest()
+
         cache_key = CacheKeys.NOTIFICATIONS_LIST.format(
             user_id=user.id, version=version, query_hash=query_hash
         )
@@ -350,16 +357,24 @@ class MarkNotificationAsReadView(APIView):
     def patch(self, request, notification_id):
         user = request.user
         try:
-            notification = Notification.objects.get(id=notification_id, recipient=user)
-            if not notification.is_read:
-                notification.is_read = True
-                notification.save()
+            with transaction.atomic():
+                notification = Notification.objects.get(id=notification_id, recipient=user)
+                if not notification.is_read:
+                    notification.is_read = True
+                    notification.save()
 
-                logger.info(
-                    f"Notification {notification_id} marked as read for user {user.id}"
-                )
-            return Response({"status": "success"}, status=200)
+                    logger.info(
+                        f"Notification {notification_id} marked as read (DB: {notification.is_read}) for user {user.id}"
+                    )
+                else:
+                    logger.info(
+                        f"Notification {notification_id} already read for user {user.id}"
+                    )
+                return Response({"status": "success"}, status=200)
         except Notification.DoesNotExist:
+            logger.warning(
+                f"Notification {notification_id} not found for user {user.id} during mark-as-read attempt."
+            )
             return Response(
                 {"status": "error", "message": "Notification not found"}, status=404
             )
@@ -374,25 +389,24 @@ class MarkAllNotificationsAsReadView(APIView):
 
     def patch(self, request):
         user = request.user
-        updated_count = Notification.objects.filter(
-            recipient=user, is_read=False
-        ).update(is_read=True)
+        with transaction.atomic():
+            updated_count = Notification.objects.filter(
+                recipient=user, is_read=False
+            ).update(is_read=True)
 
-        if updated_count > 0:
-            # Invalidate all notification caches by incrementing version
-            version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user.id)
-            try:
-                cache.incr(version_key)
-            except ValueError:
-                cache.set(version_key, 1, timeout=86400)
+            if updated_count > 0:
+                invalidate_notifications(user.id)
+                logger.info(
+                    f"All notifications ({updated_count}) marked as read for user {user.id}."
+                )
+            else:
+                logger.info(
+                    f"No unread notifications to mark as read for user {user.id}."
+                )
 
-            logger.info(
-                f"All notifications ({updated_count}) marked as read for user {user.id}"
+            return Response(
+                {"status": "success", "updated_count": updated_count}, status=200
             )
-
-        return Response(
-            {"status": "success", "updated_count": updated_count}, status=200
-        )
 
 
 class PublicSupportRequestView(CreateAPIView):

@@ -38,7 +38,7 @@ def invalidate_user_list_cache(sender=None, _instance=None, **kwargs):
         cache.incr("user_list_version")
     except ValueError:
         # If the key is missing, we set it. The next request will generate a new cache.
-        cache.set("user_list_version", 2)
+        cache.set("user_list_version", 2, timeout=84000)
 
 
 # Specific invalidations for dashboards when data changes.

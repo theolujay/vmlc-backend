@@ -215,6 +215,16 @@ def invalidate_registration_status():
     cache.delete(CacheKeys._LEGACY_REGISTRATION_STATUS)
 
 
+def invalidate_notifications(user_id):
+    """Increment the notification version in the cache for a given user ID."""
+    version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user_id)
+    try:
+        cache.incr(version_key)
+    except ValueError:
+        # First time, set to 1 (next read will be version 1)
+        cache.set(version_key, 1, 86400)
+
+
 def question_pool_aggregate(qs):
     return qs.aggregate(
         total_questions=Count("id"),

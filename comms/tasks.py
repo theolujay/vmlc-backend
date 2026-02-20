@@ -243,6 +243,8 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
                 log.save(update_fields=["message"])
             raise self.retry(countdown=300)
 
+    except self.retry as e:
+        raise e
     except Exception as e:
         logger.exception("Unexpected error in send_bulk_sms_task for log %s.", broadcast_log_id)
         if log:

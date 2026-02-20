@@ -1,5 +1,4 @@
 import logging
-import re
 from smtplib import SMTPException
 from time import sleep
 from typing import Any, Dict, List, Optional
@@ -150,7 +149,7 @@ class NotificationService:
         broadcast.last_attempt = timezone.now()
         broadcast.save(update_fields=["status", "last_attempt", "retry_count"])
 
-        logger.info("Starting broadcast %s (retry #%d): '%s'", 
+        logger.info("Starting broadcast %s (retry #%d): '%s'",
                     broadcast_id, broadcast.retry_count, broadcast.subject)
 
         total_attempts = 0
@@ -230,11 +229,11 @@ class NotificationService:
             broadcast.status = final_status
             if final_status == Broadcast.Status.SENT:
                 broadcast.sent_at = timezone.now()
-        
+
         # Atomically increment total_recipients
         if total_recipients_reached > 0:
             broadcast.total_recipients = F("total_recipients") + total_recipients_reached
-        
+
         broadcast.save(update_fields=["status", "total_recipients", "sent_at"])
 
         cache.delete("broadcast_detail_%s" % broadcast_id)
@@ -675,10 +674,15 @@ class NotificationService:
                     group_name, broadcast.id, e,
                 )
 
-        notifications_created.send(
-            sender=self.send_broadcast, notifications=created_notifications
-        )
-        logger.info(
+            from vmlc.v2.utils import CacheKeys, invalidate_notifications
+            unique_user_ids = set(user_ids)
+            for user_id in unique_user_ids:
+                invalidate_notifications(user_id)
+
+            notifications_created.send(
+                sender=self.send_broadcast, notifications=created_notifications
+            )
+            logger.info(
             "Platform notifications created and pushed for %d users (role: %s).",
             len(user_ids), role,
         )

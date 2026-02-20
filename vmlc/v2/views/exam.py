@@ -162,12 +162,14 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
                 page or qs, many=True, context={"request": request}
             ).data
 
+            paginated_questions = self.paginator.get_paginated_response_data(serialized)
+
             data["questions"] = {
                 "question_pool_data": question_pool_aggregate(qs),
-                "results": serialized,
-                "count": qs.count(),
-                "next": None,
-                "previous": None,
+                "results": paginated_questions["results"],
+                "count": paginated_questions["pagination"]["count"],
+                "next": paginated_questions["pagination"]["next"],
+                "previous": paginated_questions["pagination"]["previous"],
             }
 
             return data
