@@ -14,7 +14,7 @@ def invalidate_exam_related_caches_task(exam_id):
     """
     from vmlc.models import Exam
     from competition.models import Enrollment
-    from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard
+    from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard, invalidate_exam_cache
 
     try:
         exam = Exam.objects.select_related(
@@ -24,9 +24,7 @@ def invalidate_exam_related_caches_task(exam_id):
         logger.warning(f"Exam {exam_id} not found for cache invalidation.")
         return
 
-    cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=exam.id))
-    cache.delete(CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id))
-    cache.delete(CacheKeys.EXAM_RESULTS.format(exam_id=exam.id))
+    invalidate_exam_cache(exam.id)
 
     # Invalidate Candidate Dashboards for everyone in this competition
     if exam.competition_slot and exam.competition_slot.competition_stage:
@@ -134,6 +132,15 @@ def check_exam_status_transitions_task():
             conclusion_time = exam.scheduled_date + timedelta(
                 hours=exam.open_duration_hours
             )
+            reminder_time = exam.scheduled_date - timedelta(hours=1)
+
+            if last_run < reminder_time <= now:
+                # 1 hour reminder
+                from comms.tasks import notify_candidates_about_exam_task
+
+                notify_candidates_about_exam_task.delay(exam.id, "reminder")
+                logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
+
             if last_run < exam.scheduled_date <= now:
                 # Started
                 transitioned_exams.append(exam)
