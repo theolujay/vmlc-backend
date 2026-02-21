@@ -14,6 +14,7 @@ from vmlc.models import (
     CandidateExamResult,
     Exam,
 )
+from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage, MessageRead
 from .tasks import (
     generate_stats_overview_task,
     # update_staff_dashboard_cache_task,
@@ -129,6 +130,10 @@ models_to_watch = [
     Stage,
     RankingSnapshot,
     Enrollment,
+    HelpdeskThread,
+    PublicSupportRequest,
+    ThreadMessage,
+    MessageRead,
 ]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
