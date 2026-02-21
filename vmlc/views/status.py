@@ -93,10 +93,7 @@ def stats_overview(request):
     Retrieve overall statistics for candidates and staff.
     """
     logger.info("Stats overview request by %s", request.user.id)
-    from vmlc.v2.utils import get_or_set_cache, CacheKeys
     from vmlc.utils import generate_stats_overview_data
 
-    data = get_or_set_cache(
-        CacheKeys.STATS_OVERVIEW, generate_stats_overview_data, ttl=3600
-    )
+    data = generate_stats_overview_data()
     return Response(data)

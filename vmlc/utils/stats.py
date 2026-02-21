@@ -6,6 +6,7 @@ from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
 from ..models import Exam
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
+from ..v2.utils import CacheKeys, get_or_set_cache
 from .user import get_user_status_counts
 from .metrics import get_funnel_metrics
 
@@ -13,18 +14,47 @@ from .metrics import get_funnel_metrics
 def generate_stats_overview_data():
     """
     Generates and returns a dictionary containing the full stats overview.
+    Uses decentralized caching for each section.
     """
 
     data = {
-        "candidates": _get_candidate_stats(),
-        "staff": _get_staff_stats(),
-        "exams": _get_exam_stats(),
-        "competition": _get_competition_stats(),
-        "helpdesk": _get_helpdesk_stats(),
-        "funnel": get_funnel_metrics(),
-        "geographics": _get_geographic_stats(),
+        "candidates": get_candidate_stats_cached(),
+        "staff": get_staff_stats_cached(),
+        "exams": get_exam_stats_cached(),
+        "competition": get_competition_stats_cached(),
+        "helpdesk": get_helpdesk_stats_cached(),
+        "funnel": get_funnel_metrics_cached(),
+        "geographics": get_geographic_stats_cached(),
     }
     return data
+
+
+def get_candidate_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_CANDIDATES, _get_candidate_stats)
+
+
+def get_staff_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_STAFF, _get_staff_stats)
+
+
+def get_exam_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_EXAMS, _get_exam_stats)
+
+
+def get_competition_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_COMPETITION, _get_competition_stats)
+
+
+def get_helpdesk_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_HELPDESK, _get_helpdesk_stats)
+
+
+def get_funnel_metrics_cached():
+    return get_or_set_cache(CacheKeys.STATS_FUNNEL, get_funnel_metrics)
+
+
+def get_geographic_stats_cached():
+    return get_or_set_cache(CacheKeys.STATS_GEOGRAPHICS, _get_geographic_stats)
 
 
 def _get_helpdesk_stats() -> dict:

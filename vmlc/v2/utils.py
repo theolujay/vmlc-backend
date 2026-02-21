@@ -43,6 +43,13 @@ class CacheKeys:
     REGISTRATION_METRICS = "metrics:registration"
     REGISTRATION_STATUS = "status:registration"
     STATS_OVERVIEW = "status:stats:overview"
+    STATS_CANDIDATES = "status:stats:candidates"
+    STATS_STAFF = "status:stats:staff"
+    STATS_EXAMS = "status:stats:exams"
+    STATS_COMPETITION = "status:stats:competition"
+    STATS_HELPDESK = "status:stats:helpdesk"
+    STATS_FUNNEL = "status:stats:funnel"
+    STATS_GEOGRAPHICS = "status:stats:geographics"
 
     # Feature Flags
     FEATURE_FLAG = "feature:flag:{key}"

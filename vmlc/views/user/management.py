@@ -643,14 +643,10 @@ class UserListView(ListAPIView):
         return Response(response_data)
 
     def _get_stats_overview(self, staff_role):
-        """Helper to get the stats overview from cache, regenerating if necessary."""
-        stats_overview = cache.get("stats_overview")
+        """Helper to get the stats overview using granular caching."""
+        stats_overview = generate_stats_overview_data()
 
-        if stats_overview is None:
-            stats_overview = generate_stats_overview_data()
-            cache.set("stats_overview", stats_overview, timeout=3600)
-
-        # Make a copy to avoid modifying the cached object.
+        # Make a copy to avoid modifying the cached objects (since some are shared).
         stats_overview = stats_overview.copy()
         if staff_role not in [Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]:
             stats_overview.pop("staff", None)
