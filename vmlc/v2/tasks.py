@@ -134,6 +134,15 @@ def check_exam_status_transitions_task():
             conclusion_time = exam.scheduled_date + timedelta(
                 hours=exam.open_duration_hours
             )
+            reminder_time = exam.scheduled_date - timedelta(hours=1)
+
+            if last_run < reminder_time <= now:
+                # 1 hour reminder
+                from comms.tasks import notify_candidates_about_exam_task
+
+                notify_candidates_about_exam_task.delay(exam.id, "reminder")
+                logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
+
             if last_run < exam.scheduled_date <= now:
                 # Started
                 transitioned_exams.append(exam)

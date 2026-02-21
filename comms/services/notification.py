@@ -251,16 +251,16 @@ class NotificationService:
 
     def notify_candidates_about_exam(self, exam, event_type: str) -> None:
         """
-        Send scheduled or started notifications to all candidates enrolled in
+        Send scheduled, reminder, or started notifications to all candidates enrolled in
         the stage associated with the given exam.
 
-        ``event_type`` must be ``'scheduled'`` or ``'started'``.
+        ``event_type`` must be ``'scheduled'``, ``'reminder'``, or ``'started'``.
         """
         from competition.models import EnrollmentStageProgress
 
-        if event_type not in ("scheduled", "started"):
+        if event_type not in ("scheduled", "started", "reminder"):
             logger.warning(
-                "Invalid event_type: '%s'. Must be 'scheduled' or 'started'.",
+                "Invalid event_type: '%s'. Must be 'scheduled', 'started', or 'reminder'.",
                 event_type,
             )
             return
@@ -306,7 +306,8 @@ class NotificationService:
                 user=user,
                 subject=subject,
                 message=personalized_message,
-                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Mediums.EMAIL],
+                # mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
                 notification_type="info",
             )
 
@@ -319,7 +320,8 @@ class NotificationService:
 
             phone_grouped_users.setdefault(phone, []).append(user)
 
-        phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
+        # phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
+        phone_mediums = [Broadcast.Mediums.SMS]
         for phone, users in phone_grouped_users.items():
             candidate_name = self._format_grouped_names(users)
             personalized_message = message_template.format(
@@ -755,7 +757,24 @@ class NotificationService:
             )
             template_kwargs = {
                 "start_time": (
-                    exam.scheduled_date.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    exam.scheduled_date.strftime("%A, %B %d, %Y at %I:%M %p")
+                    if exam.scheduled_date
+                    else "N/A"
+                )
+            }
+        elif event_type == "reminder":
+            subject = "Exam Reminder: %s starts in 1 hour" % exam.get_title()
+            message_template = (
+                "Dear {candidate_name},\n\n"
+                "This is a reminder that your exam '{exam_title}' will start in approximately one hour.\n"
+                "Start Time: {start_time}\n\n"
+                "Please ensure you have a stable internet connection and are ready to begin.\n\n"
+                "Regards,\n"
+                "VMLC Team"
+            )
+            template_kwargs = {
+                "start_time": (
+                    exam.scheduled_date.strftime("%A, %B %d, %Y at %I:%M %p")
                     if exam.scheduled_date
                     else "N/A"
                 )
@@ -774,7 +793,7 @@ class NotificationService:
                 "VMLC Team"
             )
             template_kwargs = {
-                "conclusion_time": conclusion_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+                "conclusion_time": conclusion_time.strftime("%A, %B %d, %Y at %I:%M %p")
             }
 
         return subject, message_template, template_kwargs
