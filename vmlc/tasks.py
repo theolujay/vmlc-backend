@@ -249,13 +249,28 @@ def revoke_user_invite_task(user_id):
 @shared_task(name="generate_stats_overview_task")
 def generate_stats_overview_task():
     """
-    Asynchronously generates and caches the statistics overview.
+    Asynchronously generates and caches each part of the statistics overview individually.
     """
-    from vmlc.v2.utils import CacheKeys
+    from vmlc.utils.stats import (
+        get_candidate_stats_cached,
+        get_staff_stats_cached,
+        get_exam_stats_cached,
+        get_competition_stats_cached,
+        get_helpdesk_stats_cached,
+        get_funnel_metrics_cached,
+        get_geographic_stats_cached,
+    )
 
-    data = generate_stats_overview_data()
-    cache.set(CacheKeys.STATS_OVERVIEW, data, timeout=3600)  # Cache for 1 hour
-    logger.info("Successfully generated and cached stats overview.")
+    # Calling these will trigger the cached calculation for each piece
+    get_candidate_stats_cached()
+    get_staff_stats_cached()
+    get_exam_stats_cached()
+    get_competition_stats_cached()
+    get_helpdesk_stats_cached()
+    get_funnel_metrics_cached()
+    get_geographic_stats_cached()
+
+    logger.info("Successfully regenerated decentralized stats overview caches.")
 
 
 @shared_task(

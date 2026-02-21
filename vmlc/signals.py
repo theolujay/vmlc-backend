@@ -14,6 +14,7 @@ from vmlc.models import (
     CandidateExamResult,
     Exam,
 )
+from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage, MessageRead
 from .tasks import (
     generate_stats_overview_task,
     # update_staff_dashboard_cache_task,
@@ -21,11 +22,24 @@ from .tasks import (
 from competition.models import Competition, Stage, RankingSnapshot, Enrollment
 
 
+from vmlc.v2.utils import CacheKeys
+
+
 def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
     """
-    Invalidates the cache for the stats overview and triggers regeneration.
+    Invalidates the cache for all decentralized stats and triggers regeneration.
     """
-    cache.delete("stats_overview")
+    keys_to_delete = [
+        CacheKeys.STATS_CANDIDATES,
+        CacheKeys.STATS_STAFF,
+        CacheKeys.STATS_EXAMS,
+        CacheKeys.STATS_COMPETITION,
+        CacheKeys.STATS_HELPDESK,
+        CacheKeys.STATS_FUNNEL,
+        CacheKeys.STATS_GEOGRAPHICS,
+        "stats_overview", # legacy
+    ]
+    cache.delete_many(keys_to_delete)
     cache.delete("registration_metrics")
     cache.delete_pattern("user_list_view_*")
     generate_stats_overview_task.delay()
@@ -129,6 +143,10 @@ models_to_watch = [
     Stage,
     RankingSnapshot,
     Enrollment,
+    HelpdeskThread,
+    PublicSupportRequest,
+    ThreadMessage,
+    MessageRead,
 ]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)

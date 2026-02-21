@@ -47,6 +47,7 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts
+from vmlc.utils.stats import get_helpdesk_stats_cached
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 
 
@@ -469,6 +470,8 @@ class HelpdeskThreadView(APIView):
                 sender_type=ThreadMessage.SenderType.SYSTEM,
                 text=f"Hello, {user.get_full_name()}. How can we help you today?"
             )
+            # Invalidate helpdesk stats cache
+            cache.delete(CacheKeys.STATS_HELPDESK)
             # No need to check cache on creation
         else:
             # Check for unread messages first
@@ -517,6 +520,9 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
 
         # Mark unread messages as read (if any)
         if unread_messages.exists():
+            # Check if any of these are from candidate (affects global stats)
+            has_candidate_messages = unread_messages.filter(sender_type=ThreadMessage.SenderType.CANDIDATE).exists()
+
             MessageRead.objects.bulk_create(
                 [MessageRead(message=msg, user=request.user) for msg in unread_messages],
                 ignore_conflicts=True,
@@ -526,6 +532,10 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
                 cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
             except ValueError:
                 cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+            # Invalidate helpdesk stats cache if global stats changed
+            if has_candidate_messages:
+                cache.delete(CacheKeys.STATS_HELPDESK)
 
 
         response = super().get(request, *args, **kwargs)
@@ -550,12 +560,17 @@ class StaffHelpdeskThreadListView(ListAPIView):
             user_id=user.id, version=version, query_hash=query_hash
         )
 
+        helpdesk_summary_data = get_helpdesk_stats_cached()
+
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.info(f"Returning cached helpdesk threads for staff {user.id}")
+            # Ensure helpdesk_summary_data is always fresh or at least included
+            cached_data["helpdesk_summary_data"] = helpdesk_summary_data
             return Response(cached_data)
 
         response = super().list(request, *args, **kwargs)
+        response.data["helpdesk_summary_data"] = helpdesk_summary_data
         cache.set(cache_key, response.data, timeout=3600)
         return response
 
@@ -643,6 +658,8 @@ class HelpdeskThreadMessageView(CreateAPIView):
                 eta=message.created_at + timezone.timedelta(minutes=2)
             )
 
+        transaction.on_commit(lambda: cache.delete(CacheKeys.STATS_HELPDESK))
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def assign_staff_automatically(self, thread, current_staff):
@@ -670,3 +687,5 @@ class HelpdeskThreadMessageView(CreateAPIView):
             thread.assigned_staff = best_staff
             thread.status = HelpdeskThread.Status.IN_PROGRESS
             thread.save(update_fields=["assigned_staff", "status"])
+            # Invalidate helpdesk stats cache
+            cache.delete(CacheKeys.STATS_HELPDESK)
