@@ -406,9 +406,11 @@ class ExamFaceCaptureView(APIView):
 def candidate_take_exam_V2(request, exam_id):
     from datetime import timedelta
     from competition.services.eligibility import EligibilityService
+    from vmlc.v2.utils import CacheKeys, get_or_set_cache
 
     candidate = request.user.candidate_profile
 
+    # 1. Eligibility Check (Always dynamic)
     try:
         exam = Exam.objects.prefetch_related("questions").get(pk=exam_id)
     except Exam.DoesNotExist:
@@ -420,7 +422,7 @@ def candidate_take_exam_V2(request, exam_id):
         )
         raise PermissionDenied("You are not eligible to take this exam at this time.")
 
-    # Manage Exam Access
+    # 2. Access Management (Always dynamic)
     now = timezone.now()
     try:
         access = ExamAccess.objects.get(candidate=candidate, exam=exam)
@@ -449,4 +451,27 @@ def candidate_take_exam_V2(request, exam_id):
         access.deadline = now + timedelta(minutes=exam.countdown_minutes)
         access.save(update_fields=["status", "started_at", "deadline"])
 
-    return Response(CandidateTakeExamSerializer(exam, context={"request": request}).data)
+    # 3. Global Exam Data Cache
+    # We cache the serialized exam and questions (which are the same for all candidates)
+    # but exclude the 'attempt' field which is candidate-specific.
+    cache_key = CacheKeys.EXAM_TAKE_V2.format(exam_id=exam_id)
+    
+    def fetch_exam_data():
+        serializer = CandidateTakeExamSerializer(exam, context={"request": None}) # Context=None to avoid 'attempt' field logic during cache build if needed, though we will override it anyway
+        data = serializer.data
+        # Remove attempt from global cache as it's candidate-specific
+        data.pop("attempt", None)
+        return data
+
+    exam_data = get_or_set_cache(cache_key, fetch_exam_data)
+
+    # 4. Candidate-Specific Data (Dynamic)
+    # We manually build the 'attempt' data for the current candidate
+    response_data = exam_data.copy()
+    response_data["attempt"] = {
+        "started_at": access.started_at,
+        "deadline": access.deadline,
+        "submitted_at": access.submitted_at,
+    }
+
+    return Response(response_data)

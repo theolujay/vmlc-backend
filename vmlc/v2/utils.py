@@ -23,6 +23,7 @@ class CacheKeys:
 
     # Exams
     EXAM_DETAIL = "exam:detail:{exam_id}"
+    EXAM_TAKE_V2 = "exam:take:v2:{exam_id}"
     EXAM_QUESTIONS = "exam:questions:{exam_id}"
     EXAM_RESULTS = "exam:results:{exam_id}"
     CANDIDATE_EXAM_HISTORY = "cand:history:{candidate_id}"
@@ -137,6 +138,7 @@ class CacheKeys:
     def get_exam_keys(cls, exam_id):
         return [
             cls.EXAM_DETAIL.format(exam_id=exam_id),
+            cls.EXAM_TAKE_V2.format(exam_id=exam_id),
             cls.EXAM_QUESTIONS.format(exam_id=exam_id),
             cls.EXAM_RESULTS.format(exam_id=exam_id),
         ]

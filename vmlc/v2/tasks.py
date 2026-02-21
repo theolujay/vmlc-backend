@@ -14,7 +14,7 @@ def invalidate_exam_related_caches_task(exam_id):
     """
     from vmlc.models import Exam
     from competition.models import Enrollment
-    from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard
+    from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard, invalidate_exam_cache
 
     try:
         exam = Exam.objects.select_related(
@@ -24,9 +24,7 @@ def invalidate_exam_related_caches_task(exam_id):
         logger.warning(f"Exam {exam_id} not found for cache invalidation.")
         return
 
-    cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=exam.id))
-    cache.delete(CacheKeys.EXAM_QUESTIONS.format(exam_id=exam.id))
-    cache.delete(CacheKeys.EXAM_RESULTS.format(exam_id=exam.id))
+    invalidate_exam_cache(exam.id)
 
     # Invalidate Candidate Dashboards for everyone in this competition
     if exam.competition_slot and exam.competition_slot.competition_stage:
