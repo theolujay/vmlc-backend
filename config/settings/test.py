@@ -37,6 +37,9 @@ DATABASES = {
     )
 }
 
+# DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+# DATABASES = {"default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))}
+
 # Use FileSystemStorage for tests to avoid dependency on S3
 USE_S3 = False
 STORAGES = {
@@ -55,6 +58,7 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://redis:6379/1",
+        # "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
