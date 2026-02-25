@@ -179,6 +179,16 @@ class ProfileManager:
 
         profile_data = serializer_class(profile).data
         profile_data.pop("records", None)
+
+        # Add additional properties
+        profile_data["is_setup_complete"] = user.is_setup_complete
+        if hasattr(user, "candidate_profile"):
+            profile_data["has_cowrywise_kid_profile"] = hasattr(
+                user.candidate_profile, "cowrywise_kid_profile"
+            )
+        else:
+            profile_data["has_cowrywise_kid_profile"] = False
+            
         return profile_data
 
 

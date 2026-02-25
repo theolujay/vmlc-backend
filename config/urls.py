@@ -65,6 +65,10 @@ vmlc_urlpatterns = [
     path("v2/", include("vmlc.v2.urls", namespace="vmlc-v2")),
 ]
 
+identity_urlpatterns = [
+    path("v1/", include("identity.urls", namespace="identity"))
+]
+
 comms_urlpatterns = [
     path("v1/", include("comms.urls", namespace="comms")),
 ]
@@ -108,10 +112,11 @@ docs_urlpatterns = [
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
-    # === VMLC ===
+    # === Apps ===
     path("", include(vmlc_urlpatterns)),
     path("", include(comms_urlpatterns)),
     path("", include(competition_urlpatterns)),
+    path("", include(identity_urlpatterns)),
     # === Docs ===
     path("docs/", include(docs_urlpatterns)),
     path("favicon.ico", get_favicon, name="favicon"),

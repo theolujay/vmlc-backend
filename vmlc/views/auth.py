@@ -475,7 +475,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         profile_data = ProfileManager.serialize_profile(self.user)
 
         if profile_data:
-            profile_data["is_setup_complete"] = self.user.is_setup_complete
             data["profile"] = profile_data
 
         return data
