@@ -16,6 +16,11 @@ from twilio.rest import Client as TwilioClient
 
 from comms.models import Broadcast, BroadcastLog, Notification
 from comms.services.kudi_sms import KudiSmsService
+from comms.utils import (
+    _normalize_phone,
+    format_sms_body,
+    is_placeholder_phone as _is_placeholder_phone,
+)
 from vmlc.utils.exceptions import (
     InvalidMediumError,
     NoRecipientsFoundError,
@@ -28,21 +33,6 @@ logger = logging.getLogger(__name__)
 # Nigerian local number pattern (e.g. 08012345678)
 # _LOCAL_PHONE_RE = re.compile(r"^(0[789][01]\d{8})$")
 _PLACEHOLDER_PHONE = "2349123456789"
-
-def _normalize_phone(phone: str) -> str:
-    """Convert a Nigerian local number to E.164 format (234...)."""
-    if not phone:
-        return ""
-    if phone.startswith('0'):
-        return '234' + phone[1:]
-    if phone.startswith('+234'):
-        return phone[1:]
-    return phone
-
-
-def _is_placeholder_phone(phone: str) -> bool:
-    """Return True if the phone number is a known test/placeholder value."""
-    return phone == _PLACEHOLDER_PHONE
 
 
 class NotificationService:
@@ -84,15 +74,19 @@ class NotificationService:
             mediums = [Broadcast.Mediums.PLATFORM]
 
         results: Dict[str, bool] = {}
-        full_body = f"{subject}:\n\n{message}" if subject else message
 
         for medium in mediums:
+            if medium == Broadcast.Mediums.SMS:
+                body_to_send = format_sms_body(subject, message)
+            else:
+                body_to_send = f"{subject}:\n\n{message}" if subject else message
+
             try:
                 if medium == Broadcast.Mediums.PLATFORM:
                     results["platform"] = self._send_platform_notification(
                         user=user,
                         subject=subject,
-                        full_body=full_body,
+                        full_body=body_to_send,
                         notification_type=notification_type,
                         metadata=metadata,
                         expires_at=expires_at,
@@ -107,12 +101,12 @@ class NotificationService:
 
                 elif medium == Broadcast.Mediums.SMS:
                     results["sms"] = self._dispatch_phone_notification(
-                        user=user, body=full_body, medium="sms"
+                        user=user, body=body_to_send, medium="sms"
                     )
 
                 elif medium == Broadcast.Mediums.WHATSAPP:
                     results["whatsapp"] = self._dispatch_phone_notification(
-                        user=user, body=full_body, medium="whatsapp"
+                        user=user, body=body_to_send, medium="whatsapp"
                     )
 
             except Exception as e:
@@ -286,7 +280,7 @@ class NotificationService:
             )
             return
 
-        subject, message_template, template_kwargs = self._build_exam_notification_content(
+        subject, message_template, sms_template, template_kwargs = self._build_exam_notification_content(
             exam, event_type
         )
 
@@ -324,15 +318,15 @@ class NotificationService:
         phone_mediums = [Broadcast.Mediums.SMS]
         for phone, users in phone_grouped_users.items():
             candidate_name = self._format_grouped_names(users)
-            personalized_message = message_template.format(
+            personalized_sms = sms_template.format(
                 candidate_name=candidate_name,
                 exam_title=exam.get_title(),
                 **template_kwargs,
             )
             self.notify_user(
                 user=users[0],
-                subject=subject,
-                message=personalized_message,
+                subject="", # For SMS, the subject is already within the message
+                message=personalized_sms,
                 mediums=phone_mediums,
                 notification_type="info",
             )
@@ -555,11 +549,11 @@ class NotificationService:
                 "No valid, non-placeholder phone numbers found."
             )
 
-        full_body = (
-            "%s:\n\n%s" % (broadcast.subject, broadcast.message)
-            if broadcast.subject
-            else broadcast.message
-        )
+        if broadcast.sms_message:
+            full_body = broadcast.sms_message
+        else:
+            full_body = format_sms_body(broadcast.subject, broadcast.message)
+
         try:
             self.send_bulk_phone_msg(
                 body=full_body,
@@ -742,7 +736,7 @@ class NotificationService:
     @staticmethod
     def _build_exam_notification_content(exam, event_type: str):
         """
-        Return ``(subject, message_template, template_kwargs)`` for the given
+        Return (subject, message_template, sms_template, template_kwargs) for the given
         exam event type.
         """
         if event_type == "scheduled":
@@ -755,9 +749,10 @@ class NotificationService:
                 "Regards,\n"
                 "VMLC Team"
             )
+            sms_template = "Hi {candidate_name}. New exam '{exam_title}' scheduled for {start_time}. Check email or log in for details. -VMLC Team"
             template_kwargs = {
                 "start_time": (
-                    exam.scheduled_date.strftime("%A, %B %d, %Y at %I:%M %p")
+                    exam.scheduled_date.strftime("%a, %b %d, %I:%M %p")
                     if exam.scheduled_date
                     else "N/A"
                 )
@@ -772,9 +767,10 @@ class NotificationService:
                 "Regards,\n"
                 "VMLC Team"
             )
+            sms_template = "Reminder: Your exam '{exam_title}' starts in 1 hour ({start_time}). Get ready! -VMLC Team"
             template_kwargs = {
                 "start_time": (
-                    exam.scheduled_date.strftime("%A, %B %d, %Y at %I:%M %p")
+                    exam.scheduled_date.strftime("%a, %b %d, %I:%M %p")
                     if exam.scheduled_date
                     else "N/A"
                 )
@@ -792,11 +788,12 @@ class NotificationService:
                 "Good luck,\n"
                 "VMLC Team"
             )
+            sms_template = "Exam '{exam_title}' has started! It closes at {conclusion_time}. Good luck! -VMLC Team"
             template_kwargs = {
-                "conclusion_time": conclusion_time.strftime("%A, %B %d, %Y at %I:%M %p")
+                "conclusion_time": conclusion_time.strftime("%a, %b %d, %I:%M %p")
             }
 
-        return subject, message_template, template_kwargs
+        return subject, message_template, sms_template, template_kwargs
 
     @staticmethod
     def _format_grouped_names(users: list) -> str:

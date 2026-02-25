@@ -9,6 +9,7 @@ from identity.models import (
     Candidate,
     Staff,
     UserVerification,
+    CowrywiseKidProfile,
 )
 from vmlc.models import (
     CandidateExamResult,
@@ -68,6 +69,11 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         invalidate_candidate_cache(instance.pk, user_id=instance.user_id)
         invalidate_staff_dashboard()
     elif isinstance(instance, Staff):
+        invalidate_staff_dashboard()
+    elif isinstance(instance, CowrywiseKidProfile):
+        invalidate_candidate_cache(
+            instance.candidate_id, user_id=instance.candidate.user_id
+        )
         invalidate_staff_dashboard()
     elif isinstance(instance, CandidateExamResult):
         invalidate_candidate_cache(
@@ -147,6 +153,7 @@ models_to_watch = [
     PublicSupportRequest,
     ThreadMessage,
     MessageRead,
+    CowrywiseKidProfile,
 ]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
@@ -175,6 +182,7 @@ for model in models_to_watch:
         RankingSnapshot,
         Enrollment,
         Exam,
+        CowrywiseKidProfile,
     ]:
         post_save.connect(invalidate_dashboard_on_change, sender=model)
         post_delete.connect(invalidate_dashboard_on_change, sender=model)

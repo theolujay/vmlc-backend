@@ -134,12 +134,12 @@ def check_exam_status_transitions_task():
             )
             reminder_time = exam.scheduled_date - timedelta(hours=1)
 
-            if last_run < reminder_time <= now:
-                # 1 hour reminder
-                from comms.tasks import notify_candidates_about_exam_task
+            # if last_run < reminder_time <= now:
+            #     # 1 hour reminder
+            #     from comms.tasks import notify_candidates_about_exam_task
 
-                notify_candidates_about_exam_task.delay(exam.id, "reminder")
-                logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
+            #     notify_candidates_about_exam_task.delay(exam.id, "reminder")
+            #     logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
 
             if last_run < exam.scheduled_date <= now:
                 # Started
@@ -180,3 +180,37 @@ def generate_and_send_exam_passcodes_task(exam_id):
     logger.info(f"Generating and sending passcodes for exam {exam_id}")
     ExamAccessService.generate_passcodes(exam_id)
     ExamAccessService.send_passcode_emails(exam_id)
+
+
+@shared_task(name="mark_exam_access_as_expired_task")
+def mark_exam_access_as_expired_task(access_id):
+    """
+    Marks an ExamAccess as EXPIRED if it's still in STARTED status after its deadline.
+    Includes a 5-minute grace period consistent with SubmitAnswersV2View.
+    """
+    from vmlc.models import ExamAccess
+    from vmlc.v2.utils import invalidate_candidate_cache
+    from django.utils import timezone
+    from datetime import timedelta
+
+    try:
+        access = ExamAccess.objects.select_related("candidate").get(pk=access_id)
+    except ExamAccess.DoesNotExist:
+        logger.warning(f"ExamAccess {access_id} not found for expiration task.")
+        return
+
+    # Check if still STARTED and deadline + grace period has passed
+    grace_period = timedelta(minutes=5)
+    if access.status == ExamAccess.Status.STARTED:
+        if timezone.now() >= access.deadline + grace_period:
+            access.status = ExamAccess.Status.EXPIRED
+            access.save(update_fields=["status"])
+
+            # Invalidate cache so candidate sees the expired status
+            invalidate_candidate_cache(access.candidate_id, access.candidate.user_id)
+
+            logger.info(f"ExamAccess {access_id} marked as EXPIRED for candidate {access.candidate_id}")
+        else:
+            # If we're called before the grace period (unlikely given ETA),
+            # we could reschedule, but for now just log it.
+            logger.info(f"ExamAccess {access_id} is still within grace period. No action taken.")
