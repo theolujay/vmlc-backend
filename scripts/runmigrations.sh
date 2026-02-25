@@ -152,6 +152,7 @@ setup_django_env() {
     log_info "Clearing cache..."
     if ! python manage.py shell -c "from django.core.cache import cache; cache.clear()"
         log_error "Clearing cache failed. Ignoring..."
+    fi
 
     # if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
     #     log_info "Initializing Verboheit MLC 3.0 Competition..."
