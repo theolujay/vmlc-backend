@@ -221,6 +221,7 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
             "id",
             "subject",
             "message",
+            "sms_message",
             "target_roles",
             "mediums",
             "created_by",

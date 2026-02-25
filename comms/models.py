@@ -233,6 +233,11 @@ class Broadcast(models.Model):
     )
     subject = models.CharField(max_length=100)
     message = models.TextField()
+    sms_message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional shorter message for SMS/WhatsApp. If blank, the main message is condensed automatically.",
+    )
     mediums = ArrayField(
         models.CharField(max_length=20, choices=Mediums.choices),
         default=list,
