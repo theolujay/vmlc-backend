@@ -20,6 +20,7 @@ class CowrywiseKidProfileView(CreateAPIView):
             serializer.is_valid(raise_exception=True)
             candidate = Candidate.objects.get(user=request.user)
             cowrywise_kid = serializer.save(candidate=candidate)
+
         except ValidationError as e:
             return Response({"error": f"Validation error: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 

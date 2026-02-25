@@ -14,6 +14,7 @@ from identity.models import (
     UserVerification,
     PreRegUser,
     EmailOTP,
+    CowrywiseKidProfile,
 )
 
 # These are imported from vmlc as they are core to the application's admin functionality
@@ -609,3 +610,20 @@ class EmailOTPAdmin(admin.ModelAdmin):
     @admin.display(description="Is Expired", boolean=True)
     def is_expired_display(self, obj):
         return obj.is_expired()
+
+
+@admin.register(CowrywiseKidProfile)
+class CowrywiseKidProfileAdmin(admin.ModelAdmin):
+    list_display = ("username", "candidate_name", "created_at", "updated_at")
+    search_fields = (
+        "username",
+        "candidate__user__email",
+        "candidate__user__first_name",
+        "candidate__user__last_name",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    list_select_related = ("candidate__user",)
+
+    @admin.display(description="Candidate", ordering="candidate__user__first_name")
+    def candidate_name(self, obj):
+        return obj.candidate.user.get_full_name()

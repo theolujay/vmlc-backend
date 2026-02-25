@@ -23,7 +23,7 @@ class CowrywiseKidProfileSerializer(serializers.ModelSerializer):
             return None
 
         candidate = request.user.candidate_profile
-        username = validated_data.get("username")
+        username = validated_data.get("username").lower()
         cowrywise_kid, created = CowrywiseKidProfile.objects.get_or_create(
             candidate=candidate,
             username=username,

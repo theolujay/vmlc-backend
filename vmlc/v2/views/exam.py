@@ -30,7 +30,7 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import get_or_set_cache, question_pool_aggregate
+from vmlc.v2.utils import get_or_set_cache, invalidate_candidate_cache, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 
@@ -451,11 +451,18 @@ def candidate_take_exam_V2(request, exam_id):
         access.deadline = now + timedelta(minutes=exam.countdown_minutes)
         access.save(update_fields=["status", "started_at", "deadline"])
 
+        # Schedule expiration task
+        from vmlc.v2.tasks import mark_exam_access_as_expired_task
+        mark_exam_access_as_expired_task.apply_async(
+            args=[str(access.id)],
+            eta=access.deadline + timedelta(minutes=5)
+        )
+
     # 3. Global Exam Data Cache
     # We cache the serialized exam and questions (which are the same for all candidates)
     # but exclude the 'attempt' field which is candidate-specific.
     cache_key = CacheKeys.EXAM_TAKE_V2.format(exam_id=exam_id)
-    
+
     def fetch_exam_data():
         serializer = CandidateTakeExamSerializer(exam, context={"request": None}) # Context=None to avoid 'attempt' field logic during cache build if needed, though we will override it anyway
         data = serializer.data
@@ -464,6 +471,7 @@ def candidate_take_exam_V2(request, exam_id):
         return data
 
     exam_data = get_or_set_cache(cache_key, fetch_exam_data)
+    invalidate_candidate_cache(candidate_id=candidate.pk)
 
     # 4. Candidate-Specific Data (Dynamic)
     # We manually build the 'attempt' data for the current candidate

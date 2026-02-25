@@ -50,7 +50,7 @@ validate_environment() {
         log_info "SECRET_KEY not set, reading from ${SECRET_KEY_FILE}"
         export SECRET_KEY=$(cat "${SECRET_KEY_FILE}")
     fi
-    
+
     if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
         log_error "DJANGO_SETTINGS_MODULE environment variable is required"
         exit 1
@@ -94,7 +94,7 @@ wait_for_db() {
     done
 
     log_info "Database responds to pg_isready. Verifying full connectivity..."
-    
+
     # Additional check: try to actually connect and run a query
     attempt=1
     backoff=2
@@ -127,27 +127,31 @@ except Exception as e:
         log_error "Django system check failed with critical errors. Exiting."
         exit 1
     fi
-    
+
     log_info "Database is ready and healthy"
 }
 
 
 setup_django_env() {
     log_info "Running database migrations..."
-    
+
     # Show migration plan first for debugging
     if ! python manage.py showmigrations --plan; then
         log_error "Failed to show migration plan"
         exit 1
     fi
-    
+
     # Run migrations with verbose output
     if ! python manage.py migrate --no-input --verbosity 2; then
         log_error "Database migrations failed"
         exit 1
     fi
-    
+
     log_info "Database migrations completed successfully"
+
+    log_info "Clearing cache..."
+    if ! python manage.py shell -c "from django.core.cache import cache; cache.clear()"
+        log_error "Clearing cache failed. Ignoring..."
 
     # if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
     #     log_info "Initializing Verboheit MLC 3.0 Competition..."
@@ -167,17 +171,17 @@ setup_application() {
 
 preflight_check() {
     log_info "Running pre-flight checks..."
-    
+
     if [[ ! -f "manage.py" ]]; then
         log_error "manage.py not found in current directory: $(pwd)"
         exit 1
     fi
-    
+
     if ! python -c "import django" 2>/dev/null; then
         log_error "Django is not installed or not accessible"
         exit 1
     fi
-    
+
     log_info "Pre-flight checks completed"
 }
 
@@ -186,12 +190,12 @@ main()  {
     log_info "Working directory: $(pwd)"
     log_info "Python executable: $(which python)"
     log_info "Python version: $(python --version)"
-    
+
     security_check
     validate_environment
     preflight_check
     setup_application
-    
+
     log_info "=== Migration completed successfully! ==="
 }
 
