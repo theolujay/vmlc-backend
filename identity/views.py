@@ -22,8 +22,6 @@ class CowrywiseKidProfileView(CreateAPIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         try:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
             candidate = Candidate.objects.get(user=request.user)
             username = request.data.get("username")
             cowrywise_kid_profile = CowrywiseKidProfile.objects.filter(
@@ -37,6 +35,8 @@ class CowrywiseKidProfileView(CreateAPIView):
                     },
                     status=status.HTTP_409_CONFLICT
                 )
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             cowrywise_kid = serializer.save(candidate=candidate)
 
         except Candidate.DoesNotExist:
