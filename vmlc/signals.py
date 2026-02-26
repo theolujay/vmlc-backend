@@ -92,14 +92,16 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         )
 
         # Notify candidates if it's a new exam
-        if kwargs.get("created", False):
-            from comms.tasks import notify_candidates_about_exam_task
+        # TODO: repurpose or discard this. It "notifies" candidates of a newly created exam
+        # that'll most definitely have exam.status == "draft", which isn't desired.
+        # if kwargs.get("created", False):
+        #     from comms.tasks import notify_candidates_about_exam_task
 
-            transaction.on_commit(
-                lambda: notify_candidates_about_exam_task.delay(
-                    instance.id, "scheduled"
-                )
-            )
+        #     transaction.on_commit(
+        #         lambda: notify_candidates_about_exam_task.delay(
+        #             instance.id, "scheduled"
+        #         )
+        #     )
 
 
 @receiver(user_logged_in, sender=User)

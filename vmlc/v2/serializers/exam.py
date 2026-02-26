@@ -130,11 +130,13 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         exam = super().create(validated_data)
         self._handle_competition_slot(exam, stage_id, round)
 
-        if exam.status == Exam.Status.SCHEDULED:
-            from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
-            transaction.on_commit(
-                lambda: generate_and_send_exam_passcodes_task.delay(exam.id)
-            )
+        # This is almost never reached, as a new exam (from the portal) leaves scheduled_date
+        # and countdown_timer null.
+        # if exam.status == Exam.Status.SCHEDULED:
+        #     from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+        #     transaction.on_commit(
+        #         lambda: generate_and_send_exam_passcodes_task.delay(exam.id)
+        #     )
 
         return exam
 
@@ -146,13 +148,13 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
 
         stage_id = validated_data.pop("stage_id", None)
         round = validated_data.pop("round", None)
-        
+
         old_status = instance.status
         instance = super().update(instance, validated_data)
         self._handle_competition_slot(instance, stage_id, round)
 
         if (
-            old_status == Exam.Status.DRAFT 
+            old_status == Exam.Status.DRAFT
             and instance.status == Exam.Status.SCHEDULED
         ):
             from vmlc.v2.tasks import generate_and_send_exam_passcodes_task

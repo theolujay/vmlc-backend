@@ -352,7 +352,7 @@ class NotificationService:
         try:
             if medium == "sms":
                 return self._send_via_sms(body=body, recipient=recipient)
-            else:
+            if medium == "whatsapp":
                 return self._send_via_whatsapp(body=body, recipient=recipient)
 
         except TwilioRestException as e:
