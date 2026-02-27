@@ -102,7 +102,14 @@ class HelpdeskTests(APITestCase):
 
     def test_staff_list_threads(self):
         """Test staff listing helpdesk threads."""
-        HelpdeskThread.objects.create(candidate=self.candidate_profile)
+        thread = HelpdeskThread.objects.create(candidate=self.candidate_profile)
+        # Add a candidate message so it's visible in the staff list
+        ThreadMessage.objects.create(
+            thread=thread,
+            sender=self.candidate_user,
+            sender_type=ThreadMessage.SenderType.CANDIDATE,
+            text="I need help!",
+        )
 
         self.client.force_authenticate(user=self.staff_user)
         url = reverse("comms:staff-helpdesk-threads")
