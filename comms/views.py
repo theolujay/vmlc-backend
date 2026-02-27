@@ -563,7 +563,7 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
 
         response = super().get(request, *args, **kwargs)
         cache.set(cache_key, response.data, timeout=3600)
-        return response
+        return Response(response.data)
 
 
 class StaffHelpdeskThreadListView(ListAPIView):
@@ -597,11 +597,10 @@ class StaffHelpdeskThreadListView(ListAPIView):
         response = super().list(request, *args, **kwargs)
         response.data["helpdesk_summary_data"] = helpdesk_summary_data
         cache.set(cache_key, response.data, timeout=3600)
-        return response
+        return Response(response.data)
 
     def get_queryset(self):
         # Unread count annotation
-        user = self.request.user
         queryset = HelpdeskThread.objects.select_related(
             "candidate", "assigned_staff__user"
         ).prefetch_related("messages__reads")
