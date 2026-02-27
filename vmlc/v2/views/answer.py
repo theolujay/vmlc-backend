@@ -134,13 +134,17 @@ class SubmitAnswersV2View(APIView):
         # Send notification
         from comms.services.notification import NotificationService
         from comms.models import Broadcast
-        
+
         notification_service = NotificationService()
         notification_service.notify_user(
             user=request.user,
             subject=f"Submission Successful: {exam.title}",
             message=f"Your submission for the exam '{exam.title}' has been received successfully.",
-            mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL, Broadcast.Mediums.SMS],
+            mediums=[
+                Broadcast.Mediums.PLATFORM,
+                Broadcast.Mediums.EMAIL,
+                Broadcast.Mediums.SMS,
+            ],
             notification_type="success",
         )
 

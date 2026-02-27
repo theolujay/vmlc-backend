@@ -42,6 +42,7 @@ class KudiSmsService:
             pages = 1
         else:
             import math
+
             pages = math.ceil(msg_len / 153)
 
         return pages * recipient_count * self.cost_per_msg
@@ -102,7 +103,9 @@ class KudiSmsService:
         }
         return self._make_request(KudiURL.BULK_SMS.value, payload)
 
-    def send_personalised_sms(self, message: str, recipients: List[Dict[str, str]]) -> Dict[str, Any]:
+    def send_personalised_sms(
+        self, message: str, recipients: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
         """Send personalised SMS."""
         payload = {
             "token": self.api_key,

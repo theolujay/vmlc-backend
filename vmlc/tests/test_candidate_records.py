@@ -58,8 +58,6 @@ class CandidateRecordServiceTest(APITestCase):
         self.assertEqual(len(exams), 1)
         self.assertEqual(exams[0]["round"], 1)
 
-
-
     def test_exam_history_view_failure(self):
         # Record a result
         CandidateExamResult.objects.create(

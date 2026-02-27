@@ -616,11 +616,13 @@ class Candidate(models.Model):
             models.Index(fields=["school_name"]),
         ]
 
+
 class CowrywiseKidProfile(models.Model):
     """
     Represents a candidate participation in the Cowrywise financial literary game
     for children and teens.
     """
+
     username = models.CharField(
         unique=True,
         max_length=255,

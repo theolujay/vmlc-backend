@@ -87,7 +87,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
 
         for exam in instance.exams.all():
             invalidate_exam_cache(exam.id)
-        
+
         invalidate_question_pool()
         invalidate_staff_dashboard()
 
@@ -100,7 +100,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
 
         for exam in instance.exams.all():
             invalidate_exam_cache(exam.id)
-        
+
         instance.archive()
         invalidate_question_pool()
         invalidate_staff_dashboard()
@@ -168,7 +168,7 @@ class QuestionBulkActionV2View(APIView):
                 if new_questions:
                     exam.questions.add(*new_questions)
                     invalidate_exam_cache(exam.id)
-            
+
             invalidate_question_pool()
             msg = f"Assigned questions to {exams.count()} exams."
 
@@ -193,7 +193,7 @@ class QuestionBulkActionV2View(APIView):
             for exam in exams:
                 exam.questions.remove(*questions)
                 invalidate_exam_cache(exam.id)
-            
+
             invalidate_question_pool()
             msg = (
                 f"Unassigned {questions.count()} questions from {exams.count()} exams."

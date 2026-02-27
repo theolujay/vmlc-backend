@@ -347,9 +347,9 @@ def generate_results_snapshot(staff_id=None):
             "The overall results snapshot has been published. "
             "Please check your dashboard to see your updated standing and performance across all exams."
         )
-        active_candidates = Candidate.objects.filter(user__is_active=True).select_related(
-            "user"
-        )
+        active_candidates = Candidate.objects.filter(
+            user__is_active=True
+        ).select_related("user")
         for candidate in active_candidates:
             notification_service.notify_user(
                 user=candidate.user,

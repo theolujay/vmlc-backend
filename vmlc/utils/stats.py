@@ -78,7 +78,9 @@ def _get_helpdesk_stats() -> dict:
             status=HelpdeskThread.Status.RESOLVED
         ).count(),
         "unassigned_threads": threads_qs.filter(assigned_staff__isnull=True).count(),
-        "unattended_candidates": annotate_thread_with_staff_unread_count(threads_qs).filter(unread_cnt__gt=0).count(),
+        "unattended_candidates": annotate_thread_with_staff_unread_count(threads_qs)
+        .filter(unread_cnt__gt=0)
+        .count(),
         "unread_messages": unread_messages_count,
         "public_requests": PublicSupportRequest.objects.count(),
     }

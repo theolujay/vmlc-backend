@@ -65,9 +65,7 @@ vmlc_urlpatterns = [
     path("v2/", include("vmlc.v2.urls", namespace="vmlc-v2")),
 ]
 
-identity_urlpatterns = [
-    path("v1/", include("identity.urls", namespace="identity"))
-]
+identity_urlpatterns = [path("v1/", include("identity.urls", namespace="identity"))]
 
 comms_urlpatterns = [
     path("v1/", include("comms.urls", namespace="comms")),

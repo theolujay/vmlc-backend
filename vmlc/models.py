@@ -199,7 +199,7 @@ class Exam(models.Model):
         choices=Status.choices,
         null=True,
         blank=True,
-        help_text="For testing only: temporarily override the computed status."
+        help_text="For testing only: temporarily override the computed status.",
     )
 
     def retract(self):
@@ -566,9 +566,7 @@ class ExamAccess(models.Model):
     )
 
     facilitator_system = models.CharField(
-        max_length=20,
-        choices=Facilitator.choices,
-        default=Facilitator.VMLC
+        max_length=20, choices=Facilitator.choices, default=Facilitator.VMLC
     )
     status = models.CharField(
         max_length=20,
@@ -606,9 +604,8 @@ class ExamAccess(models.Model):
             models.Index(fields=["candidate", "status"]),
         ]
 
+
 class ExamAccessPasscode(models.Model):
-
-
 
     class Status(models.TextChoices):
 
@@ -618,86 +615,54 @@ class ExamAccessPasscode(models.Model):
 
         EXPIRED = "expired", "Expired"
 
-
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     exam_access = models.OneToOneField(
-
         "ExamAccess",
-
         blank=True,
-
         null=True,
-
         on_delete=models.CASCADE,
-
         related_name="exam_access",
-
     )
 
     access_url = models.URLField(
-
         null=True,
-
         blank=True,
-
         help_text="Candidate-specific exam URL on the facilitator.",
-
     )
 
     passcode = models.CharField(
-
         max_length=64,
-
         null=True,
-
         blank=True,
-
         db_index=True,
-
         help_text="Opaque passcode or token embedded in the URL.",
-
     )
 
     is_passcode_sent = models.BooleanField(
-
         default=False,
-
         help_text="Whether the passcode email has been sent to the candidate.",
-
     )
 
     expiry_date = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(
-
         max_length=20,
-
         choices=Status.choices,
-
         default=Status.ISSUED,
-
         db_index=True,
-
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 
-
-
     def regenerate_passcode(self, *args):
 
         pass
 
 
-
-
-
 class CacheManagement(models.Model):
-
     """
 
     Proxy model for cache management in the admin panel.

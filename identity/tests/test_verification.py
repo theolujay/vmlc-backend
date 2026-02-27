@@ -36,8 +36,6 @@ class UserVerificationEndpointsTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-
-
 class UserVerificationAdminEndpointsTest(APITestCase):
 
     def setUp(self):

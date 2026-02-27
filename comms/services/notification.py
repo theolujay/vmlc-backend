@@ -94,6 +94,7 @@ class NotificationService:
 
                 elif medium == Broadcast.Mediums.EMAIL:
                     from comms.tasks import send_mail_task
+
                     send_mail_task.delay(
                         subject=subject, message=message, recipient_list=[user.email]
                     )
@@ -112,7 +113,9 @@ class NotificationService:
             except Exception as e:
                 logger.error(
                     "Failed to send %s notification to user %s: %s",
-                    medium, user.id, e,
+                    medium,
+                    user.id,
+                    e,
                 )
                 results[medium] = False
 
@@ -143,8 +146,12 @@ class NotificationService:
         broadcast.last_attempt = timezone.now()
         broadcast.save(update_fields=["status", "last_attempt", "retry_count"])
 
-        logger.info("Starting broadcast %s (retry #%d): '%s'",
-                    broadcast_id, broadcast.retry_count, broadcast.subject)
+        logger.info(
+            "Starting broadcast %s (retry #%d): '%s'",
+            broadcast_id,
+            broadcast.retry_count,
+            broadcast.subject,
+        )
 
         total_attempts = 0
         successful_attempts = 0
@@ -183,14 +190,17 @@ class NotificationService:
                             # Note: Bulk SMS task might update this log asynchronously
                             self._send_sms_broadcast(broadcast, recipients, log)
                         elif medium == Broadcast.Mediums.WHATSAPP:
-                            pass # Not yet implemented
+                            pass  # Not yet implemented
                         else:
                             raise InvalidMediumError(
                                 "Unknown medium specified: %s" % medium
                             )
 
                         # For synchronous mediums (Email, Platform), we mark as sent here
-                        if medium in [Broadcast.Mediums.EMAIL, Broadcast.Mediums.PLATFORM]:
+                        if medium in [
+                            Broadcast.Mediums.EMAIL,
+                            Broadcast.Mediums.PLATFORM,
+                        ]:
                             log.status = BroadcastLog.MediumStatus.SENT
                             log.sent_at = timezone.now()
                             log.message = "Successfully sent to %d recipients" % count
@@ -212,7 +222,11 @@ class NotificationService:
                         log.save(update_fields=["status", "message"])
                         logger.error(
                             "Error for broadcast %s (%s -> %s:%s): %s",
-                            broadcast_id, medium, user_type, role, e,
+                            broadcast_id,
+                            medium,
+                            user_type,
+                            role,
+                            e,
                         )
 
         # Final status resolution: only if no logs are still PENDING
@@ -226,7 +240,9 @@ class NotificationService:
 
         # Atomically increment total_recipients
         if total_recipients_reached > 0:
-            broadcast.total_recipients = F("total_recipients") + total_recipients_reached
+            broadcast.total_recipients = (
+                F("total_recipients") + total_recipients_reached
+            )
 
         broadcast.save(update_fields=["status", "total_recipients", "sent_at"])
 
@@ -262,17 +278,15 @@ class NotificationService:
         if exam.competition_slot is None:
             logger.warning(
                 "Exam %s has no competition_slot; skipping '%s' notifications.",
-                exam.id, event_type,
+                exam.id,
+                event_type,
             )
             return
 
         stage = exam.competition_slot.competition_stage
-        enrollment_stage_progresses = (
-            EnrollmentStageProgress.objects.filter(
-                stage=stage, status=EnrollmentStageProgress.Status.IN_PROGRESS
-            )
-            .select_related("enrollment__candidate__user")
-        )
+        enrollment_stage_progresses = EnrollmentStageProgress.objects.filter(
+            stage=stage, status=EnrollmentStageProgress.Status.IN_PROGRESS
+        ).select_related("enrollment__candidate__user")
 
         if not enrollment_stage_progresses.exists():
             logger.info(
@@ -280,8 +294,8 @@ class NotificationService:
             )
             return
 
-        subject, message_template, sms_template, template_kwargs = self._build_exam_notification_content(
-            exam, event_type
+        subject, message_template, sms_template, template_kwargs = (
+            self._build_exam_notification_content(exam, event_type)
         )
 
         phone_grouped_users: Dict[str, list] = {}
@@ -325,7 +339,7 @@ class NotificationService:
             )
             self.notify_user(
                 user=users[0],
-                subject="", # For SMS, the subject is already within the message
+                subject="",  # For SMS, the subject is already within the message
                 message=personalized_sms,
                 mediums=phone_mediums,
                 notification_type="info",
@@ -333,12 +347,12 @@ class NotificationService:
 
         logger.info(
             "Queued '%s' notifications for exam %s to %d candidate(s).",
-            event_type, exam.id, notification_count,
+            event_type,
+            exam.id,
+            notification_count,
         )
 
-    def send_phone_msg(
-        self, body: str, recipient: str, medium: str
-    ) -> Dict[str, Any]:
+    def send_phone_msg(self, body: str, recipient: str, medium: str) -> Dict[str, Any]:
         """
         Send a single SMS or WhatsApp message to one recipient.
 
@@ -358,11 +372,24 @@ class NotificationService:
         except TwilioRestException as e:
             logger.error(
                 "Failed to send %s to %s: [%s] %s",
-                medium.upper(), recipient[:8] + "***", e.code, e.msg,
+                medium.upper(),
+                recipient[:8] + "***",
+                e.code,
+                e.msg,
             )
-            return {"success": False, "recipient": recipient, "error": "[%s] %s" % (e.code, e.msg), "sid": None}
+            return {
+                "success": False,
+                "recipient": recipient,
+                "error": "[%s] %s" % (e.code, e.msg),
+                "sid": None,
+            }
 
-        return {"success": False, "recipient": recipient, "error": "Unknown error", "sid": None}
+        return {
+            "success": False,
+            "recipient": recipient,
+            "error": "Unknown error",
+            "sid": None,
+        }
 
     def send_bulk_phone_msg(
         self,
@@ -395,16 +422,19 @@ class NotificationService:
         sms_provider = getattr(settings, "SMS_PROVIDER", "kudi").lower()
         if medium == "sms" and sms_provider == "kudi":
             from comms.tasks import send_bulk_sms_task
+
             send_bulk_sms_task.delay(
                 body=body, recipients=recipients, broadcast_log_id=broadcast_log_id
             )
             logger.info(
                 "Queued bulk SMS task for %d recipients (log: %s).",
-                len(recipients), broadcast_log_id,
+                len(recipients),
+                broadcast_log_id,
             )
             return {
                 "status": "QUEUED",
-                "message": "Task queued to send SMS to %d recipients." % len(recipients),
+                "message": "Task queued to send SMS to %d recipients."
+                % len(recipients),
                 "total": len(recipients),
             }
 
@@ -421,7 +451,10 @@ class NotificationService:
 
         logger.info(
             "Bulk %s complete: %d succeeded, %d failed out of %d total.",
-            medium.upper(), success_count, failure_count, len(recipients),
+            medium.upper(),
+            success_count,
+            failure_count,
+            len(recipients),
         )
 
         return {
@@ -478,9 +511,7 @@ class NotificationService:
             )
         return True
 
-    def _dispatch_phone_notification(
-        self, user, body: str, medium: str
-    ) -> bool:
+    def _dispatch_phone_notification(self, user, body: str, medium: str) -> bool:
         """Normalize the user's phone number and dispatch an SMS or WhatsApp message."""
         if not (hasattr(user, "phone") and user.phone):
             logger.warning(
@@ -516,15 +547,15 @@ class NotificationService:
                 )
                 logger.info(
                     "Found %d active %s users for role '%s'.",
-                    len(recipients_by_key[key]), user_type, role,
+                    len(recipients_by_key[key]),
+                    user_type,
+                    role,
                 )
 
         return recipients_by_key
 
     @staticmethod
-    def _resolve_broadcast_status(
-        total_attempts: int, successful_attempts: int
-    ) -> str:
+    def _resolve_broadcast_status(total_attempts: int, successful_attempts: int) -> str:
         """Derive the overall broadcast status from attempt counts."""
         if successful_attempts == total_attempts:
             return Broadcast.Status.SENT
@@ -563,12 +594,14 @@ class NotificationService:
             )
             logger.info(
                 "SMS broadcast %s queued for %d recipients.",
-                broadcast.id, len(valid_phones),
+                broadcast.id,
+                len(valid_phones),
             )
         except Exception as e:
             logger.error(
                 "Failed to queue SMS broadcast task for broadcast %s: %s",
-                broadcast.id, e,
+                broadcast.id,
+                e,
             )
             raise ValidationError("SMS task queuing error: %s" % e) from e
 
@@ -590,7 +623,9 @@ class NotificationService:
         send_mass_mail((mail_details,), fail_silently=False)
         logger.info(
             "Email queued for broadcast %s to %d recipients (role: %s).",
-            broadcast.id, len(valid_emails), role,
+            broadcast.id,
+            len(valid_emails),
+            role,
         )
 
     def _send_platform_broadcast(
@@ -600,9 +635,7 @@ class NotificationService:
 
         user_ids = [r["user__id"] for r in recipients if r.get("user__id")]
         if not user_ids:
-            raise NoRecipientsFoundError(
-                "No user IDs found for role '%s'." % role
-            )
+            raise NoRecipientsFoundError("No user IDs found for role '%s'." % role)
 
         full_body = (
             "%s:\n\n%s" % (broadcast.subject, broadcast.message)
@@ -628,7 +661,8 @@ class NotificationService:
         except DatabaseError as e:
             logger.error(
                 "Database error during notification bulk_create for broadcast %s: %s",
-                broadcast.id, e,
+                broadcast.id,
+                e,
             )
             raise ServerError("Failed to save notifications to the database.") from e
 
@@ -667,10 +701,13 @@ class NotificationService:
             except Exception as e:
                 logger.error(
                     "Failed to send notification to group %s for broadcast %s: %s",
-                    group_name, broadcast.id, e,
+                    group_name,
+                    broadcast.id,
+                    e,
                 )
 
             from vmlc.v2.utils import CacheKeys, invalidate_notifications
+
             unique_user_ids = set(user_ids)
             for user_id in unique_user_ids:
                 invalidate_notifications(user_id)
@@ -679,9 +716,10 @@ class NotificationService:
                 sender=self.send_broadcast, notifications=created_notifications
             )
             logger.info(
-            "Platform notifications created and pushed for %d users (role: %s).",
-            len(user_ids), role,
-        )
+                "Platform notifications created and pushed for %d users (role: %s).",
+                len(user_ids),
+                role,
+            )
 
     def _send_via_sms(self, body: str, recipient: str) -> Dict[str, Any]:
         """Send a single SMS, routing through the configured provider."""
@@ -728,10 +766,13 @@ class NotificationService:
             from_="whatsapp:%s" % settings.TWILIO_FROM_PHONE,
             to="whatsapp:%s" % recipient,
         )
-        logger.info(
-            "Sent WhatsApp to %s (SID: %s)", recipient[:8] + "***", message.sid
-        )
-        return {"success": True, "recipient": recipient, "error": None, "sid": message.sid}
+        logger.info("Sent WhatsApp to %s (SID: %s)", recipient[:8] + "***", message.sid)
+        return {
+            "success": True,
+            "recipient": recipient,
+            "error": None,
+            "sid": message.sid,
+        }
 
     @staticmethod
     def _build_exam_notification_content(exam, event_type: str):
@@ -777,6 +818,7 @@ class NotificationService:
             }
         else:  # started
             from datetime import timedelta
+
             conclusion_time = exam.scheduled_date + timedelta(
                 hours=exam.open_duration_hours
             )

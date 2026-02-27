@@ -11,6 +11,7 @@ from vmlc.models import Exam, ExamAccess
 
 User = get_user_model()
 
+
 class HelpdeskTests(APITestCase):
 
     def setUp(self):
@@ -22,8 +23,7 @@ class HelpdeskTests(APITestCase):
             last_name="User",
         )
         self.candidate_profile = Candidate.objects.create(
-            user=self.candidate_user,
-            school_name="Test School"
+            user=self.candidate_user, school_name="Test School"
         )
 
         # Create Staff
@@ -34,8 +34,7 @@ class HelpdeskTests(APITestCase):
             last_name="User",
         )
         self.staff_profile = Staff.objects.create(
-            user=self.staff_user,
-            role=Staff.Roles.ADMIN
+            user=self.staff_user, role=Staff.Roles.ADMIN
         )
 
         # Create another Staff
@@ -58,14 +57,18 @@ class HelpdeskTests(APITestCase):
         # First call creates the thread
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(HelpdeskThread.objects.filter(candidate=self.candidate_profile).exists())
+        self.assertTrue(
+            HelpdeskThread.objects.filter(candidate=self.candidate_profile).exists()
+        )
 
         # Verify system message
         thread = HelpdeskThread.objects.get(candidate=self.candidate_profile)
         self.assertEqual(thread.messages.count(), 1)
-        self.assertEqual(thread.messages.first().sender_type, ThreadMessage.SenderType.SYSTEM)
+        self.assertEqual(
+            thread.messages.first().sender_type, ThreadMessage.SenderType.SYSTEM
+        )
 
-    @patch('channels.layers.get_channel_layer')
+    @patch("channels.layers.get_channel_layer")
     def test_post_message_candidate(self, mock_get_channel_layer):
         """Test candidate posting a message to their thread."""
         mock_layer = MagicMock()
@@ -78,11 +81,18 @@ class HelpdeskTests(APITestCase):
         url = reverse("comms:helpdesk-thread-message", kwargs={"thread_id": thread.id})
         data = {"text": "Hello helpdesk!"}
 
-        with patch('comms.tasks.helpdesk_escalation_task.apply_async') as mock_escalation:
+        with patch(
+            "comms.tasks.helpdesk_escalation_task.apply_async"
+        ) as mock_escalation:
             response = self.client.post(url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(thread.messages.filter(sender_type=ThreadMessage.SenderType.CANDIDATE).count(), 1)
+        self.assertEqual(
+            thread.messages.filter(
+                sender_type=ThreadMessage.SenderType.CANDIDATE
+            ).count(),
+            1,
+        )
 
         # Verify WebSocket broadcast
         mock_layer.group_send.assert_called()
@@ -99,7 +109,7 @@ class HelpdeskTests(APITestCase):
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_staff_detail_marks_read(self):
         """Test that staff opening a thread marks messages as read."""
@@ -108,7 +118,7 @@ class HelpdeskTests(APITestCase):
             thread=thread,
             sender=self.candidate_user,
             sender_type=ThreadMessage.SenderType.CANDIDATE,
-            text="Unread message"
+            text="Unread message",
         )
 
         self.client.force_authenticate(user=self.staff_user)
@@ -118,10 +128,12 @@ class HelpdeskTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Verify message marked as read
-        self.assertTrue(MessageRead.objects.filter(message=msg, user=self.staff_user).exists())
+        self.assertTrue(
+            MessageRead.objects.filter(message=msg, user=self.staff_user).exists()
+        )
 
-    @patch('comms.tasks.slack_service.send_support_escalation_alert')
-    @patch('comms.tasks.notification_service.notify_user')
+    @patch("comms.tasks.slack_service.send_support_escalation_alert")
+    @patch("comms.tasks.notification_service.notify_user")
     def test_escalation_task_triggers_on_no_reply(self, mock_notify, mock_slack):
         """Test that escalation task triggers notifications if no staff reply and candidate is in ongoing exam."""
         from comms.tasks import helpdesk_escalation_task
@@ -129,8 +141,9 @@ class HelpdeskTests(APITestCase):
         # Create a real Exam and ExamAccess instance for the test
         exam = Exam.objects.create(
             description="Test Exam",
-            scheduled_date=timezone.now() - timezone.timedelta(hours=1), # Started an hour ago
-            open_duration_hours=2 # Open for 2 hours
+            scheduled_date=timezone.now()
+            - timezone.timedelta(hours=1),  # Started an hour ago
+            open_duration_hours=2,  # Open for 2 hours
         )
         # Use the override field
         exam._status_override = Exam.Status.ONGOING
@@ -140,7 +153,8 @@ class HelpdeskTests(APITestCase):
             candidate=self.candidate_profile,
             exam=exam,
             status=ExamAccess.Status.STARTED,
-            deadline=timezone.now() + timezone.timedelta(minutes=10) # Set a future deadline
+            deadline=timezone.now()
+            + timezone.timedelta(minutes=10),  # Set a future deadline
         )
 
         thread = HelpdeskThread.objects.create(candidate=self.candidate_profile)
@@ -149,7 +163,7 @@ class HelpdeskTests(APITestCase):
             sender=self.candidate_user,
             sender_type=ThreadMessage.SenderType.CANDIDATE,
             text="I need help with my exam!",
-            metadata={"exam_id": str(exam.id)} # Include exam_id in metadata
+            metadata={"exam_id": str(exam.id)},  # Include exam_id in metadata
         )
 
         # Manually run the task
@@ -159,7 +173,7 @@ class HelpdeskTests(APITestCase):
         mock_slack.assert_called_once()
         self.assertTrue(mock_notify.called)
 
-    @patch('comms.tasks.slack_service.send_support_escalation_alert')
+    @patch("comms.tasks.slack_service.send_support_escalation_alert")
     def test_escalation_task_does_not_trigger_if_no_ongoing_exam(self, mock_slack):
         """Test that escalation task does NOT trigger if no ongoing exam."""
         from comms.tasks import helpdesk_escalation_task
@@ -167,17 +181,18 @@ class HelpdeskTests(APITestCase):
         # Create a real Exam and ExamAccess instance for the test, but make it not ongoing
         exam = Exam.objects.create(
             description="Test Exam",
-            scheduled_date=timezone.now() - timezone.timedelta(hours=3), # Concluded 3 hours ago
-            open_duration_hours=1 # Open for 1 hour
+            scheduled_date=timezone.now()
+            - timezone.timedelta(hours=3),  # Concluded 3 hours ago
+            open_duration_hours=1,  # Open for 1 hour
         )
-        exam._status_override = Exam.Status.CONCLUDED # Use the override field
-        exam.save() # Save the override
+        exam._status_override = Exam.Status.CONCLUDED  # Use the override field
+        exam.save()  # Save the override
 
         ExamAccess.objects.create(
             candidate=self.candidate_profile,
             exam=exam,
-            status=ExamAccess.Status.SUBMITTED, # Not started
-            deadline=timezone.now() - timezone.timedelta(minutes=10) # Past deadline
+            status=ExamAccess.Status.SUBMITTED,  # Not started
+            deadline=timezone.now() - timezone.timedelta(minutes=10),  # Past deadline
         )
 
         thread = HelpdeskThread.objects.create(candidate=self.candidate_profile)
@@ -186,7 +201,9 @@ class HelpdeskTests(APITestCase):
             sender=self.candidate_user,
             sender_type=ThreadMessage.SenderType.CANDIDATE,
             text="I need help, but not with an exam.",
-            metadata={"exam_id": str(exam.id)} # Still include exam_id but access will fail
+            metadata={
+                "exam_id": str(exam.id)
+            },  # Still include exam_id but access will fail
         )
 
         # Run the task for the candidate message
@@ -195,7 +212,7 @@ class HelpdeskTests(APITestCase):
         # Verify Slack was NOT triggered
         mock_slack.assert_not_called()
 
-    @patch('comms.tasks.slack_service.send_support_escalation_alert')
+    @patch("comms.tasks.slack_service.send_support_escalation_alert")
     def test_escalation_task_does_not_trigger_if_staff_replied(self, mock_slack):
         """Test that escalation task does NOT trigger if a staff has already replied."""
         from comms.tasks import helpdesk_escalation_task
@@ -205,7 +222,7 @@ class HelpdeskTests(APITestCase):
             thread=thread,
             sender=self.candidate_user,
             sender_type=ThreadMessage.SenderType.CANDIDATE,
-            text="I need help!"
+            text="I need help!",
         )
 
         # Staff replies
@@ -213,7 +230,7 @@ class HelpdeskTests(APITestCase):
             thread=thread,
             sender=self.staff_user,
             sender_type=ThreadMessage.SenderType.STAFF,
-            text="I am here to help."
+            text="I am here to help.",
         )
 
         # Run the task for the candidate message

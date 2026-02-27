@@ -154,7 +154,3 @@ class DashboardEndpointsTest(APITestCase):
         self.verification = UserVerification.objects.create(
             user=self.staff_user, is_approved=False
         )
-
-
-
-

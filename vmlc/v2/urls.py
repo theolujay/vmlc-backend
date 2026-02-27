@@ -23,7 +23,11 @@ app_name = "vmlc-v2"
 
 urlpatterns = [
     path("register/", RegistrationV2View.as_view(), name="register"),
-    path("auth/direct-access/", DirectAccessLoginView.as_view(), name="direct-access-login"),
+    path(
+        "auth/direct-access/",
+        DirectAccessLoginView.as_view(),
+        name="direct-access-login",
+    ),
     path("pre-register/", PreRegistrationView.as_view(), name="pre-register"),
     path("registration/", registration_status, name="registration-status"),
     # =============================================================================

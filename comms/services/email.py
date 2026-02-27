@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_email_html(
-    subject: str, message: str, otp: Optional[str] = None, otp_message: Optional[str] = None
+    subject: str,
+    message: str,
+    otp: Optional[str] = None,
+    otp_message: Optional[str] = None,
 ) -> str:
     """
     Renders the email HTML template with the provided context.

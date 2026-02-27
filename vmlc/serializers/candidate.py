@@ -78,8 +78,11 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     profile_type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     is_setup_complete = serializers.SerializerMethodField()
-    cowrywise_kid_profile = CowrywiseKidProfileSerializer(required=False, allow_null=True)
+    cowrywise_kid_profile = CowrywiseKidProfileSerializer(
+        required=False, allow_null=True
+    )
     current_stage = serializers.SerializerMethodField()
+
     class Meta:
         model: Candidate = Candidate
         fields = [
@@ -163,7 +166,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        cowrywise_kid_profile_data = validated_data.pop('cowrywise_kid_profile', None)
+        cowrywise_kid_profile_data = validated_data.pop("cowrywise_kid_profile", None)
 
         # Update Candidate instance separately
         instance = super().update(instance, validated_data)
@@ -179,4 +182,3 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         #     instance.cowrywise_kid_profile.delete()
 
         return instance
-

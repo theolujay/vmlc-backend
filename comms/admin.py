@@ -12,6 +12,7 @@ from comms.models import (
     ThreadMessage,
 )
 
+
 @admin.register(PublicSupportRequest)
 class PublicSupportRequestAdmin(admin.ModelAdmin):
     list_display = ["full_name", "email", "type", "organization", "created_at"]
@@ -19,20 +20,36 @@ class PublicSupportRequestAdmin(admin.ModelAdmin):
     search_fields = ["full_name", "email", "organization", "message"]
     date_hierarchy = "created_at"
 
+
 class ThreadMessageInline(admin.TabularInline):
     model = ThreadMessage
     extra = 0
     readonly_fields = ["created_at"]
     fields = ["sender", "sender_type", "text", "metadata", "created_at"]
 
+
 @admin.register(HelpdeskThread)
 class HelpdeskThreadAdmin(admin.ModelAdmin):
-    list_display = ["id", "candidate", "assigned_staff", "status", "priority", "last_message_at", "created_at"]
+    list_display = [
+        "id",
+        "candidate",
+        "assigned_staff",
+        "status",
+        "priority",
+        "last_message_at",
+        "created_at",
+    ]
     list_filter = ["status", "priority", "created_at"]
-    search_fields = ["candidate__email", "candidate__first_name", "candidate__last_name", "assigned_staff__user__email"]
+    search_fields = [
+        "candidate__email",
+        "candidate__first_name",
+        "candidate__last_name",
+        "assigned_staff__user__email",
+    ]
     inlines = [ThreadMessageInline]
     date_hierarchy = "created_at"
     autocomplete_fields = ["candidate", "assigned_staff"]
+
 
 @admin.register(Broadcast)
 class BroadcastAdmin(admin.ModelAdmin):

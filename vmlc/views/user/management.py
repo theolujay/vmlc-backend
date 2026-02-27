@@ -81,7 +81,9 @@ class RequestDataExtractor:
     USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone", "state"}
     PROFILE_FIELDS = {"occupation", "current_class", "school_type"}
     FILE_FIELDS = {"profile_picture"}
-    NESTED_PROFILE_PREFIXES = {"cowrywise_kid_profile"} # Keys that indicate nested profile data
+    NESTED_PROFILE_PREFIXES = {
+        "cowrywise_kid_profile"
+    }  # Keys that indicate nested profile data
 
     @classmethod
     def extract(cls, request_data):
@@ -96,9 +98,11 @@ class RequestDataExtractor:
             if not cls._is_valid_value(key, value):
                 continue
 
-            parsed_key = cls._parse_key(key) # New method for parsing
+            parsed_key = cls._parse_key(key)  # New method for parsing
 
-            if isinstance(parsed_key, tuple): # This is a nested field (e.g., ("cowrywise_kid_profile", "username"))
+            if isinstance(
+                parsed_key, tuple
+            ):  # This is a nested field (e.g., ("cowrywise_kid_profile", "username"))
                 parent_key, child_key = parsed_key
                 if parent_key in cls.NESTED_PROFILE_PREFIXES:
                     profile_data.setdefault(parent_key, {})[child_key] = value
@@ -124,7 +128,9 @@ class RequestDataExtractor:
         # For now, let's just check if the top-level part of the key is a file field.
         top_level_key = cls._parse_key(key)
         if isinstance(top_level_key, tuple):
-            top_level_key = top_level_key[0] # For nested like 'cowrywise_kid_profile.username' -> 'cowrywise_kid_profile'
+            top_level_key = top_level_key[
+                0
+            ]  # For nested like 'cowrywise_kid_profile.username' -> 'cowrywise_kid_profile'
 
         if top_level_key in cls.FILE_FIELDS:
             return isinstance(value, UploadedFile)
@@ -161,12 +167,16 @@ class RequestDataExtractor:
         if "." in key:
             parts = key.split(".", 1)
             if len(parts) == 2:
-                logger.debug(f"RequestDataExtractor._parse_key: Returning tuple: {(parts[0], parts[1])}")
+                logger.debug(
+                    f"RequestDataExtractor._parse_key: Returning tuple: {(parts[0], parts[1])}"
+                )
                 return (parts[0], parts[1])
 
         match = re.match(r"(\w+)\[(\w+)\]", key)
         if match:
-            logger.debug(f"RequestDataExtractor._parse_key: Returning tuple from bracket match: {match.groups()}")
+            logger.debug(
+                f"RequestDataExtractor._parse_key: Returning tuple from bracket match: {match.groups()}"
+            )
             return match.groups()
 
         logger.debug(f"RequestDataExtractor._parse_key: Returning direct key: {key}")

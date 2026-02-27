@@ -13,13 +13,17 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--name", type=str, default="Demo Competition", help="Name of the competition"
+            "--name",
+            type=str,
+            default="Demo Competition",
+            help="Name of the competition",
         )
+        parser.add_argument("--edition", type=int, default=1, help="Edition number")
         parser.add_argument(
-            "--edition", type=int, default=1, help="Edition number"
-        )
-        parser.add_argument(
-            "--candidates", type=int, default=10, help="Number of demo candidates to create"
+            "--candidates",
+            type=int,
+            default=10,
+            help="Number of demo candidates to create",
         )
         parser.add_argument(
             "--exam-id", type=str, help="UUID of an existing exam to use for Screening"
@@ -43,7 +47,9 @@ class Command(BaseCommand):
                 },
             )
             if created:
-                self.stdout.write(self.style.SUCCESS(f"Created competition: {competition}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created competition: {competition}")
+                )
             else:
                 self.stdout.write(f"Using existing competition: {competition}")
 
@@ -67,7 +73,9 @@ class Command(BaseCommand):
                     self.stdout.write(f"Using provided exam: {exam}")
                 except Exam.DoesNotExist:
                     self.stdout.write(
-                        self.style.WARNING(f"Exam with ID {exam_id} not found. Creating a new one.")
+                        self.style.WARNING(
+                            f"Exam with ID {exam_id} not found. Creating a new one."
+                        )
                     )
 
             if not exam:
@@ -85,7 +93,11 @@ class Command(BaseCommand):
                         },
                     )
                     staff, _ = Staff.objects.get_or_create(
-                        user=user, defaults={"occupation": "Coordinator", "role": Staff.Roles.SUPERADMIN}
+                        user=user,
+                        defaults={
+                            "occupation": "Coordinator",
+                            "role": Staff.Roles.SUPERADMIN,
+                        },
                     )
                 exam, created = Exam.objects.get_or_create(
                     description=f"Demo Exam for {competition.name} Screening",

@@ -10,7 +10,9 @@ class Command(BaseCommand):
     help = "Import an exam and its questions from a JSON file."
 
     def add_arguments(self, parser):
-        parser.add_argument("file_path", type=str, help="Path to the JSON file to import")
+        parser.add_argument(
+            "file_path", type=str, help="Path to the JSON file to import"
+        )
         parser.add_argument(
             "--staff-email",
             type=str,

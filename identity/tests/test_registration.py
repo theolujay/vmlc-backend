@@ -50,9 +50,6 @@ class CandidateRegistrationSerializerTest(TestCase):
         self.assertIn("password2", serializer.errors)
 
 
-
-
-
 class RegistrationV2Tests(APITestCase):
     def setUp(self):
         # Enable feature flags
@@ -64,10 +61,6 @@ class RegistrationV2Tests(APITestCase):
         )
 
         self.url = reverse("vmlc-v2:register")
-
-
-
-
 
     def test_candidate_missing_fields(self):
         data = {
@@ -161,8 +154,6 @@ class RegistrationV2Tests(APITestCase):
             "occupation" in response.data["errors"]
             or "phone" in response.data["errors"]
         )
-
-
 
     def test_registration_no_consent(self):
         data = {

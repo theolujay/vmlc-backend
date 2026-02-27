@@ -153,11 +153,9 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
         self._handle_competition_slot(instance, stage_id, round)
 
-        if (
-            old_status == Exam.Status.DRAFT
-            and instance.status == Exam.Status.SCHEDULED
-        ):
+        if old_status == Exam.Status.DRAFT and instance.status == Exam.Status.SCHEDULED:
             from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+
             transaction.on_commit(
                 lambda: generate_and_send_exam_passcodes_task.delay(instance.id)
             )

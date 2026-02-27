@@ -8,7 +8,9 @@ from vmlc.models import Exam, Question
 from comms.models import Broadcast, HelpdeskThread
 
 
-def annotate_thread_with_staff_unread_count(queryset: QuerySet[HelpdeskThread]) -> QuerySet[HelpdeskThread]:
+def annotate_thread_with_staff_unread_count(
+    queryset: QuerySet[HelpdeskThread],
+) -> QuerySet[HelpdeskThread]:
     """
     Annotates a HelpdeskThread queryset with 'unread_cnt',
     representing messages unread by any staff member.
@@ -17,12 +19,14 @@ def annotate_thread_with_staff_unread_count(queryset: QuerySet[HelpdeskThread]) 
         unread_cnt=Count(
             "messages",
             filter=~Q(messages__reads__user__staff_profile__isnull=False),
-            distinct=True
+            distinct=True,
         )
     )
 
 
-def filter_broadcasts(queryset: QuerySet[Broadcast], params: Any) -> QuerySet[Broadcast]:
+def filter_broadcasts(
+    queryset: QuerySet[Broadcast], params: Any
+) -> QuerySet[Broadcast]:
     """
     Filter broadcast queryset based on optional query parameters.
 
@@ -303,7 +307,9 @@ def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Ques
     return queryset
 
 
-def filter_helpdesk_threads(queryset: QuerySet[HelpdeskThread], params: Any) -> QuerySet[HelpdeskThread]:
+def filter_helpdesk_threads(
+    queryset: QuerySet[HelpdeskThread], params: Any
+) -> QuerySet[HelpdeskThread]:
     """
     Filter and sort HelpdeskThread queryset based on optional query parameters.
 
@@ -332,9 +338,9 @@ def filter_helpdesk_threads(queryset: QuerySet[HelpdeskThread], params: Any) -> 
 
     if search:
         queryset = queryset.filter(
-            Q(candidate__user__first_name__icontains=search) |
-            Q(candidate__user__last_name__icontains=search) |
-            Q(candidate__user__email__icontains=search)
+            Q(candidate__user__first_name__icontains=search)
+            | Q(candidate__user__last_name__icontains=search)
+            | Q(candidate__user__email__icontains=search)
         )
 
     if status:
@@ -343,7 +349,7 @@ def filter_helpdesk_threads(queryset: QuerySet[HelpdeskThread], params: Any) -> 
     if priority:
         queryset = queryset.filter(priority=priority)
 
-    if unread and unread.lower() == 'true':
+    if unread and unread.lower() == "true":
         queryset = queryset.filter(unread_cnt__gt=0)
 
     # Sorting
@@ -354,6 +360,7 @@ def filter_helpdesk_threads(queryset: QuerySet[HelpdeskThread], params: Any) -> 
         queryset = queryset.order_by("-unread_cnt", "-last_message_at")
 
     return queryset
+
 
 class ExamFilter(django_filters.FilterSet):
     """

@@ -311,5 +311,3 @@ class PreRegUserSerializer(serializers.ModelSerializer):
     def validate_full_name(self, value):
         """Normalize full name to title case."""
         return normalize_title(value)
-
-

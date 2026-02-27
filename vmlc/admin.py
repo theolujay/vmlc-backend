@@ -58,6 +58,7 @@ class ExamAdmin(admin.ModelAdmin):
     @admin.action(description="Generate and Send Direct Access Passcodes")
     def generate_and_send_passcodes(self, request, queryset):
         from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+
         for exam in queryset:
             generate_and_send_exam_passcodes_task.delay(exam.id)
         self.message_user(
@@ -501,7 +502,9 @@ class CacheManagementAdmin(admin.ModelAdmin):
 
         if "clear" in request.GET:
             cache.clear()
-            self.message_user(request, "All caches cleared successfully.", messages.SUCCESS)
+            self.message_user(
+                request, "All caches cleared successfully.", messages.SUCCESS
+            )
             return redirect("admin:vmlc_cachemanagement_changelist")
 
         extra_context = extra_context or {}
@@ -532,7 +535,9 @@ class ExamAccessPasscodeAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
 
-    @admin.display(description="Candidate", ordering="exam_access__candidate__user__email")
+    @admin.display(
+        description="Candidate", ordering="exam_access__candidate__user__email"
+    )
     def candidate_email(self, obj):
         return obj.exam_access.candidate.user.email
 

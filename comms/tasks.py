@@ -146,7 +146,9 @@ def notify_candidates_about_exam_task(exam_id, event_type):
         exam = Exam.objects.select_related("competition_slot__competition_stage").get(
             id=exam_id
         )
-        notification_service.notify_candidates_about_exam(exam=exam, event_type=event_type)
+        notification_service.notify_candidates_about_exam(
+            exam=exam, event_type=event_type
+        )
     except Exam.DoesNotExist:
         logger.error(f"Exam {exam_id} not found for notification task.")
 
@@ -158,7 +160,9 @@ def notify_candidates_about_exam_task(exam_id, event_type):
     default_retry_delay=3600,  # 1 hour
     queue="comms",
 )
-def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id: int = None):
+def send_bulk_sms_task(
+    self, body: str, recipients: List[str], broadcast_log_id: int = None
+):
     """
     Sends bulk SMS and retries if the balance is insufficient.
     Updates the BroadcastLog status if broadcast_log_id is provided.
@@ -176,7 +180,9 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
     try:
         estimated_cost = kudi_sms_service.estimate_cost(body, len(recipients))
         balance_resp = kudi_sms_service.get_balance()
-        current_balance = kudi_sms_service.parse_balance(balance_resp.get("balance", "0"))
+        current_balance = kudi_sms_service.parse_balance(
+            balance_resp.get("balance", "0")
+        )
 
         logger.info(
             "Kudi SMS Task: Cost ~%s N, Balance: %s N",
@@ -186,7 +192,8 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
 
         if current_balance < estimated_cost:
             logger.warning(
-                "Insufficient Kudi balance for bulk SMS (log: %s). Retrying in 1 hour.", broadcast_log_id
+                "Insufficient Kudi balance for bulk SMS (log: %s). Retrying in 1 hour.",
+                broadcast_log_id,
             )
             if self.request.retries == 0:
                 slack_service.send_low_kudi_balance_alert(
@@ -195,20 +202,27 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
             raise self.retry(countdown=3600)
 
         kudi_recipients = ",".join([r.lstrip("+") for r in recipients])
-        response = kudi_sms_service.send_bulk_sms(message=body, recipients=kudi_recipients)
+        response = kudi_sms_service.send_bulk_sms(
+            message=body, recipients=kudi_recipients
+        )
 
         is_success = response.get("status") == "success" or response.get("error") == 0
 
         if is_success:
-            logger.info("Bulk SMS via Kudi sent successfully for log %s.", broadcast_log_id)
+            logger.info(
+                "Bulk SMS via Kudi sent successfully for log %s.", broadcast_log_id
+            )
             if log:
                 from django.utils import timezone
                 from django.db.models import F
+
                 log.status = BroadcastLog.MediumStatus.SENT
                 log.sent_at = timezone.now()
                 log.recipient_count = len(recipients)
                 log.message = f"Successfully sent to {len(recipients)} recipients."
-                log.save(update_fields=["status", "sent_at", "recipient_count", "message"])
+                log.save(
+                    update_fields=["status", "sent_at", "recipient_count", "message"]
+                )
 
                 # Update broadcast stats and potentially final status
                 broadcast = log.broadcast
@@ -217,11 +231,16 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
                 broadcast.refresh_from_db()
 
                 # Check if this was the last pending medium/role
-                if not broadcast.logs.filter(status=BroadcastLog.MediumStatus.PENDING).exists():
+                if not broadcast.logs.filter(
+                    status=BroadcastLog.MediumStatus.PENDING
+                ).exists():
                     from comms.services.notification import NotificationService
+
                     ns = NotificationService()
                     total = broadcast.logs.count()
-                    success = broadcast.logs.filter(status=BroadcastLog.MediumStatus.SENT).count()
+                    success = broadcast.logs.filter(
+                        status=BroadcastLog.MediumStatus.SENT
+                    ).count()
                     broadcast.status = ns._resolve_broadcast_status(total, success)
                     if broadcast.status == broadcast.Status.SENT:
                         broadcast.sent_at = timezone.now()
@@ -230,14 +249,23 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
                     # Invalidate cache
                     from django.core.cache import cache
                     from vmlc.v2.utils import CacheKeys
-                    cache.delete(CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast.pk))
+
+                    cache.delete(
+                        CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast.pk)
+                    )
                     cache.delete(CacheKeys.BROADCAST_SUMMARY)
-                    logger.info(f"Invalidated broadcast cache for broadcast {broadcast.pk} from task.")
+                    logger.info(
+                        f"Invalidated broadcast cache for broadcast {broadcast.pk} from task."
+                    )
 
             return {"status": "SUCCESS", "count": len(recipients)}
         else:
             message = response.get("message", "Unknown error from Kudi")
-            logger.error("Bulk SMS via Kudi failed for log %s: %s. Retrying in 5 mins.", broadcast_log_id, message)
+            logger.error(
+                "Bulk SMS via Kudi failed for log %s: %s. Retrying in 5 mins.",
+                broadcast_log_id,
+                message,
+            )
             if log:
                 log.message = f"Kudi API Error: {message}. Retrying..."
                 log.save(update_fields=["message"])
@@ -246,7 +274,9 @@ def send_bulk_sms_task(self, body: str, recipients: List[str], broadcast_log_id:
     except self.retry as e:
         raise e
     except Exception as e:
-        logger.exception("Unexpected error in send_bulk_sms_task for log %s.", broadcast_log_id)
+        logger.exception(
+            "Unexpected error in send_bulk_sms_task for log %s.", broadcast_log_id
+        )
         if log:
             log.status = BroadcastLog.MediumStatus.FAILED
             log.message = f"Fatal Error: {str(e)}"
@@ -422,6 +452,7 @@ def send_otp_on_registration_task(self, user_id):
         logger.error(f"Failed to send OTP to user with id {user_id}: {exc}")
         raise self.retry(exc=exc, countdown=60)
 
+
 @shared_task(name="helpdesk_escalation_task", queue="comms")
 def helpdesk_escalation_task(message_id):
     """
@@ -435,7 +466,9 @@ def helpdesk_escalation_task(message_id):
     from django.utils import timezone
 
     try:
-        message = ThreadMessage.objects.select_related("thread__candidate").get(id=message_id)
+        message = ThreadMessage.objects.select_related("thread__candidate").get(
+            id=message_id
+        )
         thread = message.thread
         candidate = thread.candidate
 
@@ -443,7 +476,10 @@ def helpdesk_escalation_task(message_id):
         latest_message = thread.messages.order_by("-created_at").first()
         exam_title = None
         # Only proceed if the latest message is still from a candidate
-        if latest_message and latest_message.sender_type == ThreadMessage.SenderType.CANDIDATE:
+        if (
+            latest_message
+            and latest_message.sender_type == ThreadMessage.SenderType.CANDIDATE
+        ):
             exam_id = message.metadata.get("exam_id") if message.metadata else None
             is_ongoing_exam = False
 
@@ -491,7 +527,9 @@ def helpdesk_escalation_task(message_id):
 
             # If we reach here, it means the candidate is in an ongoing exam and
             # the latest message is still from them. Proceed with escalation.
-            logger.info(f"Escalating helpdesk thread {thread.id} - candidate in ongoing exam, no staff reply after 2 minutes.")
+            logger.info(
+                f"Escalating helpdesk thread {thread.id} - candidate in ongoing exam, no staff reply after 2 minutes."
+            )
 
             # 1. Send Slack Alert
             slack_service.send_support_escalation_alert(thread, latest_message)
@@ -499,7 +537,7 @@ def helpdesk_escalation_task(message_id):
             # 2. Get admins and managers for Email/SMS
             escalation_targets = Staff.objects.filter(
                 Q(role=Staff.Roles.MANAGER) | Q(role=Staff.Roles.ADMIN),
-                user__is_active=True
+                user__is_active=True,
             ).select_related("user")
 
             subject = f"URGENT: Helpdesk Escalation - {thread.candidate.user.get_full_name()} - {exam_title}"
@@ -518,7 +556,7 @@ def helpdesk_escalation_task(message_id):
                     subject=subject,
                     message=body,
                     mediums=["email", "platform"],
-                    type="alert"
+                    type="alert",
                 )
                 # Send SMS
                 if staff.user.phone:
@@ -527,7 +565,7 @@ def helpdesk_escalation_task(message_id):
                         subject=subject,
                         message=body,
                         mediums=["sms"],
-                        type="alert"
+                        type="alert",
                     )
 
     except ThreadMessage.DoesNotExist:
