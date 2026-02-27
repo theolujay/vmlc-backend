@@ -550,6 +550,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
     """
     permission_classes = ActiveModeratorPermissions
     serializer_class = HelpdeskThreadListSerializer
+    throttle_scope = 'helpdesk_threads'
 
     def list(self, request, *args, **kwargs):
         user = request.user
