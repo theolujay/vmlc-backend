@@ -46,8 +46,12 @@ from identity.permissions import (
     ActiveModeratorPermissions,
 )
 from vmlc.utils.helpers import sanitize_data
-from vmlc.utils.query_filters import filter_broadcasts, filter_helpdesk_threads
-from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
+from vmlc.utils.query_filters import (
+    filter_broadcasts,
+    filter_helpdesk_threads,
+    annotate_thread_with_staff_unread_count,
+    annotate_thread_with_last_candidate_message_at,
+)
 from vmlc.utils.stats import get_helpdesk_stats_cached
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 
@@ -614,9 +618,8 @@ class StaffHelpdeskThreadListView(ListAPIView):
             messages__sender_type=ThreadMessage.SenderType.CANDIDATE
         ).distinct()
 
-        queryset = annotate_thread_with_staff_unread_count(queryset).order_by(
-            "-last_message_at"
-        )
+        queryset = annotate_thread_with_staff_unread_count(queryset)
+        queryset = annotate_thread_with_last_candidate_message_at(queryset)
         return filter_helpdesk_threads(queryset, self.request.query_params)
 
 

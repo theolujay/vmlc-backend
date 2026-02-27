@@ -1,7 +1,7 @@
 from typing import Any, List
 
 import django_filters
-from django.db.models import Q, QuerySet, Count
+from django.db.models import Q, QuerySet, Count, Max
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
@@ -21,6 +21,21 @@ def annotate_thread_with_staff_unread_count(
             filter=Q(messages__sender_type=ThreadMessage.SenderType.CANDIDATE)
             & ~Q(messages__reads__user__staff_profile__isnull=False),
             distinct=True,
+        )
+    )
+
+
+def annotate_thread_with_last_candidate_message_at(
+    queryset: QuerySet[HelpdeskThread],
+) -> QuerySet[HelpdeskThread]:
+    """
+    Annotates a HelpdeskThread queryset with 'last_candidate_message_at',
+    representing the timestamp of the latest message sent by the candidate.
+    """
+    return queryset.annotate(
+        last_candidate_message_at=Max(
+            "messages__created_at",
+            filter=Q(messages__sender_type=ThreadMessage.SenderType.CANDIDATE),
         )
     )
 
@@ -358,7 +373,7 @@ def filter_helpdesk_threads(
         queryset = queryset.order_by(sort)
     else:
         # Default sorting
-        queryset = queryset.order_by("-unread_cnt", "-last_message_at")
+        queryset = queryset.order_by("-last_candidate_message_at", "-unread_cnt")
 
     return queryset
 
