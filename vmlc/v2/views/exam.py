@@ -31,7 +31,7 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_candidate_cache, invalidate_staff_dashboard, question_pool_aggregate
+from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_candidate_cache, invalidate_exam_cache, invalidate_staff_dashboard, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 
@@ -108,7 +108,7 @@ class ExamListV2View(ListCreateAPIView):
         """
         serializer.save(created_by=self.request.user.staff_profile)
 
-        from vmlc.v2.utils import invalidate_staff_dashboard
+        from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard
 
         invalidate_staff_dashboard()
 
@@ -187,7 +187,7 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         """
 
         instance = serializer.save(updated_by=self.request.user.staff_profile)
-        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
+        invalidate_exam_cache(instance.id)
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -226,7 +226,7 @@ class ExamRetractV2View(APIView):
         # Exam.save() will also set competition_slot.is_active to False.
         exam.save()
         logger.info(f"Exam {exam_id} retracted by user {request.user.id}")
-        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=exam.id))
+        invalidate_exam_cache(exam.id)
         invalidate_staff_dashboard()
 
         return Response({"message": "Exam retracted successfully."})
