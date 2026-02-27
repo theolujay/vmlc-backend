@@ -60,7 +60,10 @@ def get_geographic_stats_cached():
 
 def _get_helpdesk_stats() -> dict:
     """Helper to get helpdesk statistics."""
-    threads_qs = HelpdeskThread.objects.all()
+    # Only include threads that have at least one message from a candidate
+    threads_qs = HelpdeskThread.objects.filter(
+        messages__sender_type=ThreadMessage.SenderType.CANDIDATE
+    ).distinct()
 
     unread_messages_count = (
         ThreadMessage.objects.filter(sender_type=ThreadMessage.SenderType.CANDIDATE)
