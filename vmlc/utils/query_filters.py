@@ -5,7 +5,7 @@ from django.db.models import Q, QuerySet, Count
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
-from comms.models import Broadcast, HelpdeskThread
+from comms.models import Broadcast, HelpdeskThread, ThreadMessage
 
 
 def annotate_thread_with_staff_unread_count(
@@ -13,12 +13,13 @@ def annotate_thread_with_staff_unread_count(
 ) -> QuerySet[HelpdeskThread]:
     """
     Annotates a HelpdeskThread queryset with 'unread_cnt',
-    representing messages unread by any staff member.
+    representing messages from candidates unread by any staff member.
     """
     return queryset.annotate(
         unread_cnt=Count(
             "messages",
-            filter=~Q(messages__reads__user__staff_profile__isnull=False),
+            filter=Q(messages__sender_type=ThreadMessage.SenderType.CANDIDATE)
+            & ~Q(messages__reads__user__staff_profile__isnull=False),
             distinct=True,
         )
     )

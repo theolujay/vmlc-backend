@@ -604,6 +604,12 @@ class StaffHelpdeskThreadListView(ListAPIView):
         queryset = HelpdeskThread.objects.select_related(
             "candidate", "assigned_staff__user"
         ).prefetch_related("messages__reads")
+
+        # Only include threads that have at least one message from a candidate
+        queryset = queryset.filter(
+            messages__sender_type=ThreadMessage.SenderType.CANDIDATE
+        ).distinct()
+
         queryset = annotate_thread_with_staff_unread_count(queryset).order_by(
             "-last_message_at"
         )
