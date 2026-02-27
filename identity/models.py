@@ -40,6 +40,12 @@ phone_field = models.CharField(
 class CustomUserManager(BaseUserManager):
     """Custom user manager for the User model."""
 
+    @classmethod
+    def normalize_email(cls, email):
+        """Normalize the email address by lowercasing it entirely."""
+        email = email or ""
+        return email.lower()
+
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a User with the given email and password."""
         if not email:

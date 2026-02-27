@@ -461,6 +461,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     default_error_messages = {"no_active_account": "Invalid email or password"}
 
+    def validate_email(self, value):
+        return value.lower()
+
     def validate(self, attrs):
         # The default result (access/refresh tokens)
         data = super().validate(attrs)
@@ -503,8 +506,8 @@ class LoginView(TokenObtainPairView):
         manual_parameters=[api_key],
     )
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
         email = request.data.get("email", "N/A")
+        response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
             logger.info("User with email '%s' logged in successfully.", email)
         else:

@@ -23,6 +23,9 @@ class VerifyEmailOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6, min_length=6)
 
+    def validate_email(self, value):
+        return value.lower()
+
     def validate_otp(self, value: str) -> str:
         """Validate OTP format."""
         if not value.isdigit():
@@ -96,6 +99,7 @@ class SendEmailOTPSerializer(serializers.Serializer):
 
     def validate_email(self, value: str) -> str:
         """Validate email and check if user exists."""
+        value = value.lower()
         try:
             user = User.objects.get(email=value)
         except User.DoesNotExist:
@@ -134,6 +138,7 @@ class RequestPasswordChangeSerializer(serializers.Serializer):
         """
         Check if user exists with this email.
         """
+        value = value.lower()
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 "No account found with this email address."
@@ -157,6 +162,9 @@ class PasswordChangeOTPConfirmSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6, min_length=6)
+
+    def validate_email(self, value):
+        return value.lower()
 
     def validate_otp(self, value: str) -> str:
         """
@@ -208,6 +216,7 @@ class PasswordChangeSerializer(serializers.Serializer):
         """
         Check if user exists with this email.
         """
+        value = value.lower()
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 "No account found with this email address."

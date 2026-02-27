@@ -52,6 +52,7 @@ class RegistrationV2Serializer(serializers.Serializer):
     state = serializers.CharField(max_length=50)
 
     def validate_email(self, value):
+        value = value.lower()
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 _("A user with this email already exists.")
@@ -290,6 +291,7 @@ class PreRegUserSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
 
     def validate_email(self, value):
+        value = value.lower()
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 _("A user with this email already exists.")
