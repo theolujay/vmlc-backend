@@ -15,7 +15,12 @@ from vmlc.models import (
     CandidateExamResult,
     Exam,
 )
-from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage, MessageRead
+from comms.models import (
+    HelpdeskThread,
+    PublicSupportRequest,
+    ThreadMessage,
+    MessageRead,
+)
 from .tasks import (
     generate_stats_overview_task,
     # update_staff_dashboard_cache_task,
@@ -38,7 +43,7 @@ def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
         CacheKeys.STATS_HELPDESK,
         CacheKeys.STATS_FUNNEL,
         CacheKeys.STATS_GEOGRAPHICS,
-        "stats_overview", # legacy
+        "stats_overview",  # legacy
     ]
     cache.delete_many(keys_to_delete)
     cache.delete("registration_metrics")

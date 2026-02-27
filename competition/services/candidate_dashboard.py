@@ -196,17 +196,21 @@ class CandidateDashboardService:
         # Fetch full history of stage progress
         history = []
         if enrollment:
-            stage_progresses = EnrollmentStageProgress.objects.filter(
-                enrollment=enrollment
-            ).select_related("stage").order_by("stage__order")
+            stage_progresses = (
+                EnrollmentStageProgress.objects.filter(enrollment=enrollment)
+                .select_related("stage")
+                .order_by("stage__order")
+            )
             for sp in stage_progresses:
-                history.append({
-                    "stage": sp.stage.type,
-                    "status": sp.status,
-                    "started_at": sp.started_at,
-                    "completed_at": sp.completed_at,
-                    "discontinued_at": sp.discontinued_at,
-                })
+                history.append(
+                    {
+                        "stage": sp.stage.type,
+                        "status": sp.status,
+                        "started_at": sp.started_at,
+                        "completed_at": sp.completed_at,
+                        "discontinued_at": sp.discontinued_at,
+                    }
+                )
 
         return {
             "current_stage": current_stage.type,  # TODO: compare with staff's competition dashboard to handle when exam's not started yet
@@ -413,8 +417,6 @@ class CandidateDashboardService:
                 exam_id__in=[res.exam_id for res in results], is_published=True
             ).values_list("exam_id", flat=True)
         )
-
-
 
         history = []
         for res in results:

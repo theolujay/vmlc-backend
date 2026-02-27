@@ -48,13 +48,15 @@ db_config["POOL_OPTIONS"] = {
 DATABASES = {"default": db_config}
 
 # Increased throttle rates for development
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    "anon": "10000/day",
-    "user": "100000/day",
-    "login": "500/min",
-    "burst": "1000/min",
-    "sustained": "1000000/hour",
-}
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {
+        "anon": "10000/day",
+        "user": "100000/day",
+        "login": "500/min",
+        "burst": "1000/min",
+        "sustained": "1000000/hour",
+    }
+)
 
 # Extend token lifetimes for easier development
 SIMPLE_JWT.update(

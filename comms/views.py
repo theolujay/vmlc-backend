@@ -47,6 +47,7 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts, filter_helpdesk_threads
+from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
 from vmlc.utils.stats import get_helpdesk_stats_cached
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 
@@ -226,8 +227,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
                     eta = broadcast.scheduled_at
 
                 task_result = send_broadcast_task.apply_async(
-                    args=[broadcast.pk],
-                    eta=eta
+                    args=[broadcast.pk], eta=eta
                 )
 
                 Broadcast.objects.filter(pk=broadcast.pk).update(task_id=task_result.id)
@@ -235,7 +235,7 @@ class BroadcastView(ListCreateRetrieveAPIView):
                     "Broadcast task queued for broadcast %s with task ID %s (ETA: %s)",
                     broadcast.pk,
                     task_result.id,
-                    eta
+                    eta,
                 )
             except Exception as e:
                 logger.error(
@@ -309,7 +309,9 @@ class NotificationHistory(ListAPIView):
         queryset = self.filter_queryset(self.get_queryset())
 
         # Stats cache also includes version
-        stats_cache_key = CacheKeys.NOTIFICATION_STATS.format(user_id=user.id, version=version)
+        stats_cache_key = CacheKeys.NOTIFICATION_STATS.format(
+            user_id=user.id, version=version
+        )
         stats = cache.get(stats_cache_key)
         if not stats:
             logger.info(
@@ -359,7 +361,9 @@ class MarkNotificationAsReadView(APIView):
         user = request.user
         try:
             with transaction.atomic():
-                notification = Notification.objects.get(id=notification_id, recipient=user)
+                notification = Notification.objects.get(
+                    id=notification_id, recipient=user
+                )
                 if not notification.is_read:
                     notification.is_read = True
                     notification.save()
@@ -452,14 +456,20 @@ class HelpdeskThreadView(APIView):
     Get or create a helpdesk thread for the authenticated candidate.
     GET /helpdesk/thread/
     """
+
     permission_classes = AuthenticatedUser
 
     def get(self, request):
         user = request.user
         if not hasattr(user, "candidate_profile"):
-            return Response({"error": "Only candidates can create helpdesk threads."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Only candidates can create helpdesk threads."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        thread, created = HelpdeskThread.objects.get_or_create(candidate=user.candidate_profile)
+        thread, created = HelpdeskThread.objects.get_or_create(
+            candidate=user.candidate_profile
+        )
         cache_key = CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=thread.id)
 
         if created:
@@ -468,7 +478,7 @@ class HelpdeskThreadView(APIView):
                 thread=thread,
                 sender=None,
                 sender_type=ThreadMessage.SenderType.SYSTEM,
-                text=f"Hello, {user.get_full_name()}. How can we help you today?"
+                text=f"Hello, {user.get_full_name()}. How can we help you today?",
             )
             # Invalidate helpdesk stats cache
             cache.delete(CacheKeys.STATS_HELPDESK)
@@ -479,7 +489,9 @@ class HelpdeskThreadView(APIView):
             if not unread_messages.exists():
                 cached_data = cache.get(cache_key)
                 if cached_data:
-                    logger.info(f"Returning cached helpdesk thread detail for thread {thread.id}")
+                    logger.info(
+                        f"Returning cached helpdesk thread detail for thread {thread.id}"
+                    )
                     return Response(cached_data)
 
             # Mark unread messages as read (if any)
@@ -489,7 +501,9 @@ class HelpdeskThreadView(APIView):
                     ignore_conflicts=True,
                 )
 
-        serializer = HelpdeskThreadDetailSerializer(thread, context={"request": request})
+        serializer = HelpdeskThreadDetailSerializer(
+            thread, context={"request": request}
+        )
         cache.set(cache_key, serializer.data, timeout=3600)
         return Response(serializer.data)
 
@@ -499,9 +513,12 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
     Retrieve full helpdesk thread and mark messages as read for staff.
     GET /staff/helpdesk/threads/{id}/
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = HelpdeskThreadDetailSerializer
-    queryset = HelpdeskThread.objects.select_related("candidate", "assigned_staff__user").prefetch_related("messages__reads")
+    queryset = HelpdeskThread.objects.select_related(
+        "candidate", "assigned_staff__user"
+    ).prefetch_related("messages__reads")
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
@@ -515,16 +532,23 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
         if not unread_messages.exists():
             cached_data = cache.get(cache_key)
             if cached_data:
-                logger.info(f"Returning cached helpdesk thread detail for thread {instance.id}")
+                logger.info(
+                    f"Returning cached helpdesk thread detail for thread {instance.id}"
+                )
                 return Response(cached_data)
 
         # Mark unread messages as read (if any)
         if unread_messages.exists():
             # Check if any of these are from candidate (affects global stats)
-            has_candidate_messages = unread_messages.filter(sender_type=ThreadMessage.SenderType.CANDIDATE).exists()
+            has_candidate_messages = unread_messages.filter(
+                sender_type=ThreadMessage.SenderType.CANDIDATE
+            ).exists()
 
             MessageRead.objects.bulk_create(
-                [MessageRead(message=msg, user=request.user) for msg in unread_messages],
+                [
+                    MessageRead(message=msg, user=request.user)
+                    for msg in unread_messages
+                ],
                 ignore_conflicts=True,
             )
             # Invalidate staff list cache since unread count will change
@@ -539,7 +563,7 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
 
         response = super().get(request, *args, **kwargs)
         cache.set(cache_key, response.data, timeout=3600)
-        return response
+        return Response(response.data)
 
 
 class StaffHelpdeskThreadListView(ListAPIView):
@@ -547,8 +571,10 @@ class StaffHelpdeskThreadListView(ListAPIView):
     List all helpdesk threads for staff, ordered by unread count, online status, and last message.
     GET /staff/helpdesk/threads/
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = HelpdeskThreadListSerializer
+    throttle_scope = "helpdesk_threads"
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -563,7 +589,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
 
         cached_data = cache.get(cache_key)
         if cached_data:
-            logger.info(f"Returning cached helpdesk threads for staff {user.id}")
+            # logger.info(f"Returning cached helpdesk threads for staff {user.id}")
             # Ensure helpdesk_summary_data is always fresh or at least included
             cached_data["helpdesk_summary_data"] = helpdesk_summary_data
             return Response(cached_data)
@@ -571,20 +597,22 @@ class StaffHelpdeskThreadListView(ListAPIView):
         response = super().list(request, *args, **kwargs)
         response.data["helpdesk_summary_data"] = helpdesk_summary_data
         cache.set(cache_key, response.data, timeout=3600)
-        return response
+        return Response(response.data)
 
     def get_queryset(self):
         # Unread count annotation
-        user = self.request.user
-        queryset = HelpdeskThread.objects.select_related("candidate", "assigned_staff__user") \
-            .prefetch_related("messages__reads") \
-            .annotate(
-                unread_cnt=Count(
-                    "messages",
-                    filter=~Q(messages__reads__user=user),
-                    distinct=True
-                )
-            )
+        queryset = HelpdeskThread.objects.select_related(
+            "candidate", "assigned_staff__user"
+        ).prefetch_related("messages__reads")
+
+        # Only include threads that have at least one message from a candidate
+        queryset = queryset.filter(
+            messages__sender_type=ThreadMessage.SenderType.CANDIDATE
+        ).distinct()
+
+        queryset = annotate_thread_with_staff_unread_count(queryset).order_by(
+            "-last_message_at"
+        )
         return filter_helpdesk_threads(queryset, self.request.query_params)
 
 
@@ -593,6 +621,7 @@ class HelpdeskThreadMessageView(CreateAPIView):
     Post a message to a helpdesk thread.
     POST /helpdesk/thread/{thread_id}/message/
     """
+
     permission_classes = AuthenticatedUser
     serializer_class = ThreadMessageSerializer
 
@@ -601,41 +630,54 @@ class HelpdeskThreadMessageView(CreateAPIView):
         try:
             thread = HelpdeskThread.objects.get(id=thread_id)
         except HelpdeskThread.DoesNotExist:
-            return Response({"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Thread not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Validate user is either: Thread owner or Staff (Moderator+)
         is_staff = False
         if hasattr(request.user, "staff_profile"):
             from identity.permissions import StaffRoleHierarchy
             from identity.models import Staff
-            is_staff = StaffRoleHierarchy.has_minimum_role(request.user.staff_profile.role, Staff.Roles.MODERATOR)
 
-        is_owner = hasattr(request.user, "candidate_profile") and thread.candidate_id == request.user.candidate_profile.pk
+            is_staff = StaffRoleHierarchy.has_minimum_role(
+                request.user.staff_profile.role, Staff.Roles.MODERATOR
+            )
+
+        is_owner = (
+            hasattr(request.user, "candidate_profile")
+            and thread.candidate_id == request.user.candidate_profile.pk
+        )
 
         if not is_staff and not is_owner:
-            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        sender_type = ThreadMessage.SenderType.STAFF if is_staff else ThreadMessage.SenderType.CANDIDATE
+        sender_type = (
+            ThreadMessage.SenderType.STAFF
+            if is_staff
+            else ThreadMessage.SenderType.CANDIDATE
+        )
         message = serializer.save(
-            thread=thread,
-            sender=request.user,
-            sender_type=sender_type
+            thread=thread, sender=request.user, sender_type=sender_type
         )
 
         # Broadcast via WebSocket group
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
         from comms.serializers import WebSocketThreadMessageSerializer
+
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"helpdesk_thread_{thread.id}",
             {
                 "type": "chat.message",
-                "message": WebSocketThreadMessageSerializer(message).data
-            }
+                "message": WebSocketThreadMessageSerializer(message).data,
+            },
         )
 
         # Trigger staff load balancing if first staff reply
@@ -645,9 +687,10 @@ class HelpdeskThreadMessageView(CreateAPIView):
         # Trigger escalation check if candidate sent message
         if sender_type == ThreadMessage.SenderType.CANDIDATE:
             from comms.tasks import helpdesk_escalation_task
+
             helpdesk_escalation_task.apply_async(
                 args=[message.id],
-                eta=message.created_at + timezone.timedelta(minutes=2)
+                eta=message.created_at + timezone.timedelta(minutes=2),
             )
 
         transaction.on_commit(lambda: cache.delete(CacheKeys.STATS_HELPDESK))
@@ -661,19 +704,28 @@ class HelpdeskThreadMessageView(CreateAPIView):
         from identity.models import Staff
 
         # Define active staff roles allowed to handle helpdesk
-        support_roles = [Staff.Roles.SUPERADMIN, Staff.Roles.MANAGER, Staff.Roles.ADMIN, Staff.Roles.MODERATOR]
+        support_roles = [
+            Staff.Roles.SUPERADMIN,
+            Staff.Roles.MANAGER,
+            Staff.Roles.ADMIN,
+            Staff.Roles.MODERATOR,
+        ]
 
         # Find staff with lowest load (active threads they are assigned to)
         # TODO: Improve this to auto-assign based on ongoing exams
-        best_staff = Staff.objects.filter(
-            user__is_active=True,
-            role__in=support_roles
-        ).annotate(
-            load=Count(
-                "assigned_helpdesk_threads",
-                filter=Q(assigned_helpdesk_threads__status=HelpdeskThread.Status.IN_PROGRESS)
+        best_staff = (
+            Staff.objects.filter(user__is_active=True, role__in=support_roles)
+            .annotate(
+                load=Count(
+                    "assigned_helpdesk_threads",
+                    filter=Q(
+                        assigned_helpdesk_threads__status=HelpdeskThread.Status.IN_PROGRESS
+                    ),
+                )
             )
-        ).order_by("load").first()
+            .order_by("load")
+            .first()
+        )
 
         if best_staff:
             thread.assigned_staff = best_staff

@@ -299,7 +299,9 @@ class Broadcast(models.Model):
         if self.target_roles.get("staff"):
             target_parts.append(f"Staff: {', '.join(self.target_roles['staff'])}")
         if self.target_roles.get("candidate"):
-            target_parts.append(f"Candidate: {', '.join(self.target_roles['candidate'])}")
+            target_parts.append(
+                f"Candidate: {', '.join(self.target_roles['candidate'])}"
+            )
         target_roles = " | ".join(target_parts) if target_parts else "No targets"
         return f"{self.subject} [{mediums}] -> [{target_roles}] ({self.status})"
 

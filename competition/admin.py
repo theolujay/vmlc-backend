@@ -61,8 +61,10 @@ class CompetitionAdmin(admin.ModelAdmin):
     date_hierarchy = "start_date"
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            enroll_count=Count("enrollments", distinct=True)
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(enroll_count=Count("enrollments", distinct=True))
         )
 
     @admin.display(description="Enrollments", ordering="enroll_count")
@@ -160,8 +162,10 @@ class StageAdmin(admin.ModelAdmin):
     list_select_related = ("competition",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            e_count=Count("stage_exams", distinct=True)
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(e_count=Count("stage_exams", distinct=True))
         )
 
     @admin.display(description="Exams", ordering="e_count")
@@ -197,7 +201,11 @@ class StageAdmin(admin.ModelAdmin):
 @admin.register(StageExam)
 class StageExamAdmin(admin.ModelAdmin):
     list_display = ("competition_stage", "round", "get_exam", "is_active")
-    list_filter = ("competition_stage__competition", "competition_stage__type", "is_active")
+    list_filter = (
+        "competition_stage__competition",
+        "competition_stage__type",
+        "is_active",
+    )
     list_select_related = (
         "competition_stage",
         "competition_stage__competition",
@@ -303,7 +311,9 @@ class EnrollmentStageProgressAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "updated_at"
 
-    @admin.display(description="Candidate Email", ordering="enrollment__candidate__user__email")
+    @admin.display(
+        description="Candidate Email", ordering="enrollment__candidate__user__email"
+    )
     def candidate_email(self, obj):
         return obj.enrollment.candidate.user.email
 
@@ -367,6 +377,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     @admin.action(description="Publish selected rankings")
     def publish_rankings(self, request, queryset):
         from django.utils import timezone
+
         count = queryset.update(is_published=True, published_at=timezone.now())
         invalidate_all_dashboard_caches()
         self.message_user(request, f"{count} rankings published.")
@@ -401,7 +412,13 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(RankingSnapshotEntry)
 class RankingSnapshotEntryAdmin(admin.ModelAdmin):
-    list_display = ("ranking_snapshot", "candidate_email", "exam_score", "rank", "percentile")
+    list_display = (
+        "ranking_snapshot",
+        "candidate_email",
+        "exam_score",
+        "rank",
+        "percentile",
+    )
     list_filter = ("ranking_snapshot__competition", "ranking_snapshot__stage")
     search_fields = (
         "candidate__user__email",

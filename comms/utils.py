@@ -1,17 +1,20 @@
 import re
 
+
 def _normalize_phone(phone):
     if not phone:
         return ""
-    if phone.startswith('0'):
-        return '234' + phone[1:]
-    if phone.startswith('+234'):
+    if phone.startswith("0"):
+        return "234" + phone[1:]
+    if phone.startswith("+234"):
         return phone[1:]
     return phone
+
 
 def is_placeholder_phone(phone):
     clean_phone = _normalize_phone(phone)
     return clean_phone == "2349123456789"
+
 
 def format_sms_body(subject: str, message: str, max_length: int = 160) -> str:
     """
@@ -34,9 +37,9 @@ def format_sms_body(subject: str, message: str, max_length: int = 160) -> str:
 
     # If too long, try to truncate the message but keep the subject
     if clean_subject:
-        available_for_msg = max_length - len(clean_subject) - 5 # "Subject: ..."
+        available_for_msg = max_length - len(clean_subject) - 5  # "Subject: ..."
         if available_for_msg > 10:
             return f"{clean_subject}: {clean_message[:available_for_msg]}..."
-    
+
     # Fallback to simple truncation
-    return full_body[:max_length-3] + "..."
+    return full_body[: max_length - 3] + "..."

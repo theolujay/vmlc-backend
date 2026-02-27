@@ -9,7 +9,12 @@ from django.utils import timezone
 from dotenv import load_dotenv
 from faker import Faker
 
-from comms.models import PublicSupportRequest, ThreadMessage, Notification, HelpdeskThread
+from comms.models import (
+    PublicSupportRequest,
+    ThreadMessage,
+    Notification,
+    HelpdeskThread,
+)
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -384,6 +389,7 @@ class Command(BaseCommand):
 
     def _create_support_data(self, candidates, staff_pool):
         from comms.models import HelpdeskThread
+
         self.stdout.write("Creating public support requests...")
         for _ in range(10):
             PublicSupportRequest.objects.create(

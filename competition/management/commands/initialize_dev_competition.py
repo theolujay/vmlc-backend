@@ -110,7 +110,9 @@ class Command(BaseCommand):
             candidates = self._get_all_candidates()
             self._enroll_candidates_in_screening(candidates, competition)
 
-            self.stdout.write(self.style.SUCCESS("Development competition setup complete."))
+            self.stdout.write(
+                self.style.SUCCESS("Development competition setup complete.")
+            )
 
             if dry_run:
                 transaction.set_rollback(True)
@@ -150,8 +152,12 @@ class Command(BaseCommand):
         return f"{prefix}{random.randint(10000000, 99999999)}"
 
     def _create_feature_flags(self):
-        FeatureFlag.objects.get_or_create(key="candidate_registration", defaults={"value": True})
-        FeatureFlag.objects.get_or_create(key="staff_registration", defaults={"value": True})
+        FeatureFlag.objects.get_or_create(
+            key="candidate_registration", defaults={"value": True}
+        )
+        FeatureFlag.objects.get_or_create(
+            key="staff_registration", defaults={"value": True}
+        )
 
     def _update_verification(self, user, staff_pool=None):
         statuses = [
@@ -226,7 +232,9 @@ class Command(BaseCommand):
             status=Competition.Status.ACTIVE
         ).first()
         if not competition:
-            self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
+            self.stderr.write(
+                self.style.ERROR("No active competition found. Creating one...")
+            )
 
             competition, created = Competition.objects.get_or_create(
                 name=name,
@@ -238,7 +246,9 @@ class Command(BaseCommand):
                 },
             )
             if created:
-                self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created Competition: {competition}")
+                )
         else:
             self.stdout.write(f"Competition already exists: {competition}")
 
@@ -377,7 +387,10 @@ class Command(BaseCommand):
         self.stdout.write("Enrolling candidates in Screening...")
         try:
             from competition.services.enrollment import EnrollmentError
-            created_count = EnrollmentService.enroll_candidates(competition, candidates=candidates)
+
+            created_count = EnrollmentService.enroll_candidates(
+                competition, candidates=candidates
+            )
             if created_count == 0:
                 self.stdout.write(
                     self.style.SUCCESS("All candidates are already enrolled.")

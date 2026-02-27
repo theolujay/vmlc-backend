@@ -107,7 +107,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
 
                     # Invalidate caches only for exams where the question was newly added
                     invalidate_exam_cache(exam.id)
-            
+
             invalidate_question_pool()
 
         return question
@@ -126,7 +126,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
                 if not exam.questions.filter(id=question.id).exists():
                     exam.questions.add(question)
                     invalidate_exam_cache(exam.id)
-            
+
             invalidate_question_pool()
 
         return question

@@ -116,12 +116,10 @@ class NotificationConsumer(GenericAsyncAPIConsumer):
         user = self.scope["user"]
         try:
             notification = Notification.objects.get(
-                id=notification_id,
-                recipient=user,
-                is_read=False
+                id=notification_id, recipient=user, is_read=False
             )
             notification.is_read = True
-            notification.save() # Triggers signals for invalidation
+            notification.save()  # Triggers signals for invalidation
             return 1
         except Notification.DoesNotExist:
             return 0
@@ -185,13 +183,17 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
         await self.accept()
 
         # Start presence refresh task
-        self.presence_task = asyncio.create_task(self.refresh_presence_periodically(user.id))
+        self.presence_task = asyncio.create_task(
+            self.refresh_presence_periodically(user.id)
+        )
 
     async def disconnect(self, close_code):
         user = self.scope.get("user")
         if user and user.is_authenticated:
             if hasattr(self, "group_name"):
-                await self.channel_layer.group_discard(self.group_name, self.channel_name)
+                await self.channel_layer.group_discard(
+                    self.group_name, self.channel_name
+                )
 
             # Stop presence refresh task
             if hasattr(self, "presence_task"):
@@ -210,8 +212,8 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
                 {
                     "type": "chat.typing",
                     "user_id": str(user.id),
-                    "is_typing": content.get("is_typing", False)
-                }
+                    "is_typing": content.get("is_typing", False),
+                },
             )
 
     async def chat_message(self, event):
@@ -228,6 +230,7 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
     def check_thread_access(self, user, thread_id):
         from .models import HelpdeskThread
         from identity.models import Staff
+
         try:
             thread = HelpdeskThread.objects.get(id=thread_id)
 
@@ -242,15 +245,21 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
                     Staff.Roles.MANAGER: 5,
                     Staff.Roles.SUPERADMIN: 6,
                 }
-                return role_levels.get(role, 0) >= role_levels.get(Staff.Roles.MODERATOR)
+                return role_levels.get(role, 0) >= role_levels.get(
+                    Staff.Roles.MODERATOR
+                )
 
             # Candidate check: Must be the owner
-            return hasattr(user, "candidate_profile") and thread.candidate_id == user.candidate_profile.pk
+            return (
+                hasattr(user, "candidate_profile")
+                and thread.candidate_id == user.candidate_profile.pk
+            )
         except (HelpdeskThread.DoesNotExist, AttributeError):
             return False
 
     async def set_presence(self, user_id, is_online):
         from django.core.cache import cache
+
         key = f"user_online_{user_id}"
         if is_online:
             cache.set(key, 1, timeout=60)
@@ -259,6 +268,7 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
 
     async def refresh_presence_periodically(self, user_id):
         from django.core.cache import cache
+
         try:
             while True:
                 await asyncio.sleep(30)

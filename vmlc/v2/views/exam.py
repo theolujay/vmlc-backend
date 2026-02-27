@@ -31,7 +31,14 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_candidate_cache, invalidate_exam_cache, invalidate_staff_dashboard, question_pool_aggregate
+from vmlc.v2.utils import (
+    CacheKeys,
+    get_or_set_cache,
+    invalidate_candidate_cache,
+    invalidate_exam_cache,
+    invalidate_staff_dashboard,
+    question_pool_aggregate,
+)
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 
@@ -193,7 +200,7 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         )
 
     def perform_destroy(self, instance):
-        instance.competition_slot.delete() # this cascades into instance.delete()
+        instance.competition_slot.delete()  # this cascades into instance.delete()
 
 
 class ExamRetractV2View(APIView):
@@ -450,9 +457,9 @@ def candidate_take_exam_V2(request, exam_id):
 
         # Schedule expiration task
         from vmlc.v2.tasks import mark_exam_access_as_expired_task
+
         mark_exam_access_as_expired_task.apply_async(
-            args=[str(access.id)],
-            eta=access.deadline + timedelta(minutes=5)
+            args=[str(access.id)], eta=access.deadline + timedelta(minutes=5)
         )
 
     # 3. Global Exam Data Cache
@@ -461,7 +468,9 @@ def candidate_take_exam_V2(request, exam_id):
     cache_key = CacheKeys.EXAM_TAKE_V2.format(exam_id=exam_id)
 
     def fetch_exam_data():
-        serializer = CandidateTakeExamSerializer(exam, context={"request": None}) # Context=None to avoid 'attempt' field logic during cache build if needed, though we will override it anyway
+        serializer = CandidateTakeExamSerializer(
+            exam, context={"request": None}
+        )  # Context=None to avoid 'attempt' field logic during cache build if needed, though we will override it anyway
         data = serializer.data
         # Remove attempt from global cache as it's candidate-specific
         data.pop("attempt", None)

@@ -266,6 +266,7 @@ REST_FRAMEWORK = {
         "login": "5/min",
         "burst": "20/min",
         "sustained": "100/hour",
+        "helpdesk_threads": "30/min",
     },
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
     "DEFAULT_AUTHENTICATION_CLASSES": (

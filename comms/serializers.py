@@ -12,6 +12,7 @@ from .models import (
     Notification,
 )
 
+
 class UUIDPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def to_representation(self, value):
         return str(value)
@@ -45,10 +46,7 @@ class PublicSupportRequestSerializer(serializers.ModelSerializer):
 # Thread Messages
 # ============================================================
 class ThreadMessageSerializer(serializers.ModelSerializer):
-    sender_name = serializers.CharField(
-        source="sender.get_full_name",
-        read_only=True
-    )
+    sender_name = serializers.CharField(source="sender.get_full_name", read_only=True)
     is_read = serializers.SerializerMethodField()
 
     class Meta:
@@ -79,9 +77,15 @@ class ThreadMessageSerializer(serializers.ModelSerializer):
 
 class HelpdeskThreadListSerializer(serializers.ModelSerializer):
     unread_by_staff_count = serializers.SerializerMethodField()
-    candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
-    candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
-    assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
+    candidate_email = serializers.CharField(
+        source="candidate.user.email", read_only=True
+    )
+    candidate_name = serializers.CharField(
+        source="candidate.user.get_full_name", read_only=True
+    )
+    assigned_staff_name = serializers.CharField(
+        source="assigned_staff.user.get_full_name", read_only=True
+    )
     candidate_last_msg_preview = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
 
@@ -103,20 +107,25 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
         ]
 
     def get_unread_by_staff_count(self, obj):
-        return obj.messages.filter(
-            sender_type=ThreadMessage.SenderType.CANDIDATE
-        ).exclude(
-            reads__user__staff_profile__isnull=False
-        ).count()
+        return (
+            obj.messages.filter(sender_type=ThreadMessage.SenderType.CANDIDATE)
+            .exclude(reads__user__staff_profile__isnull=False)
+            .count()
+        )
 
     def get_candidate_last_msg_preview(self, obj):
-        candidate_last_msg = obj.messages.filter(sender_type="candidate").order_by("-created_at").first()
+        candidate_last_msg = (
+            obj.messages.filter(sender_type="candidate").order_by("-created_at").first()
+        )
         if candidate_last_msg:
-            return candidate_last_msg.text[:100] + ("..." if len(candidate_last_msg.text) > 100 else "")
+            return candidate_last_msg.text[:100] + (
+                "..." if len(candidate_last_msg.text) > 100 else ""
+            )
         return ""
 
     def get_is_online(self, obj):
         from django.core.cache import cache
+
         return cache.get(f"user_online_{obj.candidate.user_id}") is not None
 
 
@@ -125,10 +134,18 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
 # ============================================================
 class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
     messages = ThreadMessageSerializer(many=True, read_only=True)
-    candidate_name = serializers.CharField(source="candidate.user.get_full_name", read_only=True)
-    candidate_email = serializers.CharField(source="candidate.user.email", read_only=True)
-    candidate_phone = serializers.CharField(source="candidate.user.phone", read_only=True)
-    assigned_staff_name = serializers.CharField(source="assigned_staff.user.get_full_name", read_only=True)
+    candidate_name = serializers.CharField(
+        source="candidate.user.get_full_name", read_only=True
+    )
+    candidate_email = serializers.CharField(
+        source="candidate.user.email", read_only=True
+    )
+    candidate_phone = serializers.CharField(
+        source="candidate.user.phone", read_only=True
+    )
+    assigned_staff_name = serializers.CharField(
+        source="assigned_staff.user.get_full_name", read_only=True
+    )
     participating_staff_names = serializers.SerializerMethodField()
 
     class Meta:
@@ -157,13 +174,14 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
 
     def get_candidate_phone(self, obj):
         from comms.utils import _normalize_phone
+
         return _normalize_phone(self.candidate_phone)
 
     def get_participating_staff_names(self, obj):
         # Retrieve unique staff members who have sent messages in this thread
         staff_users = User.objects.filter(
             sent_helpdesk_messages__thread=obj,
-            sent_helpdesk_messages__sender_type=ThreadMessage.SenderType.STAFF
+            sent_helpdesk_messages__sender_type=ThreadMessage.SenderType.STAFF,
         ).distinct()
         return [user.get_full_name() for user in staff_users]
 
@@ -251,13 +269,16 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
 
     def validate_target_roles(self, value):
         from identity.models import Staff, Candidate
+
         if not isinstance(value, dict):
             raise serializers.ValidationError("target_roles must be a dictionary.")
 
         valid_keys = {"staff", "candidate"}
         invalid_keys = set(value.keys()) - valid_keys
         if invalid_keys:
-            raise serializers.ValidationError(f"Invalid keys in target_roles: {invalid_keys}")
+            raise serializers.ValidationError(
+                f"Invalid keys in target_roles: {invalid_keys}"
+            )
 
         if "staff" in value:
             valid_staff_roles = {choice[0] for choice in Staff.Roles.choices}
@@ -278,6 +299,7 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
 # Notifications
 # ============================================================
 
+
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
@@ -297,12 +319,10 @@ class NotificationSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+
 class WebSocketThreadMessageSerializer(serializers.ModelSerializer):
     sender = UUIDPrimaryKeyRelatedField(queryset=User.objects.all())
-    sender_name = serializers.CharField(
-        source="sender.get_full_name",
-        read_only=True
-    )
+    sender_name = serializers.CharField(source="sender.get_full_name", read_only=True)
 
     class Meta:
         model = ThreadMessage

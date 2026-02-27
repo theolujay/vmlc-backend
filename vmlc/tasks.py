@@ -9,9 +9,9 @@ from celery import shared_task
 from celery.exceptions import Retry
 
 from vmlc.utils import generate_stats_overview_data
-from vmlc.v2 import tasks as v2_tasks # this helps celery_find the tasks in /vmlc/v2
+from vmlc.v2 import tasks as v2_tasks  # this helps celery_find the tasks in /vmlc/v2
 
-v2_tasks.do_nothing() # this helps bypass linters flagging v2_tasks as unused
+v2_tasks.do_nothing()  # this helps bypass linters flagging v2_tasks as unused
 logger = logging.getLogger(__name__)
 
 
@@ -158,6 +158,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
         admin_emails = [email for _, email in settings.ADMINS]
         if admin_emails:
             from comms.tasks import send_mail_task
+
             send_mail_task.delay(
                 subject=f"{readable_flag_key} Auto-Disabled - System Notification",
                 message=(
@@ -232,6 +233,7 @@ def revoke_user_invite_task(user_id):
         if user.last_login is None:
             user.delete()
             from comms.tasks import send_mail_task
+
             send_mail_task.delay(
                 subject="Your account has been revoked",
                 message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "

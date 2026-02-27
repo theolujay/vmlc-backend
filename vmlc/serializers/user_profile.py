@@ -177,7 +177,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_occupation(self, obj):
 
-
         if isinstance(obj, User) and hasattr(obj, "staff_profile"):
 
             return obj.staff_profile.occupation
@@ -185,7 +184,6 @@ class UserProfileListSerializer(serializers.Serializer):
         return None
 
     def get_school_name(self, obj):
-
 
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 
@@ -195,7 +193,6 @@ class UserProfileListSerializer(serializers.Serializer):
 
     def get_school_type(self, obj):
 
-
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 
             return obj.candidate_profile.school_type
@@ -203,7 +200,6 @@ class UserProfileListSerializer(serializers.Serializer):
         return None
 
     def get_current_class(self, obj):
-
 
         if isinstance(obj, User) and hasattr(obj, "candidate_profile"):
 

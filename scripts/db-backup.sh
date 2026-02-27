@@ -4,7 +4,7 @@ set -euo pipefail
 source ~/.backup_env
 ENV="${1:-prod}"
 MAX_RETRIES=10
-RETRY_INTERVAL=600 
+RETRY_INTERVAL=600
 
 if [ "$ENV" == "prod" ]; then
     STACK_NAME="vmlc-prod"
@@ -39,7 +39,7 @@ send_notification() {
     local status=$1
     local error_msg=${2:-""}
     local timestamp=$(date +"%Y-%m-%dT%H:%M:%S")
-    
+
     local payload=$(cat <<EOF
 {
     "status": "$status",
@@ -77,16 +77,22 @@ run_backup() {
         echo "Database backup failed"
         return 1
     fi
-    
+
     echo "Database backup created successfully"
 
+    echo "Copying backup file from container to host..."
+    if ! docker cp "${DB_CONTAINER_ID}:${CONTAINER_BACKUP_PATH}" "$HOST_BACKUP_PATH"; then
+        echo "Copy failed!"
+        return 1
+    fi
+    echo "Copy successful"
     # Upload to S3
     echo "Uploading to S3..."
     if ! aws s3 cp "$HOST_BACKUP_PATH" "s3://${S3_BUCKET}/${ENV}-db-backups/" --region "$S3_REGION"; then
         echo "Upload failed at $(date)"
         return 1
     fi
-    
+
     echo "Upload successful at $(date)"
 
     echo "Cleaning up old local backups..."

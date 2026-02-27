@@ -1,8 +1,6 @@
 from django.urls import path
 
-from .views import (
-    CowrywiseKidProfileView
-)
+from .views import CowrywiseKidProfileView
 
 app_name = "identity"
 

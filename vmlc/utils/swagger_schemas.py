@@ -730,7 +730,7 @@ broadcast_list_response_schema = openapi.Schema(
                 "sms_count": openapi.Schema(type=openapi.TYPE_INTEGER),
                 "whatsapp_count": openapi.Schema(type=openapi.TYPE_INTEGER),
                 "platform_count": openapi.Schema(type=openapi.TYPE_INTEGER),
-            }
+            },
         ),
         "results": openapi.Schema(
             type=openapi.TYPE_ARRAY,
@@ -752,12 +752,12 @@ broadcast_list_response_schema = openapi.Schema(
                         type=openapi.TYPE_OBJECT,
                         additional_properties=openapi.Schema(
                             type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(type=openapi.TYPE_STRING)
-                        )
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                        ),
                     ),
                 },
             ),
-        )
+        ),
     },
 )
 
@@ -772,9 +772,8 @@ broadcast_detail_request_body = openapi.Schema(
         "target_roles": openapi.Schema(
             type=openapi.TYPE_OBJECT,
             additional_properties=openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(type=openapi.TYPE_STRING)
-            )
+                type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
+            ),
         ),
     },
 )
@@ -795,9 +794,8 @@ broadcast_detail_response_schema = openapi.Schema(
         "target_roles": openapi.Schema(
             type=openapi.TYPE_OBJECT,
             additional_properties=openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(type=openapi.TYPE_STRING)
-            )
+                type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)
+            ),
         ),
         "status": openapi.Schema(type=openapi.TYPE_STRING),
         "last_attempt": openapi.Schema(
