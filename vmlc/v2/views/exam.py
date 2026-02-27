@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Avg, Count, Q
+from django.core.cache import cache
 
 from rest_framework.views import APIView
 from rest_framework import status
@@ -30,7 +31,7 @@ from vmlc.v2.serializers.exam import (
 from vmlc.serializers import (
     QuestionListSerializer,
 )
-from vmlc.v2.utils import get_or_set_cache, invalidate_candidate_cache, question_pool_aggregate
+from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_candidate_cache, invalidate_staff_dashboard, question_pool_aggregate
 from vmlc.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 
@@ -147,7 +148,6 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         logger.info(
             f"ExamDetailView: request from user {self.request.user.id} for exam {exam_id}"
         )
-        from vmlc.v2.utils import CacheKeys
 
         cache_key = CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)
         query_params_str = str(sorted(request.query_params.items()))
@@ -186,8 +186,8 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         Update the details of an exam instance
         """
 
-        serializer.save(updated_by=self.request.user.staff_profile)
-
+        instance = serializer.save(updated_by=self.request.user.staff_profile)
+        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=instance.id))
         logger.info(
             f"Exam updated by user {self.request.user.id} with data: {serializer.data}"
         )
@@ -225,11 +225,8 @@ class ExamRetractV2View(APIView):
         # Note: Exam.status property will now return DRAFT because scheduled_date is None.
         # Exam.save() will also set competition_slot.is_active to False.
         exam.save()
-
         logger.info(f"Exam {exam_id} retracted by user {request.user.id}")
-
-        from vmlc.v2.utils import invalidate_staff_dashboard
-
+        cache.delete(CacheKeys.EXAM_DETAIL.format(exam_id=exam.id))
         invalidate_staff_dashboard()
 
         return Response({"message": "Exam retracted successfully."})
