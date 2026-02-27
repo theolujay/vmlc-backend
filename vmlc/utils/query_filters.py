@@ -5,7 +5,7 @@ from django.db.models import Q, QuerySet
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
-from comms.models import Broadcast
+from comms.models import Broadcast, HelpdeskThread
 
 
 def filter_broadcasts(queryset: QuerySet[Broadcast], params: Any) -> QuerySet[Broadcast]:
@@ -288,6 +288,58 @@ def filter_questions(queryset: QuerySet[Question], params: Any) -> QuerySet[Ques
 
     return queryset
 
+
+def filter_helpdesk_threads(queryset: QuerySet[HelpdeskThread], params: Any) -> QuerySet[HelpdeskThread]:
+    """
+    Filter and sort HelpdeskThread queryset based on optional query parameters.
+
+    Supported filters:
+        - search: Partial match on candidate's name or email.
+        - status: Exact match on thread status.
+        - priority: Exact match on thread priority.
+        - unread: Filters for threads with unread messages.
+
+    Supported sorting:
+        - sort: Field to sort by (e.g., 'last_message_at', '-priority').
+                Defaults to '-unread_cnt, -last_message_at'.
+
+    Args:
+        queryset (QuerySet): The initial HelpdeskThread queryset.
+        params (QueryDict): The request query parameters.
+
+    Returns:
+        QuerySet: Filtered and sorted queryset.
+    """
+    search = params.get("search")
+    status = params.get("status")
+    priority = params.get("priority")
+    unread = params.get("unread")
+    sort = params.get("sort")
+
+    if search:
+        queryset = queryset.filter(
+            Q(candidate__user__first_name__icontains=search) |
+            Q(candidate__user__last_name__icontains=search) |
+            Q(candidate__user__email__icontains=search)
+        )
+
+    if status:
+        queryset = queryset.filter(status=status)
+
+    if priority:
+        queryset = queryset.filter(priority=priority)
+
+    if unread and unread.lower() == 'true':
+        queryset = queryset.filter(unread_cnt__gt=0)
+
+    # Sorting
+    if sort:
+        queryset = queryset.order_by(sort)
+    else:
+        # Default sorting
+        queryset = queryset.order_by("-unread_cnt", "-last_message_at")
+
+    return queryset
 
 class ExamFilter(django_filters.FilterSet):
     """

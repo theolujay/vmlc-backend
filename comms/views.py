@@ -46,7 +46,7 @@ from identity.permissions import (
     ActiveModeratorPermissions,
 )
 from vmlc.utils.helpers import sanitize_data
-from vmlc.utils.query_filters import filter_broadcasts
+from vmlc.utils.query_filters import filter_broadcasts, filter_helpdesk_threads
 from vmlc.utils.stats import get_helpdesk_stats_cached
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 
@@ -537,7 +537,6 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
             if has_candidate_messages:
                 cache.delete(CacheKeys.STATS_HELPDESK)
 
-
         response = super().get(request, *args, **kwargs)
         cache.set(cache_key, response.data, timeout=3600)
         return response
@@ -586,14 +585,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
                     distinct=True
                 )
             )
-
-        # Ordering:
-        # 1. Unread count (desc)
-        # 2. Candidate online status (online first) - Hard to do in DB since it's in Redis
-        # 3. last_message_at (desc)
-        # We'll order by unread_cnt and last_message_at in DB,
-        # then sort by online status if necessary or just leave it for now.
-        return queryset.order_by("-unread_cnt", "-last_message_at")
+        return filter_helpdesk_threads(queryset, self.request.query_params)
 
 
 class HelpdeskThreadMessageView(CreateAPIView):
