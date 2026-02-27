@@ -407,6 +407,8 @@ class ResendPasswordChangeOTPView(APIView):
             if not email:
                 raise ValidationError("Email is required")
 
+            email = email.lower()
+
             # Basic email format validation
             if "@" not in email:
                 raise ValidationError("Please provide a valid email address")
