@@ -131,7 +131,7 @@ services:
     networks:
       - prod
     deploy:
-      replicas: 3
+      replicas: 4
       resources:
         limits:
           memory: 1024M
