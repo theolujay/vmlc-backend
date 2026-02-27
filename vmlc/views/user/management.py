@@ -1,6 +1,7 @@
 import logging
 import itertools
 from datetime import timedelta
+import re
 
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
@@ -22,6 +23,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.exceptions import ValidationError
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -79,6 +81,7 @@ class RequestDataExtractor:
     USER_FIELDS = {"first_name", "last_name", "profile_picture", "phone", "state"}
     PROFILE_FIELDS = {"occupation", "current_class", "school_type"}
     FILE_FIELDS = {"profile_picture"}
+    NESTED_PROFILE_PREFIXES = {"cowrywise_kid_profile"} # Keys that indicate nested profile data
 
     @classmethod
     def extract(cls, request_data):
@@ -90,56 +93,83 @@ class RequestDataExtractor:
         profile_data = {}
 
         for key, value in request_data.items():
-            # Skip empty values
             if not cls._is_valid_value(key, value):
                 continue
 
-            clean_key = cls._normalize_key(key)
+            parsed_key = cls._parse_key(key) # New method for parsing
 
-            if clean_key in cls.USER_FIELDS:
-                user_data[clean_key] = value
-            elif clean_key in cls.PROFILE_FIELDS:
-                profile_data[clean_key] = value
+            if isinstance(parsed_key, tuple): # This is a nested field (e.g., ("cowrywise_kid_profile", "username"))
+                parent_key, child_key = parsed_key
+                if parent_key in cls.NESTED_PROFILE_PREFIXES:
+                    profile_data.setdefault(parent_key, {})[child_key] = value
+            elif parsed_key in cls.USER_FIELDS:
+                user_data[parsed_key] = value
+            elif parsed_key in cls.PROFILE_FIELDS:
+                profile_data[parsed_key] = value
+            # File fields like 'profile_picture' are handled by _is_valid_value for type checking,
+            # but their actual placement into user_data happens here.
 
         return user_data, profile_data
 
     @classmethod
     def _is_valid_value(cls, key, value):
         """Check if a value is valid (not empty or placeholder)."""
-        # Handle None and empty strings
         if value is None or value == "":
             return False
-
-        # Handle empty lists/arrays
         if isinstance(value, (list, tuple)) and len(value) == 0:
             return False
 
         # For file fields, ensure it's an actual uploaded file
-        clean_key = cls._normalize_key(key)
-        if clean_key in cls.FILE_FIELDS:
+        # We need to consider both flat and nested file fields.
+        # For now, let's just check if the top-level part of the key is a file field.
+        top_level_key = cls._parse_key(key)
+        if isinstance(top_level_key, tuple):
+            top_level_key = top_level_key[0] # For nested like 'cowrywise_kid_profile.username' -> 'cowrywise_kid_profile'
+
+        if top_level_key in cls.FILE_FIELDS:
             return isinstance(value, UploadedFile)
 
         return True
 
     @staticmethod
-    def _normalize_key(key):
-        """Remove common prefixes from field names."""
-        # Handle user.field_name
+    def _parse_key(key):
+        """
+        Parses the incoming key to determine if it's a direct field or a nested field.
+        Returns a string for direct fields or a tuple (parent_key, child_key) for nested fields.
+        Handles "user.field", "profile.field", "field", "nested.field", "parent[child]".
+        """
+        logger.debug(f"RequestDataExtractor._parse_key: Processing raw key: {key}")
+        original_key = key
+        # Handle "user.field_name" or "user[field_name]"
         if key.startswith("user."):
-            return key.replace("user.", "")
+            key = key[5:]  # Remove "user."
+        elif key.startswith("user["):
+            match = re.match(r"user\[(.*?)\](.*)", key)
+            if match:
+                key = match.groups()[0] + match.groups()[1]
 
-        # Handle user[field_name]
-        if key.startswith("user[") and key.endswith("]"):
-            return key[5:-1]
+        # Handle "profile.field_name" or "profile[field_name]"
+        # Use original_key for checking "profile." or "profile[" to ensure it's not double processed if 'user' prefix was found
+        if original_key.startswith("profile."):
+            key = original_key[8:]  # Remove "profile."
+        elif original_key.startswith("profile["):
+            match = re.match(r"profile\[(.*?)\](.*)", original_key)
+            if match:
+                key = match.groups()[0] + match.groups()[1]
 
-        # Handle profile.field_name
-        if key.startswith("profile."):
-            return key.replace("profile.", "")
+        # Now, handle nested fields like "cowrywise_kid_profile.username" or "cowrywise_kid_profile[username]"
+        if "." in key:
+            parts = key.split(".", 1)
+            if len(parts) == 2:
+                logger.debug(f"RequestDataExtractor._parse_key: Returning tuple: {(parts[0], parts[1])}")
+                return (parts[0], parts[1])
 
-        # Handle profile[field_name]
-        if key.startswith("profile[") and key.endswith("]"):
-            return key[8:-1]
+        match = re.match(r"(\w+)\[(\w+)\]", key)
+        if match:
+            logger.debug(f"RequestDataExtractor._parse_key: Returning tuple from bracket match: {match.groups()}")
+            return match.groups()
 
+        logger.debug(f"RequestDataExtractor._parse_key: Returning direct key: {key}")
         return key
 
 
@@ -188,7 +218,7 @@ class ProfileManager:
             )
         else:
             profile_data["has_cowrywise_kid_profile"] = False
-            
+
         return profile_data
 
 
@@ -354,6 +384,12 @@ class AccountManagementView(APIView):
                 description="Candidate's current class.",
             ),
             openapi.Parameter(
+                "cowrywise_kid_profile.username",
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="Candidate's Cowrywise Kids username.",
+            ),
+            openapi.Parameter(
                 "occupation",
                 openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
@@ -376,64 +412,82 @@ class AccountManagementView(APIView):
         logger.info(
             f"PATCH account_management: user {request.user.id} updating user {user_id}"
         )
+        try:
+            target_user = self._get_target_user(request, user_id)
 
-        target_user = self._get_target_user(request, user_id)
+            # Extract and validate data
+            user_data, profile_data = RequestDataExtractor.extract(request.data)
 
-        # Extract and validate data
-        user_data, profile_data = RequestDataExtractor.extract(request.data)
-
-        if not user_data and not profile_data:
-            logger.warning(
-                f"No valid data provided for user {user_id} update. "
-                f"Request data keys: {list(request.data.keys())}"
-            )
-            return Response(
-                {"detail": "No user or profile data provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Prepare serializers for validation
-        serializers_to_save = []
-
-        # Validate user data if provided
-        if user_data:
-            from vmlc.serializers import UserSerializer
-
-            user_serializer = UserSerializer(target_user, data=user_data, partial=True)
-            user_serializer.is_valid(raise_exception=True)
-            serializers_to_save.append(user_serializer)
-
-        # Validate profile data if provided
-        if profile_data:
-            profile, profile_serializer_class = (
-                ProfileManager.get_profile_and_serializer(target_user)
-            )
-            if profile and profile_serializer_class:
-                profile_serializer = profile_serializer_class(
-                    profile, data=profile_data, partial=True
+            if not user_data and not profile_data:
+                logger.warning(
+                    f"No valid data provided for user {user_id} update. "
+                    f"Request data keys: {list(request.data.keys())}"
                 )
-                profile_serializer.is_valid(raise_exception=True)
-                serializers_to_save.append(profile_serializer)
+                return Response(
+                    {"error": "No user or profile data provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        # Save all validated data atomically
-        with transaction.atomic():
-            for serializer in serializers_to_save:
-                serializer.save()
+            # Prepare serializers for validation
+            serializers_to_save = []
 
-        # Invalidate caches
-        AccountCacheManager.invalidate_user_cache(target_user)
+            # Validate user data if provided
+            if user_data:
+                from vmlc.serializers import UserSerializer
 
-        logger.info(f"Account {target_user.id} updated by {request.user.id}")
+                user_serializer = UserSerializer(
+                    target_user, data=user_data, partial=True
+                )
+                user_serializer.is_valid(raise_exception=True)
+                serializers_to_save.append(user_serializer)
 
-        # Return updated profile data
-        updated_profile_data = ProfileManager.serialize_profile(target_user)
+            # Validate profile data if provided
+            if profile_data:
+                profile, profile_serializer_class = (
+                    ProfileManager.get_profile_and_serializer(target_user)
+                )
+                if profile and profile_serializer_class:
+                    profile_serializer = profile_serializer_class(
+                        profile, data=profile_data, partial=True
+                    )
+                    profile_serializer.is_valid(raise_exception=True)
+                    serializers_to_save.append(profile_serializer)
 
-        return Response(
-            {
-                "message": "Account updated successfully.",
-                "profile": updated_profile_data,
-            }
-        )
+            # Save all validated data atomically
+            with transaction.atomic():
+                for serializer in serializers_to_save:
+                    serializer.save()
+
+            # Invalidate caches
+            AccountCacheManager.invalidate_user_cache(target_user)
+
+            logger.info(f"Account {target_user.id} updated by {request.user.id}")
+
+            # Return updated profile data
+            updated_profile_data = ProfileManager.serialize_profile(target_user)
+
+            return Response(
+                {
+                    "message": "Account updated successfully.",
+                    "profile": updated_profile_data,
+                }
+            )
+        except ValidationError as e:
+
+            def get_first_error(errors):
+                if isinstance(errors, dict):
+                    key = next(iter(errors))
+                    return get_first_error(errors[key])
+                elif isinstance(errors, list):
+                    return errors[0]
+                else:
+                    return str(errors)
+
+            error_message = get_first_error(e.detail)
+            logger.warning(f"Validation error during account update: {error_message}")
+            return Response(
+                {"error": str(error_message)}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class BaseInviteView(CreateAPIView):
