@@ -4,8 +4,10 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
+
 def do_nothing():
     pass
+
 
 @shared_task(name="invalidate_exam_related_caches_task")
 def invalidate_exam_related_caches_task(exam_id):
@@ -14,7 +16,11 @@ def invalidate_exam_related_caches_task(exam_id):
     """
     from vmlc.models import Exam
     from competition.models import Enrollment
-    from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard, invalidate_exam_cache
+    from vmlc.v2.utils import (
+        CacheKeys,
+        invalidate_staff_dashboard,
+        invalidate_exam_cache,
+    )
 
     try:
         exam = Exam.objects.select_related(
@@ -109,13 +115,13 @@ def check_exam_status_transitions_task():
     # Passcode Generation: Identify exams that became SCHEDULED since the last run
     # (Exam status is SCHEDULED if scheduled_date is in the future)
     newly_scheduled_exams = Exam.objects.filter(
-        is_active=True,
-        scheduled_date__gt=now,
-        updated_at__gt=last_run
+        is_active=True, scheduled_date__gt=now, updated_at__gt=last_run
     )
     for exam in newly_scheduled_exams:
         generate_and_send_exam_passcodes_task.delay(str(exam.id))
-        logger.info(f"Triggered passcode task for newly scheduled/updated exam {exam.id}")
+        logger.info(
+            f"Triggered passcode task for newly scheduled/updated exam {exam.id}"
+        )
 
     # Let's just invalidate for any exam that is "Active" and has a
     # scheduled_date in a relevant range.
@@ -209,8 +215,12 @@ def mark_exam_access_as_expired_task(access_id):
             # Invalidate cache so candidate sees the expired status
             invalidate_candidate_cache(access.candidate_id, access.candidate.user_id)
 
-            logger.info(f"ExamAccess {access_id} marked as EXPIRED for candidate {access.candidate_id}")
+            logger.info(
+                f"ExamAccess {access_id} marked as EXPIRED for candidate {access.candidate_id}"
+            )
         else:
             # If we're called before the grace period (unlikely given ETA),
             # we could reschedule, but for now just log it.
-            logger.info(f"ExamAccess {access_id} is still within grace period. No action taken.")
+            logger.info(
+                f"ExamAccess {access_id} is still within grace period. No action taken."
+            )

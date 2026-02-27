@@ -66,7 +66,9 @@ class CacheKeys:
     # Helpdesk
     HELPDESK_THREAD_DETAIL = "helpdesk:thread:detail:{thread_id}"
     HELPDESK_THREADS_VERSION_STAFF = "helpdesk_threads_version_staff"
-    HELPDESK_THREAD_LIST_STAFF = "helpdesk:threads:staff:{user_id}_{version}_{query_hash}"
+    HELPDESK_THREAD_LIST_STAFF = (
+        "helpdesk:threads:staff:{user_id}_{version}_{query_hash}"
+    )
 
     # Legacy keys (for invalidation during transition)
     _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"

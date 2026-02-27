@@ -10,6 +10,7 @@ from identity.models import Candidate, CowrywiseKidProfile, Staff, UserVerificat
 
 User = get_user_model()
 
+
 class CowrywiseKidProfileTest(APITestCase):
 
     def setUp(self):
@@ -37,9 +38,7 @@ class CowrywiseKidProfileTest(APITestCase):
 
     def test_create_cowrywisekid_profile_success(self):
         url = reverse("identity:cowrywise-kids")
-        data = {
-            "username": "candidate0.vmlc@mailsac.com"
-        }
+        data = {"username": "candidate0.vmlc@mailsac.com"}
         response = self.client.post(
             url,
             data,
@@ -47,11 +46,11 @@ class CowrywiseKidProfileTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         cowrywise_kid_profile, created = CowrywiseKidProfile.objects.get_or_create(
             username=data["username"],
-            candidate= self.candidate_profile,
+            candidate=self.candidate_profile,
             defaults={
                 "username": data["username"],
                 "candidate": self.candidate_profile,
-            }
+            },
         )
         self.assertEqual(created, False)
         self.assertEqual(self.candidate_profile, cowrywise_kid_profile.candidate)

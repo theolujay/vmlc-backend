@@ -5,13 +5,16 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
 class SlackService:
     def __init__(self):
         self.webhook_url = getattr(settings, "SLACK_WEBHOOK_URL", None)
 
     def _send_notification(self, payload):
         if not self.webhook_url:
-            logger.warning("SLACK_WEBHOOK_URL is not configured. Skipping Slack notification.")
+            logger.warning(
+                "SLACK_WEBHOOK_URL is not configured. Skipping Slack notification."
+            )
             return False
         try:
             response = requests.post(self.webhook_url, json=payload, timeout=10)
@@ -89,7 +92,9 @@ class SlackService:
                         },
                         {
                             "title": "Timestamp",
-                            "value": backup_log.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                            "value": backup_log.timestamp.strftime(
+                                "%Y-%m-%d %H:%M:%S UTC"
+                            ),
                             "short": False,
                         },
                     ],

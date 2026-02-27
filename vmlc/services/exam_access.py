@@ -12,6 +12,7 @@ from vmlc.utils.exceptions import ServerError
 
 logger = logging.getLogger(__name__)
 
+
 class ExamAccessService:
     @staticmethod
     def generate_passcodes(exam_id):
@@ -21,7 +22,9 @@ class ExamAccessService:
         stage the exam belongs to.
         """
         try:
-            exam = Exam.objects.select_related('competition_slot__competition_stage').get(pk=exam_id)
+            exam = Exam.objects.select_related(
+                "competition_slot__competition_stage"
+            ).get(pk=exam_id)
         except Exam.DoesNotExist:
             logger.error(f"Exam {exam_id} not found.")
             return 0
@@ -42,8 +45,8 @@ class ExamAccessService:
         eligible_enrollments = Enrollment.objects.filter(
             competition=competition,
             current_stage=stage,
-            status=Enrollment.Status.ACTIVE
-        ).select_related('candidate')
+            status=Enrollment.Status.ACTIVE,
+        ).select_related("candidate")
 
         if not exam.scheduled_date or not exam.open_duration_hours:
             logger.warning(f"Exam {exam_id} is not fully scheduled.")
@@ -62,10 +65,12 @@ class ExamAccessService:
                     defaults={
                         "facilitator_system": ExamAccess.Facilitator.VMLC,
                         "status": ExamAccess.Status.PENDING,
-                    }
+                    },
                 )
                 if not created and access.submitted_at is not None:
-                    logger.warning(f"Generate passcode skipped for an already submitted exam (access {access.id})")
+                    logger.warning(
+                        f"Generate passcode skipped for an already submitted exam (access {access.id})"
+                    )
                     continue
 
                 # Get or create ExamAccessPasscode
@@ -74,11 +79,15 @@ class ExamAccessService:
                     defaults={
                         "status": ExamAccessPasscode.Status.ISSUED,
                         "expiry_date": expiry_date,
-                    }
+                    },
                 )
 
                 # Generate passcode if it's new or expired or we want to force a refresh
-                if p_created or passcode_record.status == ExamAccessPasscode.Status.EXPIRED or timezone.now() > passcode_record.expiry_date:
+                if (
+                    p_created
+                    or passcode_record.status == ExamAccessPasscode.Status.EXPIRED
+                    or timezone.now() > passcode_record.expiry_date
+                ):
                     passcode_record.passcode = secrets.token_urlsafe(32)
                     passcode_record.status = ExamAccessPasscode.Status.ISSUED
                     passcode_record.expiry_date = expiry_date
@@ -88,8 +97,10 @@ class ExamAccessService:
                         logger.error("FRONTEND_BASE_URL is not configured")
                         raise ServerError("FRONTEND_BASE_URL is not set")
 
-                    base_url = frontend_base_url.rstrip('/')
-                    passcode_record.access_url = f"{base_url}/?passcode={passcode_record.passcode}"
+                    base_url = frontend_base_url.rstrip("/")
+                    passcode_record.access_url = (
+                        f"{base_url}/?passcode={passcode_record.passcode}"
+                    )
                     passcode_record.is_passcode_sent = False
                     passcode_record.save()
                     count += 1
@@ -109,8 +120,8 @@ class ExamAccessService:
             exam_access__exam_id=exam_id,
             passcode__isnull=False,
             status=ExamAccessPasscode.Status.ISSUED,
-            is_passcode_sent=False
-        ).select_related('exam_access__candidate__user', 'exam_access__exam')
+            is_passcode_sent=False,
+        ).select_related("exam_access__candidate__user", "exam_access__exam")
 
         sent_count = 0
         for p_record in passcode_records:
@@ -126,21 +137,18 @@ class ExamAccessService:
                 "Note that this link is only valid when the exam is ongoing."
             )
 
-            html_message = create_email_html(
-                subject=subject,
-                message=message
-            )
+            html_message = create_email_html(subject=subject, message=message)
 
             send_mail_task.delay(
                 subject=subject,
                 message=message,
                 recipient_list=[user.email],
-                html_message=html_message
+                html_message=html_message,
             )
 
             # Mark as sent
             p_record.is_passcode_sent = True
-            p_record.save(update_fields=['is_passcode_sent'])
+            p_record.save(update_fields=["is_passcode_sent"])
 
             sent_count += 1
 
@@ -170,7 +178,7 @@ class ExamAccessService:
         # Check if expired
         if p_record.expiry_date and now > p_record.expiry_date:
             p_record.status = ExamAccessPasscode.Status.EXPIRED
-            p_record.save(update_fields=['status'])
+            p_record.save(update_fields=["status"])
             return None, "This access link has expired."
 
         # Check if exam is active
@@ -194,8 +202,8 @@ class ExamAccessService:
         invalidate_candidate_cache(p_record.exam_access.candidate.pk, user.id)
 
         data = {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
         }
 
         # Add profile information (candidate or staff)

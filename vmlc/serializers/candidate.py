@@ -1,13 +1,16 @@
 from rest_framework import serializers
 from django.core.cache import cache
+from django.db import transaction
 
 
 from identity.models import (
     Candidate,
+    CowrywiseKidProfile,
 )
-
+from competition.models import Competition, Enrollment
 from .user import UserSerializer
 from vmlc.services.candidate_records import CandidateRecordService
+from identity.serializers.cowrywise_kid import CowrywiseKidProfileSerializer
 
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):
@@ -75,6 +78,10 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     profile_type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     is_setup_complete = serializers.SerializerMethodField()
+    cowrywise_kid_profile = CowrywiseKidProfileSerializer(
+        required=False, allow_null=True
+    )
+    current_stage = serializers.SerializerMethodField()
 
     class Meta:
         model: Candidate = Candidate
@@ -91,9 +98,23 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "records",
+            "current_stage",
             "is_setup_complete",
+            "cowrywise_kid_profile",
         ]
         read_only_fields = ["created_at", "updated_at", "user"]
+
+    def get_current_stage(self, obj):
+        active_competition = Competition.objects.filter(
+            status=Competition.Status.ACTIVE
+        ).first()
+        if active_competition is not None:
+            enrollment = Enrollment.objects.filter(
+                candidate=obj,
+                competition=active_competition,
+            ).first()
+            return str(enrollment.current_stage) if enrollment is not None else None
+        return None
 
     def get_is_setup_complete(self, obj):
         return obj.user.is_setup_complete
@@ -142,3 +163,22 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj: Candidate):
         return obj.status
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        cowrywise_kid_profile_data = validated_data.pop("cowrywise_kid_profile", None)
+
+        # Update Candidate instance separately
+        instance = super().update(instance, validated_data)
+
+        # Handle CowrywiseKidProfile update/creation
+        if cowrywise_kid_profile_data is not None:
+            CowrywiseKidProfile.objects.update_or_create(
+                candidate=instance,
+                defaults=cowrywise_kid_profile_data,
+            )
+        # elif hasattr(instance, 'cowrywise_kid_profile'):
+        #     # If data is explicitly set to null/empty and a profile exists, delete it
+        #     instance.cowrywise_kid_profile.delete()
+
+        return instance

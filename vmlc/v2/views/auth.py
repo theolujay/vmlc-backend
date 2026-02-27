@@ -9,17 +9,21 @@ from vmlc.services.exam_access import ExamAccessService
 
 logger = logging.getLogger(__name__)
 
+
 class DirectAccessLoginView(APIView):
     """
     Login via a unique single-use passcode for direct exam access.
     """
+
     permission_classes = [HasXAPIKey]
 
     def post(self, request):
-        passcode = request.data.get('passcode')
+        passcode = request.data.get("passcode")
 
         if not passcode:
-            return Response({'detail': 'Passcode is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Passcode is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         logger.info(f"Direct access login attempt with passcode: {passcode[:8]}...")
 
@@ -27,7 +31,9 @@ class DirectAccessLoginView(APIView):
 
         if error:
             logger.warning(f"Direct access login failed: {error}")
-            return Response({'detail': error}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": error}, status=status.HTTP_403_FORBIDDEN)
 
-        logger.info(f"Direct access login successful for user {data['profile']['user']['email']}")
+        logger.info(
+            f"Direct access login successful for user {data['profile']['user']['email']}"
+        )
         return Response(data, status=status.HTTP_200_OK)

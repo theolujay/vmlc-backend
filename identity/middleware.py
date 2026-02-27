@@ -1,7 +1,7 @@
 from django.utils.deprecation import MiddlewareMixin
 
 from competition.models import Competition, Enrollment
-from vmlc.v2.utils import get_or_set_cache, CacheKeys # TODO: [core] move to core/ app
+from vmlc.v2.utils import get_or_set_cache, CacheKeys  # TODO: [core] move to core/ app
 
 
 class CompetitionContextMiddleware(MiddlewareMixin):

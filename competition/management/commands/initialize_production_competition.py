@@ -79,7 +79,6 @@ class Command(BaseCommand):
                     self.style.SUCCESS("Production competition setup complete.")
                 )
 
-
     def _create_competition_structure(self, edition, name):
         self.stdout.write("Creating competition and stages...")
 
@@ -87,8 +86,10 @@ class Command(BaseCommand):
             status=Competition.Status.ACTIVE
         ).first()
         if not competition:
-            self.stderr.write(self.style.ERROR("No active competition found. Creating one..."))
-        
+            self.stderr.write(
+                self.style.ERROR("No active competition found. Creating one...")
+            )
+
             competition, created = Competition.objects.get_or_create(
                 edition=edition,
                 defaults={
@@ -98,7 +99,9 @@ class Command(BaseCommand):
                 },
             )
             if created:
-                self.stdout.write(self.style.SUCCESS(f"Created Competition: {competition}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created Competition: {competition}")
+                )
         else:
             self.stdout.write(f"Competition already exists: {competition}")
 

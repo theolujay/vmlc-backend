@@ -20,7 +20,9 @@ class CowrywiseKidProfileView(CreateAPIView):
     permission_classes = CandidatePermissions
 
     def post(self, request, *args, **kwargs):
-        logger.info(f"Attempting to link Cowrywise Kid profile for user: {request.user.email}")
+        logger.info(
+            f"Attempting to link Cowrywise Kid profile for user: {request.user.email}"
+        )
 
         try:
             candidate = request.user.candidate_profile
@@ -28,15 +30,14 @@ class CowrywiseKidProfileView(CreateAPIView):
             logger.error(f"Candidate profile not found for user: {request.user.email}")
             return Response(
                 {"error": "Candidate profile not found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         username = request.data.get("username")
         if not username:
             logger.warning(f"No username provided by user {request.user.email}")
             return Response(
-                {"error": "Username is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Username is required."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Normalize username to lowercase
@@ -52,33 +53,43 @@ class CowrywiseKidProfileView(CreateAPIView):
                 {
                     "error": f"You have already linked a Cowrywise Kid profile with username [{existing_profile.username}]"
                 },
-                status=status.HTTP_409_CONFLICT
+                status=status.HTTP_409_CONFLICT,
             )
 
         # Check if the provided username is taken by anyone else
         if CowrywiseKidProfile.objects.filter(username=username).exists():
-            logger.warning(f"Cowrywise username [{username}] is already taken by another candidate")
+            logger.warning(
+                f"Cowrywise username [{username}] is already taken by another candidate"
+            )
             return Response(
                 {
                     "error": f"The username [{username}] is already linked to another candidate"
                 },
-                status=status.HTTP_409_CONFLICT
+                status=status.HTTP_409_CONFLICT,
             )
 
         # Check for active competition and enrollment
-        competition = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+        competition = Competition.objects.filter(
+            status=Competition.Status.ACTIVE
+        ).first()
         if not competition:
-            logger.error(f"User {request.user.email} tried to link profile but no active competition exists")
+            logger.error(
+                f"User {request.user.email} tried to link profile but no active competition exists"
+            )
             return Response(
                 {"error": "No active competition found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not Enrollment.objects.filter(competition=competition, candidate=candidate).exists():
-            logger.warning(f"User {request.user.email} is not enrolled in competition [{competition.id}]")
+        if not Enrollment.objects.filter(
+            competition=competition, candidate=candidate
+        ).exists():
+            logger.warning(
+                f"User {request.user.email} is not enrolled in competition [{competition.id}]"
+            )
             return Response(
                 {"error": "You are not enrolled in any active competition."},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Save the profile
@@ -91,18 +102,22 @@ class CowrywiseKidProfileView(CreateAPIView):
             try:
                 serializer.is_valid(raise_exception=True)
                 serializer.save(candidate=candidate)
-                logger.info(f"Successfully linked Cowrywise Kid profile [{username}] for {request.user.email}")
+                logger.info(
+                    f"Successfully linked Cowrywise Kid profile [{username}] for {request.user.email}"
+                )
             except ValidationError as e:
                 logger.error(f"Validation error for {request.user.email}: {e.detail}")
                 return Response(
                     {"error": f"Validation error: {e.detail}"},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             except Exception as e:
-                logger.exception(f"Unexpected error linking Cowrywise profile for {request.user.email}")
+                logger.exception(
+                    f"Unexpected error linking Cowrywise profile for {request.user.email}"
+                )
                 return Response(
                     {"error": "An internal error occurred during profile linking."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
         log_event(
@@ -112,10 +127,10 @@ class CowrywiseKidProfileView(CreateAPIView):
                 "email": candidate.user.email,
                 "competition_id": competition.id,
                 "username": username,
-            }
+            },
         )
 
         return Response(
             {"detail": "Cowrywise Kid profile successfully linked"},
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
