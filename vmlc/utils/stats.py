@@ -1,11 +1,12 @@
 from datetime import timedelta
 import re
-from django.db.models import F, Count, ExpressionWrapper, DateTimeField
+from django.db.models import F, Q, Count, ExpressionWrapper, DateTimeField
 from django.utils import timezone
 from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
 from ..models import Exam
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
+from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
 from ..v2.utils import CacheKeys, get_or_set_cache
 from .user import get_user_status_counts
 from .metrics import get_funnel_metrics
@@ -77,6 +78,7 @@ def _get_helpdesk_stats() -> dict:
             status=HelpdeskThread.Status.RESOLVED
         ).count(),
         "unassigned_threads": threads_qs.filter(assigned_staff__isnull=True).count(),
+        "unattended_candidates": annotate_thread_with_staff_unread_count(threads_qs).filter(unread_cnt__gt=0).count(),
         "unread_messages": unread_messages_count,
         "public_requests": PublicSupportRequest.objects.count(),
     }

@@ -1,11 +1,25 @@
 from typing import Any, List
 
 import django_filters
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Count
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
 from comms.models import Broadcast, HelpdeskThread
+
+
+def annotate_thread_with_staff_unread_count(queryset: QuerySet[HelpdeskThread]) -> QuerySet[HelpdeskThread]:
+    """
+    Annotates a HelpdeskThread queryset with 'unread_cnt',
+    representing messages unread by any staff member.
+    """
+    return queryset.annotate(
+        unread_cnt=Count(
+            "messages",
+            filter=~Q(messages__reads__user__staff_profile__isnull=False),
+            distinct=True
+        )
+    )
 
 
 def filter_broadcasts(queryset: QuerySet[Broadcast], params: Any) -> QuerySet[Broadcast]:

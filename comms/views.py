@@ -47,6 +47,7 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import filter_broadcasts, filter_helpdesk_threads
+from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
 from vmlc.utils.stats import get_helpdesk_stats_cached
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 
@@ -563,7 +564,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
 
         cached_data = cache.get(cache_key)
         if cached_data:
-            logger.info(f"Returning cached helpdesk threads for staff {user.id}")
+            # logger.info(f"Returning cached helpdesk threads for staff {user.id}")
             # Ensure helpdesk_summary_data is always fresh or at least included
             cached_data["helpdesk_summary_data"] = helpdesk_summary_data
             return Response(cached_data)
@@ -577,14 +578,8 @@ class StaffHelpdeskThreadListView(ListAPIView):
         # Unread count annotation
         user = self.request.user
         queryset = HelpdeskThread.objects.select_related("candidate", "assigned_staff__user") \
-            .prefetch_related("messages__reads") \
-            .annotate(
-                unread_cnt=Count(
-                    "messages",
-                    filter=~Q(messages__reads__user=user),
-                    distinct=True
-                )
-            )
+            .prefetch_related("messages__reads")
+        queryset = annotate_thread_with_staff_unread_count(queryset).order_by("-last_message_at")
         return filter_helpdesk_threads(queryset, self.request.query_params)
 
 

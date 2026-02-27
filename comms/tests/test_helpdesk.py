@@ -38,6 +38,18 @@ class HelpdeskTests(APITestCase):
             role=Staff.Roles.ADMIN
         )
 
+        # Create another Staff
+        # self.staff_user2 = User.objects.create_user(
+        #     email="staff2@example.com",
+        #     password="password123",
+        #     first_name="Staff",
+        #     last_name="User2",
+        # )
+        # self.staff_profile2 = Staff.objects.create(
+        #     user=self.staff_user2,
+        #     role=Staff.Roles.ADMIN
+        # )
+
     def test_get_or_create_thread_candidate(self):
         """Test that a candidate can get or create their support thread."""
         self.client.force_authenticate(user=self.candidate_user)
@@ -209,3 +221,31 @@ class HelpdeskTests(APITestCase):
 
         # Verify Slack was NOT triggered
         mock_slack.assert_not_called()
+
+    # def test_staff_list_threads_unread_count_any_staff_read(self):
+    #     """
+    #     Test that `unread_cnt` in StaffHelpdeskThreadListView is 0 if any staff has read the message.
+    #     """
+    #     # Create a helpdesk thread and a message from the candidate
+    #     thread = HelpdeskThread.objects.create(candidate=self.candidate_profile)
+    #     candidate_msg = ThreadMessage.objects.create(
+    #         thread=thread,
+    #         sender=self.candidate_user,
+    #         sender_type=ThreadMessage.SenderType.CANDIDATE,
+    #         text="Help me, please!"
+    #     )
+
+    #     # Staff user 1 reads the message
+    #     self.client.force_authenticate(user=self.staff_user)
+    #     detail_url = reverse("comms:staff-helpdesk-thread-detail", kwargs={"id": thread.id})
+    #     self.client.get(detail_url) # This marks the message as read for staff_user
+
+    #     # Now, staff user 2 lists the threads
+    #     self.client.force_authenticate(user=self.staff_user2)
+    #     list_url = reverse("comms:staff-helpdesk-threads")
+    #     response = self.client.get(list_url)
+
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     self.assertEqual(len(response.data['results']), 1)
+    #     # Assert that the unread_cnt for the thread is 0, because staff_user has read it
+    #     self.assertEqual(response.data['results'][0]['unread_cnt'], 0)
