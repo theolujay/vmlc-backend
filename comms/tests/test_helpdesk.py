@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.cache import cache
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from identity.models import Staff, Candidate
@@ -15,6 +16,7 @@ User = get_user_model()
 class HelpdeskTests(APITestCase):
 
     def setUp(self):
+        cache.clear()
         # Create Candidate
         self.candidate_user = User.objects.create_user(
             email="candidate@example.com",

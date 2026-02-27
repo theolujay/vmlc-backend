@@ -580,7 +580,11 @@ class StaffHelpdeskThreadListView(ListAPIView):
         user = request.user
         # Versioning for staff list
         version = cache.get(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 0)
-        query_hash = hash(frozenset(request.query_params.items()))
+        
+        # Use a deterministic hash for query params
+        sorted_params = sorted(request.query_params.items())
+        query_hash = hashlib.md5(str(sorted_params).encode()).hexdigest()
+        
         cache_key = CacheKeys.HELPDESK_THREAD_LIST_STAFF.format(
             user_id=user.id, version=version, query_hash=query_hash
         )
