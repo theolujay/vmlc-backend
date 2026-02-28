@@ -7,7 +7,6 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import send_mass_mail
 from django.db import DatabaseError
 from django.db.models import F
 from django.utils import timezone
@@ -95,8 +94,12 @@ class NotificationService:
                 elif medium == Broadcast.Mediums.EMAIL:
                     from comms.tasks import send_mail_task
 
+                    html_message = metadata.get("html_message") if metadata else None
                     send_mail_task.delay(
-                        subject=subject, message=message, recipient_list=[user.email]
+                        subject=subject,
+                        message=message,
+                        recipient_list=[user.email],
+                        html_message=html_message,
                     )
                     results["email"] = True
 
@@ -266,7 +269,7 @@ class NotificationService:
 
         ``event_type`` must be ``'scheduled'``, ``'reminder'``, or ``'started'``.
         """
-        from competition.models import EnrollmentStageProgress
+        from competition.models import Enrollment
 
         if event_type not in ("scheduled", "started", "reminder"):
             logger.warning(
@@ -284,11 +287,12 @@ class NotificationService:
             return
 
         stage = exam.competition_slot.competition_stage
-        enrollment_stage_progresses = EnrollmentStageProgress.objects.filter(
-            stage=stage, status=EnrollmentStageProgress.Status.IN_PROGRESS
-        ).select_related("enrollment__candidate__user")
+        eligible_enrollments = Enrollment.objects.filter(
+            current_stage=stage,
+            status=Enrollment.Status.ACTIVE,
+        ).select_related("candidate__user")
 
-        if not enrollment_stage_progresses.exists():
+        if not eligible_enrollments.exists():
             logger.info(
                 "No candidates to notify for exam %s (%s).", exam.id, event_type
             )
@@ -298,11 +302,13 @@ class NotificationService:
             self._build_exam_notification_content(exam, event_type)
         )
 
+        from comms.services.email import create_email_html
+
         phone_grouped_users: Dict[str, list] = {}
         notification_count = 0
 
-        for esp in enrollment_stage_progresses:
-            user = esp.enrollment.candidate.user
+        for enrollment in eligible_enrollments:
+            user = enrollment.candidate.user
             notification_count += 1
 
             personalized_message = message_template.format(
@@ -310,6 +316,10 @@ class NotificationService:
                 exam_title=exam.get_title(),
                 **template_kwargs,
             )
+            html_message = create_email_html(
+                subject=subject, message=personalized_message
+            )
+
             self.notify_user(
                 user=user,
                 subject=subject,
@@ -317,6 +327,7 @@ class NotificationService:
                 mediums=[Broadcast.Mediums.EMAIL],
                 # mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
                 notification_type="info",
+                metadata={"html_message": html_message},
             )
 
             if not user.phone:
@@ -329,7 +340,6 @@ class NotificationService:
             phone_grouped_users.setdefault(phone, []).append(user)
 
         # phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
-        phone_mediums = [Broadcast.Mediums.SMS]
         for phone, users in phone_grouped_users.items():
             candidate_name = self._format_grouped_names(users)
             personalized_sms = sms_template.format(
@@ -337,12 +347,11 @@ class NotificationService:
                 exam_title=exam.get_title(),
                 **template_kwargs,
             )
-            self.notify_user(
-                user=users[0],
-                subject="",  # For SMS, the subject is already within the message
-                message=personalized_sms,
-                mediums=phone_mediums,
-                notification_type="info",
+            # Use send_bulk_phone_msg to ensure it's queued if using Kudi
+            self.send_bulk_phone_msg(
+                body=personalized_sms,
+                recipients=[phone],
+                medium=Broadcast.Mediums.SMS,
             )
 
         logger.info(
@@ -614,15 +623,26 @@ class NotificationService:
                 "No valid email addresses found for role '%s'." % role
             )
 
-        mail_details = (
-            broadcast.subject,
-            broadcast.message,
-            settings.DEFAULT_FROM_EMAIL,
-            valid_emails,
+        from comms.tasks import send_mail_task
+        from comms.services.email import create_email_html
+
+        html_message = create_email_html(
+            subject=broadcast.subject, message=broadcast.message
         )
-        send_mass_mail((mail_details,), fail_silently=False)
+
+        # send_mass_mail is synchronous. Since send_broadcast is often called
+        # from a celery task (send_broadcast_task), we can offload each email
+        # to a separate task or just loop here. Offloading is better for scaling.
+        for email in valid_emails:
+            send_mail_task.delay(
+                subject=broadcast.subject,
+                message=broadcast.message,
+                recipient_list=[email],
+                html_message=html_message,
+            )
+
         logger.info(
-            "Email queued for broadcast %s to %d recipients (role: %s).",
+            "Email tasks queued for broadcast %s to %d recipients (role: %s).",
             broadcast.id,
             len(valid_emails),
             role,
