@@ -261,12 +261,12 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/day",
-        "user": "1000/hour",
-        "login": "5/min",
-        "burst": "20/min",
-        "sustained": "100/hour",
-        "helpdesk_threads": "20/min",
+        "anon": "1000/day",
+        "user": "5000/hour",
+        "login": "20/min",
+        "burst": "60/min",
+        "sustained": "1000/hour",
+        "helpdesk_threads": "60/min",
     },
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
     "DEFAULT_AUTHENTICATION_CLASSES": (

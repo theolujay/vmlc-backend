@@ -150,7 +150,7 @@ FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 # === API AND JWT OVERRIDES ===
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
     {
-        "login": "100/min",  # Increased from 5/min to accommodate 400+ concurrent users
+        "login": "500/min",  # Increased from 100/min to accommodate 400+ concurrent users
     }
 )
 REST_FRAMEWORK["NUM_PROXIES"] = 1  # Trust the first proxy's X-Forwarded-For header
