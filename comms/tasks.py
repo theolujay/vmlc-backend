@@ -605,3 +605,56 @@ def helpdesk_escalation_task(message_id):
         logger.error(f"Message {message_id} not found for escalation task.")
     except Exception as e:
         logger.exception(f"Error in helpdesk_escalation_task: {e}")
+
+
+@shared_task(name="notify_staff_about_exam_event_task", queue="comms")
+def notify_staff_about_exam_event_task(exam_id, event_type):
+    """
+    Notify staff members about exam status changes.
+    """
+    from vmlc.models import Exam
+    from identity.models import Staff
+
+    try:
+        exam = Exam.objects.get(id=exam_id)
+    except Exam.DoesNotExist:
+        logger.error(f"Exam {exam_id} not found for staff notification task.")
+        return
+
+    if event_type not in ["ongoing", "concluded", "cancelled"]:
+        logger.warning(
+            f"Invalid event_type '{event_type}' for exam {exam_id} staff notification."
+        )
+        return
+
+    # Notify via Slack
+    slack_service.send_exam_status_notification(exam, event_type)
+
+    # Notify via Email
+    staff_to_notify = Staff.objects.filter(
+        role__in=[Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN],
+        user__is_active=True,
+    ).select_related("user")
+
+    if not staff_to_notify.exists():
+        logger.info(f"No staff found to notify for exam {exam_id} event '{event_type}'.")
+        return
+
+    subject = f"Exam Status Update: {exam.get_title()} is now {event_type.capitalize()}"
+    message = (
+        f"This is an automated notification to inform you that the exam "
+        f"'{exam.get_title()}' has been marked as '{event_type.capitalize()}'."
+    )
+
+    for staff in staff_to_notify:
+        notification_service.notify_user(
+            user=staff.user,
+            subject=subject,
+            message=message,
+            mediums=["email"],
+            notification_type="alert",
+        )
+
+    logger.info(
+        f"Sent '{event_type}' notifications for exam {exam_id} to {staff_to_notify.count()} staff."
+    )
