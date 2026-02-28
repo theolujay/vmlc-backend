@@ -5,7 +5,7 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 
-def do_nothing():
+def do_nothing(): # this is called to alllow celery registered tasks that are somehow not found in other apps
     pass
 
 
@@ -138,22 +138,24 @@ def check_exam_status_transitions_task():
             conclusion_time = exam.scheduled_date + timedelta(
                 hours=exam.open_duration_hours
             )
-            reminder_time = exam.scheduled_date - timedelta(hours=1)
+            start_time = exam.scheduled_date
 
-            # if last_run < reminder_time <= now:
-            #     # 1 hour reminder
-            #     from comms.tasks import notify_candidates_about_exam_task
+            reminder_time = start_time - timedelta(hours=1)
+            if last_run < reminder_time <= now:
+                # 1 hour reminder
+                from comms.tasks import notify_candidates_about_exam_task
 
-            #     notify_candidates_about_exam_task.delay(exam.id, "reminder")
-            #     logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
+                notify_candidates_about_exam_task.delay(exam.id, "reminder")
+                logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
 
-            if last_run < exam.scheduled_date <= now:
+            if last_run < start_time <= now:
                 # Started
                 transitioned_exams.append(exam)
                 # Notify candidates that the exam has started
                 from comms.tasks import notify_candidates_about_exam_task
 
                 notify_candidates_about_exam_task.delay(exam.id, "started")
+                logger.info(f"Triggered start time notification for exam {exam.id}")
 
             elif last_run < conclusion_time <= now:
                 # Concluded

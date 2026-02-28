@@ -87,7 +87,7 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
         source="assigned_staff.user.get_full_name", read_only=True
     )
     candidate_last_msg_preview = serializers.SerializerMethodField()
-    is_online = serializers.SerializerMethodField()
+    is_candidate_online = serializers.SerializerMethodField()
     last_message_sender_type = serializers.SerializerMethodField()
     is_unattended = serializers.SerializerMethodField()
 
@@ -104,7 +104,7 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
             "last_message_at",
             "unread_by_staff_count",
             "candidate_last_msg_preview",
-            "is_online",
+            "is_candidate_online",
             "last_message_sender_type",
             "is_unattended",
             "created_at",
@@ -127,7 +127,7 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
             )
         return ""
 
-    def get_is_online(self, obj):
+    def get_is_candidate_online(self, obj):
         from django.core.cache import cache
 
         return cache.get(f"user_online_{obj.candidate.user_id}") is not None
@@ -136,7 +136,7 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
         # Prefer using annotated value if available for performance in list views
         if hasattr(obj, "last_msg_sender_type"):
             return obj.last_msg_sender_type
-        
+
         last_msg = obj.messages.order_by("-created_at").first()
         return last_msg.sender_type if last_msg else None
 
@@ -164,6 +164,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
     )
     participating_staff_names = serializers.SerializerMethodField()
     last_message_sender_type = serializers.SerializerMethodField()
+    is_candidate_online = serializers.SerializerMethodField()
 
     class Meta:
         model = HelpdeskThread
@@ -175,6 +176,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
             "assigned_staff",
             "assigned_staff_name",
             "participating_staff_names",
+            "is_candidate_online",
             "status",
             "priority",
             "last_message_at",
@@ -190,6 +192,11 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    def get_is_candidate_online(self, obj):
+        from django.core.cache import cache
+
+        return cache.get(f"user_online_{obj.candidate.user_id}") is not None
+
     def get_candidate_phone(self, obj):
         from comms.utils import _normalize_phone
 
@@ -202,6 +209,10 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
             sent_helpdesk_messages__sender_type=ThreadMessage.SenderType.STAFF,
         ).distinct()
         return [user.get_full_name() for user in staff_users]
+
+    def get_last_message_sender_type(self, obj):
+        last_msg = obj.messages.order_by("-created_at").first()
+        return last_msg.sender_type if last_msg else None
 
 
 class BroadcastLogSerializer(serializers.ModelSerializer):

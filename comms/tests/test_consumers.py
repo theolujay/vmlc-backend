@@ -2,7 +2,7 @@ import pytest
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 
-from comms.consumers import NotificationConsumer
+from comms.consumers import UnifiedConsumer
 from comms.models import Notification
 
 User = get_user_model()
@@ -12,7 +12,7 @@ User = get_user_model()
 @pytest.mark.asyncio
 async def test_notification_consumer_receives_broadcast():
     """
-    Tests that the NotificationConsumer correctly receives a message
+    Tests that the UnifiedConsumer correctly receives a message
     when a new Notification object is created for the connected user.
     """
     # 1. Create a user
@@ -22,7 +22,7 @@ async def test_notification_consumer_receives_broadcast():
 
     # 2. Instantiate the communicator for our consumer
     communicator = WebsocketCommunicator(
-        NotificationConsumer.as_asgi(), f"/v1/ws/notifications/?user_id={user.id}"
+        UnifiedConsumer.as_asgi(), f"/v1/ws/"
     )
     # Add the user to the scope to simulate authentication
     communicator.scope["user"] = user

@@ -11,6 +11,7 @@ from vmlc.utils.exceptions import ServerError
 from comms.services.notification import NotificationService
 from comms.services.kudi_sms import KudiSmsService
 from comms.services.slack import SlackService
+from vmlc.v2 import tasks as v2_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ notification_service = NotificationService()
 kudi_sms_service = KudiSmsService()
 slack_service = SlackService()
 
+v2_tasks.do_nothing() # this helps bypass linters flagging v2_tasks as unused
 
 @shared_task(
     bind=True,
@@ -395,6 +397,36 @@ def send_system_email_task(
                 f"Max retries reached for {email_type} email to {recipient_email}. "
                 f"Object ID: {obj_id}"
             )
+
+
+@shared_task(name="broadcast_staff_helpdesk_update_task", queue="comms")
+def broadcast_staff_helpdesk_update_task():
+    """
+    Broadcasts the latest helpdesk stats and potentially thread updates
+    to the staff helpdesk dashboard group.
+    """
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    from vmlc.utils.stats import get_helpdesk_stats_cached
+    from django.core.cache import cache
+    from vmlc.v2.utils import CacheKeys
+
+    # Invalidate stats cache to get fresh data
+    cache.delete(CacheKeys.STATS_HELPDESK)
+    stats = get_helpdesk_stats_cached()
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "staff_helpdesk_dashboard",
+        {
+            "type": "helpdesk.update",
+            "data": {
+                "stats": stats,
+                # We can also signal the client to refresh its thread list
+                "refresh_threads": True,
+            },
+        },
+    )
 
 
 @shared_task(bind=True, name="send_welcome_mail_task", max_retries=20)

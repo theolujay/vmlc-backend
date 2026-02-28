@@ -1,3 +1,4 @@
+from asgiref.sync import async_to_sync
 from django.db import transaction
 import hashlib
 import logging
@@ -675,19 +676,40 @@ class HelpdeskThreadMessageView(CreateAPIView):
             thread=thread, sender=request.user, sender_type=sender_type
         )
 
-        # Broadcast via WebSocket group
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        from comms.serializers import WebSocketThreadMessageSerializer
+        # Broadcast via WebSocket group (Post-commit for reliability)
+        def broadcast_message():
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            from comms.serializers import (
+                WebSocketThreadMessageSerializer,
+                HelpdeskThreadDetailSerializer,
+            )
 
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"helpdesk_thread_{thread.id}",
-            {
-                "type": "chat.message",
-                "message": WebSocketThreadMessageSerializer(message).data,
-            },
-        )
+            # Get fresh thread state for metadata
+            thread.refresh_from_db()
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"helpdesk_thread_{thread.id}",
+                {
+                    "type": "helpdesk.thread",
+                    "data": {
+                        "thread_id": str(thread.id),
+                        "update_type": "message",
+                        "message": WebSocketThreadMessageSerializer(message).data,
+                        # Minimal thread metadata for UI updates (status, assignment, etc)
+                        "thread": {
+                            "id": str(thread.id),
+                            "status": thread.status,
+                            "priority": thread.priority,
+                            "assigned_staff": str(thread.assigned_staff_id) if thread.assigned_staff_id else None,
+                            "last_message_at": thread.last_message_at.isoformat() if thread.last_message_at else None,
+                        }
+                    },
+                },
+            )
+
+        transaction.on_commit(broadcast_message)
 
         # Trigger staff load balancing if first staff reply
         if is_staff and thread.assigned_staff is None:
