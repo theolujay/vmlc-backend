@@ -1,3 +1,4 @@
+import uuid
 import logging
 from typing import List
 
@@ -608,12 +609,13 @@ def helpdesk_escalation_task(message_id):
 
 
 @shared_task(name="notify_staff_about_exam_event_task", queue="comms")
-def notify_staff_about_exam_event_task(exam_id, event_type):
+def notify_staff_about_exam_event_task(exam_id: uuid.UUID, event_type: str):
     """
     Notify staff members about exam status changes.
     """
     from vmlc.models import Exam
     from identity.models import Staff
+    from comms.services.email import create_email_html
 
     try:
         exam = Exam.objects.get(id=exam_id)
@@ -640,10 +642,12 @@ def notify_staff_about_exam_event_task(exam_id, event_type):
         logger.info(f"No staff found to notify for exam {exam_id} event '{event_type}'.")
         return
 
-    subject = f"Exam Status Update: {exam.get_title()} is now {event_type.capitalize()}"
+    app_environment = settings.APP_ENVIRONMENT
+    subject = f"{app_environment.title() if app_environment != "production" else ""} Exam Update: {exam.get_title()} is now {event_type.capitalize()}"
     message = (
         f"This is an automated notification to inform you that the exam "
-        f"'{exam.get_title()}' has been marked as '{event_type.capitalize()}'."
+        f"'{exam.get_title()}' has been marked as '{event_type.capitalize()}' "
+        f"in {app_environment}."
     )
 
     for staff in staff_to_notify:
@@ -653,6 +657,12 @@ def notify_staff_about_exam_event_task(exam_id, event_type):
             message=message,
             mediums=["email"],
             notification_type="alert",
+            metadata={
+                "html_message": create_email_html(
+                    subject=subject,
+                    message=message,
+                )
+            }
         )
 
     logger.info(

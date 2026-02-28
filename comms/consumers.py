@@ -108,8 +108,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             # Clear presence
             await WSHelpdeskThreadService.set_presence(user.id, self.presence_set_name, False)
 
+        user_email = user.email if user and user.is_authenticated else "Anonymous"
         logger.info(
-            f"Unified WebSocket disconnected: {user.email if user else 'Anonymous'}"
+            f"Unified WebSocket disconnected: {user_email}"
         )
 
     async def receive_json(self, content, **kwargs):
