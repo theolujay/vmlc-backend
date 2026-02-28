@@ -83,18 +83,21 @@ class EligibilityService:
             )
             return False
 
-        # Ensure they have an IN_PROGRESS EnrollmentStageProgress for this stage
+        # Ensure they have a PENDING or IN_PROGRESS EnrollmentStageProgress for this stage
         from competition.models import EnrollmentStageProgress
 
         if enrollment:
             has_progress = EnrollmentStageProgress.objects.filter(
                 enrollment=enrollment,
                 stage=slot.competition_stage,
-                status=EnrollmentStageProgress.Status.IN_PROGRESS,
+                status__in=[
+                    EnrollmentStageProgress.Status.PENDING,
+                    EnrollmentStageProgress.Status.IN_PROGRESS,
+                ],
             ).exists()
             if not has_progress:
                 logger.info(
-                    f"Candidate {candidate.pk} has no IN_PROGRESS progress for stage {slot.competition_stage.type}"
+                    f"Candidate {candidate.pk} has no valid progress for stage {slot.competition_stage.type}"
                 )
                 return False
 
