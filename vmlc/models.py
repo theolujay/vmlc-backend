@@ -3,6 +3,7 @@ This module defines the database models for the VMLC backend application.
 """
 
 import uuid
+import logging
 from datetime import timedelta
 
 from django.core.cache import cache
@@ -13,6 +14,8 @@ from django.utils import timezone
 
 from identity.validators import validate_image
 from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
+
+logger = logging.getLogger(__name__)
 
 phone_regex = RegexValidator(
     regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",
@@ -363,9 +366,30 @@ class Exam(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Overridden save to synchronize StageExam visibility.
+        Overridden save to synchronize StageExam visibility and notify on status changes.
         """
+        # Fetch the old status if the object already exists
+        old_status = None
+        if self.pk:
+            try:
+                old_exam = Exam.objects.get(pk=self.pk)
+                old_status = old_exam.status
+            except Exam.DoesNotExist:
+                pass  # Object is new, no old status
+
         super().save(*args, **kwargs)
+
+        new_status = self.status
+
+        # If status changed and it's now CANCELLED, trigger notification
+        if old_status != new_status and new_status == self.Status.CANCELLED:
+            from comms.tasks import notify_staff_about_exam_event_task
+            from django.db import transaction
+
+            transaction.on_commit(
+                lambda: notify_staff_about_exam_event_task.delay(str(self.id), "cancelled")
+            )
+            logger.info(f"Triggered 'cancelled' notification for exam {self.id}")
 
         if self.competition_slot:
             # StageExam should be active ONLY IF the exam is scheduled AND is_active is True

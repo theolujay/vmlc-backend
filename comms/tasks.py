@@ -589,7 +589,7 @@ def helpdesk_escalation_task(message_id):
                     subject=subject,
                     message=body,
                     mediums=["email", "platform"],
-                    type="alert",
+                    notification_type="alert",
                 )
                 # Send SMS
                 if staff.user.phone:
@@ -598,7 +598,7 @@ def helpdesk_escalation_task(message_id):
                         subject=subject,
                         message=body,
                         mediums=["sms"],
-                        type="alert",
+                        notification_type="alert",
                     )
 
     except ThreadMessage.DoesNotExist:
