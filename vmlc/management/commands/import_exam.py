@@ -70,10 +70,16 @@ class Command(BaseCommand):
                     )
                     questions.append(question)
 
+                from django.utils.dateparse import parse_datetime
+                scheduled_date_raw = data.get("scheduled_date")
+                scheduled_date = None
+                if scheduled_date_raw:
+                    scheduled_date = parse_datetime(scheduled_date_raw)
+
                 exam = Exam.objects.create(
                     description=data.get("description"),
                     delivery_mode=data.get("delivery_mode", "online"),
-                    scheduled_date=data.get("scheduled_date"),
+                    scheduled_date=scheduled_date,
                     open_duration_hours=data.get("open_duration_hours"),
                     countdown_minutes=data.get("countdown_minutes"),
                     is_active=data.get("is_active", True),
