@@ -1,7 +1,7 @@
 from typing import Any, List
 
 import django_filters
-from django.db.models import Q, QuerySet, Count, Max
+from django.db.models import Q, OuterRef, QuerySet, Count, Max, Subquery
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
@@ -38,6 +38,21 @@ def annotate_thread_with_last_candidate_message_at(
             filter=Q(messages__sender_type=ThreadMessage.SenderType.CANDIDATE),
         )
     )
+
+
+def annotate_thread_with_last_message_sender_type(
+    queryset: QuerySet[HelpdeskThread],
+) -> QuerySet[HelpdeskThread]:
+    """
+    Annotates a HelpdeskThread queryset with 'last_msg_sender_type',
+    representing the sender_type of the most recent message in the thread.
+    """
+    latest_message_sender_type = Subquery(
+        ThreadMessage.objects.filter(thread=OuterRef("pk"))
+        .order_by("-created_at")
+        .values("sender_type")[:1]
+    )
+    return queryset.annotate(last_msg_sender_type=latest_message_sender_type)
 
 
 def filter_broadcasts(

@@ -262,11 +262,11 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/day",
-        "user": "1000/day",
+        "user": "1000/hour",
         "login": "5/min",
         "burst": "20/min",
         "sustained": "100/hour",
-        "helpdesk_threads": "30/min",
+        "helpdesk_threads": "20/min",
     },
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
     "DEFAULT_AUTHENTICATION_CLASSES": (

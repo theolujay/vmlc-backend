@@ -88,6 +88,8 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
     )
     candidate_last_msg_preview = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
+    last_message_sender_type = serializers.SerializerMethodField()
+    is_unattended = serializers.SerializerMethodField()
 
     class Meta:
         model = HelpdeskThread
@@ -103,6 +105,8 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
             "unread_by_staff_count",
             "candidate_last_msg_preview",
             "is_online",
+            "last_message_sender_type",
+            "is_unattended",
             "created_at",
         ]
 
@@ -128,6 +132,18 @@ class HelpdeskThreadListSerializer(serializers.ModelSerializer):
 
         return cache.get(f"user_online_{obj.candidate.user_id}") is not None
 
+    def get_last_message_sender_type(self, obj):
+        # Prefer using annotated value if available for performance in list views
+        if hasattr(obj, "last_msg_sender_type"):
+            return obj.last_msg_sender_type
+        
+        last_msg = obj.messages.order_by("-created_at").first()
+        return last_msg.sender_type if last_msg else None
+
+    def get_is_unattended(self, obj):
+        sender_type = self.get_last_message_sender_type(obj)
+        return sender_type == ThreadMessage.SenderType.CANDIDATE
+
 
 # ============================================================
 # Helpdesk Thread (Detail)
@@ -147,6 +163,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
         source="assigned_staff.user.get_full_name", read_only=True
     )
     participating_staff_names = serializers.SerializerMethodField()
+    last_message_sender_type = serializers.SerializerMethodField()
 
     class Meta:
         model = HelpdeskThread
@@ -161,6 +178,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
             "status",
             "priority",
             "last_message_at",
+            "last_message_sender_type",
             "messages",
             "created_at",
             "updated_at",

@@ -47,6 +47,7 @@ from identity.permissions import (
 )
 from vmlc.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import (
+    annotate_thread_with_last_message_sender_type,
     filter_broadcasts,
     filter_helpdesk_threads,
     annotate_thread_with_staff_unread_count,
@@ -584,11 +585,11 @@ class StaffHelpdeskThreadListView(ListAPIView):
         user = request.user
         # Versioning for staff list
         version = cache.get(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 0)
-        
+
         # Use a deterministic hash for query params
         sorted_params = sorted(request.query_params.items())
         query_hash = hashlib.md5(str(sorted_params).encode()).hexdigest()
-        
+
         cache_key = CacheKeys.HELPDESK_THREAD_LIST_STAFF.format(
             user_id=user.id, version=version, query_hash=query_hash
         )
@@ -620,6 +621,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
 
         queryset = annotate_thread_with_staff_unread_count(queryset)
         queryset = annotate_thread_with_last_candidate_message_at(queryset)
+        queryset = annotate_thread_with_last_message_sender_type(queryset)
         return filter_helpdesk_threads(queryset, self.request.query_params)
 
 
