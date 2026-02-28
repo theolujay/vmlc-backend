@@ -1,146 +1,38 @@
 import logging
 import asyncio
-from channels.db import database_sync_to_async
 from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 
-from .models import Notification
-from .serializers import NotificationSerializer
-
+from .services.ws_notification import WSNotificationService
+from .services.ws_helpdesk_dashboard import WSHelpdeskDashboardService
+from .services.ws_helpdesk_thread import WSHelpdeskThreadService
 
 logger = logging.getLogger(__name__)
 
 
-class NotificationConsumer(GenericAsyncAPIConsumer):
-
-    queryset = Notification.objects.all()
-    serializer_class = NotificationSerializer
-
-    @database_sync_to_async
-    def get_user_profile(self, user):
-        if hasattr(user, "candidate_profile"):
-            return user.candidate_profile
-        elif hasattr(user, "staff_profile"):
-            return user.staff_profile
-        return None
-
-    async def connect(self):
-        """
-        Called when the websocket is trying to connect.
-        If the user is not authenticated the connection will be rejected.
-        """
-        is_fully_authenticated = self.scope.get("fully_authenticated", False)
-
-        if not is_fully_authenticated:
-            api_key_ok = self.scope.get("api_key_authenticated", False)
-            jwt_ok = self.scope.get("jwt_authenticated", False)
-
-            if not api_key_ok and not jwt_ok:
-                logger.warning(
-                    "Connection rejected: Missing both API Key and JWT token"
-                )
-            elif not api_key_ok:
-                logger.warning("Connection rejected: Invalid or missing API key")
-            elif not jwt_ok:
-                logger.warning("Connection rejected: Invalid or missing JWT token")
-            await self.close(code=4003)
-            return
-
-        user = self.scope["user"]
-        logger.info(f"Connecting user: {user}")
-
-        if user.is_authenticated:
-            profile = await self.get_user_profile(user)
-            if profile:
-                logger.info(f"WebSocket connected: {user.email}")
-                # Subscribe the user to their unique notification group
-                group_name = f"user__{user.pk}"
-                await self.channel_layer.group_add(group_name, self.channel_name)
-                logger.info(f"Subscribed to group: {group_name}")
-                await self.accept()
-            else:
-                logger.warning(f"User {user.email} has no profile.")
-                await self.close()
-        else:
-            logger.warning("User is not authenticated.")
-            await self.close()
-
-    async def disconnect(self, close_code):
-        user = self.scope.get("user")
-        if user and user.is_authenticated:
-            # Unsubscribe from the group on disconnect
-            group_name = f"user__{user.pk}"
-            await self.channel_layer.group_discard(group_name, self.channel_name)
-            logger.info(f"Unsubscribed from group: {group_name}")
-        logger.info(
-            f"WebSocket disconnected with code: {close_code} for anonymous user"
-        )
-
-    async def receive_json(self, content, **kwargs):
-        """
-        Handles incoming JSON messages from the client, routing them based on an 'action' key.
-        """
-        action = content.get("action")
-        data = content.get("data")
-        logger.info(
-            f"Received action '{action}' from client {self.scope['user'].email}"
-        )
-
-        if action == "mark_as_read":
-            await self.handle_mark_as_read(data)
-        else:
-            await self.send_error(f"Unknown action: {action}")
-
-    async def handle_mark_as_read(self, data):
-        """Handles the 'mark_as_read' action from the client."""
-        notification_id = data.get("notification_id")
-        if not notification_id:
-            await self.send_error(
-                "notification_id is required for 'mark_as_read' action."
-            )
-            return
-
-        updated_count = await self.mark_notification_as_read(notification_id)
-
-        if updated_count > 0:
-            logger.info(
-                f"Marked notification {notification_id} as read for user {self.scope['user'].pk}"
-            )
-        else:
-            logger.warning(
-                f"Could not find notification {notification_id} to mark as read for user {self.scope['user'].pk}"
-            )
-
-    @database_sync_to_async
-    def mark_notification_as_read(self, notification_id):
-        """Marks a notification as read in the database and invalidates cache."""
-        user = self.scope["user"]
-        try:
-            notification = Notification.objects.get(
-                id=notification_id, recipient=user, is_read=False
-            )
-            notification.is_read = True
-            notification.save()  # Triggers signals for invalidation
-            return 1
-        except Notification.DoesNotExist:
-            return 0
-
-    async def send_error(self, message):
-        """Sends a standardized error message to the client."""
-        await self.send_json({"type": "error", "message": message})
-
-    async def notification_activity(self, message, **kwargs):
-        """
-        This method is called by the channel layer when a message is sent
-        to a group this consumer is subscribed to. It simply forwards the
-        message payload to the connected client.
-        """
-        await self.send_json(dict(message))
-
-
-class HelpdeskConsumer(GenericAsyncAPIConsumer):
+class UnifiedConsumer(GenericAsyncAPIConsumer):
     """
-    Handles real-time helpdesk chat, presence, and typing indicators.
+    A single WebSocket consumer handling all real-time streams by delegating to services:
+    - Notifications (Automatic)
+    - Staff Helpdesk Dashboard (Automatic for Staff)
+    - Specific Helpdesk Threads (On-demand subscription)
     """
+
+    @classmethod
+    async def encode_json(cls, content):
+        import json
+        from django.core.serializers.json import DjangoJSONEncoder
+        return json.dumps(content, cls=DjangoJSONEncoder)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.subscribed_threads = set()
+        self.is_staff = False
+        self.user_group = None
+        self.dashboard_group = None
+        self.presence_task = None
+        self.current_filters = {}
+        self.current_page = 1
+        self.presence_set_name = "online_staff" # Default
 
     async def connect(self):
         is_fully_authenticated = self.scope.get("fully_authenticated", False)
@@ -162,27 +54,28 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
 
         user = self.scope["user"]
         logger.info(f"Connecting user: {user}")
-
-        self.thread_id = self.scope["url_route"]["kwargs"].get("thread_id")
-        if not self.thread_id:
-            await self.close()
-            return
-
-        # Validate membership (Staff or Thread Owner)
-        has_access = await self.check_thread_access(user, self.thread_id)
-        if not has_access:
-            await self.close(code=4003)
-            return
-
-        self.group_name = f"helpdesk_thread_{self.thread_id}"
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-
-        # Presence Detection (Redis-Based)
-        await self.set_presence(user.id, True)
 
         await self.accept()
+        logger.info(f"Unified WebSocket connected: {user.email}")
 
-        # Start presence refresh task
+        # 1. Always subscribe to private notification group
+        self.user_group = f"user__{user.pk}"
+        await self.channel_layer.group_add(self.user_group, self.channel_name)
+
+        # 2. Setup Helpdesk (Dashboard & Presence)
+        self.is_staff = await WSHelpdeskDashboardService.check_staff_access(user)
+        self.presence_set_name = await WSHelpdeskThreadService.get_user_type_set_name(user)
+
+        if self.is_staff:
+            self.dashboard_group = "staff_helpdesk_dashboard"
+            await self.channel_layer.group_add(self.dashboard_group, self.channel_name)
+            # Initialize dashboard state
+            self.current_filters = {}
+            self.current_page = 1
+            await self.fetch_and_send_thread_list()
+
+        # 3. Presence online
+        await WSHelpdeskThreadService.set_presence(user.id, self.presence_set_name, True)
         self.presence_task = asyncio.create_task(
             self.refresh_presence_periodically(user.id)
         )
@@ -190,88 +83,154 @@ class HelpdeskConsumer(GenericAsyncAPIConsumer):
     async def disconnect(self, close_code):
         user = self.scope.get("user")
         if user and user.is_authenticated:
-            if hasattr(self, "group_name"):
+            # Leave notification group
+            if self.user_group:
                 await self.channel_layer.group_discard(
-                    self.group_name, self.channel_name
+                    self.user_group, self.channel_name
+                )
+
+            # Leave staff dashboard group
+            if self.dashboard_group:
+                await self.channel_layer.group_discard(
+                    self.dashboard_group, self.channel_name
+                )
+
+            # Leave all subscribed threads
+            for thread_id in list(self.subscribed_threads):
+                await self.channel_layer.group_discard(
+                    f"helpdesk_thread_{thread_id}", self.channel_name
                 )
 
             # Stop presence refresh task
-            if hasattr(self, "presence_task"):
+            if self.presence_task:
                 self.presence_task.cancel()
 
             # Clear presence
-            await self.set_presence(user.id, False)
+            await WSHelpdeskThreadService.set_presence(user.id, self.presence_set_name, False)
+
+        logger.info(
+            f"Unified WebSocket disconnected: {user.email if user else 'Anonymous'}"
+        )
 
     async def receive_json(self, content, **kwargs):
-        action = content.get("type")
+        action = content.get("action")
+        data = content.get("data", {})
         user = self.scope["user"]
 
-        if action == "chat.typing":
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "chat.typing",
-                    "user_id": str(user.id),
-                    "is_typing": content.get("is_typing", False),
-                },
-            )
+        # --- Notification Actions ---
+        if action == "mark_notification_as_read":
+            notification_id = data.get("notification_id")
+            if notification_id:
+                await WSNotificationService.mark_as_read(user, notification_id)
+            else:
+                await self.send_error("notification_id is required")
 
-    async def chat_message(self, event):
-        """Forward message to WebSocket."""
-        await self.send_json(event)
+        # --- Helpdesk Dashboard Actions ---
+        elif action == "list_threads":
+            if not self.is_staff:
+                await self.send_error("Permission denied")
+                return
+            self.current_page = data.get("page", 1)
+            self.current_filters = data.get("filters", {})
+            await self.fetch_and_send_thread_list()
 
-    async def chat_typing(self, event):
-        """Forward typing status to WebSocket."""
-        # Don't send back to the user who is typing
-        if event["user_id"] != str(self.scope["user"].id):
-            await self.send_json(event)
+        # --- Helpdesk Thread Actions ---
+        elif action == "subscribe_thread":
+            thread_id = data.get("thread_id")
+            if await WSHelpdeskThreadService.check_access(user, thread_id, self.is_staff):
+                group = f"helpdesk_thread_{thread_id}"
+                await self.channel_layer.group_add(group, self.channel_name)
+                self.subscribed_threads.add(thread_id)
+                logger.info(f"User {user.email} subscribed to thread {thread_id}")
+            else:
+                await self.send_error("Thread access denied")
 
-    @database_sync_to_async
-    def check_thread_access(self, user, thread_id):
-        from .models import HelpdeskThread
-        from identity.models import Staff
+        elif action == "unsubscribe_thread":
+            thread_id = data.get("thread_id")
+            if thread_id in self.subscribed_threads:
+                await self.channel_layer.group_discard(f"helpdesk_thread_{thread_id}", self.channel_name)
+                self.subscribed_threads.remove(thread_id)
 
-        try:
-            thread = HelpdeskThread.objects.get(id=thread_id)
-
-            # Staff check: Must be at least Moderator
-            if hasattr(user, "staff_profile"):
-                role = user.staff_profile.role
-                role_levels = {
-                    Staff.Roles.VOLUNTEER: 1,
-                    Staff.Roles.SPONSOR: 2,
-                    Staff.Roles.MODERATOR: 3,
-                    Staff.Roles.ADMIN: 4,
-                    Staff.Roles.MANAGER: 5,
-                    Staff.Roles.SUPERADMIN: 6,
-                }
-                return role_levels.get(role, 0) >= role_levels.get(
-                    Staff.Roles.MODERATOR
+        elif action == "thread.typing":
+            thread_id = data.get("thread_id")
+            if thread_id in self.subscribed_threads:
+                await self.channel_layer.group_send(
+                    f"helpdesk_thread_{thread_id}",
+                    {
+                        "type": "helpdesk.thread.typing",
+                        "thread_id": thread_id,
+                        "user_id": str(user.id),
+                        "is_typing": data.get("is_typing", False),
+                    },
                 )
-
-            # Candidate check: Must be the owner
-            return (
-                hasattr(user, "candidate_profile")
-                and thread.candidate_id == user.candidate_profile.pk
-            )
-        except (HelpdeskThread.DoesNotExist, AttributeError):
-            return False
-
-    async def set_presence(self, user_id, is_online):
-        from django.core.cache import cache
-
-        key = f"user_online_{user_id}"
-        if is_online:
-            cache.set(key, 1, timeout=60)
         else:
-            cache.delete(key)
+            await self.send_error(f"Unknown action: {action}")
+
+    # ============================================================
+    # Group Message Handlers
+    # ============================================================
+
+    async def notification_activity(self, event):
+        """Forwards notification events to the client."""
+        # Normalize to use 'data' key for consistency
+        payload = {
+            "type": "notification_activity",
+            "data": event.get("message", {})
+        }
+        await self.send_json(payload)
+
+    async def helpdesk_update(self, event):
+        """Forward global stats update and refresh staff list if needed."""
+        # Normalize: already usually {type, data}, but ensure it's clean
+        payload = {
+            "type": event["type"],
+            "data": event.get("data", {})
+        }
+        await self.send_json(payload)
+        
+        if self.is_staff and payload["data"].get("refresh_threads"):
+            await self.fetch_and_send_thread_list()
+
+    async def helpdesk_thread(self, event):
+        """Forward thread updates (messages/metadata) to participants."""
+        payload = {
+            "type": event["type"],
+            "data": event.get("data", {})
+        }
+        await self.send_json(payload)
+
+    async def helpdesk_thread_typing(self, event):
+        """Forward typing status to other participants."""
+        if event["user_id"] != str(self.scope["user"].id):
+            # Wrap in 'data' object to match frontend expectations
+            payload = {
+                "type": event["type"],
+                "data": {
+                    "thread_id": event["thread_id"],
+                    "user_id": event["user_id"],
+                    "is_typing": event["is_typing"]
+                }
+            }
+            await self.send_json(payload)
+
+    # ============================================================
+    # Helpers
+    # ============================================================
+
+    async def fetch_and_send_thread_list(self):
+        data = await WSHelpdeskDashboardService.get_thread_list(self.current_page, self.current_filters)
+        await self.send_json({
+            "type": "helpdesk.list", 
+            "data": data
+        })
 
     async def refresh_presence_periodically(self, user_id):
-        from django.core.cache import cache
-
         try:
             while True:
                 await asyncio.sleep(30)
-                cache.set(f"user_online_{user_id}", 1, timeout=60)
+                await WSHelpdeskThreadService.refresh_presence(user_id, self.presence_set_name)
         except asyncio.CancelledError:
             pass
+
+    async def send_error(self, message):
+        await self.send_json({"type": "error", "message": message})

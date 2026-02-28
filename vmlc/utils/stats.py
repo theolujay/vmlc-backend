@@ -1,11 +1,12 @@
 from datetime import timedelta
 import re
-from django.db.models import F, Count, ExpressionWrapper, DateTimeField, OuterRef, Subquery
+from django.db.models import F, Q, Count, ExpressionWrapper, DateTimeField, OuterRef, Subquery
 from django.utils import timezone
 from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
 from ..models import Exam
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
+from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
 from ..v2.utils import CacheKeys, get_or_set_cache
 from .user import get_user_status_counts
 from .metrics import get_funnel_metrics
@@ -70,20 +71,16 @@ def _get_helpdesk_stats() -> dict:
         .count()
     )
 
-    # 'unattended_candidates' means threads where the most recent message is from a candidate
-    # (i.e., staff hasn't replied to the candidate's last message yet)
-
-    latest_message_sender_type = Subquery(
-        ThreadMessage.objects.filter(thread=OuterRef("pk"))
-        .order_by("-created_at")
-        .values("sender_type")[:1]
-    )
-
+    # 'unattended_candidates' here means threads that have at least one candidate message
+    # unread by any staff member.
     unattended_count = (
-        threads_qs.annotate(latest_sender=latest_message_sender_type)
-        .filter(latest_sender=ThreadMessage.SenderType.CANDIDATE)
+        annotate_thread_with_staff_unread_count(threads_qs)
+        .filter(unread_cnt__gt=0)
         .count()
     )
+
+    from comms.services.ws_helpdesk_thread import WSHelpdeskThreadService
+    online_counts = WSHelpdeskThreadService.get_online_counts()
 
     return {
         "total_threads": threads_qs.count(),
@@ -97,6 +94,8 @@ def _get_helpdesk_stats() -> dict:
         "unassigned_threads": threads_qs.filter(assigned_staff__isnull=True).count(),
         "unattended_candidates": unattended_count,
         "unread_messages": unread_messages_count,
+        "online_candidates": online_counts["online_candidates"],
+        "online_staff": online_counts["online_staff"],
         "public_requests": PublicSupportRequest.objects.count(),
     }
 

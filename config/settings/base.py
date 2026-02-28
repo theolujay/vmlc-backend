@@ -347,6 +347,7 @@ CELERY_TASK_DEFAULT_PRIORITY = 5
 CELERY_TASK_ROUTES = {
     "send_mail_task": {"queue": "emails", "priority": 9},
     "send_broadcast_task": {"queue": "comms", "priority": 8},
+    "broadcast_staff_helpdesk_update_task": {"queue": "comms", "priority": 7},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
     "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
     # "validate_user_verification_files_task": {"queue": "files", "priority": 5},

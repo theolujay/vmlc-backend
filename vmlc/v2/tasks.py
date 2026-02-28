@@ -5,7 +5,7 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 
-def do_nothing():
+def do_nothing(): # this is called to alllow celery registered tasks that are somehow not found in other apps
     pass
 
 
