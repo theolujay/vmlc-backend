@@ -439,7 +439,7 @@ class CandidateAnswer(models.Model):
     candidate_exam_result = models.ForeignKey(
         CandidateExamResult,
         null=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name="answers",
     )
     question = models.ForeignKey(Question, on_delete=models.PROTECT)
