@@ -197,6 +197,15 @@ def invalidate_exam_cache(exam_id):
     keys = CacheKeys.get_exam_keys(exam_id)
     delete_many_cache(keys)
 
+    # Since EXAM_DETAIL in ExamDetailV2View appends query params,
+    # we use delete_pattern to clear all variations of it.
+    detail_pattern = f"{CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)}*"
+    try:
+        cache.delete_pattern(detail_pattern)
+    except (AttributeError, NotImplementedError):
+        # Fallback if the cache backend doesn't support delete_pattern
+        pass
+
 
 def invalidate_staff_dashboard():
     """Clear global staff dashboard cache."""
@@ -234,6 +243,13 @@ def invalidate_notifications(user_id):
     except ValueError:
         # First time, set to 1 (next read will be version 1)
         cache.set(version_key, 1, 86400)
+
+    # Also clear any cached notification lists for this user
+    pattern = f"notifications_{user_id}_*"
+    try:
+        cache.delete_pattern(pattern)
+    except (AttributeError, NotImplementedError):
+        pass
 
 
 def question_pool_aggregate(qs):

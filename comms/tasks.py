@@ -5,6 +5,7 @@ from django.db import DatabaseError
 from django.conf import settings
 from django.core.mail import send_mail
 from celery import shared_task
+from celery.exceptions import Retry
 
 from identity.models import User
 from vmlc.utils.exceptions import ServerError
@@ -273,7 +274,7 @@ def send_bulk_sms_task(
                 log.save(update_fields=["message"])
             raise self.retry(countdown=300)
 
-    except self.retry as e:
+    except Retry as e:
         raise e
     except Exception as e:
         logger.exception(
