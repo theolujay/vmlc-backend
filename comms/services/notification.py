@@ -813,7 +813,7 @@ class NotificationService:
             sms_template = "Hi {candidate_name}. New exam '{exam_title}' scheduled for {start_time}. Check email or log in for details. -VMLC Team"
             template_kwargs = {
                 "start_time": (
-                    exam.scheduled_date.strftime("%a, %b %d, %I:%M %p")
+                    timezone.localtime(exam.scheduled_date).strftime("%a, %b %d, %I:%M %p")
                     if exam.scheduled_date
                     else "N/A"
                 )
@@ -831,7 +831,7 @@ class NotificationService:
             sms_template = "Reminder: Your exam '{exam_title}' starts in 1 hour ({start_time}). Get ready! -VMLC Team"
             template_kwargs = {
                 "start_time": (
-                    exam.scheduled_date.strftime("%a, %b %d, %I:%M %p")
+                    timezone.localtime(exam.scheduled_date).strftime("%a, %b %d, %I:%M %p")
                     if exam.scheduled_date
                     else "N/A"
                 )
@@ -852,7 +852,7 @@ class NotificationService:
             )
             sms_template = "Exam '{exam_title}' has started! It closes at {conclusion_time}. Good luck! -VMLC Team"
             template_kwargs = {
-                "conclusion_time": conclusion_time.strftime("%a, %b %d, %I:%M %p")
+                "conclusion_time": timezone.localtime(conclusion_time).strftime("%a, %b %d, %I:%M %p")
             }
 
         return subject, message_template, sms_template, template_kwargs
