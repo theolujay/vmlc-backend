@@ -37,7 +37,7 @@ class RankingSnapshotGenerator:
         self,
         ranking_policy: str = "dense_rank",  # e.g., 'dense_rank', 'sequential_rank'
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
-        absentee_score: float = 0.0,
+        absentee_score: float | None = None,
         published_by_staff_id: uuid.UUID = None,
     ) -> RankingSnapshot:
         """
@@ -99,7 +99,7 @@ class RankingSnapshotGenerator:
         for cand_id in eligible_candidate_ids:
             if cand_id not in candidate_scores:
                 candidate_scores[cand_id] = {
-                    "score": absentee_score,
+                    "score": absentee_score if absentee_score is not None else "absent",
                     "recorded_at": None,  # Mark as absent
                 }
 
@@ -112,6 +112,11 @@ class RankingSnapshotGenerator:
         def sort_key(item):
             data = item[1]
             score = data["score"]
+
+            # Map 'absent' to a float lower than any possible real score (-1.0)
+            # to avoid TypeError when sorting mixed types (str and float).
+            sort_score = -1.0 if score == "absent" else float(score)
+
             secondary = 0
             if tie_break_strategy == "submission_time_asc":
                 if data["recorded_at"]:
@@ -120,7 +125,7 @@ class RankingSnapshotGenerator:
                 else:
                     # Absentees last -> smallest value
                     secondary = float("-inf")
-            return (score, secondary)
+            return (sort_score, secondary)
 
         sorted_candidates = sorted(
             candidate_scores.items(),
@@ -145,7 +150,7 @@ class RankingSnapshotGenerator:
                 RankingSnapshotEntry(
                     candidate_id=candidate_id,
                     enrollment=enrollment,
-                    exam_score=score,
+                    exam_score=None if score == "absent" else score,
                     rank=current_rank,
                 )
             )

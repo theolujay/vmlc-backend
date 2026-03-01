@@ -31,6 +31,7 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
     candidate_name = serializers.SerializerMethodField()
     candidate_email = serializers.SerializerMethodField()
     school_name = serializers.SerializerMethodField()
+    exam_score = serializers.SerializerMethodField()
 
     class Meta:
         model = RankingSnapshotEntry
@@ -53,6 +54,11 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
 
     def get_school_name(self, obj):
         return obj.candidate.school_name
+
+    def get_exam_score(self, obj):
+        if obj.exam_score is None:
+            return "absent"
+        return obj.exam_score
 
 
 class RankingSnapshotSerializer(serializers.ModelSerializer):
