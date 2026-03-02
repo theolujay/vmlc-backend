@@ -29,6 +29,7 @@ class StaffCompetitionDashboardService:
             enrolled=Count("id"),
             active=Count("id", filter=Q(status=Enrollment.Status.ACTIVE)),
             eliminated=Count("id", filter=Q(status=Enrollment.Status.ELIMINATED)),
+            disqualified=Count("id", filter=Q(status=Enrollment.Status.DISQUALIFIED)),
         )
 
         # Compute Progress
@@ -96,7 +97,7 @@ class StaffCompetitionDashboardService:
             )
 
             # check ranking status
-            ranking = RankingSnapshot.objects.filter(exam=exam).first()
+            ranking = RankingSnapshot.objects.filter(exam=exam, is_active=True).first()
             ranking_status = "pending"
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"

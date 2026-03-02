@@ -20,6 +20,7 @@ class CacheKeys:
     # Competition
     ENROLLMENT = "enrollment:{user_id}"
     LEADERBOARD_LEAGUE = "lb:league:latest"
+    RANKING_SNAPSHOT = "ranking:snapshot:{exam_id}"
 
     # Exams
     EXAM_DETAIL = "exam:detail:{exam_id}"
@@ -150,6 +151,7 @@ class CacheKeys:
             cls.EXAM_TAKE_V2.format(exam_id=exam_id),
             cls.EXAM_QUESTIONS.format(exam_id=exam_id),
             cls.EXAM_RESULTS.format(exam_id=exam_id),
+            cls.RANKING_SNAPSHOT.format(exam_id=exam_id),
         ]
 
 
@@ -212,10 +214,10 @@ def invalidate_staff_dashboard():
     cache.delete(CacheKeys.STAFF_DASHBOARD)
 
 
-def invalidate_league_leaderboard():
+def invalidate_score_boards(exam_id=None):
     """Clear league leaderboard cache."""
     cache.delete(CacheKeys.LEADERBOARD_LEAGUE)
-
+    cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
 
 def invalidate_question_pool():
     """Clear question pool cache."""

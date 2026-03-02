@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
 from vmlc.v2.utils import (
-    invalidate_league_leaderboard,
+    invalidate_score_boards,
     invalidate_candidate_cache,
     invalidate_exam_cache,
 )
@@ -355,9 +355,11 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
         "stage",
         "round",
         "exam_link",
-        "facilitator_system",
+        "created_at",
+        "is_active",
         "is_published",
         "published_at",
+        "facilitator_system",
     )
     list_filter = ("competition", "stage", "facilitator_system", "is_published")
     search_fields = ("exam__description", "competition__name")
@@ -378,14 +380,24 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     def publish_rankings(self, request, queryset):
         from django.utils import timezone
 
+        # Capture exam IDs before update
+        exam_ids = list(queryset.values_list("exam_id", flat=True))
         count = queryset.update(is_published=True, published_at=timezone.now())
         invalidate_all_dashboard_caches()
+        for e_id in exam_ids:
+            if e_id:
+                invalidate_exam_cache(e_id)
         self.message_user(request, f"{count} rankings published.")
 
     @admin.action(description="Unpublish selected rankings")
     def unpublish_rankings(self, request, queryset):
+        # Capture exam IDs before update
+        exam_ids = list(queryset.values_list("exam_id", flat=True))
         count = queryset.update(is_published=False)
         invalidate_all_dashboard_caches()
+        for e_id in exam_ids:
+            if e_id:
+                invalidate_exam_cache(e_id)
         self.message_user(request, f"{count} rankings unpublished.")
 
     def save_model(self, request, obj, form, change):
@@ -439,19 +451,25 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        self._invalidate_candidate_cache(obj.candidate)
+        self._invalidate_entry_caches(obj)
 
     def delete_model(self, request, obj):
-        self._invalidate_candidate_cache(obj.candidate)
+        self._invalidate_entry_caches(obj)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
-        for obj in queryset:
-            self._invalidate_candidate_cache(obj.candidate)
+        # Capture snapshots before deletion
+        snapshots = list(queryset.select_related("ranking_snapshot").values_list("ranking_snapshot__exam_id", "candidate_id", "candidate__user_id"))
         super().delete_queryset(request, queryset)
+        for exam_id, candidate_id, user_id in snapshots:
+            if exam_id:
+                invalidate_exam_cache(exam_id)
+            invalidate_candidate_cache(candidate_id, user_id)
 
-    def _invalidate_candidate_cache(self, candidate):
-        invalidate_candidate_cache(candidate.pk, candidate.user.id)
+    def _invalidate_entry_caches(self, obj):
+        invalidate_candidate_cache(obj.candidate.pk, obj.candidate.user.id)
+        if obj.ranking_snapshot and obj.ranking_snapshot.exam_id:
+            invalidate_exam_cache(obj.ranking_snapshot.exam_id)
 
 
 @admin.register(LeagueLeaderboard)
@@ -466,14 +484,14 @@ class LeagueLeaderboardAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
 
     def delete_model(self, request, obj):
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
         super().delete_queryset(request, queryset)
 
 

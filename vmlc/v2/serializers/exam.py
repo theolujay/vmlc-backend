@@ -89,7 +89,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
     def get_ranking(self, obj):
         from competition.models import RankingSnapshot
 
-        ranking = RankingSnapshot.objects.filter(exam=obj).first()
+        ranking = RankingSnapshot.objects.filter(exam=obj, is_active=True).first()
         return {
             "exists": ranking is not None,
             "is_published": ranking.is_published if ranking else False,
