@@ -367,7 +367,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     inlines = [RankingSnapshotEntryInline]
     list_select_related = ("competition", "exam")
     date_hierarchy = "published_at"
-    actions = ["publish_rankings", "unpublish_rankings"]
+    actions = ["publish_rankings", "unpublish_rankings", "activate_rankings", "deactivate_rankings", "export_rankings_as_csv"]
 
     @admin.display(description="Exam")
     def exam_link(self, obj):
@@ -399,6 +399,67 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
             if e_id:
                 invalidate_exam_cache(e_id)
         self.message_user(request, f"{count} rankings unpublished.")
+
+    @admin.action(description="Activate selected ranking")
+    def activate_rankings(self, request, queryset):
+        exam_ids = list(queryset.values_list("exam_id", flat=True))
+        count = queryset.update(is_active=True)
+        invalidate_all_dashboard_caches()
+        for e_id in exam_ids:
+            if e_id:
+                invalidate_exam_cache(e_id)
+        self.message_user(request, f"{count} rankings deactivated.")
+
+    @admin.action(description="Deactivate selected rankings")
+    def deactivate_rankings(self, request, queryset):
+        exam_ids = list(queryset.values_list("exam_id", flat=True))
+        count = queryset.update(is_active=False)
+        invalidate_all_dashboard_caches()
+        for e_id in exam_ids:
+            if e_id:
+                invalidate_exam_cache(e_id)
+        self.message_user(request, f"{count} rankings deactivated.")
+    @admin.action(description="Export selected Ranking Snapshots as CSV")
+    def export_rankings_as_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="ranking_snapshots.csv"'
+        writer = csv.writer(response)
+
+        writer.writerow([
+            "Snapshot ID", "Snapshot Created At",
+            "Competition", "Stage", "Round", "Exam Title",
+            "Candidate Email", "Candidate Full Name",
+            "Exam Score", "Rank", "Percentile",
+        ])
+
+        snapshots = queryset.select_related(
+            "exam", "competition"
+        ).prefetch_related(
+            "entries__candidate__user"
+        )
+
+        for snapshot in snapshots:
+            for entry in snapshot.entries.all():
+                candidate = entry.candidate
+                user = candidate.user
+                writer.writerow([
+                    snapshot.id,
+                    snapshot.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    snapshot.competition.name,
+                    snapshot.get_stage_display(),
+                    snapshot.round if snapshot.round is not None else "",
+                    snapshot.exam.get_title(),
+                    user.email,
+                    user.get_full_name(),
+                    entry.exam_score,
+                    entry.rank,
+                    entry.percentile,
+                ])
+
+        return response
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
