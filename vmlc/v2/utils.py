@@ -21,6 +21,7 @@ class CacheKeys:
     ENROLLMENT = "enrollment:{user_id}"
     LEADERBOARD_LEAGUE = "lb:league:latest"
     RANKING_SNAPSHOT = "ranking:snapshot:{exam_id}"
+    RANKING_SNAPSHOT_ENTRY = "ranking:snapshot:entry:{exam_id}:{candidate_id}"
 
     # Exams
     EXAM_DETAIL = "exam:detail:{exam_id}"
@@ -37,7 +38,9 @@ class CacheKeys:
     USER_VERIFICATION = "user:verification:{user_id}"
     CANDIDATE_PROFILE = "cand:profile:{user_id}"
     CANDIDATE_DETAIL = "cand:detail:{user_id}"
+    CANDIDATE_DETAIL_BY_PK = "cand:detail:pk:{candidate_id}"
     STAFF_PROFILE = "staff:profile:{user_id}"
+    STAFF_DETAIL_BY_PK = "staff:detail:pk:{staff_id}"
     STAFF_DASHBOARD_DATA = "staff:dashboard:{user_id}"
 
     # Metrics & Status

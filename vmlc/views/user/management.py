@@ -71,6 +71,7 @@ from vmlc.utils.query_filters import (
     filter_users,
 )
 from vmlc.v2.serializers.registration import PreRegUserSerializer
+from vmlc.v2.utils import get_or_set_cache, CacheKeys
 
 logger = logging.getLogger(__name__)
 
