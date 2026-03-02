@@ -136,14 +136,14 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
 
     # TODO: update enrollment.status to ACTIVE from PENDING (during registration)
     # when a candidate logs in for the first time
-    # if (
-    #     hasattr(user, "candidate_profile")
-    #     and user.is_active
-    #     and not user.is_email_verified
-    # ):
-    #     Enrollment.objects.filter(candidate=user.candidate_profile, status=Enrollment.Status.PENDING).update(
-    #         status=Enrollment.Status.ACTIVE
-    #     )
+    # TODO: implement a more refined way of handling this
+    if (
+        hasattr(user, "candidate_profile")
+        and user.is_active
+    ):
+        Enrollment.objects.filter(candidate=user.candidate_profile, status=Enrollment.Status.PENDING).update(
+            status=Enrollment.Status.ACTIVE
+        )
 
 
 # Invalidate stats cache on changes to relevant models.
