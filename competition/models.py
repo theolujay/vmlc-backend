@@ -139,8 +139,7 @@ class Enrollment(models.Model):
     class Status(models.TextChoices):
         # TODO: add PENDING and us it instead of ACTIVE during registration,
         # and then swtich to ACTIVE at first login (which signifies email is verified)
-        # PENDING = "pending", "Active"
-
+        PENDING = "pending", "Active"
         # currently participating
         ACTIVE = "active", "Active"
         # removed by system rules and is terminal
@@ -168,8 +167,7 @@ class Enrollment(models.Model):
     )
     status = models.CharField(
         choices=Status.choices,
-        # default=Status.PENDING, # TODO: set this when Status.PENDING is implemented
-        default=Status.ACTIVE,
+        default=Status.PENDING, # TODO: set this when Status.PENDING is implemented
         db_index=True,
     )
     joined_at = models.DateTimeField(auto_now_add=True)
