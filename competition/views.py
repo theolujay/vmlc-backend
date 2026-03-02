@@ -213,33 +213,53 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
     Retrieves detailed performance for a specific candidate in a specific exam ranking snapshot.
     """
 
-    permission_classes = [CanViewOwnOrStaffRankingSnapshotEntry]
+    # permission_classes = [CanViewOwnOrStaffRankingSnapshotEntry]
+    permission_classes = ActiveAdminPermissions
 
     def get(self, request, exam_id, candidate_id):
+        cache_key = CacheKeys.RANKING_SNAPSHOT_ENTRY.format(
+            exam_id=exam_id, candidate_id=candidate_id
+        )
+        data = get_or_set_cache(
+            cache_key, lambda: self._fetch_data(request, exam_id, candidate_id)
+            )
+        if data is None:
+            return Response(
+                {
+                    "detail": "Candidate not found in this ranking board."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(data)
 
-        ranking_snapshot = RankingSnapshot.objects.all().filter(is_active=True).first()
-        # ranking_snapshot = get_object_or_404(RankingSnapshot, exam_id=exam_id).filter()
 
-        # Access control
-        # if hasattr(request.user, "candidate_profile"):
-        #     if str(request.user.candidate_profile.pk) != str(candidate_id):
-        #         # If they are a candidate, they can only see their own detail unless they are staff
-        #         if not request.user.is_staff:
-        #             return Response(
-        #                 {"detail": "You can only view your own performance."},
-        #                 status=status.HTTP_403_FORBIDDEN,
-        #             )
+    def _fetch_data(self, request, exam_id, candidate_id):
+        ranking_snapshot = RankingSnapshot.objects.filter(
+            exam_id=exam_id, is_active=True,
+        ).first()
 
-        entry = get_object_or_404(
-            RankingSnapshotEntry,
+        if not ranking_snapshot:
+            return None
+
+        entry = RankingSnapshotEntry.objects.filter(
             ranking_snapshot=ranking_snapshot,
             candidate_id=candidate_id,
+        ).first()
+
+        if not entry:
+            return None
+
+        result = (
+            CandidateExamResult.objects.filter(
+                exam_id=exam_id,
+                candidate_id=candidate_id,
+            )
+            .prefetch_related("answers__question")
+            .first()
         )
 
-        result = CandidateExamResult.objects.filter(
-            exam_id=exam_id,
-            candidate_id=candidate_id,
-        ).prefetch_related("answers__question").first()
+        # if not result:
+        #     return None
 
         # Prepare candidate info
         candidate = entry.candidate
@@ -283,13 +303,17 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
         }
 
         # Add access/execution details from ExamAccess
-        exam_access = ExamAccess.objects.filter(exam_id=exam_id, candidate_id=candidate_id).first()
+        exam_access = ExamAccess.objects.filter(
+            exam_id=exam_id, candidate_id=candidate_id
+        ).first()
         if exam_access:
             candidate_performance["started_at"] = exam_access.started_at
             candidate_performance["submitted_at"] = exam_access.submitted_at
             # Serialize image URL properly
             if exam_access.face_capture:
-                candidate_performance["face_capture"] = request.build_absolute_uri(exam_access.face_capture.url)
+                candidate_performance["face_capture"] = request.build_absolute_uri(
+                    exam_access.face_capture.url
+                )
             else:
                 candidate_performance["face_capture"] = None
         else:
@@ -297,14 +321,11 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             candidate_performance["submitted_at"] = None
             candidate_performance["face_capture"] = None
 
-        return Response(
-            {
-                "exam_details": exam_details,
-                "candidate_info": candidate_info,
-                "candidate_performance": candidate_performance,
-            }
-        )
-
+        return {
+            "exam_details": exam_details,
+            "candidate_info": candidate_info,
+            "candidate_performance": candidate_performance,
+        }
 
 class LeagueCandidateLeaderboardView(APIView):
     """

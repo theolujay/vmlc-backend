@@ -48,12 +48,13 @@ def send_email_to_users(modeladmin, request, queryset):
             html_message = create_email_html(subject=subject, message=message)
             recipient_emails = list(queryset.values_list("email", flat=True))
 
-            send_mail_task.delay(
-                subject=subject,
-                message="",  # Plain text part is empty
-                recipient_list=recipient_emails,
-                html_message=html_message,
-            )
+            for recipient in recipient_emails:
+                send_mail_task.delay(
+                    subject=subject,
+                    message="",  # Plain text part is empty
+                    recipient_list=[recipient],
+                    html_message=html_message,
+                )
 
             modeladmin.message_user(
                 request, f"Scheduled sending emails to {len(recipient_emails)} users."
