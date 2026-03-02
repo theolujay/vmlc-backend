@@ -67,7 +67,7 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
     from vmlc.v2.utils import (
         invalidate_candidate_cache,
         invalidate_staff_dashboard,
-        invalidate_league_leaderboard,
+        invalidate_score_boards,
     )
 
     if isinstance(instance, Candidate):
@@ -87,7 +87,9 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         invalidate_staff_dashboard()
     elif isinstance(instance, (Competition, Stage, RankingSnapshot, Enrollment)):
         invalidate_staff_dashboard()
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
+    elif isinstance(instance, RankingSnapshot):
+            invalidate_score_boards(exam_id=instance.exam.id)
     elif isinstance(instance, Exam):
         from vmlc.v2.tasks import invalidate_exam_related_caches_task
         from django.db import transaction
@@ -95,7 +97,6 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         transaction.on_commit(
             lambda: invalidate_exam_related_caches_task.delay(str(instance.id))
         )
-
         # Notify candidates if it's a new exam
         # TODO: repurpose or discard this. It "notifies" candidates of a newly created exam
         # that'll most definitely have exam.status == "draft", which isn't desired.
@@ -126,19 +127,23 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     # is_first_login = user_from_db and user_from_db["last_login"] is None
 
     # Set email as verified on login if not already verified.
-    # This effectively verifies the email on the first successful login.
+    # This effectively verifies the email on the first successful login,
+    # since "magic login link" is sent to users upon registration that's
+    # used to log them in for the first time using an included generated password in the email.
     if not user.is_email_verified:
         user.is_email_verified = True
         user.save(update_fields=["is_email_verified"])
 
-    # Update dashboard caches for verified users.
-    # We ensure these are triggered for newly verified users as well.
+    # TODO: update enrollment.status to ACTIVE from PENDING (during registration)
+    # when a candidate logs in for the first time
     # if (
-    #     hasattr(user, "staff_profile")
-    #     and user.is_email_verified
-    #     and user.staff_profile.is_active
+    #     hasattr(user, "candidate_profile")
+    #     and user.is_active
+    #     and not user.is_email_verified
     # ):
-    #     update_staff_dashboard_cache_task.delay(user.id)
+    #     Enrollment.objects.filter(candidate=user.candidate_profile, status=Enrollment.Status.PENDING).update(
+    #         status=Enrollment.Status.ACTIVE
+    #     )
 
 
 # Invalidate stats cache on changes to relevant models.

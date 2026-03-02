@@ -20,6 +20,7 @@ def invalidate_exam_related_caches_task(exam_id):
         CacheKeys,
         invalidate_staff_dashboard,
         invalidate_exam_cache,
+        invalidate_score_boards,
     )
 
     try:
@@ -31,6 +32,7 @@ def invalidate_exam_related_caches_task(exam_id):
         return
 
     invalidate_exam_cache(exam.id)
+    invalidate_score_boards(exam_id=exam.id)
 
     # Invalidate Candidate Dashboards for everyone in this competition
     if exam.competition_slot and exam.competition_slot.competition_stage:

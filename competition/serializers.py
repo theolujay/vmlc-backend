@@ -28,31 +28,35 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
     Serializer for a single entry in the ranking snapshot.
     """
 
-    candidate_name = serializers.SerializerMethodField()
-    candidate_email = serializers.SerializerMethodField()
-    school_name = serializers.SerializerMethodField()
+    candidate_info = serializers.SerializerMethodField()
+    exam_score = serializers.SerializerMethodField()
 
     class Meta:
         model = RankingSnapshotEntry
         fields = [
             "candidate",
-            "candidate_name",
-            "candidate_email",
-            "school_name",
+            "candidate_info",
             "exam_score",
             "rank",
             "percentile",
             "tie_break_reason",
         ]
 
-    def get_candidate_name(self, obj):
-        return obj.candidate.user.get_full_name()
+    def get_candidate_info(self, obj):
+        return {
+            "id": obj.candidate.pk,
+            "full_name": obj.candidate.user.get_full_name(),
+            "email": obj.candidate.user.email,
+            "state": obj.candidate.user.state,
+            "school_name": obj.candidate.school_name,
+            "school_type": obj.candidate.school_type,
+            "current_class": obj.candidate.current_class
+        }
 
-    def get_candidate_email(self, obj):
-        return obj.candidate.user.email
-
-    def get_school_name(self, obj):
-        return obj.candidate.school_name
+    def get_exam_score(self, obj):
+        if obj.exam_score is None:
+            return "absent"
+        return obj.exam_score
 
 
 class RankingSnapshotSerializer(serializers.ModelSerializer):
@@ -96,13 +100,6 @@ class CandidateAnswerDetailSerializer(serializers.ModelSerializer):
 
 
 class CandidateResultDetailSerializer(serializers.ModelSerializer):
-    candidate_name = serializers.CharField(
-        source="candidate.user.get_full_name", read_only=True
-    )
-    candidate_email = serializers.CharField(
-        source="candidate.user.email", read_only=True
-    )
-    school_name = serializers.CharField(source="candidate.school_name", read_only=True)
     submissions = CandidateAnswerDetailSerializer(
         source="answers", many=True, read_only=True
     )
@@ -112,10 +109,6 @@ class CandidateResultDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CandidateExamResult
         fields = [
-            "candidate",
-            "candidate_name",
-            "candidate_email",
-            "school_name",
             "score",
             "rank",
             "percentile",
@@ -126,28 +119,30 @@ class CandidateResultDetailSerializer(serializers.ModelSerializer):
 
 
 class LeagueLeaderboardEntrySerializer(serializers.ModelSerializer):
-    candidate_name = serializers.CharField(
-        source="candidate.user.get_full_name", read_only=True
-    )
-    candidate_email = serializers.CharField(
-        source="candidate.user.email", read_only=True
-    )
-    school_name = serializers.CharField(source="candidate.school_name", read_only=True)
-    state = serializers.CharField(source="candidate.state", read_only=True)
+    candidate_info = serializers.SerializerMethodField()
     rank_change = serializers.IntegerField(default=0, read_only=True)
 
     class Meta:
         model = LeagueLeaderboardEntry
         fields = [
             "candidate",
-            "candidate_name",
-            "candidate_email",
-            "school_name",
-            "state",
+            "candidate_info",
             "total_score",
             "overall_rank",
             "rank_change",
         ]
+
+    def get_candidate_info(self, obj):
+        candidate = obj.candidate
+        return {
+            "id": candidate.pk,
+            "full_name": candidate.user.get_full_name(),
+            "email": candidate.user.email,
+            "state": candidate.user.state,
+            "school_name": candidate.school_name,
+            "school_type": candidate.school_type,
+            "current_class": candidate.current_class,
+        }
 
 
 class LeagueLeaderboardSerializer(serializers.ModelSerializer):

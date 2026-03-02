@@ -26,7 +26,7 @@ from vmlc.v2.utils import (
     invalidate_candidate_cache,
     invalidate_feature_flag,
     invalidate_registration_status,
-    invalidate_league_leaderboard,
+    invalidate_score_boards,
 )
 
 
@@ -305,15 +305,15 @@ class LeaderboardSnapshotAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
     def save_model(self, request, obj, form, change):
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
-        invalidate_league_leaderboard()
+        invalidate_score_boards()
         super().delete_queryset(request, queryset)
 
     @admin.display(description="Published By", ordering="published_by__user__email")

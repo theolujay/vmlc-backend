@@ -10,6 +10,7 @@ from competition.models import (
     StageExam,
 )
 from vmlc.models import CandidateExamResult, Exam
+from identity.models import Candidate
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class RankingSnapshotGenerator:
         self,
         ranking_policy: str = "dense_rank",  # e.g., 'dense_rank', 'sequential_rank'
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
-        absentee_score: float = 0.0,
+        absentee_score: float | None = None,
         published_by_staff_id: uuid.UUID = None,
     ) -> RankingSnapshot:
         """
@@ -63,7 +64,10 @@ class RankingSnapshotGenerator:
         compute_exam_results(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
-        raw_results = CandidateExamResult.objects.filter(exam=self.exam).select_related(
+        raw_results = CandidateExamResult.objects.filter(
+            exam=self.exam,
+            # candidate__user__is_active=True, # filter out deactivated candidates
+        ).select_related(
             "candidate", "candidate__user"
         )
         logger.debug(
@@ -71,10 +75,17 @@ class RankingSnapshotGenerator:
         )
 
         # Identify all eligible candidates for this stage/exam
+        # First, get all candidates who are associated with an active, email-verified user account.
+        active_candidate_ids = set(
+            Candidate.objects.filter(user__is_active=True, user__is_email_verified=True).values_list("pk", flat=True)
+        )
+
+        # Then, find which of those candidates are actively enrolled in this competition.
         eligible_candidate_ids = set(
             Enrollment.objects.filter(
                 competition=self.competition,
-                status=Enrollment.Status.ACTIVE,  # Only active participants
+                status=Enrollment.Status.ACTIVE,
+                candidate_id__in=active_candidate_ids,
             ).values_list("candidate_id", flat=True)
         )
         logger.debug(
@@ -99,7 +110,7 @@ class RankingSnapshotGenerator:
         for cand_id in eligible_candidate_ids:
             if cand_id not in candidate_scores:
                 candidate_scores[cand_id] = {
-                    "score": absentee_score,
+                    "score": absentee_score if absentee_score is not None else "absent",
                     "recorded_at": None,  # Mark as absent
                 }
 
@@ -112,6 +123,11 @@ class RankingSnapshotGenerator:
         def sort_key(item):
             data = item[1]
             score = data["score"]
+
+            # Map 'absent' to a float lower than any possible real score (-1.0)
+            # to avoid TypeError when sorting mixed types (str and float).
+            sort_score = -1.0 if score == "absent" else float(score)
+
             secondary = 0
             if tie_break_strategy == "submission_time_asc":
                 if data["recorded_at"]:
@@ -120,7 +136,7 @@ class RankingSnapshotGenerator:
                 else:
                     # Absentees last -> smallest value
                     secondary = float("-inf")
-            return (score, secondary)
+            return (sort_score, secondary)
 
         sorted_candidates = sorted(
             candidate_scores.items(),
@@ -145,7 +161,7 @@ class RankingSnapshotGenerator:
                 RankingSnapshotEntry(
                     candidate_id=candidate_id,
                     enrollment=enrollment,
-                    exam_score=score,
+                    exam_score=None if score == "absent" else score,
                     rank=current_rank,
                 )
             )
@@ -154,22 +170,13 @@ class RankingSnapshotGenerator:
             # the following applies skips for ties. E.g. [..., 5, 5, 7, ...]
             # current_rank = idx + 1
 
-        # Attempt to get existing ranking for this exam with lock to prevent race conditions
-        try:
-            existing_ranking = RankingSnapshot.objects.select_for_update().get(
-                exam=self.exam
-            )
-            # If found, delete it and its entries to ensure a clean regeneration
-            existing_ranking.delete()
-        except RankingSnapshot.DoesNotExist:
-            pass  # No existing ranking, proceed with creation
-
         # Create RankingSnapshot record
         ranking = RankingSnapshot.objects.create(
             competition=self.competition,
             stage=self.stage.type,
             round=self.stage_exam.round,
             exam=self.exam,
+            is_active=True, # this sets all other ranking snapshots to is_active=False when RankingSnapshot.save() is called
             is_published=False,
             meta={
                 "generated_by": (
@@ -188,7 +195,7 @@ class RankingSnapshotGenerator:
         # Invalidate Caches
         from vmlc.v2.utils import (
             invalidate_staff_dashboard,
-            invalidate_league_leaderboard,
+            invalidate_score_boards,
             invalidate_exam_cache,
             invalidate_candidate_cache,
         )
@@ -199,7 +206,7 @@ class RankingSnapshotGenerator:
 
         def clear_ranking_cache():
             invalidate_staff_dashboard()
-            invalidate_league_leaderboard()
+            invalidate_score_boards()
             invalidate_exam_cache(exam_id)
             for cand_id in candidate_ids:
                 invalidate_candidate_cache(cand_id)
@@ -214,4 +221,3 @@ class RankingSnapshotGenerator:
             raise RankingSnapshotGenerationError(
                 f"Exam {self.exam.id} is not yet concluded."
             )
-        # TODO: Add more validation, e.g., ensure no existing published ranking for this stage_exam

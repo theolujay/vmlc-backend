@@ -137,6 +137,10 @@ class Enrollment(models.Model):
     """
 
     class Status(models.TextChoices):
+        # TODO: add PENDING and us it instead of ACTIVE during registration,
+        # and then swtich to ACTIVE at first login (which signifies email is verified)
+        # PENDING = "pending", "Active"
+
         # currently participating
         ACTIVE = "active", "Active"
         # removed by system rules and is terminal
@@ -163,7 +167,10 @@ class Enrollment(models.Model):
         help_text="The candidate's current stage in the competition.",
     )
     status = models.CharField(
-        choices=Status.choices, default=Status.ACTIVE, db_index=True
+        choices=Status.choices,
+        # default=Status.PENDING, # TODO: set this when Status.PENDING is implemented
+        default=Status.ACTIVE,
+        db_index=True,
     )
     joined_at = models.DateTimeField(auto_now_add=True)
     last_active_at = models.DateTimeField(null=True, blank=True)
@@ -272,6 +279,10 @@ class RankingSnapshot(models.Model):
         choices=Facilitator.choices,
         default=Facilitator.VMLC,
     )
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Whether this version should be prioritised."
+    )
     is_published = models.BooleanField(
         default=False,
         db_index=True,
@@ -299,11 +310,6 @@ class RankingSnapshot(models.Model):
         verbose_name_plural = "Ranking Snapshots"
         constraints = [
             models.UniqueConstraint(
-                fields=["exam"],
-                condition=Q(exam__isnull=False),
-                name="unique_ranking_per_exam",
-            ),
-            models.UniqueConstraint(
                 fields=["competition", "stage", "round"],
                 condition=Q(is_published=True),
                 name="one_published_ranking_per_stage_round",
@@ -312,7 +318,15 @@ class RankingSnapshot(models.Model):
         indexes = [
             models.Index(fields=["competition", "stage", "round", "is_published"]),
         ]
+        ordering = ["-created_at"]
 
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            # If this ranking snapshot is prioritised, de-prioritise all others to prevent conflict
+            RankingSnapshot.objects.filter(is_active=True).exclude(
+                pk=self.pk
+            ).update(is_active=False)
+        super().save(*args, **kwargs)
 
 class RankingSnapshotEntry(models.Model):
     """
@@ -344,6 +358,8 @@ class RankingSnapshotEntry(models.Model):
     exam_score = models.DecimalField(
         max_digits=5,
         decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Candidate's exam score used for ranking.",
     )
     rank = models.PositiveIntegerField(
@@ -378,7 +394,6 @@ class RankingSnapshotEntry(models.Model):
             models.Index(fields=["ranking_snapshot", "candidate"]),
             models.Index(fields=["ranking_snapshot", "exam_score"]),
         ]
-
 
 class LeagueLeaderboard(models.Model):
     """

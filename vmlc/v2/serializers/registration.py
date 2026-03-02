@@ -218,7 +218,7 @@ class RegistrationV2Serializer(serializers.Serializer):
                         candidate=profile,
                         competition=active_comp,
                         current_stage=first_stage,
-                        status=Enrollment.Status.ACTIVE,
+                        status=Enrollment.Status.ACTIVE, # TODO: use PENDING instead
                     )
                     EnrollmentStageProgress.objects.create(
                         enrollment=enrollment,

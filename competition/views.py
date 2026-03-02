@@ -3,6 +3,7 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
 
 from identity.permissions import (
     ActiveManagerPermissions,
@@ -14,7 +15,6 @@ from identity.permissions import (
     IsLeagueParticipantOrStaff,
     get_enrollment,
 )
-from vmlc.models import Exam
 from competition.models import RankingSnapshot, RankingSnapshotEntry
 from competition.serializers import (
     PublishRankingSnapshotSerializer,
@@ -30,8 +30,8 @@ from competition.services.staff_dashboard import StaffCompetitionDashboardServic
 from competition.services.candidate_dashboard import CandidateDashboardService
 from competition.services.progression import ProgressionService, ProgressionError
 
-from vmlc.models import Exam, CandidateExamResult
-from vmlc.v2.utils import get_or_set_cache
+from vmlc.models import Exam, CandidateExamResult, ExamAccess
+from vmlc.v2.utils import CacheKeys, get_or_set_cache
 
 
 class CandidateDashboardView(APIView):
@@ -131,17 +131,39 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
     View to retrieve a specific ranking snapshot using Exam ID.
     """
 
-    queryset = RankingSnapshot.objects.prefetch_related(
-        "entries", "entries__candidate__user"
-    ).all()
     serializer_class = RankingSnapshotSerializer
     permission_classes = [CanViewRankingSnapshot]
     lookup_field = "exam_id"
 
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        exam_id = self.kwargs[self.lookup_field]
+        cache_key = CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id)
+        data = get_or_set_cache(
+            cache_key, lambda: self._fetch_snapshot_data(exam_id=exam_id)
+        )
 
+        if data is None:
+            return Response(
+                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(data)
 
+    def _fetch_snapshot_data(self, exam_id):
+        ranking = (
+            RankingSnapshot.objects.prefetch_related(
+                Prefetch(
+                    "entries",
+                    queryset=RankingSnapshotEntry.objects.select_related(
+                        "candidate__user"
+                    ).order_by("rank"),
+                )
+            )
+            .filter(is_active=True, exam_id=exam_id)
+            .first()
+        )
+        if ranking:
+            return self.get_serializer(ranking).data
+        return None
 class LeagueLeaderboardView(APIView):
     """
     View to retrieve the cumulative league leaderboard.
@@ -194,7 +216,9 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
     permission_classes = [CanViewOwnOrStaffRankingSnapshotEntry]
 
     def get(self, request, exam_id, candidate_id):
-        ranking_snapshot = get_object_or_404(RankingSnapshot, exam_id=exam_id)
+
+        ranking_snapshot = RankingSnapshot.objects.all().filter(is_active=True).first()
+        # ranking_snapshot = get_object_or_404(RankingSnapshot, exam_id=exam_id).filter()
 
         # Access control
         # if hasattr(request.user, "candidate_profile"):
@@ -212,15 +236,38 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             candidate_id=candidate_id,
         )
 
-        result = get_object_or_404(
-            CandidateExamResult.objects.prefetch_related("answers__question"),
+        result = CandidateExamResult.objects.filter(
             exam_id=exam_id,
             candidate_id=candidate_id,
-        )
+        ).prefetch_related("answers__question").first()
 
-        # Manually attach rank/percentile from RankingSnapshotEntry to result object for serialization
-        result.rank = entry.rank
-        result.percentile = entry.percentile
+        # Prepare candidate info
+        candidate = entry.candidate
+        candidate_info = {
+            "id": candidate.pk,
+            "full_name": candidate.user.get_full_name(),
+            "email": candidate.user.email,
+            "state": candidate.user.state,
+            "school_name": candidate.school_name,
+            "school_type": candidate.school_type,
+            "current_class": candidate.current_class,
+        }
+
+        if result:
+            # Manually attach rank/percentile from RankingSnapshotEntry to result object for serialization
+            result.rank = entry.rank
+            result.percentile = entry.percentile
+            candidate_performance = CandidateResultDetailSerializer(result).data
+        else:
+            # For absentees, we still want to provide basic performance info
+            candidate_performance = {
+                "score": "absent" if entry.exam_score is None else entry.exam_score,
+                "rank": entry.rank,
+                "percentile": entry.percentile,
+                "recorded_at": None,
+                "auto_score": False,
+                "submissions": [],
+            }
 
         exam = ranking_snapshot.exam
         exam_details = {
@@ -235,10 +282,26 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             "average_score": float(exam.get_average_score() or 0),
         }
 
+        # Add access/execution details from ExamAccess
+        exam_access = ExamAccess.objects.filter(exam_id=exam_id, candidate_id=candidate_id).first()
+        if exam_access:
+            candidate_performance["started_at"] = exam_access.started_at
+            candidate_performance["submitted_at"] = exam_access.submitted_at
+            # Serialize image URL properly
+            if exam_access.face_capture:
+                candidate_performance["face_capture"] = request.build_absolute_uri(exam_access.face_capture.url)
+            else:
+                candidate_performance["face_capture"] = None
+        else:
+            candidate_performance["started_at"] = None
+            candidate_performance["submitted_at"] = None
+            candidate_performance["face_capture"] = None
+
         return Response(
             {
                 "exam_details": exam_details,
-                "candidate_performance": CandidateResultDetailSerializer(result).data,
+                "candidate_info": candidate_info,
+                "candidate_performance": candidate_performance,
             }
         )
 

@@ -278,6 +278,10 @@ class Exam(models.Model):
             return False
 
         now = timezone.now()
+
+        if not self.scheduled_date:
+            return False
+
         end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
         return self.scheduled_date <= now <= end_time
 
@@ -304,6 +308,10 @@ class Exam(models.Model):
             return self.Status.CANCELLED
 
         now = timezone.now()
+
+        if self.scheduled_date is None or self.open_duration_hours is None:
+            return self.Status.DRAFT
+
         conclusion_time = self.scheduled_date + timedelta(
             hours=self.open_duration_hours
         )
@@ -320,6 +328,10 @@ class Exam(models.Model):
 
         if self.scheduled_date is not None and self.open_duration_hours is not None:
             now = timezone.now()
+
+            if not self.scheduled_date:
+                return None
+
             end_time = self.scheduled_date + timedelta(hours=self.open_duration_hours)
             if end_time < now:
                 return end_time
@@ -368,6 +380,10 @@ class Exam(models.Model):
         """
         Overridden save to synchronize StageExam visibility and notify on status changes.
         """
+        # Ensure scheduled_date is a datetime object
+        if isinstance(self.scheduled_date, str):
+            from django.utils.dateparse import parse_datetime
+            self.scheduled_date = parse_datetime(self.scheduled_date)
         # Fetch the old status if the object already exists
         old_status = None
         if self.pk:
