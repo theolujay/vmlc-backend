@@ -22,7 +22,7 @@ class PublishRankingSnapshotViewTest(APITestCase):
             email="staff@example.com", password="SecurePass123!", is_staff=True
         )
         self.staff_profile = Staff.objects.create(
-            user=self.staff_user, role=Staff.Roles.ADMIN
+            user=self.staff_user, role=Staff.Roles.SUPERADMIN
         )
 
         # Authenticate
