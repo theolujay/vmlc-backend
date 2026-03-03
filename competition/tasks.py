@@ -48,7 +48,7 @@ def invalidate_published_ranking_cache_task(ranking_snapshot_id):
 
 
 @shared_task(name="generate_ranking_task")
-def generate_ranking_task(stage_exam_id, actor_id=None):
+def generate_ranking_task(stage_exam_id, actor_id=None, ranking_policy="standard"):
     """
     Celery task to generate (and optionally publish) ranking snapshot for a stage exam.
     """
@@ -60,7 +60,9 @@ def generate_ranking_task(stage_exam_id, actor_id=None):
         if actor_id and isinstance(actor_id, str):
             actor_id = uuid.UUID(actor_id)
 
-        generator.generate_and_save_ranking(actor_id=actor_id)
+        generator.generate_and_save_ranking(
+            actor_id=actor_id, ranking_policy=ranking_policy
+        )
 
         logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated.")
 

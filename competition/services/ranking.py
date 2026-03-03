@@ -9,7 +9,7 @@ from competition.models import (
     RankingSnapshotEntry,
     StageExam,
 )
-from vmlc.models import CandidateExamResult, Exam
+from vmlc.models import CandidateExamResult, Exam, ExamAccess
 from identity.models import Candidate
 from vmlc.utils.functions import compute_exam_results
 
@@ -37,7 +37,7 @@ class RankingSnapshotGenerator:
     @transaction.atomic
     def generate_and_save_ranking(
         self,
-        ranking_policy: str = "dense_rank",  # e.g., 'dense_rank', 'sequential_rank'
+        ranking_policy: str = "standard",  # e.g., 'standard', 'dense'
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
         absentee_score: float | None = None,
         actor_id: uuid.UUID = None,
@@ -46,7 +46,7 @@ class RankingSnapshotGenerator:
         Generates RankingSnapshot and RankingEntry records from exam results.
 
         Args:
-            ranking_policy: Defines how ranks are assigned (e.g., 'dense_rank').
+            ranking_policy: Defines how ranks are assigned (e.g., 'standard', 'dense').
             tie_break_strategy: How to resolve ties in score (e.g., 'submission_time_asc').
             absentee_score: Score to assign to candidates who were eligible but didn't submit.
             actor_id: Staff member initiating this generation.
@@ -90,16 +90,25 @@ class RankingSnapshotGenerator:
         logger.debug(
             f"RankingSnapshotGenerator: Found {len(eligible_candidate_ids)} eligible candidates for Competition {self.competition.id}."
         )
-
+        # Use ExamAccess to get candidate submission times for tie_break_strategy
+        eligible_candidates_exam_access_data = ExamAccess.objects.filter(
+            candidate_id__in=eligible_candidate_ids,
+            exam=self.exam,
+        ).values("candidate_id", "status", "submitted_at")
+        eligible_candidates_exam_access_data = {
+            item["candidate_id"]: item for item in eligible_candidates_exam_access_data
+        }
         # Map results to eligible candidates, handle absentees
         candidate_scores = (
             {}
-        )  # {candidate_id: {'score': float, 'recorded_at': datetime}}
+        )  # {candidate_id: {'score': float, 'submitted_at': datetime}}
         for res in raw_results:
             if res.candidate_id in eligible_candidate_ids:
                 candidate_scores[res.candidate_id] = {
                     "score": float(res.score),
-                    "recorded_at": res.recorded_at,
+                    "submitted_at": eligible_candidates_exam_access_data.get(
+                        res.candidate_id, {}
+                    ).get("submitted_at"),
                 }
         logger.debug(
             f"RankingSnapshotGenerator: Mapped {len(candidate_scores)} candidate scores after eligibility check."
@@ -110,7 +119,7 @@ class RankingSnapshotGenerator:
             if cand_id not in candidate_scores:
                 candidate_scores[cand_id] = {
                     "score": absentee_score if absentee_score is not None else "absent",
-                    "recorded_at": None,  # Mark as absent
+                    "submitted_at": None,  # Mark as absent
                 }
 
         if not candidate_scores:
@@ -129,9 +138,9 @@ class RankingSnapshotGenerator:
 
             secondary = 0
             if tie_break_strategy == "submission_time_asc":
-                if data["recorded_at"]:
+                if data["submitted_at"]:
                     # Earlier time (smaller timestamp) -> larger negative value
-                    secondary = -data["recorded_at"].timestamp()
+                    secondary = -data["submitted_at"].timestamp()
                 else:
                     # Absentees last -> smallest value
                     secondary = float("-inf")
@@ -146,10 +155,24 @@ class RankingSnapshotGenerator:
         ranking_entries_to_create = []
         previous_score = None
         current_rank = 0
+        total_candidates = len(sorted_candidates)
+
         for idx, (candidate_id, data) in enumerate(sorted_candidates):
             score = data["score"]
-            if score != previous_score:
-                current_rank = idx + 1  # Dense rank
+
+            if ranking_policy == "dense":
+                if score != previous_score:
+                    current_rank += 1
+            else:  # default to "standard" competition ranking
+                if score != previous_score:
+                    current_rank = idx + 1
+
+            # Calculate percentile: (Total - Rank) / Total * 100
+            percentile = 0.0
+            if total_candidates > 0:
+                percentile = (
+                    (total_candidates - current_rank) / total_candidates
+                ) * 100
 
             # Find Enrollment for FK
             enrollment = Enrollment.objects.filter(
@@ -162,12 +185,10 @@ class RankingSnapshotGenerator:
                     enrollment=enrollment,
                     exam_score=None if score == "absent" else score,
                     rank=current_rank,
+                    percentile=percentile,
                 )
             )
             previous_score = score
-            # TODO: decide on dense rank or not:
-            # the following applies skips for ties. E.g. [..., 5, 5, 7, ...]
-            # current_rank = idx + 1
 
         # Create RankingSnapshot record
         ranking = RankingSnapshot.objects.create(

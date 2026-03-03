@@ -27,7 +27,7 @@ The response is a JSON object representing a `RankingSnapshot`.
 | `facilitator_system`| String | The system that delivered the exam (`vmlc`, `esturdi`). |
 | `is_published` | Boolean | Whether this ranking is currently visible to candidates. |
 | `published_at` | DateTime \| null| When the ranking was officially published. |
-| `meta` | Object | Auxiliary metadata (e.g. `policy`, `tie_break`, `generated_by`). |
+| `meta` | Object | Auxiliary metadata (e.g. `policy`, `tie_break`, `generated_by`). `policy` defaults to `standard` (competition ranking). `tie_break` usually defaults to `submission_time_asc` (earlier submission wins). |
 | `created_at` | DateTime | When the snapshot was generated. |
 | `entries` | Array | List of individual candidate ranking entries. |
 

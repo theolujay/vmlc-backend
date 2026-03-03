@@ -51,7 +51,7 @@ Detailed breakdown of the candidate's execution and results.
 | `recorded_at` | DateTime \| null | When the exam result was recorded. |
 | `auto_score` | Boolean | Whether the score was automatically computed by the system. |
 | `started_at` | DateTime \| null | Time the candidate started the exam session (from `ExamAccess`). |
-| `submitted_at` | DateTime \| null | Time the candidate submitted the exam (from `ExamAccess`). |
+| `submitted_at` | DateTime \| null | Time the candidate submitted the exam (from `ExamAccess`). Used as the primary tie-break factor. |
 | `face_capture` | URL \| null | Absolute URL to the face capture image taken during the exam. |
 | `submissions` | Array | List of individual question responses (only if result exists). |
 

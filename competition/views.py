@@ -150,7 +150,9 @@ class PublishRankingSnapshotView(APIView):
         competition_stage_round = exam.competition_slot.round
         competition_stage = exam.competition_slot.competition_stage
         stage_exam_id = exam.competition_slot.id
-        competition_id = exam.competition_slot.competition_stage.competition.id
+        competition = exam.competition_slot.competition_stage.competition
+        competition_id = competition.id
+        ranking_policy = competition.config.get("ranking_policy", "standard")
 
         if publish_now:
             ranking = RankingSnapshot.objects.filter(
@@ -204,7 +206,11 @@ class PublishRankingSnapshotView(APIView):
                     status=status.HTTP_202_ACCEPTED,
                 )
 
-        generate_ranking_task.delay(stage_exam_id=str(stage_exam_id), actor_id=staff.id)
+        generate_ranking_task.delay(
+            stage_exam_id=str(stage_exam_id),
+            actor_id=staff.id,
+            ranking_policy=ranking_policy,
+        )
 
         return Response(
             {"message": "Ranking snapshot generation has been started."},
