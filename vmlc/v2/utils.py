@@ -223,6 +223,7 @@ def invalidate_score_boards(exam_id=None):
     cache.delete(CacheKeys.LEADERBOARD_LEAGUE)
     cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
 
+
 def invalidate_question_pool():
     """Clear question pool cache."""
     cache.delete(CacheKeys.QUESTION_POOL)

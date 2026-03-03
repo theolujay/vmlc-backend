@@ -43,6 +43,7 @@ class ExamListV2Serializer(serializers.ModelSerializer):
         if not obj.competition_slot:
             return None
         return obj.competition_slot.competition_stage.competition.get_title()
+
     def get_competition_edition(self, obj):
         if not obj.competition_slot:
             return None

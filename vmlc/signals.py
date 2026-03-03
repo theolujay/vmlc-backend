@@ -89,7 +89,7 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
         invalidate_staff_dashboard()
         invalidate_score_boards()
     elif isinstance(instance, RankingSnapshot):
-            invalidate_score_boards(exam_id=instance.exam.id)
+        invalidate_score_boards(exam_id=instance.exam.id)
     elif isinstance(instance, Exam):
         from vmlc.v2.tasks import invalidate_exam_related_caches_task
         from django.db import transaction
@@ -137,13 +137,10 @@ def user_logged_in_receiver(sender, request, user, **kwargs):
     # TODO: update enrollment.status to ACTIVE from PENDING (during registration)
     # when a candidate logs in for the first time
     # TODO: implement a more refined way of handling this
-    if (
-        hasattr(user, "candidate_profile")
-        and user.is_active
-    ):
-        Enrollment.objects.filter(candidate=user.candidate_profile, status=Enrollment.Status.PENDING).update(
-            status=Enrollment.Status.ACTIVE
-        )
+    if hasattr(user, "candidate_profile") and user.is_active:
+        Enrollment.objects.filter(
+            candidate=user.candidate_profile, status=Enrollment.Status.PENDING
+        ).update(status=Enrollment.Status.ACTIVE)
 
 
 # Invalidate stats cache on changes to relevant models.

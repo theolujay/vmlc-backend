@@ -5,7 +5,13 @@ from rest_framework import status
 from unittest.mock import patch, MagicMock
 
 from identity.models import User, Candidate, Staff
-from competition.models import Competition, Stage, StageExam, RankingSnapshot, RankingSnapshotEntry
+from competition.models import (
+    Competition,
+    Stage,
+    StageExam,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+)
 from vmlc.models import Exam
 
 
@@ -13,13 +19,10 @@ class PublishRankingSnapshotViewTest(APITestCase):
     def setUp(self):
         # Create staff user
         self.staff_user = User.objects.create_user(
-            email="staff@example.com",
-            password="SecurePass123!",
-            is_staff=True
+            email="staff@example.com", password="SecurePass123!", is_staff=True
         )
         self.staff_profile = Staff.objects.create(
-            user=self.staff_user,
-            role=Staff.Roles.ADMIN
+            user=self.staff_user, role=Staff.Roles.ADMIN
         )
 
         # Authenticate
@@ -54,7 +57,7 @@ class PublishRankingSnapshotViewTest(APITestCase):
             round=1,
             exam=self.exam,
             is_active=True,
-            is_published=False
+            is_published=False,
         )
 
     @patch("competition.tasks.invalidate_published_ranking_cache_task.delay")
@@ -67,10 +70,7 @@ class PublishRankingSnapshotViewTest(APITestCase):
         mock_on_commit.side_effect = lambda func: func()
 
         url = reverse("competition:publish-ranking-snapshot")
-        data = {
-            "exam_id": str(self.exam.id),
-            "publish_now": True
-        }
+        data = {"exam_id": str(self.exam.id), "publish_now": True}
 
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -92,11 +92,10 @@ class PublishRankingSnapshotViewTest(APITestCase):
         self.ranking.save()
 
         url = reverse("competition:publish-ranking-snapshot")
-        data = {
-            "exam_id": str(self.exam.id),
-            "publish_now": True
-        }
+        data = {"exam_id": str(self.exam.id), "publish_now": True}
 
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "No active ranking snapshot available to publish.")
+        self.assertEqual(
+            response.data["error"], "No active ranking snapshot available to publish."
+        )

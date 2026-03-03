@@ -5,6 +5,7 @@ from comms.models import Notification
 
 logger = logging.getLogger(__name__)
 
+
 class WSNotificationService:
     @staticmethod
     @database_sync_to_async

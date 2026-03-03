@@ -146,7 +146,7 @@ else:
 '''
 exec(code)
 
-code2 = r'''
+code2 = r"""
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -175,5 +175,5 @@ emails = [
 
 for user in User.objects.filter(email__in=emails):
     print(user.get_full_name(), "-", user.email, "-", _normalize_phone(user.phone))
-'''
+"""
 exec(code2)

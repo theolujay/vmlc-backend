@@ -21,6 +21,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     async def encode_json(cls, content):
         import json
         from django.core.serializers.json import DjangoJSONEncoder
+
         return json.dumps(content, cls=DjangoJSONEncoder)
 
     def __init__(self, *args, **kwargs):
@@ -32,7 +33,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         self.presence_task = None
         self.current_filters = {}
         self.current_page = 1
-        self.presence_set_name = "online_staff" # Default
+        self.presence_set_name = "online_staff"  # Default
 
     async def connect(self):
         is_fully_authenticated = self.scope.get("fully_authenticated", False)
@@ -64,7 +65,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
 
         # 2. Setup Helpdesk (Dashboard & Presence)
         self.is_staff = await WSHelpdeskDashboardService.check_staff_access(user)
-        self.presence_set_name = await WSHelpdeskThreadService.get_user_type_set_name(user)
+        self.presence_set_name = await WSHelpdeskThreadService.get_user_type_set_name(
+            user
+        )
 
         if self.is_staff:
             self.dashboard_group = "staff_helpdesk_dashboard"
@@ -75,7 +78,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             await self.fetch_and_send_thread_list()
 
         # 3. Presence online
-        await WSHelpdeskThreadService.set_presence(user.id, self.presence_set_name, True)
+        await WSHelpdeskThreadService.set_presence(
+            user.id, self.presence_set_name, True
+        )
         self.presence_task = asyncio.create_task(
             self.refresh_presence_periodically(user.id)
         )
@@ -106,12 +111,12 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 self.presence_task.cancel()
 
             # Clear presence
-            await WSHelpdeskThreadService.set_presence(user.id, self.presence_set_name, False)
+            await WSHelpdeskThreadService.set_presence(
+                user.id, self.presence_set_name, False
+            )
 
         user_email = user.email if user and user.is_authenticated else "Anonymous"
-        logger.info(
-            f"Unified WebSocket disconnected: {user_email}"
-        )
+        logger.info(f"Unified WebSocket disconnected: {user_email}")
 
     async def receive_json(self, content, **kwargs):
         action = content.get("action")
@@ -138,7 +143,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         # --- Helpdesk Thread Actions ---
         elif action == "subscribe_thread":
             thread_id = data.get("thread_id")
-            if await WSHelpdeskThreadService.check_access(user, thread_id, self.is_staff):
+            if await WSHelpdeskThreadService.check_access(
+                user, thread_id, self.is_staff
+            ):
                 group = f"helpdesk_thread_{thread_id}"
                 await self.channel_layer.group_add(group, self.channel_name)
                 self.subscribed_threads.add(thread_id)
@@ -149,7 +156,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         elif action == "unsubscribe_thread":
             thread_id = data.get("thread_id")
             if thread_id in self.subscribed_threads:
-                await self.channel_layer.group_discard(f"helpdesk_thread_{thread_id}", self.channel_name)
+                await self.channel_layer.group_discard(
+                    f"helpdesk_thread_{thread_id}", self.channel_name
+                )
                 self.subscribed_threads.remove(thread_id)
 
         elif action == "thread.typing":
@@ -174,30 +183,21 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     async def notification_activity(self, event):
         """Forwards notification events to the client."""
         # Normalize to use 'data' key for consistency
-        payload = {
-            "type": "notification_activity",
-            "data": event.get("message", {})
-        }
+        payload = {"type": "notification_activity", "data": event.get("message", {})}
         await self.send_json(payload)
 
     async def helpdesk_update(self, event):
         """Forward global stats update and refresh staff list if needed."""
         # Normalize: already usually {type, data}, but ensure it's clean
-        payload = {
-            "type": event["type"],
-            "data": event.get("data", {})
-        }
+        payload = {"type": event["type"], "data": event.get("data", {})}
         await self.send_json(payload)
-        
+
         if self.is_staff and payload["data"].get("refresh_threads"):
             await self.fetch_and_send_thread_list()
 
     async def helpdesk_thread(self, event):
         """Forward thread updates (messages/metadata) to participants."""
-        payload = {
-            "type": event["type"],
-            "data": event.get("data", {})
-        }
+        payload = {"type": event["type"], "data": event.get("data", {})}
         await self.send_json(payload)
 
     async def helpdesk_thread_typing(self, event):
@@ -209,8 +209,8 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 "data": {
                     "thread_id": event["thread_id"],
                     "user_id": event["user_id"],
-                    "is_typing": event["is_typing"]
-                }
+                    "is_typing": event["is_typing"],
+                },
             }
             await self.send_json(payload)
 
@@ -219,17 +219,18 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     # ============================================================
 
     async def fetch_and_send_thread_list(self):
-        data = await WSHelpdeskDashboardService.get_thread_list(self.current_page, self.current_filters)
-        await self.send_json({
-            "type": "helpdesk.list", 
-            "data": data
-        })
+        data = await WSHelpdeskDashboardService.get_thread_list(
+            self.current_page, self.current_filters
+        )
+        await self.send_json({"type": "helpdesk.list", "data": data})
 
     async def refresh_presence_periodically(self, user_id):
         try:
             while True:
                 await asyncio.sleep(30)
-                await WSHelpdeskThreadService.refresh_presence(user_id, self.presence_set_name)
+                await WSHelpdeskThreadService.refresh_presence(
+                    user_id, self.presence_set_name
+                )
         except asyncio.CancelledError:
             pass
 

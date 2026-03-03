@@ -383,6 +383,7 @@ class Exam(models.Model):
         # Ensure scheduled_date is a datetime object
         if isinstance(self.scheduled_date, str):
             from django.utils.dateparse import parse_datetime
+
             self.scheduled_date = parse_datetime(self.scheduled_date)
         # Fetch the old status if the object already exists
         old_status = None
@@ -403,7 +404,9 @@ class Exam(models.Model):
             from django.db import transaction
 
             transaction.on_commit(
-                lambda: notify_staff_about_exam_event_task.delay(str(self.id), "cancelled")
+                lambda: notify_staff_about_exam_event_task.delay(
+                    str(self.id), "cancelled"
+                )
             )
             logger.info(f"Triggered 'cancelled' notification for exam {self.id}")
 

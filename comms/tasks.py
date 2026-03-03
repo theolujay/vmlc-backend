@@ -21,7 +21,8 @@ notification_service = NotificationService()
 kudi_sms_service = KudiSmsService()
 slack_service = SlackService()
 
-v2_tasks.do_nothing() # this helps bypass linters flagging v2_tasks as unused
+v2_tasks.do_nothing()  # this helps bypass linters flagging v2_tasks as unused
+
 
 @shared_task(
     bind=True,
@@ -639,7 +640,9 @@ def notify_staff_about_exam_event_task(exam_id: uuid.UUID, event_type: str):
     ).select_related("user")
 
     if not staff_to_notify.exists():
-        logger.info(f"No staff found to notify for exam {exam_id} event '{event_type}'.")
+        logger.info(
+            f"No staff found to notify for exam {exam_id} event '{event_type}'."
+        )
         return
 
     app_environment = settings.APP_ENVIRONMENT
@@ -662,7 +665,7 @@ def notify_staff_about_exam_event_task(exam_id: uuid.UUID, event_type: str):
                     subject=subject,
                     message=message,
                 )
-            }
+            },
         )
 
     logger.info(

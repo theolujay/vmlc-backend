@@ -79,10 +79,12 @@ class StaffCompetitionDashboardView(APIView):
         serializer = CompetitionDashboardSerializer(data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class ListRankingSnapshotsView(ListAPIView):
     """
     Lists all ranking snapshots marked as active
     """
+
     serializer_class = RankingSnapshotListSerializer
     permission_class = ActiveAdminPermissions
 
@@ -115,13 +117,9 @@ class PublishRankingSnapshotView(APIView):
         publish_now = data["publish_now"]
 
         try:
-            exam = (
-                Exam.objects
-                .select_related(
-                    "competition_slot__competition_stage__competition",
-                )
-                .get(id=exam_id)
-            )
+            exam = Exam.objects.select_related(
+                "competition_slot__competition_stage__competition",
+            ).get(id=exam_id)
         except Exam.DoesNotExist:
             return Response(
                 {"detail": "Exam not found."}, status=status.HTTP_404_NOT_FOUND
@@ -150,16 +148,13 @@ class PublishRankingSnapshotView(APIView):
 
         if publish_now:
             ranking = RankingSnapshot.objects.filter(
-                exam=exam,
-                is_active=True # only one should be active
+                exam=exam, is_active=True  # only one should be active
             ).first()
 
             if not ranking:
                 return Response(
-                    {
-                        "error": "No active ranking snapshot available to publish."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "No active ranking snapshot available to publish."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # Enforce the 'one_published_ranking_per_stage_round' constraint by
@@ -169,21 +164,21 @@ class PublishRankingSnapshotView(APIView):
                     competition=competition_id,
                     stage=competition_stage.type,
                     round=competition_stage_round,
-                ).exclude(
-                    id=ranking.id
-                ).update(
+                ).exclude(id=ranking.id).update(
                     is_published=False, published_at=None, is_active=False
                 )
-                ranking.is_active = True # although this should already be True at this point, but lt's add it anyway
+                ranking.is_active = True  # although this should already be True at this point, but lt's add it anyway
                 ranking.is_published = True
                 ranking.published_at = timezone.now()
                 ranking.meta["published_by"] = str(staff_id) if staff_id else None
-                ranking.save(update_fields=[
-                    "is_active",
-                    "is_published",
-                    "published_at",
-                    "meta",
-                ])
+                ranking.save(
+                    update_fields=[
+                        "is_active",
+                        "is_published",
+                        "published_at",
+                        "meta",
+                    ]
+                )
                 # Trigger cache invalidation for all candidates in this snapshot
                 transaction.on_commit(
                     invalidate_published_ranking_cache_task.delay(
@@ -194,7 +189,8 @@ class PublishRankingSnapshotView(APIView):
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
                         update_leaderboard_task.delay(
-                            competition_id=ranking.competition_id, as_of_round=ranking.round
+                            competition_id=ranking.competition_id,
+                            as_of_round=ranking.round,
                         )
                     )
                 return Response(
@@ -202,9 +198,7 @@ class PublishRankingSnapshotView(APIView):
                     status=status.HTTP_202_ACCEPTED,
                 )
 
-        generate_ranking_task.delay(
-            stage_exam_id=str(stage_exam_id), actor_id=staff_id
-        )
+        generate_ranking_task.delay(stage_exam_id=str(stage_exam_id), actor_id=staff_id)
 
         return Response(
             {"message": "Ranking snapshot generation has been started."},
@@ -230,9 +224,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         )
 
         if data is None:
-            return Response(
-                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(data)
 
     def _fetch_snapshot_data(self, exam_id):
@@ -251,6 +243,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         if ranking:
             return self.get_serializer(ranking).data
         return None
+
 
 class LeagueLeaderboardView(APIView):
     """
@@ -305,20 +298,18 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
         )
         data = get_or_set_cache(
             cache_key, lambda: self._fetch_data(request, exam_id, candidate_id)
-            )
+        )
         if data is None:
             return Response(
-                {
-                    "detail": "Candidate not found in this ranking board."
-                },
-                status=status.HTTP_404_NOT_FOUND
+                {"detail": "Candidate not found in this ranking board."},
+                status=status.HTTP_404_NOT_FOUND,
             )
         return Response(data)
 
-
     def _fetch_data(self, request, exam_id, candidate_id):
         ranking_snapshot = RankingSnapshot.objects.filter(
-            exam_id=exam_id, is_active=True,
+            exam_id=exam_id,
+            is_active=True,
         ).first()
 
         if not ranking_snapshot:
@@ -409,6 +400,7 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             "candidate_info": candidate_info,
             "candidate_performance": candidate_performance,
         }
+
 
 class LeagueCandidateLeaderboardView(APIView):
     """

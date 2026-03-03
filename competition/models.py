@@ -3,7 +3,6 @@ from django.db import models, transaction
 from django.db.models import Q
 
 
-
 class Competition(models.Model):
     """
     Represents a single edition of the competition.
@@ -171,7 +170,7 @@ class Enrollment(models.Model):
     )
     status = models.CharField(
         choices=Status.choices,
-        default=Status.PENDING, # TODO: set this when Status.PENDING is implemented
+        default=Status.PENDING,  # TODO: set this when Status.PENDING is implemented
         db_index=True,
     )
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -282,8 +281,7 @@ class RankingSnapshot(models.Model):
         default=Facilitator.VMLC,
     )
     is_active = models.BooleanField(
-        default=False,
-        help_text="Whether this version should be prioritised."
+        default=False, help_text="Whether this version should be prioritised."
     )
     is_published = models.BooleanField(
         default=False,
@@ -330,10 +328,10 @@ class RankingSnapshot(models.Model):
                 RankingSnapshot.objects.select_for_update().filter(
                     is_active=True,
                     exam=self.exam,
-                ).exclude(
-                    pk=self.pk
-                ).update(is_active=False)
+                ).exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
+
+
 class RankingSnapshotEntry(models.Model):
     """
     A single candidate's ranking within a specific Ranking Snapshot for an exam.
@@ -400,6 +398,7 @@ class RankingSnapshotEntry(models.Model):
             models.Index(fields=["ranking_snapshot", "candidate"]),
             models.Index(fields=["ranking_snapshot", "exam_score"]),
         ]
+
 
 class LeagueLeaderboard(models.Model):
     """

@@ -154,13 +154,13 @@ class SlackService:
 
     def send_exam_status_notification(self, exam, event_type: str):
         """Sends a notification about an exam status change to a Slack channel."""
-        
+
         color_map = {
             "ongoing": "good",
             "concluded": "warning",
             "cancelled": "danger",
         }
-        
+
         payload = {
             "text": f":bell: Exam Status Update: {exam.get_title()}",
             "attachments": [
@@ -177,7 +177,7 @@ class SlackService:
                             "value": event_type.capitalize(),
                             "short": True,
                         },
-                         {
+                        {
                             "title": "Environment",
                             "value": settings.APP_ENVIRONMENT.title(),
                             "short": True,

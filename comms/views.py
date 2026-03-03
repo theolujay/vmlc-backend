@@ -687,7 +687,7 @@ class HelpdeskThreadMessageView(CreateAPIView):
 
             # Get fresh thread state for metadata
             thread.refresh_from_db()
-            
+
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
                 f"helpdesk_thread_{thread.id}",
@@ -702,9 +702,17 @@ class HelpdeskThreadMessageView(CreateAPIView):
                             "id": str(thread.id),
                             "status": thread.status,
                             "priority": thread.priority,
-                            "assigned_staff": str(thread.assigned_staff_id) if thread.assigned_staff_id else None,
-                            "last_message_at": thread.last_message_at.isoformat() if thread.last_message_at else None,
-                        }
+                            "assigned_staff": (
+                                str(thread.assigned_staff_id)
+                                if thread.assigned_staff_id
+                                else None
+                            ),
+                            "last_message_at": (
+                                thread.last_message_at.isoformat()
+                                if thread.last_message_at
+                                else None
+                            ),
+                        },
                     },
                 },
             )

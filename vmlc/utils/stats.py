@@ -1,6 +1,14 @@
 from datetime import timedelta
 import re
-from django.db.models import F, Q, Count, ExpressionWrapper, DateTimeField, OuterRef, Subquery
+from django.db.models import (
+    F,
+    Q,
+    Count,
+    ExpressionWrapper,
+    DateTimeField,
+    OuterRef,
+    Subquery,
+)
 from django.utils import timezone
 from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
@@ -80,6 +88,7 @@ def _get_helpdesk_stats() -> dict:
     )
 
     from comms.services.ws_helpdesk_thread import WSHelpdeskThreadService
+
     online_counts = WSHelpdeskThreadService.get_online_counts()
 
     return {

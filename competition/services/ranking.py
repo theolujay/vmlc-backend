@@ -60,15 +60,13 @@ class RankingSnapshotGenerator:
         self._validate_preconditions()
 
         # Perform auto-scoring for all submissions before generating ranking
-        _  = compute_exam_results(self.exam.id)
+        _ = compute_exam_results(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
         raw_results = CandidateExamResult.objects.filter(
             exam=self.exam,
             # candidate__user__is_active=True, # filter out deactivated candidates
-        ).select_related(
-            "candidate", "candidate__user"
-        )
+        ).select_related("candidate", "candidate__user")
         logger.debug(
             f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults for Exam {self.exam.id}."
         )
@@ -76,7 +74,9 @@ class RankingSnapshotGenerator:
         # Identify all eligible candidates for this stage/exam
         # First, get all candidates who are associated with an active, email-verified user account.
         active_candidate_ids = set(
-            Candidate.objects.filter(user__is_active=True, user__is_email_verified=True).values_list("pk", flat=True)
+            Candidate.objects.filter(
+                user__is_active=True, user__is_email_verified=True
+            ).values_list("pk", flat=True)
         )
 
         # Then, find which of those candidates are actively enrolled in this competition.
@@ -175,12 +175,10 @@ class RankingSnapshotGenerator:
             stage=self.stage.type,
             round=self.stage_exam.round,
             exam=self.exam,
-            is_active=True, # this sets all other ranking snapshots to is_active=False when RankingSnapshot.save() is called
+            is_active=True,  # this sets all other ranking snapshots to is_active=False when RankingSnapshot.save() is called
             is_published=False,
             meta={
-                "generated_by": (
-                    str(actor_id) if actor_id else None
-                ),
+                "generated_by": (str(actor_id) if actor_id else None),
                 "policy": ranking_policy,
                 "tie_break": tie_break_strategy,
             },

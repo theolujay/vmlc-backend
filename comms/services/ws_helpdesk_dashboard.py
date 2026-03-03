@@ -15,6 +15,7 @@ from vmlc.utils.query_filters import (
 
 logger = logging.getLogger(__name__)
 
+
 class WSHelpdeskDashboardService:
     @staticmethod
     @database_sync_to_async
@@ -23,17 +24,20 @@ class WSHelpdeskDashboardService:
         if not hasattr(user, "staff_profile"):
             return False
         role = user.staff_profile.role
-        return StaffRoleHierarchy.has_minimum_role(user_role=role, minimum_role="moderator")
+        return StaffRoleHierarchy.has_minimum_role(
+            user_role=role, minimum_role="moderator"
+        )
 
     @staticmethod
     @database_sync_to_async
     def get_thread_list(page_number, filters):
         """Fetches and serializes the helpdesk thread list with filters and pagination."""
-        queryset = HelpdeskThread.objects.select_related(
-            "candidate", "assigned_staff__user"
-        ).prefetch_related("messages__reads").filter(
-            messages__sender_type=ThreadMessage.SenderType.CANDIDATE
-        ).distinct()
+        queryset = (
+            HelpdeskThread.objects.select_related("candidate", "assigned_staff__user")
+            .prefetch_related("messages__reads")
+            .filter(messages__sender_type=ThreadMessage.SenderType.CANDIDATE)
+            .distinct()
+        )
 
         queryset = annotate_thread_with_staff_unread_count(queryset)
         queryset = annotate_thread_with_last_candidate_message_at(queryset)

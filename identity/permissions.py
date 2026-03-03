@@ -444,4 +444,6 @@ ActiveVolunteerPermissions = [HasMinimumStaffRole(Staff.Roles.VOLUNTEER)] + Acti
 ActiveModeratorPermissions = [HasMinimumStaffRole(Staff.Roles.MODERATOR)] + ActiveStaff
 ActiveAdminPermissions = [HasMinimumStaffRole(Staff.Roles.ADMIN)] + ActiveStaff
 ActiveManagerPermissions = [HasMinimumStaffRole(Staff.Roles.MANAGER)] + ActiveStaff
-ActiveSuperadminPermissions = [HasMinimumStaffRole(Staff.Roles.SUPERADMIN)] + ActiveStaff
+ActiveSuperadminPermissions = [
+    HasMinimumStaffRole(Staff.Roles.SUPERADMIN)
+] + ActiveStaff

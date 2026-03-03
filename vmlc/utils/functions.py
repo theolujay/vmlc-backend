@@ -217,9 +217,7 @@ def compute_exam_results(exam_id):
         # Find all submitted exam accesses for this exam
         submitted_accesses = ExamAccess.objects.filter(
             exam=exam, status=ExamAccess.Status.SUBMITTED
-        ).select_related(
-            "candidate"
-        )
+        ).select_related("candidate")
 
         created_count = 0
         scored_count = 0
@@ -255,8 +253,7 @@ def compute_exam_results(exam_id):
 def _compute_and_save_candidate_exam_result(candidate_exam_result):
     """Internal helper to compute and save result for a single CandidateExamResult."""
     submitted_answers = CandidateAnswer.objects.filter(
-        candidate_exam_result=candidate_exam_result,
-        question__is_archived=False
+        candidate_exam_result=candidate_exam_result, question__is_archived=False
     ).select_related("question")
 
     total_questions = candidate_exam_result.exam.questions.filter(

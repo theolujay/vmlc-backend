@@ -71,6 +71,7 @@ class Command(BaseCommand):
                     questions.append(question)
 
                 from django.utils.dateparse import parse_datetime
+
                 scheduled_date_raw = data.get("scheduled_date")
                 scheduled_date = None
                 if scheduled_date_raw:

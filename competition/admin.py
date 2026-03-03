@@ -367,7 +367,13 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     inlines = [RankingSnapshotEntryInline]
     list_select_related = ("competition", "exam")
     date_hierarchy = "published_at"
-    actions = ["publish_rankings", "unpublish_rankings", "activate_rankings", "deactivate_rankings", "export_rankings_as_csv"]
+    actions = [
+        "publish_rankings",
+        "unpublish_rankings",
+        "activate_rankings",
+        "deactivate_rankings",
+        "export_rankings_as_csv",
+    ]
 
     @admin.display(description="Exam")
     def exam_link(self, obj):
@@ -419,6 +425,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
             if e_id:
                 invalidate_exam_cache(e_id)
         self.message_user(request, f"{count} rankings deactivated.")
+
     @admin.action(description="Export selected Ranking Snapshots as CSV")
     def export_rankings_as_csv(self, request, queryset):
         import csv
@@ -428,16 +435,23 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
         response["Content-Disposition"] = 'attachment; filename="ranking_snapshots.csv"'
         writer = csv.writer(response)
 
-        writer.writerow([
-            "Snapshot ID", "Snapshot Created At",
-            "Competition", "Stage", "Round", "Exam Title",
-            "Candidate Email", "Candidate Full Name",
-            "Exam Score", "Rank", "Percentile",
-        ])
+        writer.writerow(
+            [
+                "Snapshot ID",
+                "Snapshot Created At",
+                "Competition",
+                "Stage",
+                "Round",
+                "Exam Title",
+                "Candidate Email",
+                "Candidate Full Name",
+                "Exam Score",
+                "Rank",
+                "Percentile",
+            ]
+        )
 
-        snapshots = queryset.select_related(
-            "exam", "competition"
-        ).prefetch_related(
+        snapshots = queryset.select_related("exam", "competition").prefetch_related(
             "entries__candidate__user"
         )
 
@@ -445,19 +459,21 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
             for entry in snapshot.entries.all():
                 candidate = entry.candidate
                 user = candidate.user
-                writer.writerow([
-                    snapshot.id,
-                    snapshot.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    snapshot.competition.name,
-                    snapshot.get_stage_display(),
-                    snapshot.round if snapshot.round is not None else "",
-                    snapshot.exam.get_title(),
-                    user.email,
-                    user.get_full_name(),
-                    entry.exam_score,
-                    entry.rank,
-                    entry.percentile,
-                ])
+                writer.writerow(
+                    [
+                        snapshot.id,
+                        snapshot.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                        snapshot.competition.name,
+                        snapshot.get_stage_display(),
+                        snapshot.round if snapshot.round is not None else "",
+                        snapshot.exam.get_title(),
+                        user.email,
+                        user.get_full_name(),
+                        entry.exam_score,
+                        entry.rank,
+                        entry.percentile,
+                    ]
+                )
 
         return response
 
@@ -520,7 +536,11 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
 
     def delete_queryset(self, request, queryset):
         # Capture snapshots before deletion
-        snapshots = list(queryset.select_related("ranking_snapshot").values_list("ranking_snapshot__exam_id", "candidate_id", "candidate__user_id"))
+        snapshots = list(
+            queryset.select_related("ranking_snapshot").values_list(
+                "ranking_snapshot__exam_id", "candidate_id", "candidate__user_id"
+            )
+        )
         super().delete_queryset(request, queryset)
         for exam_id, candidate_id, user_id in snapshots:
             if exam_id:

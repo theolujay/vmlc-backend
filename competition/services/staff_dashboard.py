@@ -95,9 +95,7 @@ class StaffCompetitionDashboardService:
             res_stats = CandidateExamResult.objects.filter(
                 exam=exam,
                 # candidate__user__is_active=True,
-            ).aggregate(
-                sat=Count("id"), avg=Avg("score")
-            )
+            ).aggregate(sat=Count("id"), avg=Avg("score"))
 
             # check ranking status
             ranking = RankingSnapshot.objects.filter(exam=exam, is_active=True).first()

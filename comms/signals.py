@@ -66,9 +66,12 @@ def invalidate_helpdesk_cache(sender, instance, **kwargs):
 
     # Trigger real-time broadcast to staff dashboard
     from .tasks import broadcast_staff_helpdesk_update_task
+
     broadcast_staff_helpdesk_update_task.delay()
 
-    logger.info(f"Invalidated helpdesk cache and triggered broadcast for thread {thread_id}")
+    logger.info(
+        f"Invalidated helpdesk cache and triggered broadcast for thread {thread_id}"
+    )
 
 
 post_save.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)

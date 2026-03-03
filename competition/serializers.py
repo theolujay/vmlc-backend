@@ -24,6 +24,7 @@ class RankingSnapshotListSerializer(serializers.ModelSerializer):
             "published_at",
             "created_at",
         ]
+
     exam = serializers.SerializerMethodField(read_only=True)
     entries_count = serializers.SerializerMethodField(read_only=True)
 
@@ -40,6 +41,7 @@ class RankingSnapshotListSerializer(serializers.ModelSerializer):
 
     def get_entries_count(self, obj: RankingSnapshot):
         return obj.entries.count()
+
 
 class PublishRankingSnapshotSerializer(serializers.Serializer):
     """
@@ -82,7 +84,7 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
             "state": obj.candidate.user.state,
             "school_name": obj.candidate.school_name,
             "school_type": obj.candidate.school_type,
-            "current_class": obj.candidate.current_class
+            "current_class": obj.candidate.current_class,
         }
 
     def get_exam_score(self, obj):
@@ -150,7 +152,9 @@ class CandidateResultDetailSerializer(serializers.ModelSerializer):
     def get_submissions(self, obj: CandidateExamResult):
         # Filter out answers to archived questions
         filtered_answers = obj.answers.filter(question__is_archived=False)
-        return CandidateAnswerDetailSerializer(filtered_answers, many=True, read_only=True).data
+        return CandidateAnswerDetailSerializer(
+            filtered_answers, many=True, read_only=True
+        ).data
 
 
 class LeagueLeaderboardEntrySerializer(serializers.ModelSerializer):
