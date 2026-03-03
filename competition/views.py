@@ -2,8 +2,6 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
-from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from django.db import transaction
@@ -11,9 +9,8 @@ from django.db import transaction
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
-    ActiveModeratorPermissions,
+    ActiveSuperadminPermissions,
     ActiveVolunteerPermissions,
-    CanViewOwnOrStaffRankingSnapshotEntry,
     CanViewRankingSnapshot,
     CandidatePermissions,
     IsLeagueParticipantOrStaff,
@@ -88,27 +85,6 @@ class ListRankingSnapshotsView(ListAPIView):
     """
     serializer_class = RankingSnapshotListSerializer
     permission_class = ActiveAdminPermissions
-    # permission_class = [AllowAny]
-
-    # def list(self, request, *args, **kwargs):
-    #     cache_key = CacheKeys.RANKING_SNAPSHOT_LIST
-    #     data = get_or_set_cache(
-    #         cache_key, lambda: self._fetch_snapshot_list_data()
-    #     )
-
-    #     if data is None:
-    #         return Response(
-    #             {
-    #                 "detail": "No snapshot available yet"
-    #             },
-    #             status=status.HTTP_404_NOT_FOUND
-    #         )
-    #     return Response
-
-
-    # def _fetch_snapshot_list_data(self):
-
-    #     pass
 
     def get_queryset(self):
         return (
@@ -128,7 +104,7 @@ class PublishRankingSnapshotView(APIView):
     View to trigger the generation and optional publishing of ranking snapshots.
     """
 
-    permission_classes = ActiveAdminPermissions
+    permission_classes = ActiveSuperadminPermissions
 
     def post(self, request):
         serializer = PublishRankingSnapshotSerializer(data=request.data)
