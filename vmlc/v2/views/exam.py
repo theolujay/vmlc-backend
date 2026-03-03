@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from identity.models import Candidate
-from identity.permissions import ActiveAdminPermissions, CandidatePermissions
+from identity.permissions import ActiveAdminPermissions, ActiveModeratorPermissions, CandidatePermissions, StaffRoleHierarchy
 
 from django.utils import timezone
 from vmlc.models import Exam, Question, CandidateExamResult, ExamAccess
@@ -54,7 +54,7 @@ class ExamListV2View(ListCreateAPIView):
     - POST: Creates a new exam with detailed input data.
     """
 
-    permission_classes = ActiveAdminPermissions
+    permission_classes = ActiveModeratorPermissions
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     filterset_class = ExamFilter
 
@@ -113,9 +113,15 @@ class ExamListV2View(ListCreateAPIView):
         Create an exam
         Also records the staff member who created the exam
         """
-        serializer.save(created_by=self.request.user.staff_profile)
-
-        from vmlc.v2.utils import CacheKeys, invalidate_staff_dashboard
+        staff = self.request.user.staff_profile
+        if not StaffRoleHierarchy.has_minimum_role(staff.role, "admin"):
+            return Response(
+                {
+                    "detail": "You do not have permission to create exams"
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer.save(created_by=staff)
 
         invalidate_staff_dashboard()
 

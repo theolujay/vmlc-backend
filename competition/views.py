@@ -6,9 +6,11 @@ from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from django.db import transaction
 
+from identity.models import Staff
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
+    ActiveModeratorPermissions,
     ActiveSuperadminPermissions,
     ActiveVolunteerPermissions,
     CanViewRankingSnapshot,
@@ -86,7 +88,7 @@ class ListRankingSnapshotsView(ListAPIView):
     """
 
     serializer_class = RankingSnapshotListSerializer
-    permission_class = ActiveAdminPermissions
+    permission_class = ActiveModeratorPermissions
 
     def get_queryset(self):
         return (
@@ -106,15 +108,24 @@ class PublishRankingSnapshotView(APIView):
     View to trigger the generation and optional publishing of ranking snapshots.
     """
 
-    permission_classes = ActiveSuperadminPermissions
+    permission_classes = ActiveAdminPermissions
 
     def post(self, request):
         serializer = PublishRankingSnapshotSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        staff = request.user.staff_profile
         data = serializer.validated_data
         exam_id = data["exam_id"]
         publish_now = data["publish_now"]
+
+        if publish_now and staff.role != Staff.Roles.SUPERADMIN:
+            return Response(
+                {
+                    "detail": "You do not have permissions to publish rankings"
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         try:
             exam = Exam.objects.select_related(
@@ -141,11 +152,6 @@ class PublishRankingSnapshotView(APIView):
         stage_exam_id = exam.competition_slot.id
         competition_id = exam.competition_slot.competition_stage.competition.id
 
-        # Pass user ID if available
-        staff_id = None
-        if hasattr(request.user, "staff_profile"):
-            staff_id = str(request.user.staff_profile.pk)
-
         if publish_now:
             ranking = RankingSnapshot.objects.filter(
                 exam=exam, is_active=True  # only one should be active
@@ -170,7 +176,7 @@ class PublishRankingSnapshotView(APIView):
                 ranking.is_active = True  # although this should already be True at this point, but lt's add it anyway
                 ranking.is_published = True
                 ranking.published_at = timezone.now()
-                ranking.meta["published_by"] = str(staff_id) if staff_id else None
+                ranking.meta["published_by"] = str(staff.pk)
                 ranking.save(
                     update_fields=[
                         "is_active",
@@ -198,7 +204,7 @@ class PublishRankingSnapshotView(APIView):
                     status=status.HTTP_202_ACCEPTED,
                 )
 
-        generate_ranking_task.delay(stage_exam_id=str(stage_exam_id), actor_id=staff_id)
+        generate_ranking_task.delay(stage_exam_id=str(stage_exam_id), actor_id=staff.id)
 
         return Response(
             {"message": "Ranking snapshot generation has been started."},
