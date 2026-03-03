@@ -94,7 +94,7 @@ class StaffCompetitionDashboardService:
             # Calculate stats for this exam
             res_stats = CandidateExamResult.objects.filter(
                 exam=exam,
-                candidate__user__is_active=True,
+                # candidate__user__is_active=True,
             ).aggregate(
                 sat=Count("id"), avg=Avg("score")
             )

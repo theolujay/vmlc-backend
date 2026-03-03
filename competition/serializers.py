@@ -100,9 +100,7 @@ class CandidateAnswerDetailSerializer(serializers.ModelSerializer):
 
 
 class CandidateResultDetailSerializer(serializers.ModelSerializer):
-    submissions = CandidateAnswerDetailSerializer(
-        source="answers", many=True, read_only=True
-    )
+    submissions = serializers.SerializerMethodField()
     rank = serializers.IntegerField(read_only=True)
     percentile = serializers.FloatField(read_only=True)
 
@@ -116,6 +114,11 @@ class CandidateResultDetailSerializer(serializers.ModelSerializer):
             "auto_score",
             "submissions",
         ]
+
+    def get_submissions(self, obj: CandidateExamResult):
+        # Filter out answers to archived questions
+        filtered_answers = obj.answers.filter(question__is_archived=False)
+        return CandidateAnswerDetailSerializer(filtered_answers, many=True, read_only=True).data
 
 
 class LeagueLeaderboardEntrySerializer(serializers.ModelSerializer):
