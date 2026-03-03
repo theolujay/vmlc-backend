@@ -2,6 +2,7 @@ from django.urls import path
 from competition.views import (
     PublishRankingSnapshotView,
     RetrieveRankingSnapshotView,
+    ListRankingSnapshotsView,
     LeagueLeaderboardView,
     StaffCompetitionDashboardView,
     RetrieveCandidateRankingSnapshotEntryView,
@@ -32,6 +33,11 @@ urlpatterns = [
         "rankings/<uuid:exam_id>/",
         RetrieveRankingSnapshotView.as_view(),
         name="retrieve-ranking-snapshot",
+    ),
+    path(
+        "rankings/",
+        ListRankingSnapshotsView.as_view(),
+        name="list-ranking-snapshot",
     ),
     path(
         "rankings/<uuid:exam_id>/candidate/<uuid:candidate_id>/",

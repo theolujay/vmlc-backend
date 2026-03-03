@@ -22,6 +22,7 @@ class CacheKeys:
     LEADERBOARD_LEAGUE = "lb:league:latest"
     RANKING_SNAPSHOT = "ranking:snapshot:{exam_id}"
     RANKING_SNAPSHOT_ENTRY = "ranking:snapshot:entry:{exam_id}:{candidate_id}"
+    RANKING_SNAPSHOT_LIST = "ranking:snapshot:list"
 
     # Exams
     EXAM_DETAIL = "exam:detail:{exam_id}"

@@ -368,7 +368,7 @@ class Exam(models.Model):
         """
         Returns the number of questions in the exam.
         """
-        return self.questions.count()
+        return self.questions.filter(is_archived=False).count()
 
     def get_average_score(self):
         """

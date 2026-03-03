@@ -1,6 +1,7 @@
 import uuid
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
+
 
 
 class Competition(models.Model):
@@ -31,6 +32,9 @@ class Competition(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def get_title(self):
+        return f"{self.name} {self.edition}"
 
     def save(self, *args, **kwargs):
         if self.status == self.Status.ACTIVE:
@@ -320,12 +324,16 @@ class RankingSnapshot(models.Model):
 
     def save(self, *args, **kwargs):
         if self.is_active:
-            # If this ranking snapshot is prioritised, de-prioritise all others to prevent conflict
-            RankingSnapshot.objects.filter(is_active=True).exclude(
-                pk=self.pk
-            ).update(is_active=False)
+            # If this ranking snapshot is prioritised, de-prioritise all others
+            # for the same exam to prevent conflict
+            with transaction.atomic():
+                RankingSnapshot.objects.select_for_update().filter(
+                    is_active=True,
+                    exam=self.exam,
+                ).exclude(
+                    pk=self.pk
+                ).update(is_active=False)
         super().save(*args, **kwargs)
-
 class RankingSnapshotEntry(models.Model):
     """
     A single candidate's ranking within a specific Ranking Snapshot for an exam.

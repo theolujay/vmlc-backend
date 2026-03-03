@@ -1,13 +1,17 @@
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
-from django.db.models import Prefetch
+from django.db.models import Q, Count, Prefetch
+from django.utils import timezone
+from django.db import transaction
 
 from identity.permissions import (
     ActiveManagerPermissions,
     ActiveAdminPermissions,
+    ActiveModeratorPermissions,
     ActiveVolunteerPermissions,
     CanViewOwnOrStaffRankingSnapshotEntry,
     CanViewRankingSnapshot,
@@ -15,16 +19,22 @@ from identity.permissions import (
     IsLeagueParticipantOrStaff,
     get_enrollment,
 )
-from competition.models import RankingSnapshot, RankingSnapshotEntry
+from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
 from competition.serializers import (
+    LeagueLeaderboardSerializer,
     PublishRankingSnapshotSerializer,
+    RankingSnapshotListSerializer,
     RankingSnapshotSerializer,
     CandidateResultDetailSerializer,
     LeagueLeaderboardEntrySerializer,
     CompetitionDashboardSerializer,
     PromoteCandidatesSerializer,
 )
-from competition.tasks import generate_ranking_task
+from competition.tasks import (
+    generate_ranking_task,
+    update_leaderboard_task,
+    invalidate_published_ranking_cache_task,
+)
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import StaffCompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
@@ -64,8 +74,6 @@ class StaffCompetitionDashboardView(APIView):
     permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
-        from vmlc.v2.utils import CacheKeys
-
         data = get_or_set_cache(
             CacheKeys.STAFF_DASHBOARD,
             lambda: StaffCompetitionDashboardService.get_dashboard_data(),
@@ -73,6 +81,46 @@ class StaffCompetitionDashboardView(APIView):
         )
         serializer = CompetitionDashboardSerializer(data)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ListRankingSnapshotsView(ListAPIView):
+    """
+    Lists all ranking snapshots marked as active
+    """
+    serializer_class = RankingSnapshotListSerializer
+    permission_class = ActiveAdminPermissions
+    # permission_class = [AllowAny]
+
+    # def list(self, request, *args, **kwargs):
+    #     cache_key = CacheKeys.RANKING_SNAPSHOT_LIST
+    #     data = get_or_set_cache(
+    #         cache_key, lambda: self._fetch_snapshot_list_data()
+    #     )
+
+    #     if data is None:
+    #         return Response(
+    #             {
+    #                 "detail": "No snapshot available yet"
+    #             },
+    #             status=status.HTTP_404_NOT_FOUND
+    #         )
+    #     return Response
+
+
+    # def _fetch_snapshot_list_data(self):
+
+    #     pass
+
+    def get_queryset(self):
+        return (
+            RankingSnapshot.objects.annotate(
+                question_count=Count(
+                    "exam__questions", filter=Q(exam__questions__is_archived=False)
+                )
+            )
+            .filter(is_active=True)
+            .select_related("exam")
+            .order_by("-created_at")
+        )
 
 
 class PublishRankingSnapshotView(APIView):
@@ -91,7 +139,13 @@ class PublishRankingSnapshotView(APIView):
         publish_now = data["publish_now"]
 
         try:
-            exam = Exam.objects.get(id=exam_id)
+            exam = (
+                Exam.objects
+                .select_related(
+                    "competition_slot__competition_stage__competition",
+                )
+                .get(id=exam_id)
+            )
         except Exam.DoesNotExist:
             return Response(
                 {"detail": "Exam not found."}, status=status.HTTP_404_NOT_FOUND
@@ -108,16 +162,72 @@ class PublishRankingSnapshotView(APIView):
                 {"detail": "This exam isn't yet concluded"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        competition_stage_round = exam.competition_slot.round
+        competition_stage = exam.competition_slot.competition_stage
         stage_exam_id = exam.competition_slot.id
+        competition_id = exam.competition_slot.competition_stage.competition.id
 
         # Pass user ID if available
         staff_id = None
         if hasattr(request.user, "staff_profile"):
             staff_id = str(request.user.staff_profile.pk)
 
+        if publish_now:
+            ranking = RankingSnapshot.objects.filter(
+                exam=exam,
+                is_active=True # only one should be active
+            ).first()
+
+            if not ranking:
+                return Response(
+                    {
+                        "error": "No active ranking snapshot available to publish."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Enforce the 'one_published_ranking_per_stage_round' constraint by
+            # unpublishing any other ranking snapshot for the same stage/round.
+            with transaction.atomic():
+                RankingSnapshot.objects.filter(
+                    competition=competition_id,
+                    stage=competition_stage.type,
+                    round=competition_stage_round,
+                ).exclude(
+                    id=ranking.id
+                ).update(
+                    is_published=False, published_at=None, is_active=False
+                )
+                ranking.is_active = True # although this should already be True at this point, but lt's add it anyway
+                ranking.is_published = True
+                ranking.published_at = timezone.now()
+                ranking.meta["published_by"] = str(staff_id) if staff_id else None
+                ranking.save(update_fields=[
+                    "is_active",
+                    "is_published",
+                    "published_at",
+                    "meta",
+                ])
+                # Trigger cache invalidation for all candidates in this snapshot
+                transaction.on_commit(
+                    invalidate_published_ranking_cache_task.delay(
+                        ranking_snapshot_id=ranking.id
+                    )
+                )
+                # Trigger leaderboard update if it's a league exam
+                if ranking.stage == Stage.Type.LEAGUE:
+                    transaction.on_commit(
+                        update_leaderboard_task.delay(
+                            competition_id=ranking.competition_id, as_of_round=ranking.round
+                        )
+                    )
+                return Response(
+                    {"message": "Ranking snapshot published."},
+                    status=status.HTTP_202_ACCEPTED,
+                )
+
         generate_ranking_task.delay(
-            stage_exam_id=str(stage_exam_id), publish_now=publish_now, staff_id=staff_id
+            stage_exam_id=str(stage_exam_id), actor_id=staff_id
         )
 
         return Response(
@@ -133,6 +243,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
 
     serializer_class = RankingSnapshotSerializer
     permission_classes = [CanViewRankingSnapshot]
+    # permission_classes = ActiveModeratorPermissions
     lookup_field = "exam_id"
 
     def get(self, request, *args, **kwargs):
@@ -164,6 +275,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         if ranking:
             return self.get_serializer(ranking).data
         return None
+
 class LeagueLeaderboardView(APIView):
     """
     View to retrieve the cumulative league leaderboard.
@@ -174,11 +286,6 @@ class LeagueLeaderboardView(APIView):
     def get(self, request):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
-        from vmlc.v2.utils import CacheKeys
-        from competition.serializers import (
-            LeagueLeaderboardSerializer,
-            LeagueLeaderboardEntrySerializer,
-        )
 
         def fetch_and_serialize_leaderboard():
             leaderboard = LeaderboardService.get_latest_league_leaderboard()

@@ -124,12 +124,27 @@ def _get_competition_stats() -> dict:
             # Rounds are defined in StageExam associated with this stage
             # We filter for active StageExams that have a round number
             rounds = (
-                stage.stage_exams.filter(is_active=True, round__isnull=False)
+                stage.stage_exams.filter(
+                    is_active=True,
+                    round__isnull=False,
+                    exam__isnull=False,
+                )
+                .values_list("round", flat=True)
+                .distinct()
+                .order_by("round")
+            )
+            available_rounds = (
+                stage.stage_exams.filter(
+                    is_active=True,
+                    round__isnull=False,
+                    exam__isnull=True,
+                )
                 .values_list("round", flat=True)
                 .distinct()
                 .order_by("round")
             )
             stage_info["rounds"] = list(rounds)
+            stage_info["available_rounds"] = list(available_rounds)
 
         stages_data.append(stage_info)
 

@@ -11,6 +11,7 @@ from competition.models import (
 )
 from vmlc.models import CandidateExamResult, Exam
 from identity.models import Candidate
+from vmlc.utils.functions import compute_exam_results
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class RankingSnapshotGenerator:
         ranking_policy: str = "dense_rank",  # e.g., 'dense_rank', 'sequential_rank'
         tie_break_strategy: str = "submission_time_asc",  # e.g., 'submission_time_asc', 'random'
         absentee_score: float | None = None,
-        published_by_staff_id: uuid.UUID = None,
+        actor_id: uuid.UUID = None,
     ) -> RankingSnapshot:
         """
         Generates RankingSnapshot and RankingEntry records from exam results.
@@ -48,7 +49,7 @@ class RankingSnapshotGenerator:
             ranking_policy: Defines how ranks are assigned (e.g., 'dense_rank').
             tie_break_strategy: How to resolve ties in score (e.g., 'submission_time_asc').
             absentee_score: Score to assign to candidates who were eligible but didn't submit.
-            published_by_staff_id: Staff member initiating this generation.
+            actor_id: Staff member initiating this generation.
 
         Returns:
             The newly created RankingSnapshot object.
@@ -59,9 +60,7 @@ class RankingSnapshotGenerator:
         self._validate_preconditions()
 
         # Perform auto-scoring for all submissions before generating ranking
-        from vmlc.utils.functions import compute_exam_results
-
-        compute_exam_results(self.exam.id)
+        _  = compute_exam_results(self.exam.id)
 
         # Fetch raw CandidateExamResults for the associated vmlc.Exam
         raw_results = CandidateExamResult.objects.filter(
@@ -180,7 +179,7 @@ class RankingSnapshotGenerator:
             is_published=False,
             meta={
                 "generated_by": (
-                    str(published_by_staff_id) if published_by_staff_id else None
+                    str(actor_id) if actor_id else None
                 ),
                 "policy": ranking_policy,
                 "tie_break": tie_break_strategy,

@@ -6,8 +6,40 @@ from competition.models import (
     LeagueLeaderboardEntry,
 )
 from vmlc.serializers.question import QuestionListSerializer
-from vmlc.models import CandidateAnswer, CandidateExamResult, Exam
+from vmlc.models import CandidateAnswer, CandidateExamResult
 
+
+class RankingSnapshotListSerializer(serializers.ModelSerializer):
+    """
+    List all active snapshots
+    """
+
+    class Meta:
+        model = RankingSnapshot
+        fields = [
+            "id",
+            "exam",
+            "entries_count",
+            "is_published",
+            "published_at",
+            "created_at",
+        ]
+    exam = serializers.SerializerMethodField(read_only=True)
+    entries_count = serializers.SerializerMethodField(read_only=True)
+
+    def get_exam(self, obj: RankingSnapshot):
+        exam = obj.exam
+        data = {
+            "id": exam.id,
+            "title": exam.get_title(),
+            "question_count": exam.questions.count(),
+            "concluded_at": exam.concluded_at,
+            "delivery_mode": exam.delivery_mode,
+        }
+        return data
+
+    def get_entries_count(self, obj: RankingSnapshot):
+        return obj.entries.count()
 
 class PublishRankingSnapshotSerializer(serializers.Serializer):
     """

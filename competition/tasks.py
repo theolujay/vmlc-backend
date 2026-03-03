@@ -10,56 +10,58 @@ from competition.services.ranking import (
     RankingSnapshotGenerationError,
 )
 from competition.services.leaderboard import LeaderboardService
-from competition.models import RankingSnapshot, Stage
+from competition.models import RankingSnapshot, RankingSnapshotEntry
+from vmlc.v2.utils import invalidate_candidate_cache, invalidate_score_boards
 
 logger = logging.getLogger(__name__)
 
 
+@shared_task(name="invalidate_published_ranking_cache_task")
+def invalidate_published_ranking_cache_task(ranking_snapshot_id):
+    """
+    Task to invalidate caches for candidates when a ranking snapshot is published.
+    """
+    try:
+        ranking = RankingSnapshot.objects.get(id=ranking_snapshot_id)
+        # Invalidate global scoreboards (league leaderboard, etc.)
+        invalidate_score_boards(exam_id=ranking.exam_id)
+        # Invalidate all candidate dashboards for candidates in this snapshot
+        candidate_ids = RankingSnapshotEntry.objects.filter(
+            ranking_snapshot_id=ranking_snapshot_id
+        ).values_list("candidate_id", flat=True)
+
+        for candidate_id in candidate_ids:
+            invalidate_candidate_cache(candidate_id)
+
+        logger.info(
+            f"Cache invalidated for {len(candidate_ids)} candidates after publishing RankingSnapshot {ranking_snapshot_id}"
+        )
+
+    except RankingSnapshot.DoesNotExist:
+        logger.error(f"RankingSnapshot {ranking_snapshot_id} not found during cache invalidation.")
+    except Exception as exc:
+        logger.error(f"Error invalidating published ranking cache: {exc}", exc_info=True)
+
+
 @shared_task(name="generate_ranking_task")
-def generate_ranking_task(stage_exam_id, publish_now=False, staff_id=None):
+def generate_ranking_task(stage_exam_id, actor_id=None):
     """
     Celery task to generate (and optionally publish) ranking snapshot for a stage exam.
     """
     logger.info(
-        f"Starting ranking snapshot generation for StageExam {stage_exam_id} (publish_now={publish_now})"
+        f"Starting ranking snapshot generation for StageExam {stage_exam_id}"
     )
     try:
         generator = RankingSnapshotGenerator(stage_exam_id=stage_exam_id)
 
-        # Convert string staff_id back to UUID if passed as string (Celery serialization)
-        if staff_id and isinstance(staff_id, str):
-            staff_id = uuid.UUID(staff_id)
+        # Convert string actor_id back to UUID if passed as string (Celery serialization)
+        if actor_id and isinstance(actor_id, str):
+            actor_id = uuid.UUID(actor_id)
 
-        ranking = generator.generate_and_save_ranking(published_by_staff_id=staff_id)
+        generator.generate_and_save_ranking(actor_id=actor_id)
 
-        if publish_now:
-            # Enforce the 'one_published_ranking_per_stage_round' constraint by
-            # unpublishing any other ranking snapshot for the same stage/round.
-            with transaction.atomic():
-                RankingSnapshot.objects.filter(
-                    competition=ranking.competition,
-                    stage=ranking.stage,
-                    round=ranking.round,
-                    is_published=True,
-                ).exclude(id=ranking.id).update(is_published=False, published_at=None)
 
-                ranking.is_published = True
-                ranking.published_at = timezone.now()
-                ranking.save(update_fields=["is_published", "published_at"])
-
-            logger.info(
-                f"Ranking snapshot for StageExam {stage_exam_id} generated and published."
-            )
-
-            # Trigger leaderboard update if it's a league exam
-            if ranking.stage == Stage.Type.LEAGUE:
-                update_leaderboard_task.delay(
-                    competition_id=ranking.competition_id, as_of_round=ranking.round
-                )
-        else:
-            logger.info(
-                f"Ranking snapshot for StageExam {stage_exam_id} generated (unpublished)."
-            )
+        logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated.")
 
     except RankingSnapshotGenerationError as e:
         logger.error(
