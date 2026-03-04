@@ -139,7 +139,7 @@ def disqualify_selected_candidates(modeladmin, request, queryset):
             errors = []
             for candidate in queryset:
                 try:
-                    ProgressionService.disqualify_candidate(candidate.id, reason=reason)
+                    ProgressionService.disqualify_candidate(candidate.pk, reason=reason)
                     count += 1
                 except (ProgressionError, Exception) as e:
                     errors.append(f"Failed to disqualify {candidate}: {str(e)}")
