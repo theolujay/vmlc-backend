@@ -208,7 +208,7 @@ class PublishRankingSnapshotView(APIView):
 
         generate_ranking_task.delay(
             stage_exam_id=str(stage_exam_id),
-            actor_id=staff.id,
+            actor_id=staff.pk,
             ranking_policy=ranking_policy,
         )
 
