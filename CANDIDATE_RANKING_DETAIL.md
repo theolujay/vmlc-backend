@@ -48,6 +48,8 @@ Detailed breakdown of the candidate's execution and results.
 | `score` | Float \| "absent" | The candidate's final score. Returns `"absent"` if no attempt was found. |
 | `rank` | Integer | The candidate's rank in this specific ranking snapshot. |
 | `percentile` | Float \| null | The candidate's percentile score. |
+| `time_used` | Integer \| null | Time taken to complete the exam in seconds. |
+| `tie_break_reason` | String \| null | Optional explanation when a tie-break was applied to assign the rank. |
 | `recorded_at` | DateTime \| null | When the exam result was recorded. |
 | `auto_score` | Boolean | Whether the score was automatically computed by the system. |
 | `started_at` | DateTime \| null | Time the candidate started the exam session (from `ExamAccess`). |
@@ -92,6 +94,8 @@ Detailed breakdown of the candidate's execution and results.
         "score": 45.0,
         "rank": 3,
         "percentile": 97.5,
+        "time_used": 2400,
+        "tie_break_reason": null,
         "recorded_at": "2026-03-01T09:45:00Z",
         "auto_score": true,
         "started_at": "2026-03-01T09:05:00Z",
@@ -135,6 +139,8 @@ Detailed breakdown of the candidate's execution and results.
         "score": "absent",
         "rank": 115,
         "percentile": 4.16,
+        "time_used": null,
+        "tie_break_reason": null,
         "recorded_at": null,
         "auto_score": false,
         "started_at": null,
