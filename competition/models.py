@@ -371,6 +371,11 @@ class RankingSnapshotEntry(models.Model):
         blank=True,
         db_index=True,
     )
+    time_used = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Time taken to complete the exam in seconds.",
+    )
     tie_break_reason = models.CharField(
         max_length=128,
         null=True,

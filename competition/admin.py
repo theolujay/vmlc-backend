@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
+from vmlc.utils.exceptions import ValidationError
 from vmlc.v2.utils import (
     invalidate_score_boards,
     invalidate_candidate_cache,
@@ -399,7 +400,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     def unpublish_rankings(self, request, queryset):
         # Capture exam IDs before update
         exam_ids = list(queryset.values_list("exam_id", flat=True))
-        count = queryset.update(is_published=False)
+        count = queryset.update(is_published=False, published_at=None)
         invalidate_all_dashboard_caches()
         for e_id in exam_ids:
             if e_id:

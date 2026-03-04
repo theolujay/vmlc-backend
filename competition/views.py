@@ -150,7 +150,9 @@ class PublishRankingSnapshotView(APIView):
         competition_stage_round = exam.competition_slot.round
         competition_stage = exam.competition_slot.competition_stage
         stage_exam_id = exam.competition_slot.id
-        competition_id = exam.competition_slot.competition_stage.competition.id
+        competition = exam.competition_slot.competition_stage.competition
+        competition_id = competition.id
+        ranking_policy = competition.config.get("ranking_policy", "standard")
 
         if publish_now:
             ranking = RankingSnapshot.objects.filter(
@@ -187,14 +189,14 @@ class PublishRankingSnapshotView(APIView):
                 )
                 # Trigger cache invalidation for all candidates in this snapshot
                 transaction.on_commit(
-                    invalidate_published_ranking_cache_task.delay(
+                    lambda: invalidate_published_ranking_cache_task.delay(
                         ranking_snapshot_id=ranking.id
                     )
                 )
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        update_leaderboard_task.delay(
+                        lambda: update_leaderboard_task.delay(
                             competition_id=ranking.competition_id,
                             as_of_round=ranking.round,
                         )
@@ -204,7 +206,11 @@ class PublishRankingSnapshotView(APIView):
                     status=status.HTTP_202_ACCEPTED,
                 )
 
-        generate_ranking_task.delay(stage_exam_id=str(stage_exam_id), actor_id=staff.id)
+        generate_ranking_task.delay(
+            stage_exam_id=str(stage_exam_id),
+            actor_id=staff.pk,
+            ranking_policy=ranking_policy,
+        )
 
         return Response(
             {"message": "Ranking snapshot generation has been started."},
@@ -358,12 +364,17 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             result.rank = entry.rank
             result.percentile = entry.percentile
             candidate_performance = CandidateResultDetailSerializer(result).data
+            # Attach ranking snapshot entry specific data
+            candidate_performance["time_used"] = entry.time_used
+            candidate_performance["tie_break_reason"] = entry.tie_break_reason
         else:
             # For absentees, we still want to provide basic performance info
             candidate_performance = {
                 "score": "absent" if entry.exam_score is None else entry.exam_score,
                 "rank": entry.rank,
                 "percentile": entry.percentile,
+                "time_used": entry.time_used,
+                "tie_break_reason": entry.tie_break_reason,
                 "recorded_at": None,
                 "auto_score": False,
                 "submissions": [],

@@ -73,6 +73,7 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
             "exam_score",
             "rank",
             "percentile",
+            "time_used",
             "tie_break_reason",
         ]
 
