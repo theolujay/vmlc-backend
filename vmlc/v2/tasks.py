@@ -147,7 +147,7 @@ def check_exam_status_transitions_task():
                 # 1 hour reminder
                 from comms.tasks import notify_candidates_about_exam_task
 
-                notify_candidates_about_exam_task.delay(exam.id, "reminder")
+                notify_candidates_about_exam_task.delay(str(exam.id), "reminder")
                 logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
 
             if last_run < start_time <= now:
@@ -159,8 +159,8 @@ def check_exam_status_transitions_task():
                     notify_staff_about_exam_event_task,
                 )
 
-                notify_candidates_about_exam_task.delay(exam.id, "started")
-                notify_staff_about_exam_event_task.delay(exam.id, "ongoing")
+                notify_candidates_about_exam_task.delay(str(exam.id), "started")
+                notify_staff_about_exam_event_task.delay(str(exam.id), "ongoing")
                 logger.info(f"Triggered start time notification for exam {exam.id}")
 
             elif last_run < conclusion_time <= now:
@@ -168,7 +168,7 @@ def check_exam_status_transitions_task():
                 transitioned_exams.append(exam)
                 from comms.tasks import notify_staff_about_exam_event_task
 
-                notify_staff_about_exam_event_task.delay(exam.id, "concluded")
+                notify_staff_about_exam_event_task.delay(str(exam.id), "concluded")
                 logger.info(f"Triggered conclusion notification for exam {exam.id}")
 
     unique_exam_ids = {str(e.id) for e in transitioned_exams}

@@ -1,7 +1,9 @@
 import uuid
-from typing import Optional, List, Dict
+from typing import Optional
+
 from django.db import transaction
-from django.db.models import Sum, Prefetch
+from django.db.models import Sum
+
 from competition.models import (
     Competition,
     LeagueLeaderboard,
@@ -113,21 +115,40 @@ class LeaderboardService:
         """
         competition = Competition.objects.get(id=competition_id)
 
+        # First, eliminate any absentees for the current as_of_round if a ranking exists
+        current_ranking = RankingSnapshot.objects.filter(
+            competition=competition,
+            stage=Stage.Type.LEAGUE,
+            round=as_of_round,
+            is_active=True,
+            is_published=True,
+        ).first()
+
+        if current_ranking:
+            # Import here to avoid circular dependency
+            from competition.services.progression import ProgressionService
+
+            ProgressionService.eliminate_league_absentees(current_ranking.id)
+
         # 1. Fetch all published league ranking up to as_of_round
         published_rankings = RankingSnapshot.objects.filter(
             competition=competition,
             stage=Stage.Type.LEAGUE,
             round__lte=as_of_round,
+            is_active=True,
             is_published=True,
         ).values_list("id", flat=True)
 
         if not published_rankings:
             return None
 
-        # 2. Aggregate scores by candidate
+        # 2. Aggregate scores by candidate (only those currently active)
+        from competition.models import Enrollment
+
         candidate_totals = (
             RankingSnapshotEntry.objects.filter(
-                ranking_snapshot_id__in=published_rankings
+                ranking_snapshot_id__in=published_rankings,
+                enrollment__status=Enrollment.Status.ACTIVE,
             )
             .values("candidate_id", "enrollment_id")
             .annotate(total_score=Sum("exam_score"))

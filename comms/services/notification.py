@@ -3,8 +3,6 @@ from smtplib import SMTPException
 from time import sleep
 from typing import Any, Dict, List, Optional
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
 from django.db import DatabaseError
@@ -74,6 +72,14 @@ class NotificationService:
 
         results: Dict[str, bool] = {}
 
+        # Flag for centralized email delivery if both platform and email are requested
+        has_platform = Broadcast.Mediums.PLATFORM in mediums
+        has_email = Broadcast.Mediums.EMAIL in mediums
+
+        if has_platform and has_email:
+            metadata = metadata or {}
+            metadata["send_email"] = True
+
         for medium in mediums:
             if medium == Broadcast.Mediums.SMS:
                 body_to_send = format_sms_body(subject, message)
@@ -92,6 +98,11 @@ class NotificationService:
                     )
 
                 elif medium == Broadcast.Mediums.EMAIL:
+                    if has_platform:
+                        # Skip explicit email send; handled by Notification signal
+                        results["email"] = True
+                        continue
+
                     from comms.tasks import send_mail_task
 
                     html_message = metadata.get("html_message") if metadata else None
@@ -485,8 +496,8 @@ class NotificationService:
         metadata: Optional[Dict[str, Any]] = None,
         expires_at: Optional[timezone.datetime] = None,
     ) -> bool:
-        """Create a platform ``Notification`` and push it over WebSocket."""
-        notification = Notification.objects.create(
+        """Create a platform ``Notification`` record (delivery is handled by signal)."""
+        Notification.objects.create(
             recipient=user,
             subject=subject,
             message=full_body,
@@ -495,29 +506,6 @@ class NotificationService:
             expires_at=expires_at,
             created_at=timezone.now(),
         )
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            group_name = "user__%s" % user.id
-            async_to_sync(channel_layer.group_send)(
-                group_name,
-                {
-                    "type": "notification_activity",
-                    "message": {
-                        "id": notification.id,
-                        "subject": notification.subject,
-                        "message": notification.message,
-                        "type": notification.type,
-                        "is_read": notification.is_read,
-                        "metadata": notification.metadata,
-                        "expires_at": (
-                            notification.expires_at.isoformat()
-                            if notification.expires_at
-                            else None
-                        ),
-                        "created_at": notification.created_at.isoformat(),
-                    },
-                },
-            )
         return True
 
     def _dispatch_phone_notification(self, user, body: str, medium: str) -> bool:
@@ -686,60 +674,14 @@ class NotificationService:
             )
             raise ServerError("Failed to save notifications to the database.") from e
 
-        channel_layer = get_channel_layer()
-        if not channel_layer:
-            logger.error(
-                "Could not get channel layer. Real-time notifications will not be "
-                "sent for broadcast %s.",
-                broadcast.id,
-            )
-            return
-
-        for notification in created_notifications:
-            group_name = "user__%s" % notification.recipient_id
-            try:
-                async_to_sync(channel_layer.group_send)(
-                    group_name,
-                    {
-                        "type": "notification_activity",
-                        "message": {
-                            "id": notification.id,
-                            "subject": notification.subject,
-                            "message": notification.message,
-                            "type": notification.type,
-                            "is_read": notification.is_read,
-                            "metadata": notification.metadata,
-                            "expires_at": (
-                                notification.expires_at.isoformat()
-                                if notification.expires_at
-                                else None
-                            ),
-                            "created_at": notification.created_at.isoformat(),
-                        },
-                    },
-                )
-            except Exception as e:
-                logger.error(
-                    "Failed to send notification to group %s for broadcast %s: %s",
-                    group_name,
-                    broadcast.id,
-                    e,
-                )
-
-            from vmlc.v2.utils import CacheKeys, invalidate_notifications
-
-            unique_user_ids = set(user_ids)
-            for user_id in unique_user_ids:
-                invalidate_notifications(user_id)
-
-            notifications_created.send(
-                sender=self.send_broadcast, notifications=created_notifications
-            )
-            logger.info(
-                "Platform notifications created and pushed for %d users (role: %s).",
-                len(user_ids),
-                role,
-            )
+        notifications_created.send(
+            sender=self.send_broadcast, notifications=created_notifications
+        )
+        logger.info(
+            "Platform notifications created for %d users (role: %s).",
+            len(user_ids),
+            role,
+        )
 
     def _send_via_sms(self, body: str, recipient: str) -> Dict[str, Any]:
         """Send a single SMS, routing through the configured provider."""

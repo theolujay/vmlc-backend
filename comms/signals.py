@@ -3,6 +3,7 @@ from django.conf import settings
 from django.dispatch import Signal
 from django.core.mail import mail_admins
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
@@ -32,8 +33,27 @@ def invalidate_notification_cache(sender, instance, **kwargs):
     logger.info(f"Invalidated notification and dashboard cache for user {user_id}")
 
 
+def handle_notification_delivery(sender, instance, created, **kwargs):
+    """Triggers background delivery task for a single notification."""
+    if created:
+        from .tasks import deliver_notifications_task
+
+        transaction.on_commit(lambda: deliver_notifications_task.delay([instance.pk]))
+
+
+def handle_bulk_notification_delivery(sender, notifications, **kwargs):
+    """Triggers background delivery task for a list of notifications."""
+    from .tasks import deliver_notifications_task
+
+    notification_ids = [n.id for n in notifications if n.id]
+    if notification_ids:
+        transaction.on_commit(lambda: deliver_notifications_task.delay(notification_ids))
+
+
 post_save.connect(invalidate_notification_cache, sender=Notification)
 post_delete.connect(invalidate_notification_cache, sender=Notification)
+post_save.connect(handle_notification_delivery, sender=Notification)
+notifications_created.connect(handle_bulk_notification_delivery)
 
 
 def invalidate_broadcast_cache(sender, instance, **kwargs):

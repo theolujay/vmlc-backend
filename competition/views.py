@@ -175,7 +175,7 @@ class PublishRankingSnapshotView(APIView):
                 ).exclude(id=ranking.id).update(
                     is_published=False, published_at=None, is_active=False
                 )
-                ranking.is_active = True  # although this should already be True at this point, but lt's add it anyway
+                ranking.is_active = True  # although this should already be True at this point, but let's add it anyway
                 ranking.is_published = True
                 ranking.published_at = timezone.now()
                 ranking.meta["published_by"] = str(staff.pk)
@@ -234,9 +234,9 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         data = get_or_set_cache(
             cache_key, lambda: self._fetch_snapshot_data(exam_id=exam_id)
         )
-
         if data is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
         return Response(data)
 
     def _fetch_snapshot_data(self, exam_id):
