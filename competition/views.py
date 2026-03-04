@@ -189,14 +189,14 @@ class PublishRankingSnapshotView(APIView):
                 )
                 # Trigger cache invalidation for all candidates in this snapshot
                 transaction.on_commit(
-                    invalidate_published_ranking_cache_task.delay(
+                    lambda: invalidate_published_ranking_cache_task.delay(
                         ranking_snapshot_id=ranking.id
                     )
                 )
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        update_leaderboard_task.delay(
+                        lambda: update_leaderboard_task.delay(
                             competition_id=ranking.competition_id,
                             as_of_round=ranking.round,
                         )
@@ -364,12 +364,17 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             result.rank = entry.rank
             result.percentile = entry.percentile
             candidate_performance = CandidateResultDetailSerializer(result).data
+            # Attach ranking snapshot entry specific data
+            candidate_performance["time_used"] = entry.time_used
+            candidate_performance["tie_break_reason"] = entry.tie_break_reason
         else:
             # For absentees, we still want to provide basic performance info
             candidate_performance = {
                 "score": "absent" if entry.exam_score is None else entry.exam_score,
                 "rank": entry.rank,
                 "percentile": entry.percentile,
+                "time_used": entry.time_used,
+                "tie_break_reason": entry.tie_break_reason,
                 "recorded_at": None,
                 "auto_score": False,
                 "submissions": [],
