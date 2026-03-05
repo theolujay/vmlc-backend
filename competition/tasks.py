@@ -106,6 +106,14 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
         with transaction.atomic():
             ranking = RankingSnapshot.objects.select_for_update().get(id=ranking_snapshot_id)
 
+            if not ranking:
+                logger.warning(f"RankingSnapshot {ranking_snapshot_id} not found.")
+                return
+
+            if not ranking.is_active:
+                logger.warning(f"RankingSnapshot {ranking_snapshot_id} marked as inactive. Will not publish.")
+                return
+
             if ranking.is_published:
                 logger.warning(f"RankingSnapshot {ranking_snapshot_id} is already published.")
                 return
