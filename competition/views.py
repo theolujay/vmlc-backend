@@ -467,7 +467,7 @@ class PromoteCandidatesView(APIView):
     Staff-only view to promote candidates from one stage to the next.
     """
 
-    permission_classes = ActiveManagerPermissions
+    permission_classes = ActiveSuperadminPermissions
 
     def post(self, request):
         serializer = PromoteCandidatesSerializer(data=request.data)
@@ -485,8 +485,7 @@ class PromoteCandidatesView(APIView):
 
             return Response(
                 {
-                    "status": "success",
-                    "message": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}.",
+                    "detail": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}.",
                 }
             )
         except ProgressionError as e:

@@ -27,7 +27,10 @@ class ProgressionService:
     @staticmethod
     @transaction.atomic
     def promote_candidates(
-        from_stage_type, to_stage_type, cutoff_rank=None, competition_id=None
+        from_stage_type: str,
+        to_stage_type: str,
+        cutoff_rank: int | None = None,
+        competition_id: int | None = None
     ):
         """
         Promotes candidates from one stage to the next based on an advancement policy or explicit cutoff.
@@ -78,6 +81,7 @@ class ProgressionService:
                         RankingSnapshot.objects.filter(
                             competition=competition,
                             stage=Stage.Type.SCREENING,
+                            is_active=True,
                             is_published=True,
                         )
                         .order_by("-published_at")
@@ -85,12 +89,20 @@ class ProgressionService:
                     )
                     if ranking:
                         total_active_in_stage = ranking.entries.count()
+                    else:
+                        raise ProgressionError(
+                            f"No active, published {from_stage_type.title()} ranking available to promote candidates to {to_stage_type.title()} stage"
+                        )
                 elif from_stage_type == Stage.Type.LEAGUE:
                     leaderboard = LeaderboardService.get_latest_league_leaderboard(
                         competition
                     )
                     if leaderboard:
                         total_active_in_stage = leaderboard.entries.count()
+                    else:
+                        raise ProgressionError(
+                            f"No {from_stage_type.title()} leaderboard to promote candidates to {to_stage_type.title()} stage"
+                        )
 
                 if total_active_in_stage > 0:
                     import math
@@ -118,6 +130,7 @@ class ProgressionService:
                 RankingSnapshot.objects.filter(
                     competition=competition,
                     stage=Stage.Type.SCREENING,
+                    is_active=True,
                     is_published=True,
                 )
                 .order_by("-published_at")
@@ -186,9 +199,12 @@ class ProgressionService:
             role=to_stage_type
         )
         # Not sure if we should also move eliminated candidates back to 'screening' or just keep them.
-        # For now, let's just keep their role as is, or we could explicitly set it to screening.
+        # For now, let's just keep their role as is and not explicitly set it to screening.
+
         # Candidate.objects.filter(pk__in=candidate_ids_to_eliminate).update(role=Candidate.Roles.SCREENING)
-        # TODO: decide on 'base' role or something other than screening, league... for candidates not in active competition
+
+        # TODO: decide on a base role or something other than screening, league... for candidates not in active competition
+
         # Update Old StageProgress
         from_stage = Stage.objects.filter(
             competition=competition, type=from_stage_type
@@ -288,6 +304,8 @@ class ProgressionService:
             competition=ranking.competition, absentee_entries=absentee_entries
         )
         # Invalidate Caches
+        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+
         def clear_caches():
             for c_id in candidate_ids:
                 invalidate_candidate_cache(c_id)

@@ -1,12 +1,13 @@
 import logging
-from django.db.models import Count, Avg, Q
-from competition.models import Competition, StageExam, Enrollment, RankingSnapshot
+from django.db.models import Count, Avg, Q, Max, Min
+from competition.models import Competition, StageExam, Enrollment, RankingSnapshot, Stage
 from vmlc.models import Exam, CandidateExamResult
 from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
     RankingSnapshotEntrySerializer,
 )
+from vmlc.v2.utils import truncate_float
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,7 @@ class StaffCompetitionDashboardService:
         if not active_comp:
             return {}
 
-        # TODO: set registered candidate to Enrollment.Status.DISQUALIFIED
-        # when set to candidate.user.is_active=False in order to count them out of the
-        # following stats queryset
-
-        # Get Stats
+        # 1. Global Enrollment Stats
         stats = Enrollment.objects.filter(competition=active_comp).aggregate(
             enrolled=Count("id"),
             active=Count("id", filter=Q(status=Enrollment.Status.ACTIVE)),
@@ -32,9 +29,20 @@ class StaffCompetitionDashboardService:
             disqualified=Count("id", filter=Q(status=Enrollment.Status.DISQUALIFIED)),
         )
 
-        # Compute Progress
+        # 2. Stage-wise Funnel (How many candidates are in each stage right now)
+        stage_funnel = (
+            Enrollment.objects.filter(
+                competition=active_comp, status=Enrollment.Status.ACTIVE
+            )
+            .values("current_stage__type")
+            .annotate(count=Count("id"))
+            .order_by("current_stage__order")
+        )
+        stats["stage_breakdown"] = {
+            item["current_stage__type"]: item["count"] for item in stage_funnel
+        }
 
-        # Determine current stage and round based on the latest active StageExam
+        # 3. Compute Progress
         latest_active_slot = (
             StageExam.objects.filter(
                 competition_stage__competition=active_comp, is_active=True
@@ -68,70 +76,92 @@ class StaffCompetitionDashboardService:
             "published_rounds": published_rounds,
         }
 
-        # Gather Exams data
-        exams_list = []
-        # Get all slots for this competition
+        # 4. Gather Exams data (Optimized with batch aggregation)
         slots = (
             StageExam.objects.filter(competition_stage__competition=active_comp)
-            .select_related("competition_stage")
+            .select_related("competition_stage", "exam")
             .order_by("competition_stage__order", "round")
         )
 
-        from vmlc.v2.utils import truncate_float
+        # Batch fetch all exam results for this competition to avoid N+1
+        exam_results_aggregate = (
+            CandidateExamResult.objects.filter(
+                exam__competition_slot__competition_stage__competition=active_comp
+            )
+            .values("exam_id")
+            .annotate(
+                sat=Count("id"),
+                avg=Avg("score"),
+                highest=Max("score"),
+                lowest=Min("score"),
+            )
+        )
+        exam_stats_map = {res["exam_id"]: res for res in exam_results_aggregate}
 
+        # Batch fetch ranking status
+        rankings_map = {
+            r.exam_id: r
+            for r in RankingSnapshot.objects.filter(
+                competition=active_comp, is_active=True
+            )
+        }
+
+        # Count total eligible candidates per stage for participation rates
+        # (This is an approximation based on current enrollment in that stage)
+        stage_eligibility_map = {
+            s["current_stage__type"]: s["count"] for s in stage_funnel
+        }
+
+        exams_list = []
         for slot in slots:
             try:
-                # OneToOneField backref
                 exam = slot.exam
             except Exam.DoesNotExist:
                 continue
 
-            # Filter manually since status is a property
             curr_status = exam.status
             if curr_status in [Exam.Status.DRAFT, Exam.Status.CANCELLED]:
                 continue
 
-            # Calculate stats for this exam
-            res_stats = CandidateExamResult.objects.filter(
-                exam=exam,
-                # candidate__user__is_active=True,
-            ).aggregate(sat=Count("id"), avg=Avg("score"))
-
-            # check ranking status
-            ranking = RankingSnapshot.objects.filter(exam=exam, is_active=True).first()
+            res_stats = exam_stats_map.get(exam.id, {"sat": 0, "avg": 0, "highest": 0, "lowest": 0})
+            ranking = rankings_map.get(exam.id)
             ranking_status = "pending"
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"
 
-            # TODO: calculate absent count when eligibility logic is adequate
-            # For now, keep it simple as per SAT stats
-            avg_score = float(res_stats["avg"] or 0)
+            # Participation Rate
+            eligible_count = stage_eligibility_map.get(slot.competition_stage.type, 0)
+            participation_rate = (
+                (res_stats["sat"] / eligible_count * 100) if eligible_count > 0 else 0
+            )
+
             exams_list.append(
                 {
                     "id": exam.id,
                     "title": str(exam),
                     "stage": slot.competition_stage.type,
+                    "round": slot.round,
                     "status": curr_status,
                     "ranking_status": ranking_status,
                     "stats": {
                         "candidates_sat": res_stats["sat"],
-                        "avg_score": truncate_float(avg_score),
+                        "eligible_candidates": eligible_count,
+                        "participation_rate": truncate_float(participation_rate),
+                        "avg_score": truncate_float(float(res_stats["avg"] or 0)),
+                        "highest_score": truncate_float(float(res_stats["highest"] or 0)),
+                        "lowest_score": truncate_float(float(res_stats["lowest"] or 0)),
                     },
                 }
             )
 
-        # Leaderboard Summary (Top 3)
+        # 5. Summaries (Top Performers)
         leaderboard_summary_data = []
-        latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(
-            active_comp
-        )
+        latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
         if latest_leaderboard:
-            # The service annotates processed_entries
             leaderboard_summary_data = LeagueLeaderboardEntrySerializer(
                 latest_leaderboard.processed_entries[:3], many=True
             ).data
 
-        # Latest RankingSnapshot Summary (Top 3)
         latest_ranking_summary = None
         latest_published_ranking = (
             RankingSnapshot.objects.filter(competition=active_comp, is_published=True)
@@ -144,11 +174,11 @@ class StaffCompetitionDashboardService:
             entries = latest_published_ranking.entries.select_related(
                 "candidate__user"
             ).order_by("rank")[:3]
-            from competition.serializers import RankingSnapshotEntrySerializer
-
             latest_ranking_summary = {
                 "exam_id": latest_published_ranking.exam_id,
                 "exam_title": str(latest_published_ranking.exam),
+                "stage": latest_published_ranking.stage,
+                "round": latest_published_ranking.round,
                 "entries": RankingSnapshotEntrySerializer(entries, many=True).data,
             }
 

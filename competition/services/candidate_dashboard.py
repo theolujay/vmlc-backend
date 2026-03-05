@@ -23,6 +23,114 @@ from vmlc.v2.utils import truncate_float
 
 logger = logging.getLogger(__name__)
 
+STAGE_METADATA = {
+    Stage.Type.SCREENING: {
+        "label": "Screening Stage",
+        "accent_color": "#4F46E5",
+        "metric_label": "League Qualification Cut-off",
+        "status_messages": {
+            "success": {
+                "label": "Screening Passed",
+                "subtext": "You've made the cut. Welcome to the League stage.",
+                "color": "#018ABB",
+                "bg_color": "#CCEEFB33",
+                "icon": "check",
+            },
+            "pending": {
+                "label": "Results on the Way",
+                "subtext": "We're reviewing your performance. Hang tight.",
+                "color": "#065F46",
+                "bg_color": "#ECFDF5",
+                "icon": "clock",
+            },
+            "error": {
+                "label": "Screening Not Passed",
+                "subtext": "You didn't meet the cut-off and have been eliminated .",
+                "color": "#CB1A14",
+                "bg_color": "#FBEAE9",
+                "icon": "alert",
+            },
+            "warning": {
+                "label": "Screening Upcoming",
+                "subtext": "The screening hasn't started yet. We'll let you know when it does.",
+                "color": "#667185",
+                "bg_color": "#F9FAFB",
+                "icon": "calendar",
+            },
+        },
+    },
+    Stage.Type.LEAGUE: {
+        "label": "League Stage",
+        "accent_color": "#3E4095",
+        "metric_label": "Finalist Qualification Cut-off",
+        "status_messages": {
+            "success": {
+                "label": "On Track for the Final",
+                "subtext": "You're within the qualification range. Keep it up.",
+                "color": "#018ABB",
+                "bg_color": "#CCEEFB33",
+                "icon": "check",
+            },
+            "pending": {
+                "label": "Scores Being Tallied",
+                "subtext": "The leaderboard is updating... Check back shortly.",
+                "color": "#065F46",
+                "bg_color": "#ECFDF5",
+                "icon": "clock",
+            },
+            "error": {
+                "label": "Outside Qualification Range",
+                "subtext": "There's still time to turn it around in the upcoming rounds.",
+                "color": "#CB1A14",
+                "bg_color": "#FBEAE9",
+                "icon": "alert",
+            },
+            "warning": {
+                "label": "Round Not Started",
+                "subtext": "This round hasn't begun yet. Good luck when it does.",
+                "color": "#667185",
+                "bg_color": "#F9FAFB",
+                "icon": "calendar",
+            },
+        },
+    },
+    Stage.Type.FINAL: {
+        "label": "Grand Final",
+        "accent_color": "#D97706",
+        "metric_label": "Champion Threshold",
+        "status_messages": {
+            "success": {
+                "label": "You're In",
+                "subtext": "You're confirmed for the Grand Final. See you there.",
+                "color": "#018ABB",
+                "bg_color": "#CCEEFB33",
+                "icon": "check",
+            },
+            "pending": {
+                "label": "Results Being Verified",
+                "subtext": "Final results are being confirmed. An official update is coming soon.",
+                "color": "#065F46",
+                "bg_color": "#ECFDF5",
+                "icon": "clock",
+            },
+            "error": {
+                "label": "Under Review",
+                "subtext": "Your participation is being reviewed by the team. Sit tight.",
+                "color": "#CB1A14",
+                "bg_color": "#FBEAE9",
+                "icon": "alert",
+            },
+            "warning": {
+                "label": "Finals Ahead",
+                "subtext": "Details and schedule for the final will be shared soon. Prepare well.",
+                "color": "#667185",
+                "bg_color": "#F9FAFB",
+                "icon": "calendar",
+            },
+        },
+    },
+}
+
 
 class CandidateDashboardService:
     @staticmethod
@@ -60,7 +168,9 @@ class CandidateDashboardService:
         )
 
         # Performance Snapshot
-        performance = CandidateDashboardService._get_performance(candidate, active_comp)
+        performance = CandidateDashboardService._get_performance(
+            candidate, active_comp, enrollment
+        )
 
         # Exam History
         history = CandidateDashboardService._get_exam_history(candidate)
@@ -342,47 +452,63 @@ class CandidateDashboardService:
 
     @staticmethod
     def _get_performance(
-        candidate: Candidate, active_comp: Optional[Competition]
+        candidate: Candidate,
+        active_comp: Optional[Competition],
+        enrollment: Optional[Enrollment] = None,
     ) -> Dict[str, Any]:
-        snapshot = {
-            "screening_ranking": None,
-            "league_leaderboard": None,
-            "final_ranking": None,
-        }
-
+        """
+        Retrieves performance metrics and active stage context.
+        """
         if not active_comp:
-            return snapshot
+            return {"active_context": None, "history": []}
 
-        # 1. Fetch Screening and Final RankingSnapshot Entries
+        # 1. Identify Current Stage
+        current_stage_type = None
+        if enrollment and enrollment.current_stage:
+            current_stage_type = enrollment.current_stage.type
+        else:
+            current_stage_type = candidate.role
+
+        current_stage_obj = Stage.objects.filter(
+            competition=active_comp, type=current_stage_type
+        ).first()
+
+        # 2. Gather All Ranking Data
+        screening_ranking = None
+        league_leaderboard = None
+        final_ranking = None
+
+        # Fetch Screening and Final RankingSnapshot Entries
         entries = RankingSnapshotEntry.objects.filter(
             Q(ranking_snapshot__stage=Stage.Type.SCREENING)
             | Q(ranking_snapshot__stage=Stage.Type.FINAL),
             ranking_snapshot__competition=active_comp,
+            ranking_snapshot__is_active=True,
             ranking_snapshot__is_published=True,
             candidate=candidate,
-        ).select_related("ranking_snapshot")
+        ).select_related("ranking_snapshot", "ranking_snapshot__exam")
 
         for entry in entries:
             stage_type = entry.ranking_snapshot.stage
             data = {
-                "rank": entry.rank,
+                "position": entry.rank,
                 "total_candidates": entry.ranking_snapshot.entries.count(),
-                "score": float(entry.exam_score),
+                "score": truncate_float(float(entry.exam_score)),
                 "percentile": entry.percentile,
                 "exam_id": str(entry.ranking_snapshot.exam_id),
                 "exam_title": entry.ranking_snapshot.exam.get_title(),
+                "rank_change": 0,
+                "is_active": True,
             }
 
             if stage_type == Stage.Type.SCREENING:
-                snapshot["screening_ranking"] = data
+                screening_ranking = data
             elif stage_type == Stage.Type.FINAL:
-                snapshot["final_ranking"] = data
+                final_ranking = data
 
         # League Leaderboard
         leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
-
         if leaderboard:
-            # processed_entries is a list of entries with rank_change annotated
             entry = next(
                 (
                     e
@@ -392,16 +518,120 @@ class CandidateDashboardService:
                 None,
             )
             if entry:
-                snapshot["league_leaderboard"] = {
-                    "overall_rank": entry.overall_rank,
+                league_leaderboard = {
+                    "position": entry.overall_rank,
                     "total_candidates": leaderboard.entries.count(),
-                    "total_score": float(entry.total_score),
+                    "score": truncate_float(float(entry.total_score)),
                     "rank_change": getattr(entry, "rank_change", 0),
-                    "as_of_round": leaderboard.as_of_round,
                     "is_active": entry.overall_rank is not None,
+                    "as_of_round": leaderboard.as_of_round,
                 }
 
-        return snapshot
+        # 3. Construct History
+        history = []
+        if screening_ranking:
+            history.append({"stage": Stage.Type.SCREENING, "ranking": screening_ranking})
+        if league_leaderboard:
+            history.append({"stage": Stage.Type.LEAGUE, "ranking": league_leaderboard})
+        if final_ranking:
+            history.append({"stage": Stage.Type.FINAL, "ranking": final_ranking})
+
+        # 4. Construct Active Context
+        active_context = None
+        if current_stage_obj:
+            meta = STAGE_METADATA.get(current_stage_type, {})
+            ranking = None
+            if current_stage_type == Stage.Type.SCREENING:
+                ranking = screening_ranking
+            elif current_stage_type == Stage.Type.LEAGUE:
+                ranking = league_leaderboard
+            elif current_stage_type == Stage.Type.FINAL:
+                ranking = final_ranking
+
+            # Check for most recent exam in this stage
+            latest_slot = (
+                StageExam.objects.filter(competition_stage=current_stage_obj)
+                .order_by("-round")
+                .first()
+            )
+
+            has_taken_exam = False
+            is_awaiting_results = False
+            if latest_slot:
+                access = ExamAccess.objects.filter(
+                    candidate=candidate, exam=latest_slot.exam
+                ).first()
+                has_taken_exam = (
+                    access and access.status == ExamAccess.Status.SUBMITTED
+                )
+
+                # Awaiting results if exam results are not yet published
+                is_published = RankingSnapshot.objects.filter(
+                    exam=latest_slot.exam, is_published=True
+                ).exists()
+                if has_taken_exam and not is_published:
+                    is_awaiting_results = True
+
+            # Advancement Policy Label
+            policy = current_stage_obj.config.get("advancement_policy", {})
+            metric_value_display = "N/A"
+            if policy:
+                mode = policy.get("mode")
+                value = policy.get("value")
+                if mode == "top_n":
+                    metric_value_display = f"Top {value}"
+                elif mode == "top_percent":
+                    metric_value_display = f"Top {value}%"
+
+            is_qualified = (
+                enrollment.status == Enrollment.Status.ACTIVE if enrollment else True
+            )
+
+            # Determine UI Status Type
+            status_type = "success"
+            if is_awaiting_results:
+                status_type = "pending"
+            elif not has_taken_exam:
+                status_type = "warning"
+            elif not is_qualified:
+                status_type = "error"
+
+            status_messages = meta.get("status_messages", {}).get(status_type, {})
+
+            active_context = {
+                "stage": current_stage_type,
+                "stage_display": meta.get("label"),
+                "title": f"{meta.get('label')} Performance",
+                "accent_color": meta.get("accent_color"),
+                "ranking": ranking,
+                "status_meta": {
+                    "has_taken_exam": has_taken_exam,
+                    "is_awaiting_results": is_awaiting_results,
+                    "is_qualified": is_qualified,
+                    "metric_label": meta.get("metric_label"),
+                    "metric_value_display": metric_value_display,
+                    "status_label": status_messages.get("label"),
+                    "status_subtext": status_messages.get("subtext"),
+                    "status_type": status_type,
+                    "color": status_messages.get("color"),
+                    "bg_color": status_messages.get("bg_color"),
+                    "icon": status_messages.get("icon"),
+                },
+            }
+
+            # Special Round-specific title for League
+            if current_stage_type == Stage.Type.LEAGUE and league_leaderboard:
+                total_rounds = StageExam.objects.filter(
+                    competition_stage=current_stage_obj
+                ).count()
+                active_context["title"] = (
+                    f"League Performance • Round {league_leaderboard['as_of_round']} of {total_rounds}"
+                )
+
+        return {
+            "active_context": active_context,
+            "history": history,
+        }
 
     @staticmethod
     def _get_exam_history(candidate: Candidate) -> List[Dict[str, Any]]:
