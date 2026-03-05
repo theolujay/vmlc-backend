@@ -55,6 +55,11 @@ class PublishRankingSnapshotSerializer(serializers.Serializer):
         default=False,
         help_text="If True, immediately marks the generated ranking snapshot as published.",
     )
+    publish_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Optional: ISO8601 timestamp to schedule the publishing for. If provided, publish_now is ignored.",
+    )
 
 
 class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
@@ -90,6 +95,8 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
 
     def get_exam_score(self, obj):
         if obj.exam_score is None:
+            if obj.ranking_snapshot.stage == "league":
+                return "eliminated"
             return "absent"
         return obj.exam_score
 

@@ -10,7 +10,7 @@ from competition.services.ranking import (
     RankingSnapshotGenerationError,
 )
 from competition.services.leaderboard import LeaderboardService
-from competition.models import RankingSnapshot, RankingSnapshotEntry
+from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
 from vmlc.v2.utils import invalidate_candidate_cache, invalidate_score_boards
 
 logger = logging.getLogger(__name__)
@@ -93,4 +93,71 @@ def update_leaderboard_task(competition_id, as_of_round):
         logger.info(f"League leaderboard updated successfully for round {as_of_round}.")
     except Exception as exc:
         logger.error(f"Error updating league leaderboard: {exc}", exc_info=True)
+        raise
+
+
+@shared_task(name="publish_ranking_task")
+def publish_ranking_task(ranking_snapshot_id, actor_id=None):
+    """
+    Task to mark a ranking snapshot as published and trigger related updates.
+    """
+    logger.info(f"Publishing RankingSnapshot {ranking_snapshot_id}")
+    try:
+        with transaction.atomic():
+            ranking = RankingSnapshot.objects.select_for_update().get(id=ranking_snapshot_id)
+
+            if ranking.is_published:
+                logger.warning(f"RankingSnapshot {ranking_snapshot_id} is already published.")
+                return
+
+            # Enforce the 'one_published_ranking_per_stage_round' constraint by
+            # unpublishing any other ranking snapshot for the same stage/round.
+            RankingSnapshot.objects.filter(
+                competition=ranking.competition_id,
+                stage=ranking.stage,
+                round=ranking.round,
+            ).exclude(id=ranking.id).update(
+                is_published=False, published_at=None, is_active=False
+            )
+
+            ranking.is_active = True
+            ranking.is_published = True
+            ranking.published_at = timezone.now()
+            if actor_id:
+                ranking.meta["published_by"] = str(actor_id)
+
+            # Remove scheduled info if it exists
+            ranking.meta.pop("scheduled_publish_at", None)
+
+            ranking.save(
+                update_fields=[
+                    "is_active",
+                    "is_published",
+                    "published_at",
+                    "meta",
+                ]
+            )
+
+            # Trigger cache invalidation for all candidates in this snapshot
+            transaction.on_commit(
+                lambda: invalidate_published_ranking_cache_task.delay(
+                    ranking_snapshot_id=ranking.id
+                )
+            )
+            from competition.models import Stage
+            # Trigger leaderboard update if it's a league exam
+            if ranking.stage == Stage.Type.LEAGUE:
+                transaction.on_commit(
+                    lambda: update_leaderboard_task.delay(
+                        competition_id=ranking.competition_id,
+                        as_of_round=ranking.round,
+                    )
+                )
+
+        logger.info(f"RankingSnapshot {ranking_snapshot_id} published successfully.")
+
+    except RankingSnapshot.DoesNotExist:
+        logger.error(f"RankingSnapshot {ranking_snapshot_id} not found.")
+    except Exception as exc:
+        logger.error(f"Error publishing ranking snapshot {ranking_snapshot_id}: {exc}", exc_info=True)
         raise
