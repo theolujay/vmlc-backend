@@ -1,6 +1,6 @@
 import uuid
 import logging
-from typing import List
+from typing import List, Any, Dict
 
 from django.db import DatabaseError
 from django.conf import settings
@@ -22,6 +22,55 @@ kudi_sms_service = KudiSmsService()
 slack_service = SlackService()
 
 v2_tasks.do_nothing()  # this helps bypass linters flagging v2_tasks as unused
+
+
+@shared_task(name="deliver_notifications_task", queue="comms")
+def deliver_notifications_task(notification_ids: List[int]):
+    """
+    Background task to deliver notifications via WebSocket (real-time) and Email (if requested).
+    """
+    from comms.models import Notification
+    from comms.services.email import create_email_html
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    notifications = Notification.objects.filter(id__in=notification_ids).select_related(
+        "recipient"
+    )
+    channel_layer = get_channel_layer()
+
+    for n in notifications:
+        # 1. Real-time WebSocket push
+        if channel_layer:
+            group_name = f"user__{n.recipient_id}"
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "notification_activity",
+                    "message": {
+                        "id": n.id,
+                        "subject": n.subject,
+                        "message": n.message,
+                        "type": n.type,
+                        "is_read": n.is_read,
+                        "metadata": n.metadata,
+                        "expires_at": (
+                            n.expires_at.isoformat() if n.expires_at else None
+                        ),
+                        "created_at": n.created_at.isoformat(),
+                    },
+                },
+            )
+
+        # 2. Email delivery if flagged in metadata
+        if n.metadata.get("send_email"):
+            send_mail_task.delay(
+                subject=n.subject,
+                message=n.message,
+                recipient_list=[n.recipient.email],
+                html_message=n.metadata.get("html_message")
+                or create_email_html(n.subject, n.message),
+            )
 
 
 @shared_task(
@@ -120,24 +169,44 @@ def notify_prereg_users_via_whatsapp_task():
 )
 def notify_user_task(
     self,
-    user: User,
+    user_id: int | str,
     subject: str,
     message: str,
-    mediums: List[str],
-    type: str,
+    mediums: List[str] | None = None,
+    notification_type: str = "info",
+    metadata: Dict | None = None,
+    expires_at: str | None = None,
 ):
     """
     Sends a notification to a single user.
     """
+    from django.utils.dateparse import parse_datetime
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for notification task.")
+        return
+
+    # Parse expires_at if it's a string (ISO format expected)
+    parsed_expires_at = None
+    if expires_at:
+        parsed_expires_at = parse_datetime(expires_at)
+
     results = notification_service.notify_user(
         user=user,
         subject=subject,
         message=message,
         mediums=mediums,
-        type=type,
+        notification_type=notification_type,
+        metadata=metadata,
+        expires_at=parsed_expires_at,
     )
-    if not results.get("email"):
-        raise self.retry(exc="Email medium failed", countdown=60)
+
+    # Only retry if email was explicitly requested but failed to queue
+    if mediums and "email" in [m.lower() for m in mediums]:
+        if not results.get("email"):
+            raise self.retry(exc="Email medium failed", countdown=60)
 
 
 @shared_task(name="notify_candidates_about_exam_task")

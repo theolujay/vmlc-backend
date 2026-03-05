@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    <p>{% blocktrans with count=queryset.count %}You are about to disqualify {{ count }} candidate(s).{% endblocktrans %}</p>
+    
+    <fieldset class="module aligned">
+        <div class="form-row">
+            {{ form.reason.label_tag }} {{ form.reason }}
+            <p class="help">{{ form.reason.help_text }}</p>
+        </div>
+    </fieldset>
+
+    {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    
+    <input type="hidden" name="action" value="{{ action }}">
+    <div class="submit-row">
+        <input type="submit" name="apply" value="Confirm Disqualification" class="default" style="background-color: #ba2121; color: white;">
+    </div>
+</form>
+{% endblock %}

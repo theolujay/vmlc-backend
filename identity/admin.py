@@ -86,6 +86,14 @@ class ChangeRoleForm(forms.Form):
         self.fields["role"].choices = choices
 
 
+class DisqualifyForm(forms.Form):
+    reason = forms.CharField(
+        widget=forms.Textarea,
+        required=False,
+        help_text="Provide a reason for disqualification (optional).",
+    )
+
+
 @admin.action(description="Change role for selected candidates")
 def change_candidate_role(modeladmin, request, queryset):
     if "apply" in request.POST:
@@ -115,6 +123,52 @@ def change_candidate_role(modeladmin, request, queryset):
             "form": form,
             "title": "Change Candidate Role",
             "action": "change_candidate_role",
+        },
+    )
+
+
+@admin.action(description="Disqualify selected candidates")
+def disqualify_selected_candidates(modeladmin, request, queryset):
+    from competition.services.progression import ProgressionService, ProgressionError
+
+    if "apply" in request.POST:
+        form = DisqualifyForm(request.POST)
+        if form.is_valid():
+            reason = form.cleaned_data["reason"]
+            count = 0
+            errors = []
+            for candidate in queryset:
+                try:
+                    ProgressionService.disqualify_candidate(candidate.pk, reason=reason)
+                    count += 1
+                except (ProgressionError, Exception) as e:
+                    errors.append(f"Failed to disqualify {candidate}: {str(e)}")
+
+            if count:
+                modeladmin.message_user(
+                    request, f"Successfully disqualified {count} candidates."
+                )
+            if errors:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                for error in errors:
+                    modeladmin.message_user(request, error, level="ERROR")
+                    logger.error(error)
+            return None
+    else:
+        form = DisqualifyForm()
+
+    return TemplateResponse(
+        request,
+        "admin/disqualify_candidate_form.html",
+        {
+            "opts": modeladmin.model._meta,
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            "queryset": queryset,
+            "form": form,
+            "title": "Disqualify Candidates",
+            "action": "disqualify_selected_candidates",
         },
     )
 
@@ -423,7 +477,7 @@ class CandidateAdmin(admin.ModelAdmin):
     Displays key candidate details and allows filtering by role, verification, and active status.
     """
 
-    actions = [change_candidate_role]
+    actions = [change_candidate_role, disqualify_selected_candidates]
     list_display = (
         "email",
         "full_name",

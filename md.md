@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from django.db.models import Q
 from django.utils import timezone
@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 STATUS_THEMES = {
     "success": {"color": "#018ABB", "bg_color": "#CCEEFB33", "icon": "check"},
     "pending": {"color": "#065F46", "bg_color": "#ECFDF5", "icon": "clock"},
-    "info": {"color": "#3E4095", "bg_color": "#EFF6FF", "icon": "info"},
     "warning": {"color": "#667185", "bg_color": "#F9FAFB", "icon": "calendar"},
     "error": {"color": "#CB1A14", "bg_color": "#FBEAE9", "icon": "alert"},
     "eliminated": {"color": "#CB1A14", "bg_color": "#FBEAE9", "icon": "alert"},
@@ -50,14 +49,6 @@ STAGE_CONFIGS = {
             "info": (
                 "Screening Upcoming",
                 "The screening hasn't started yet. We'll notify you when it does.",
-            ),
-            "warning": (
-                "Below Cut-off",
-                "Your current rank is outside the qualification range.",
-            ),
-            "error": (
-                "Round Missed",
-                "You did not participate in the screening examination.",
             ),
             "eliminated": (
                 "Eliminated",
@@ -86,10 +77,6 @@ STAGE_CONFIGS = {
                 "Round Not Started",
                 "This round hasn't begun yet. Good luck when it does.",
             ),
-            "error": (
-                "Round Missed",
-                "You missed a mandatory round and are at risk of elimination.",
-            ),
             "eliminated": (
                 "Eliminated",
                 "You were absent from one round.",
@@ -112,10 +99,6 @@ STAGE_CONFIGS = {
             "info": (
                 "Finals Ahead",
                 "Schedule and details for the final will be shared soon. Prepare well.",
-            ),
-            "error": (
-                "Round Missed",
-                "You did not participate in the final examination.",
             ),
             "eliminated": (
                 "Finalist",
@@ -151,6 +134,9 @@ class CandidateDashboardService:
                 status=Competition.Status.ACTIVE
             ).first()
 
+        # context = CandidateDashboardService._get_context(candidate)
+        # notifications = CandidateDashboardService._get_notifications(candidate)
+
         if active_comp and not enrollment:
             enrollment = (
                 Enrollment.objects.filter(candidate=candidate, competition=active_comp)
@@ -162,56 +148,61 @@ class CandidateDashboardService:
             candidate, active_comp, enrollment
         )
 
+        # Active Exam
         active_exam_data = CandidateDashboardService._get_active_exam(
             candidate, active_comp, enrollment
         )
 
+        # Performance Snapshot
         performance = CandidateDashboardService._get_performance(
             candidate, active_comp, enrollment
         )
 
+        # Exam History
         history = CandidateDashboardService._get_exam_history(candidate)
 
         return {
+            # "candidate_context": context,
+            # "notifications": notifications,
             "enrollment_stage_progress": progress,
             "active_exam": active_exam_data,
             "performance": performance,
             "exam_history": history,
         }
 
-    @staticmethod
-    def _resolve_current_stage(
-        candidate: Candidate,
-        active_comp: Competition,
-        enrollment: Optional[Enrollment],
-    ) -> Optional[Stage]:
-        """
-        Returns the candidate's current stage object.
-        Falls back to matching by candidate role if not enrolled or stage not set.
-        """
-        if enrollment and enrollment.current_stage:
-            return enrollment.current_stage
-        return Stage.objects.filter(
-            competition=active_comp, type=candidate.role
-        ).first()
+    # @staticmethod
+    # def _get_notifications(candidate: Candidate) -> Dict[str, Any]:
 
-    @staticmethod
-    def _get_active_stage_slots(stage: Stage) -> Any:
-        """
-        Returns a queryset of StageExam slots for the given stage that are
-        either explicitly active or whose exam has a scheduled date in the past.
-        Ordered by scheduled date ascending.
-        """
-        now = timezone.now()
-        return (
-            StageExam.objects.filter(
-                Q(competition_stage=stage)
-                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
-                & Q(exam__isnull=False)
-            )
-            .select_related("exam")
-            .order_by("exam__scheduled_date")
-        )
+    #     # Fetch last 5 unread notifications
+    #     notifications = Notification.objects.filter(
+    #         recipient=candidate.user,
+    #         is_read=False,
+    #     ).order_by("-created_at")[:5]
+
+    #     notification_map = {"info": [], "success": [], "error": []}
+    #     n_type_key_map = {
+    #         Notification.Type.INFO: "info",
+    #         Notification.Type.SUCCESS: "success",
+    #         Notification.Type.ERROR: "error",
+    #     }
+
+    #     for n in notifications:
+    #         key = n_type_key_map.get(n.type)
+    #         if key:
+    #             notification_map[key].append(
+    #                 {
+    #                     "id": n.id,
+    #                     "message": n.message,
+    #                     "is_read": n.is_read
+    #                 }
+    #             )
+    #     return notification_map
+
+    # @staticmethod
+    # def _get_context(candidate: Candidate) -> Dict[str, Any]:
+    #     from vmlc.views.user.management import ProfileManager
+
+    #     return ProfileManager.serialize_profile(candidate.user) or {}
 
     @staticmethod
     def _get_enrollment_stage_progress(
@@ -229,9 +220,12 @@ class CandidateDashboardService:
                 "qualification_status": None,
             }
 
-        current_stage = CandidateDashboardService._resolve_current_stage(
-            candidate, active_comp, enrollment
-        )
+        # Determine the current stage - fallback to candidate role if not enrolled
+        current_stage = enrollment.current_stage if enrollment else None
+        if not current_stage:
+            current_stage = Stage.objects.filter(
+                competition=active_comp, type=candidate.role
+            ).first()
 
         if not current_stage:
             return {
@@ -243,32 +237,46 @@ class CandidateDashboardService:
                 "qualification_status": None,
             }
 
-        slots = CandidateDashboardService._get_active_stage_slots(current_stage)
+        # Rounds in current stage
+        now = timezone.now()
+
+        slots = (
+            StageExam.objects.filter(
+                Q(competition_stage=current_stage)
+                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
+            )
+            .select_related("exam")
+            .order_by("round")
+        )
+
         total_rounds = slots.count()
 
+        # Published ranking in current stage
         published_rounds = RankingSnapshot.objects.filter(
             competition=active_comp, stage=current_stage.type, is_published=True
         ).count()
 
-        # Most recent slot by scheduled date
+        # Current round (latest one that is active)
         latest_slot = slots.last()
         current_round = latest_slot.round if latest_slot else None
 
         has_taken_current_round = False
         if latest_slot:
             try:
+                exam = latest_slot.exam
                 has_taken_current_round = ExamAccess.objects.filter(
                     candidate=candidate,
-                    exam=latest_slot.exam,
+                    exam=exam,
                     status=ExamAccess.Status.SUBMITTED,
                 ).exists()
             except Exam.DoesNotExist:
                 pass
 
+        # Qualification Status logic
         is_qualified = (
             enrollment.status == Enrollment.Status.ACTIVE
             if enrollment
-            else True
+            else True  # Assume active if just discovered by role
         )
         status_display = enrollment.get_status_display() if enrollment else "Active"
 
@@ -281,6 +289,7 @@ class CandidateDashboardService:
             ),
         }
 
+        # Fetch full history of stage progress
         history = []
         if enrollment:
             stage_progresses = (
@@ -300,7 +309,7 @@ class CandidateDashboardService:
                 )
 
         return {
-            "current_stage": current_stage.type,
+            "current_stage": current_stage.type,  # TODO: compare with staff's competition dashboard to handle when exam's not started yet
             "current_round": current_round,
             "total_rounds": total_rounds,
             "published_rounds": published_rounds,
@@ -318,14 +327,27 @@ class CandidateDashboardService:
         if not active_comp:
             return None
 
-        current_stage = CandidateDashboardService._resolve_current_stage(
-            candidate, active_comp, enrollment
-        )
+        # Determine the current stage - fallback to candidate role if not enrolled
+        current_stage = enrollment.current_stage if enrollment else None
+        if not current_stage:
+            current_stage = Stage.objects.filter(
+                competition=active_comp, type=candidate.role
+            ).first()
 
         if not current_stage:
             return None
 
-        slots = CandidateDashboardService._get_active_stage_slots(current_stage)
+        # Get all active slots for current stage
+        now = timezone.now()
+
+        slots = (
+            StageExam.objects.filter(
+                Q(competition_stage=current_stage)
+                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
+            )
+            .select_related("exam")
+            .order_by("round")
+        )
 
         active_exam_data = None
         for slot in slots:
@@ -333,8 +355,10 @@ class CandidateDashboardService:
                 exam = slot.exam
                 status = exam.status
 
+                # Check eligibility
                 is_eligible = EligibilityService.can_take_exam(candidate, exam)
 
+                # Check access status
                 access = ExamAccess.objects.filter(
                     candidate=candidate, exam=exam
                 ).first()
@@ -366,16 +390,20 @@ class CandidateDashboardService:
                             if exam.scheduled_date
                             else None
                         ),
-                        "duration_minutes": exam.countdown_minutes,
+                        "duration_minutes": exam.countdown_minutes,  # TODO: rename tis to exam.duration_minutes
                         "status": status,
                         "attempt": attempt_data,
-                        "access_status": access.status if access else None,
+                        "access_status": (
+                            access.status if access else None
+                        ),  # TODO: reconsider if this is necessary
                     }
                     if (
                         status == Exam.Status.ONGOING
                         and is_eligible
                         and not has_participated
                     ):
+                        # Found our primary target, an ongoing exam
+                        # that the candidate hasn't yet participated in
                         active_exam_data = exam_data
                         break
 
@@ -383,9 +411,11 @@ class CandidateDashboardService:
                         active_exam_data = exam_data
 
                     if status == Exam.Status.CONCLUDED and has_participated:
+                        # Check if ranking are published
                         ranking = RankingSnapshot.objects.filter(
                             exam=exam, is_published=True
                         ).first()
+
                         is_published = ranking is not None
 
                         if not active_exam_data:
@@ -406,26 +436,35 @@ class CandidateDashboardService:
 
         return active_exam_data
 
-    # ---------------------------------------------------------------------------
-    # _get_performance and its decomposed helpers
-    # ---------------------------------------------------------------------------
-
     @staticmethod
-    def _get_stage_rankings(
+    def _get_performance(
         candidate: Candidate,
-        active_comp: Competition,
-        league_leaderboard_data: Optional[Dict],
-    ) -> Dict[str, Optional[Dict]]:
+        active_comp: Optional[Competition],
+        enrollment: Optional[Enrollment] = None,
+    ) -> Dict[str, Any]:
         """
-        Fetches the candidate's ranking data for each stage.
-        Returns a dict keyed by Stage.Type with ranking dicts or None.
+        Retrieves performance metrics and active stage context.
         """
-        rankings: Dict[str, Optional[Dict]] = {
-            Stage.Type.SCREENING: None,
-            Stage.Type.LEAGUE: league_leaderboard_data,
-            Stage.Type.FINAL: None,
-        }
+        if not active_comp:
+            return {"active_context": None, "history": []}
 
+        # 1. Identify Current Stage
+        current_stage_type = None
+        if enrollment and enrollment.current_stage:
+            current_stage_type = enrollment.current_stage.type
+        else:
+            current_stage_type = candidate.role
+
+        current_stage_obj = Stage.objects.filter(
+            competition=active_comp, type=current_stage_type
+        ).first()
+
+        # 2. Gather All Ranking Data
+        screening_ranking = None
+        league_leaderboard = None
+        final_ranking = None
+
+        # Fetch Screening and Final RankingSnapshot Entries
         entries = RankingSnapshotEntry.objects.filter(
             Q(ranking_snapshot__stage=Stage.Type.SCREENING)
             | Q(ranking_snapshot__stage=Stage.Type.FINAL),
@@ -437,7 +476,7 @@ class CandidateDashboardService:
 
         for entry in entries:
             stage_type = entry.ranking_snapshot.stage
-            rankings[stage_type] = {
+            data = {
                 "position": entry.rank,
                 "total_candidates": entry.ranking_snapshot.entries.count(),
                 "score": (
@@ -452,279 +491,145 @@ class CandidateDashboardService:
                 "is_active": True,
             }
 
-        return rankings
+            if stage_type == Stage.Type.SCREENING:
+                screening_ranking = data
+            elif stage_type == Stage.Type.FINAL:
+                final_ranking = data
 
-    @staticmethod
-    def _get_league_leaderboard_data(
-        candidate: Candidate, active_comp: Competition
-    ) -> Optional[Dict]:
-        """
-        Fetches the candidate's entry from the latest league leaderboard.
-        Returns a ranking dict or None.
-        """
+        # League Leaderboard
         leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
-        if not leaderboard:
-            return None
-
-        entry = next(
-            (
-                e
-                for e in leaderboard.processed_entries
-                if e.candidate_id == candidate.pk
-            ),
-            None,
-        )
-        if not entry:
-            return None
-
-        return {
-            "position": entry.overall_rank,
-            "total_candidates": leaderboard.entries.count(),
-            "score": (
-                truncate_float(float(entry.total_score))
-                if entry.total_score is not None
-                else 0
-            ),
-            "rank_change": getattr(entry, "rank_change", 0),
-            "is_active": entry.overall_rank is not None,
-            "as_of_round": leaderboard.as_of_round,
-        }
-
-    @staticmethod
-    def _get_candidate_exam_state(
-        candidate: Candidate, stage: Stage
-    ) -> Tuple[bool, bool, bool, bool]:
-        now = timezone.now()
-
-        slots = (
-            StageExam.objects.filter(
-                Q(competition_stage=stage)
-                & (Q(is_active=True) | Q(exam__scheduled_date__lte=now))
-                & Q(exam__isnull=False)
+        if leaderboard:
+            entry = next(
+                (
+                    e
+                    for e in leaderboard.processed_entries
+                    if e.candidate_id == candidate.pk
+                ),
+                None,
             )
-            .select_related("exam")
-            .order_by("-exam__scheduled_date")
-        )
+            if entry:
+                league_leaderboard = {
+                    "position": entry.overall_rank,
+                    "total_candidates": leaderboard.entries.count(),
+                    "score": (
+                        truncate_float(float(entry.total_score))
+                        if entry.total_score is not None
+                        else 0
+                    ),
+                    "rank_change": getattr(entry, "rank_change", 0),
+                    "is_active": entry.overall_rank is not None,
+                    "as_of_round": leaderboard.as_of_round,
+                }
 
-        if not slots.exists():
-            return False, False, False, False
-
-        stage_exam_ids = list(slots.values_list("exam__id", flat=True))
-
-        access = (
-            ExamAccess.objects.filter(
-                candidate=candidate,
-                exam_id__in=stage_exam_ids,
-            )
-            .select_related("exam")
-            .order_by("-exam__scheduled_date")
-            .first()
-        )
-
-        if not access:
-            latest_exam = slots.first().exam
-            is_missed = latest_exam.status == Exam.Status.CONCLUDED
-            return False, False, False, is_missed
-
-        exam = access.exam
-        has_started = access.status in [
-            ExamAccess.Status.STARTED,
-            ExamAccess.Status.SUBMITTED,
-        ]
-        has_submitted = access.status == ExamAccess.Status.SUBMITTED
-
-        is_published = RankingSnapshot.objects.filter(
-            exam=exam, is_published=True
-        ).exists()
-        is_awaiting_results = has_submitted and not is_published
-        is_missed = exam.status == Exam.Status.CONCLUDED and not has_submitted
-
-        return has_started, has_submitted, is_awaiting_results, is_missed
-
-    @staticmethod
-    def _resolve_metric_value_display(policy: Dict) -> str:
-        """
-        Converts an advancement policy dict into a human-readable cutoff string.
-        """
-        if not policy:
-            return "N/A"
-        mode = policy.get("mode")
-        value = policy.get("value")
-        if mode == "top_n":
-            return f"Top {value}"
-        if mode == "top_percent":
-            return f"Top {round(value * 100)}%"
-        return "N/A"
-
-    @staticmethod
-    def _resolve_status_type(
-        enrollment: Optional[Enrollment],
-        stage_type: str,
-        ranking: Optional[Dict],
-        policy: Dict,
-        has_started: bool,
-        has_submitted: bool,
-        is_awaiting_results: bool,
-        is_missed: bool,
-    ) -> str:
-        """
-        Determines the status string for the active context status badge.
-        Priority order: disqualified > eliminated > missed > pending > ranking-based > info > error.
-        """
-        enroll_status = (
-            enrollment.status if enrollment else Enrollment.Status.ACTIVE
-        )
-
-        if enroll_status == Enrollment.Status.DISQUALIFIED:
-            return "disqualified"
-        if enroll_status == Enrollment.Status.ELIMINATED:
-            return "eliminated"
-        if is_missed:
-            return "error"
-        if is_awaiting_results or (has_started and not has_submitted):
-            return "pending"
-
-        if ranking:
-            mode = policy.get("mode")
-            value = policy.get("value")
-            position = ranking.get("position")
-            total = ranking.get("total_candidates")
-            within_cutoff = True
-
-            if policy and position is not None and value is not None:
-                if mode == "top_n":
-                    within_cutoff = position <= value
-                elif mode == "top_percent" and total:
-                    within_cutoff = (position / total) <= value
-
-            if within_cutoff or stage_type == Stage.Type.FINAL:
-                return "success"
-            return "warning"
-
-        if not has_started:
-            return "info"
-
-        return "error"
-
-    @staticmethod
-    def _build_active_context(
-        candidate: Candidate,
-        active_comp: Competition,
-        enrollment: Optional[Enrollment],
-        current_stage_obj: Stage,
-        rankings: Dict[str, Optional[Dict]],
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Constructs the active_context dict for the performance section.
-        Delegates exam state resolution and status determination to helpers.
-        """
-        current_stage_type = current_stage_obj.type
-        config = STAGE_CONFIGS.get(current_stage_type, {})
-        ranking = rankings.get(current_stage_type)
-        policy = current_stage_obj.config.get("advancement_policy", {}) or {}
-
-        has_started, has_submitted, is_awaiting_results, is_missed = (
-            CandidateDashboardService._get_candidate_exam_state(
-                candidate, current_stage_obj
-            )
-        )
-
-        status_type = CandidateDashboardService._resolve_status_type(
-            enrollment=enrollment,
-            stage_type=current_stage_type,
-            ranking=ranking,
-            policy=policy,
-            has_started=has_started,
-            has_submitted=has_submitted,
-            is_awaiting_results=is_awaiting_results,
-            is_missed=is_missed,
-        )
-
-        theme = STATUS_THEMES.get(status_type, STATUS_THEMES["error"])
-        status_label, status_subtext = config.get("messages", {}).get(
-            status_type,
-            DEFAULT_MESSAGES.get(status_type, DEFAULT_MESSAGES["error"]),
-        )
-
-        metric_value_display = CandidateDashboardService._resolve_metric_value_display(
-            policy
-        )
-
-        enroll_status = (
-            enrollment.status if enrollment else Enrollment.Status.ACTIVE
-        )
-
-        active_context = {
-            "stage": current_stage_type,
-            "stage_display": config.get("label"),
-            "title": f"{config.get('label')} Performance",
-            "accent_color": config.get("accent_color"),
-            "ranking": ranking,
-            "status_meta": {
-                "has_taken_exam": has_submitted,
-                "is_awaiting_results": is_awaiting_results,
-                "is_qualified": enroll_status
-                in [Enrollment.Status.ACTIVE, Enrollment.Status.PENDING],
-                "metric_label": config.get("metric_label"),
-                "metric_value_display": metric_value_display,
-                "status_label": status_label,
-                "status_subtext": status_subtext,
-                "status_type": status_type,
-                "color": theme["color"],
-                "bg_color": theme["bg_color"],
-                "icon": theme["icon"],
-            },
-        }
-
-        # League-specific title showing round progress
-        league_ranking = rankings.get(Stage.Type.LEAGUE)
-        if current_stage_type == Stage.Type.LEAGUE and league_ranking:
-            total_rounds = StageExam.objects.filter(
-                competition_stage=current_stage_obj
-            ).count()
-            active_context["title"] = (
-                f"League Performance • Round {league_ranking['as_of_round']} of {total_rounds}"
-            )
-
-        return active_context
-
-    @staticmethod
-    def _get_performance(
-        candidate: Candidate,
-        active_comp: Optional[Competition],
-        enrollment: Optional[Enrollment] = None,
-    ) -> Dict[str, Any]:
-        """
-        Retrieves performance metrics and active stage context.
-        """
-        if not active_comp:
-            return {"active_context": None, "history": []}
-
-        current_stage_obj = CandidateDashboardService._resolve_current_stage(
-            candidate, active_comp, enrollment
-        )
-
-        league_data = CandidateDashboardService._get_league_leaderboard_data(
-            candidate, active_comp
-        )
-        rankings = CandidateDashboardService._get_stage_rankings(
-            candidate, active_comp, league_data
-        )
-
+        # 3. Construct History
         history = []
-        for stage_type in [Stage.Type.SCREENING, Stage.Type.LEAGUE, Stage.Type.FINAL]:
-            if rankings.get(stage_type):
-                history.append({"stage": stage_type, "ranking": rankings[stage_type]})
+        if screening_ranking:
+            history.append({"stage": Stage.Type.SCREENING, "ranking": screening_ranking})
+        if league_leaderboard:
+            history.append({"stage": Stage.Type.LEAGUE, "ranking": league_leaderboard})
+        if final_ranking:
+            history.append({"stage": Stage.Type.FINAL, "ranking": final_ranking})
 
+        # 4. Construct Active Context
         active_context = None
         if current_stage_obj:
-            active_context = CandidateDashboardService._build_active_context(
-                candidate=candidate,
-                active_comp=active_comp,
-                enrollment=enrollment,
-                current_stage_obj=current_stage_obj,
-                rankings=rankings,
+            config = STAGE_CONFIGS.get(current_stage_type, {})
+            ranking = None
+            if current_stage_type == Stage.Type.SCREENING:
+                ranking = screening_ranking
+            elif current_stage_type == Stage.Type.LEAGUE:
+                ranking = league_leaderboard
+            elif current_stage_type == Stage.Type.FINAL:
+                ranking = final_ranking
+
+            # Check for most recent exam in this stage
+            latest_slot = (
+                StageExam.objects.filter(competition_stage=current_stage_obj)
+                .order_by("-round")
+                .first()
             )
+
+            has_taken_exam = False
+            is_awaiting_results = False
+            if latest_slot:
+                access = ExamAccess.objects.filter(
+                    candidate=candidate, exam=latest_slot.exam
+                ).first()
+                has_taken_exam = access and access.status == ExamAccess.Status.SUBMITTED
+
+                # Awaiting results if exam results are not yet published
+                is_published = RankingSnapshot.objects.filter(
+                    exam=latest_slot.exam, is_published=True
+                ).exists()
+                if has_taken_exam and not is_published:
+                    is_awaiting_results = True
+
+            # Advancement Policy Label
+            policy = current_stage_obj.config.get("advancement_policy", {})
+            metric_value_display = "N/A"
+            if policy:
+                mode = policy.get("mode")
+                value = policy.get("value")
+                if mode == "top_n":
+                    metric_value_display = f"Top {value}"
+                elif mode == "top_percent":
+                    metric_value_display = f"Top {value}%"
+
+            # Status Determination Logic
+            enroll_status = (
+                enrollment.status if enrollment else Enrollment.Status.ACTIVE
+            )
+
+            if enroll_status == Enrollment.Status.DISQUALIFIED:
+                status_type = "disqualified"
+            elif enroll_status == Enrollment.Status.ELIMINATED:
+                status_type = "eliminated"
+            elif is_awaiting_results:
+                status_type = "pending"
+            elif not has_taken_exam:
+                status_type = "warning"
+            elif ranking:
+                status_type = "success"
+            else:
+                status_type = "error"
+
+            # Get Metadata
+            theme = STATUS_THEMES.get(status_type, STATUS_THEMES["error"])
+            # Try to get stage-specific message, fallback to default
+            status_label, status_subtext = config.get("messages", {}).get(
+                status_type, DEFAULT_MESSAGES.get(status_type, DEFAULT_MESSAGES["error"])
+            )
+
+            active_context = {
+                "stage": current_stage_type,
+                "stage_display": config.get("label"),
+                "title": f"{config.get('label')} Performance",
+                "accent_color": config.get("accent_color"),
+                "ranking": ranking,
+                "status_meta": {
+                    "has_taken_exam": has_taken_exam,
+                    "is_awaiting_results": is_awaiting_results,
+                    "is_qualified": enroll_status
+                    in [Enrollment.Status.ACTIVE, Enrollment.Status.PENDING],
+                    "metric_label": config.get("metric_label"),
+                    "metric_value_display": metric_value_display,
+                    "status_label": status_label,
+                    "status_subtext": status_subtext,
+                    "status_type": status_type,
+                    "color": theme["color"],
+                    "bg_color": theme["bg_color"],
+                    "icon": theme["icon"],
+                },
+            }
+
+            # Special Round-specific title for League
+            if current_stage_type == Stage.Type.LEAGUE and league_leaderboard:
+                total_rounds = StageExam.objects.filter(
+                    competition_stage=current_stage_obj
+                ).count()
+                active_context["title"] = (
+                    f"League Performance • Round {league_leaderboard['as_of_round']} of {total_rounds}"
+                )
 
         return {
             "active_context": active_context,
@@ -739,6 +644,7 @@ class CandidateDashboardService:
             .order_by("-recorded_at")
         )
 
+        # Prefetch published ranking to avoid N+1
         published_exam_ids = set(
             RankingSnapshot.objects.filter(
                 exam_id__in=[res.exam_id for res in results], is_published=True
@@ -757,15 +663,9 @@ class CandidateDashboardService:
                     "exam_title": exam.get_title(),
                     "stage": slot.competition_stage.type if slot else "N/A",
                     "round": slot.round if slot else None,
-                    "score": (
-                        truncate_float(float(res.score))
-                        if is_published and res.score is not None
-                        else None
-                    ),
+                    "score": truncate_float(float(res.score)) if is_published else None,
                     "percentage": (
-                        truncate_float(float(res.score))
-                        if is_published and res.score is not None
-                        else None
+                        truncate_float(float(res.score)) if is_published else None
                     ),
                     "date": res.recorded_at,
                     "status": exam.status,

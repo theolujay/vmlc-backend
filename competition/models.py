@@ -382,7 +382,6 @@ class RankingSnapshotEntry(models.Model):
         blank=True,
         help_text="Optional explanation when tie-break applied.",
     )
-    # TODO: change 'percentile' field to property and compute percentile dynamically
     percentile = models.FloatField(
         null=True,
         blank=True,

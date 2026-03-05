@@ -3,12 +3,14 @@ from django.db import transaction
 from django.utils import timezone
 from competition.models import (
     Competition,
+    RankingSnapshotEntry,
     Stage,
     Enrollment,
     EnrollmentStageProgress,
     RankingSnapshot,
 )
 from competition.services.leaderboard import LeaderboardService
+from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,10 @@ class ProgressionService:
     @staticmethod
     @transaction.atomic
     def promote_candidates(
-        from_stage_type, to_stage_type, cutoff_rank=None, competition_id=None
+        from_stage_type: str,
+        to_stage_type: str,
+        cutoff_rank: int | None = None,
+        competition_id: int | None = None
     ):
         """
         Promotes candidates from one stage to the next based on an advancement policy or explicit cutoff.
@@ -76,6 +81,7 @@ class ProgressionService:
                         RankingSnapshot.objects.filter(
                             competition=competition,
                             stage=Stage.Type.SCREENING,
+                            is_active=True,
                             is_published=True,
                         )
                         .order_by("-published_at")
@@ -83,12 +89,20 @@ class ProgressionService:
                     )
                     if ranking:
                         total_active_in_stage = ranking.entries.count()
+                    else:
+                        raise ProgressionError(
+                            f"No active, published {from_stage_type.title()} ranking available to promote candidates to {to_stage_type.title()} stage"
+                        )
                 elif from_stage_type == Stage.Type.LEAGUE:
                     leaderboard = LeaderboardService.get_latest_league_leaderboard(
                         competition
                     )
                     if leaderboard:
                         total_active_in_stage = leaderboard.entries.count()
+                    else:
+                        raise ProgressionError(
+                            f"No {from_stage_type.title()} leaderboard to promote candidates to {to_stage_type.title()} stage"
+                        )
 
                 if total_active_in_stage > 0:
                     import math
@@ -116,6 +130,7 @@ class ProgressionService:
                 RankingSnapshot.objects.filter(
                     competition=competition,
                     stage=Stage.Type.SCREENING,
+                    is_active=True,
                     is_published=True,
                 )
                 .order_by("-published_at")
@@ -184,9 +199,12 @@ class ProgressionService:
             role=to_stage_type
         )
         # Not sure if we should also move eliminated candidates back to 'screening' or just keep them.
-        # For now, let's just keep their role as is, or we could explicitly set it to screening.
+        # For now, let's just keep their role as is and not explicitly set it to screening.
+
         # Candidate.objects.filter(pk__in=candidate_ids_to_eliminate).update(role=Candidate.Roles.SCREENING)
-        # TODO: decide on 'base' role or something other than screening, league... for candidates not in active competition
+
+        # TODO: decide on a base role or something other than screening, league... for candidates not in active competition
+
         # Update Old StageProgress
         from_stage = Stage.objects.filter(
             competition=competition, type=from_stage_type
@@ -249,6 +267,59 @@ class ProgressionService:
 
     @staticmethod
     @transaction.atomic
+    def eliminate_league_absentees(ranking_snapshot_id):
+        """
+        Eliminates candidates who missed a league exam.
+        """
+        ranking = RankingSnapshot.objects.get(id=ranking_snapshot_id)
+        if ranking.stage != Stage.Type.LEAGUE:
+            return 0
+
+        # Identify absentees in this ranking who are still ACTIVE
+        # We look for entries with no exam_score.
+        absentee_entries = RankingSnapshotEntry.objects.filter(
+            ranking_snapshot=ranking,
+            exam_score__isnull=True,
+            enrollment__status=Enrollment.Status.ACTIVE,
+        ).select_related("enrollment", "candidate__user")
+
+        if not absentee_entries.exists():
+            return 0
+
+        now = timezone.now()
+        enrollment_ids = [e.enrollment_id for e in absentee_entries]
+        candidate_ids = [e.candidate_id for e in absentee_entries]
+        # Update Enrollment status to ELIMINATED
+        Enrollment.objects.filter(id__in=enrollment_ids).update(
+            status=Enrollment.Status.ELIMINATED, last_active_at=now
+        )
+        # Update current StageProgress to DISCONTINUED
+        EnrollmentStageProgress.objects.filter(
+            enrollment_id__in=enrollment_ids,
+            stage__type=Stage.Type.LEAGUE,
+            status=EnrollmentStageProgress.Status.IN_PROGRESS,
+        ).update(status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now)
+        # Send Notifications
+        ProgressionService._send_absentee_notifications(
+            competition=ranking.competition, absentee_entries=absentee_entries
+        )
+        # Invalidate Caches
+        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+
+        def clear_caches():
+            for c_id in candidate_ids:
+                invalidate_candidate_cache(c_id)
+            invalidate_staff_dashboard()
+
+        transaction.on_commit(clear_caches)
+
+        logger.info(
+            f"Eliminated {len(enrollment_ids)} absentees from league stage based on RankingSnapshot {ranking_snapshot_id}."
+        )
+        return len(enrollment_ids)
+
+    @staticmethod
+    @transaction.atomic
     def disqualify_candidate(candidate_id, competition_id=None, reason=None):
         """
         Disqualifies a candidate from the competition.
@@ -293,8 +364,6 @@ class ProgressionService:
         )
 
         # Invalidate Caches
-        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
-
         invalidate_candidate_cache(candidate_id)
         invalidate_staff_dashboard()
 
@@ -302,11 +371,53 @@ class ProgressionService:
         return True
 
     @staticmethod
+    def _send_absentee_notifications(competition, absentee_entries):
+        """
+        Sends platform notifications to candidates about their elimination due to absence.
+        """
+        from comms.models import Notification
+        from comms.signals import notifications_created
+
+        notifications = []
+        subject = f"Update: {competition.get_title()}"
+        message = (
+            "Dear {candidate_full_name},\n\n"
+            f"You have been eliminated from {competition.get_title()} for missing a required league exam. "
+            "Participation in all league rounds is mandatory. "
+            "We hope to see you in future editions. \n\n"
+            "Regards,\n"
+            "VMLC Team."
+        )
+        for entry in absentee_entries:
+            candidate_user = entry.candidate.user
+            personalized_message = message.format(
+                candidate_full_name=candidate_user.get_full_name()
+            )
+            notifications.append(
+                Notification(
+                    recipient=candidate_user,
+                    subject=subject,
+                    message=personalized_message,
+                    type=Notification.Type.INFO,
+                    metadata={"send_email": True},
+                )
+            )
+
+        if notifications:
+            created_notifications = Notification.objects.bulk_create(notifications)
+            notifications_created.send(
+                sender=ProgressionService._send_absentee_notifications,
+                notifications=created_notifications,
+            )
+            logger.info(f"Sent {len(notifications)} absentee elimination notifications.")
+
+    @staticmethod
     def _send_notifications(competition, promoted_ids, eliminated_ids, to_stage_type):
         """
         Sends platform notifications to candidates about their promotion or elimination.
         """
         from comms.models import Notification
+        from comms.signals import notifications_created
         from identity.models import Candidate
 
         notifications = []
@@ -329,6 +440,7 @@ class ProgressionService:
                         subject=subject,
                         message=message,
                         type=Notification.Type.SUCCESS,
+                        metadata={"send_email": True},
                     )
                 )
 
@@ -337,22 +449,33 @@ class ProgressionService:
             candidates = Candidate.objects.filter(pk__in=eliminated_ids).select_related(
                 "user"
             )
-            subject = f"Competition Update: {competition.name}"
+            subject = f"Update: {competition.get_title()}"
             message = (
+                "Dear {candidate_full_name},\n\n"
                 f"Thank you for participating in {competition.name}. "
                 "Unfortunately, you did not meet the cutoff for the next stage. "
-                "We appreciate your effort and hope to see you in future editions."
+                "We appreciate your effort and hope to see you in future editions.\n\n"
+                "Regards,\n"
+                "VMLC Team."
             )
             for cand in candidates:
+                personalized_message = message.format(
+                    candidate_full_name=cand.user.get_full_name()
+                )
                 notifications.append(
                     Notification(
                         recipient=cand.user,
                         subject=subject,
-                        message=message,
+                        message=personalized_message,
                         type=Notification.Type.INFO,
+                        metadata={"send_email": True},
                     )
                 )
 
         if notifications:
-            Notification.objects.bulk_create(notifications)
+            created_notifications = Notification.objects.bulk_create(notifications)
+            notifications_created.send(
+                sender=ProgressionService._send_notifications,
+                notifications=created_notifications,
+            )
             logger.info(f"Sent {len(notifications)} progression notifications.")

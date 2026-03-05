@@ -3,8 +3,6 @@ from smtplib import SMTPException
 from time import sleep
 from typing import Any, Dict, List, Optional
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
 from django.db import DatabaseError
@@ -74,6 +72,14 @@ class NotificationService:
 
         results: Dict[str, bool] = {}
 
+        # Flag for centralized email delivery if both platform and email are requested
+        has_platform = Broadcast.Mediums.PLATFORM in mediums
+        has_email = Broadcast.Mediums.EMAIL in mediums
+
+        if has_platform and has_email:
+            metadata = metadata or {}
+            metadata["send_email"] = True
+
         for medium in mediums:
             if medium == Broadcast.Mediums.SMS:
                 body_to_send = format_sms_body(subject, message)
@@ -92,6 +98,11 @@ class NotificationService:
                     )
 
                 elif medium == Broadcast.Mediums.EMAIL:
+                    if has_platform:
+                        # Skip explicit email send; handled by Notification signal
+                        results["email"] = True
+                        continue
+
                     from comms.tasks import send_mail_task
 
                     html_message = metadata.get("html_message") if metadata else None
@@ -361,6 +372,88 @@ class NotificationService:
             notification_count,
         )
 
+    def notify_ranking_published(self, ranking) -> None:
+        """
+        Notify candidates that exam results are available, and alert staff via Slack/Email.
+        """
+        from identity.models import Staff
+        from comms.services.slack import SlackService
+        from comms.services.email import create_email_html
+
+        exam = ranking.exam
+        candidate_ids = ranking.entries.values_list("candidate_id", flat=True)
+        from identity.models import Candidate
+
+        candidates = Candidate.objects.filter(pk__in=candidate_ids).select_related(
+            "user"
+        )
+
+        subject = f"Results Published: {exam.get_title()}"
+        message = (
+            f"Dear {{candidate_name}},\n\n"
+            f"The results for '{exam.get_title()}' have been published and are now available on your dashboard.\n\n"
+            f"Log in now to view your performance:\n\n"
+            f"{settings.FRONTEND_BASE_URL}/login\n\n"
+            f"Regards,\n"
+            f"VMLC Team."
+        )
+
+        # 1. Notify Candidates
+        for cand in candidates:
+            user = cand.user
+            personalized_message = message.format(
+                candidate_name=user.first_name or "Candidate"
+            )
+            html_message = create_email_html(
+                subject=subject, message=personalized_message
+            )
+            self.notify_user(
+                user=user,
+                subject=subject,
+                message=personalized_message,
+                mediums=[Broadcast.Mediums.EMAIL],
+                notification_type="success",
+                metadata={"html_message": html_message},
+            )
+
+        # 2. Notify Staff (Managers, Admins)
+        staff_to_notify = Staff.objects.filter(
+            role__in=[Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN],
+            user__is_active=True,
+        ).select_related("user")
+
+        staff_subject = f"System Update: Results Published for {exam.get_title()}"
+        staff_message = (
+            f"The ranking table for '{exam.get_title()}' has been officially published "
+            f"for {ranking.entries.count()} candidates.\n\n"
+            f"Environment: {settings.APP_ENVIRONMENT.title()}\n\n"
+            "Regards,\n"
+            "VMLC Bot."
+        )
+
+        for staff in staff_to_notify:
+            self.notify_user(
+                user=staff.user,
+                subject=staff_subject,
+                message=staff_message,
+                mediums=[Broadcast.Mediums.EMAIL],
+                notification_type="info",
+                metadata={
+                    "html_message": create_email_html(
+                        subject=staff_subject, message=staff_message
+                    )
+                },
+            )
+
+        # 3. Slack Notification
+        slack = SlackService()
+        slack.send_ranking_published_notification(ranking)
+
+        logger.info(
+            f"Sent 'Results Published' notifications for {exam.get_title()} to "
+            f"{candidates.count()} candidates and {staff_to_notify.count()} staff."
+        )
+
     def send_phone_msg(self, body: str, recipient: str, medium: str) -> Dict[str, Any]:
         """
         Send a single SMS or WhatsApp message to one recipient.
@@ -485,8 +578,8 @@ class NotificationService:
         metadata: Optional[Dict[str, Any]] = None,
         expires_at: Optional[timezone.datetime] = None,
     ) -> bool:
-        """Create a platform ``Notification`` and push it over WebSocket."""
-        notification = Notification.objects.create(
+        """Create a platform ``Notification`` record (delivery is handled by signal)."""
+        Notification.objects.create(
             recipient=user,
             subject=subject,
             message=full_body,
@@ -495,29 +588,6 @@ class NotificationService:
             expires_at=expires_at,
             created_at=timezone.now(),
         )
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            group_name = "user__%s" % user.id
-            async_to_sync(channel_layer.group_send)(
-                group_name,
-                {
-                    "type": "notification_activity",
-                    "message": {
-                        "id": notification.id,
-                        "subject": notification.subject,
-                        "message": notification.message,
-                        "type": notification.type,
-                        "is_read": notification.is_read,
-                        "metadata": notification.metadata,
-                        "expires_at": (
-                            notification.expires_at.isoformat()
-                            if notification.expires_at
-                            else None
-                        ),
-                        "created_at": notification.created_at.isoformat(),
-                    },
-                },
-            )
         return True
 
     def _dispatch_phone_notification(self, user, body: str, medium: str) -> bool:
@@ -686,60 +756,14 @@ class NotificationService:
             )
             raise ServerError("Failed to save notifications to the database.") from e
 
-        channel_layer = get_channel_layer()
-        if not channel_layer:
-            logger.error(
-                "Could not get channel layer. Real-time notifications will not be "
-                "sent for broadcast %s.",
-                broadcast.id,
-            )
-            return
-
-        for notification in created_notifications:
-            group_name = "user__%s" % notification.recipient_id
-            try:
-                async_to_sync(channel_layer.group_send)(
-                    group_name,
-                    {
-                        "type": "notification_activity",
-                        "message": {
-                            "id": notification.id,
-                            "subject": notification.subject,
-                            "message": notification.message,
-                            "type": notification.type,
-                            "is_read": notification.is_read,
-                            "metadata": notification.metadata,
-                            "expires_at": (
-                                notification.expires_at.isoformat()
-                                if notification.expires_at
-                                else None
-                            ),
-                            "created_at": notification.created_at.isoformat(),
-                        },
-                    },
-                )
-            except Exception as e:
-                logger.error(
-                    "Failed to send notification to group %s for broadcast %s: %s",
-                    group_name,
-                    broadcast.id,
-                    e,
-                )
-
-            from vmlc.v2.utils import CacheKeys, invalidate_notifications
-
-            unique_user_ids = set(user_ids)
-            for user_id in unique_user_ids:
-                invalidate_notifications(user_id)
-
-            notifications_created.send(
-                sender=self.send_broadcast, notifications=created_notifications
-            )
-            logger.info(
-                "Platform notifications created and pushed for %d users (role: %s).",
-                len(user_ids),
-                role,
-            )
+        notifications_created.send(
+            sender=self.send_broadcast, notifications=created_notifications
+        )
+        logger.info(
+            "Platform notifications created for %d users (role: %s).",
+            len(user_ids),
+            role,
+        )
 
     def _send_via_sms(self, body: str, recipient: str) -> Dict[str, Any]:
         """Send a single SMS, routing through the configured provider."""

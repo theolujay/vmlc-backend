@@ -33,6 +33,7 @@ from competition.tasks import (
     generate_ranking_task,
     update_leaderboard_task,
     invalidate_published_ranking_cache_task,
+    publish_ranking_task,
 )
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import StaffCompetitionDashboardService
@@ -118,13 +119,12 @@ class PublishRankingSnapshotView(APIView):
         data = serializer.validated_data
         exam_id = data["exam_id"]
         publish_now = data["publish_now"]
+        publish_at = data.get("publish_at")
 
-        if publish_now and staff.role != Staff.Roles.SUPERADMIN:
+        if (publish_now or publish_at) and staff.role != Staff.Roles.SUPERADMIN:
             return Response(
-                {
-                    "detail": "You do not have permissions to publish rankings"
-                },
-                status=status.HTTP_403_FORBIDDEN
+                {"detail": "You do not have permissions to publish rankings"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         try:
@@ -154,7 +154,7 @@ class PublishRankingSnapshotView(APIView):
         competition_id = competition.id
         ranking_policy = competition.config.get("ranking_policy", "standard")
 
-        if publish_now:
+        if publish_now or publish_at:
             ranking = RankingSnapshot.objects.filter(
                 exam=exam, is_active=True  # only one should be active
             ).first()
@@ -163,6 +163,31 @@ class PublishRankingSnapshotView(APIView):
                 return Response(
                     {"error": "No active ranking snapshot available to publish."},
                     status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if publish_at:
+                if publish_at <= timezone.now():
+                    return Response(
+                        {"detail": "publish_at must be in the future."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Store scheduled time in meta for visibility
+                ranking.meta["scheduled_publish_at"] = publish_at.isoformat()
+                ranking.meta["scheduled_by"] = str(staff.pk)
+                ranking.save(update_fields=["meta"])
+
+                # Schedule the task
+                publish_ranking_task.apply_async(
+                    kwargs={
+                        "ranking_snapshot_id": ranking.id,
+                        "actor_id": staff.pk,
+                    },
+                    eta=publish_at,
+                )
+                return Response(
+                    {"message": f"Ranking will go live at {publish_at}."},
+                    status=status.HTTP_202_ACCEPTED,
                 )
 
             # Enforce the 'one_published_ranking_per_stage_round' constraint by
@@ -175,10 +200,11 @@ class PublishRankingSnapshotView(APIView):
                 ).exclude(id=ranking.id).update(
                     is_published=False, published_at=None, is_active=False
                 )
-                ranking.is_active = True  # although this should already be True at this point, but lt's add it anyway
+                ranking.is_active = True  # although this should already be True at this point, but let's add it anyway
                 ranking.is_published = True
                 ranking.published_at = timezone.now()
                 ranking.meta["published_by"] = str(staff.pk)
+                ranking.meta.pop("scheduled_publish_at", None)
                 ranking.save(
                     update_fields=[
                         "is_active",
@@ -234,9 +260,9 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         data = get_or_set_cache(
             cache_key, lambda: self._fetch_snapshot_data(exam_id=exam_id)
         )
-
         if data is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
         return Response(data)
 
     def _fetch_snapshot_data(self, exam_id):
@@ -467,7 +493,7 @@ class PromoteCandidatesView(APIView):
     Staff-only view to promote candidates from one stage to the next.
     """
 
-    permission_classes = ActiveManagerPermissions
+    permission_classes = ActiveSuperadminPermissions
 
     def post(self, request):
         serializer = PromoteCandidatesSerializer(data=request.data)
@@ -485,8 +511,7 @@ class PromoteCandidatesView(APIView):
 
             return Response(
                 {
-                    "status": "success",
-                    "message": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}.",
+                    "detail": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}.",
                 }
             )
         except ProgressionError as e:

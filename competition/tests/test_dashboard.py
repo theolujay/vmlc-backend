@@ -87,6 +87,21 @@ class CandidateDashboardViewTest(APITestCase):
         )
         self.assertEqual(data["active_exam"]["title"], "Screening")
 
+        # Verify performance context
+        performance = data["performance"]
+        self.assertIn("active_context", performance)
+        self.assertIn("history", performance)
+
+        active_context = performance["active_context"]
+        self.assertEqual(active_context["stage"], "screening")
+        self.assertEqual(active_context["stage_display"], "Screening Stage")
+        self.assertIn("status_meta", active_context)
+        status_meta = active_context["status_meta"]
+        self.assertEqual(status_meta["status_type"], "info")
+        self.assertEqual(status_meta["has_taken_exam"], False)
+        self.assertEqual(status_meta["color"], "#3E4095")
+        self.assertEqual(status_meta["icon"], "info")
+
         # 2. Second call - should return 200 from cache
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
