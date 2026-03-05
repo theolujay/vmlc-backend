@@ -120,7 +120,7 @@ class PublishRankingSnapshotViewTest(APITestCase):
 
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
-        self.assertIn("scheduled for publication", response.data["message"])
+        self.assertIn("will go live", response.data["message"])
 
         # Verify ranking meta is updated
         self.ranking.refresh_from_db()
