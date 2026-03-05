@@ -187,3 +187,43 @@ class SlackService:
             ],
         }
         return self._send_notification(payload)
+
+    def send_ranking_published_notification(self, ranking):
+        """Sends a notification about a published ranking snapshot to a Slack channel."""
+        exam = ranking.exam
+        payload = {
+            "text": f":trophy: Results Published: {exam.get_title()}",
+            "attachments": [
+                {
+                    "color": "#3E4095",
+                    "fields": [
+                        {
+                            "title": "Exam",
+                            "value": exam.get_title(),
+                            "short": True,
+                        },
+                        {
+                            "title": "Stage",
+                            "value": ranking.get_stage_display(),
+                            "short": True,
+                        },
+                        {
+                            "title": "Round",
+                            "value": str(ranking.round) if ranking.round else "N/A",
+                            "short": True,
+                        },
+                        {
+                            "title": "Candidates",
+                            "value": str(ranking.entries.count()),
+                            "short": True,
+                        },
+                        {
+                            "title": "Environment",
+                            "value": settings.APP_ENVIRONMENT.title(),
+                            "short": True,
+                        },
+                    ],
+                }
+            ],
+        }
+        return self._send_notification(payload)

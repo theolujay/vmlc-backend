@@ -144,6 +144,13 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
                     ranking_snapshot_id=ranking.id
                 )
             )
+
+            # Trigger notifications
+            from comms.services.notification import NotificationService
+
+            ns = NotificationService()
+            transaction.on_commit(lambda: ns.notify_ranking_published(ranking))
+
             from competition.models import Stage
             # Trigger leaderboard update if it's a league exam
             if ranking.stage == Stage.Type.LEAGUE:
