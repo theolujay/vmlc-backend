@@ -392,9 +392,10 @@ class NotificationService:
         message = (
             f"Dear {{candidate_name}},\n\n"
             f"The results for '{exam.get_title()}' have been published and are now available on your dashboard.\n\n"
-            f"Log in now to view your performance.\n\n"
+            f"Log in now to view your performance:\n\n"
+            f"{settings.FRONTEND_BASE_URL}/login\n\n"
             f"Regards,\n"
-            f"VMLC Team"
+            f"VMLC Team."
         )
 
         # 1. Notify Candidates
@@ -410,7 +411,7 @@ class NotificationService:
                 user=user,
                 subject=subject,
                 message=personalized_message,
-                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Mediums.EMAIL],
                 notification_type="success",
                 metadata={"html_message": html_message},
             )
@@ -423,9 +424,11 @@ class NotificationService:
 
         staff_subject = f"System Update: Results Published for {exam.get_title()}"
         staff_message = (
-            f"The ranking snapshot for '{exam.get_title()}' has been officially published "
+            f"The ranking table for '{exam.get_title()}' has been officially published "
             f"for {ranking.entries.count()} candidates.\n\n"
-            f"Environment: {settings.APP_ENVIRONMENT.title()}"
+            f"Environment: {settings.APP_ENVIRONMENT.title()}\n\n"
+            "Regards,\n"
+            "VMLC Bot."
         )
 
         for staff in staff_to_notify:
