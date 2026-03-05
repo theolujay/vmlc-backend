@@ -73,6 +73,7 @@ class ProgressionLogicTest(TestCase):
             stage=Stage.Type.SCREENING,
             exam=exam,
             is_published=True,
+            is_active=True,
         )
         RankingSnapshotEntry.objects.create(
             ranking_snapshot=snapshot,

@@ -72,13 +72,13 @@ Drives the interactive status banner and qualification messaging.
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `status_type` | `string` | Semantic state: `"success"`, `"pending"`, `"info"`, `"warning"`, `"error"`, `"eliminated"`, `"disqualified"`. |
-| `status_label` | `string` | Heading for the status banner (e.g., `"On Track for the Finals"`, `"Results on the Way"`, `"Eliminated"`). |
-| `status_subtext` | `string` | Context-aware explanatory text (e.g., `"Maintaining this position keeps you eligible for the Grand Final."`). |
-| `color` | `string` | Text/Icon color for the banner. |
-| `bg_color` | `string` | Background color for the banner. |
-| `icon` | `string` | Icon identifier (e.g., `"check"`, `"clock"`, `"alert"`, `"calendar"`). |
-| `metric_label` | `string` | Label for the qualification threshold (e.g., `"Finalist Cut-off"`). |
-| `metric_value_display` | `string` | Value of the threshold (e.g., `"Top 100"` or `"Top 10%"`). |
+| `status_label` | `string` | Heading for the status banner (e.g., `"On Track for the Finals"`, `"Results on the Way"`, `"Screening Upcoming"`). |
+| `status_subtext` | `string` | Context-aware explanatory text (e.g., `"The screening hasn't started yet. We'll notify you when it does."`). |
+| `color` | `string` | Text/Icon hex color. |
+| `bg_color` | `string` | Background hex color. |
+| `icon` | `string` | Icon name (e.g., `"check"`, `"clock"`, `"info"`, `"calendar"`, `"alert"`). |
+| `metric_label` | `string` | Label for the qualification threshold. |
+| `metric_value_display` | `string` | Human-readable threshold value (e.g., `"Top 100"`). |
 
 ---
 
@@ -90,6 +90,7 @@ A list of all previous exam results.
 | `exam_id` | `uuid` | Exam ID. |
 | `exam_title` | `string` | Title. |
 | `score` | `float` | Truncated score (only visible if `is_published` is true). |
+| `percentage` | `float` | Score percentage (same as score for now). |
 | `status` | `string` | Final state of the exam. |
 | `is_published` | `boolean` | Whether results are officially released. |
 
@@ -113,7 +114,7 @@ A list of all previous exam results.
   },
   "active_exam": {
     "id": "...",
-    "title": "League - Round 3",
+    "title": "League Round 3",
     "status": "awaiting_results",
     "attempt": {
       "submitted_at": "2026-03-05T14:30:00Z"
@@ -134,8 +135,8 @@ A list of all previous exam results.
       },
       "status_meta": {
         "status_type": "success",
-        "status_label": "Within Qualification Range",
-        "status_subtext": "Maintaining this position keeps you eligible for the Grand Final.",
+        "status_label": "On Track for the Finals",
+        "status_subtext": "You're within the qualification range. Keep it up.",
         "color": "#018ABB",
         "bg_color": "#CCEEFB33",
         "icon": "check",

@@ -97,10 +97,10 @@ class CandidateDashboardViewTest(APITestCase):
         self.assertEqual(active_context["stage_display"], "Screening Stage")
         self.assertIn("status_meta", active_context)
         status_meta = active_context["status_meta"]
-        self.assertEqual(status_meta["status_type"], "warning")
+        self.assertEqual(status_meta["status_type"], "info")
         self.assertEqual(status_meta["has_taken_exam"], False)
-        self.assertEqual(status_meta["color"], "#667185")
-        self.assertEqual(status_meta["icon"], "calendar")
+        self.assertEqual(status_meta["color"], "#3E4095")
+        self.assertEqual(status_meta["icon"], "info")
 
         # 2. Second call - should return 200 from cache
         response = self.client.get(url)
