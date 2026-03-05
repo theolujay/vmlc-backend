@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch, MagicMock
+from django.utils.dateparse import parse_datetime
 
 from identity.models import User, Candidate, Staff
 from competition.models import (
@@ -124,7 +125,9 @@ class PublishRankingSnapshotViewTest(APITestCase):
 
         # Verify ranking meta is updated
         self.ranking.refresh_from_db()
-        self.assertEqual(self.ranking.meta["scheduled_publish_at"], publish_at.isoformat())
+        # Compare as datetimes to avoid timezone string mismatch
+        stored_publish_at = parse_datetime(self.ranking.meta["scheduled_publish_at"])
+        self.assertEqual(stored_publish_at, publish_at)
         self.assertEqual(self.ranking.meta["scheduled_by"], str(self.staff_profile.pk))
 
         # Verify task was scheduled with ETA
