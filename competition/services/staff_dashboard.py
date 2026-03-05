@@ -86,7 +86,8 @@ class StaffCompetitionDashboardService:
         # Batch fetch all exam results for this competition to avoid N+1
         exam_results_aggregate = (
             CandidateExamResult.objects.filter(
-                exam__competition_slot__competition_stage__competition=active_comp
+                exam__competition_slot__competition_stage__competition=active_comp,
+                candidate__user__is_active=True,
             )
             .values("exam_id")
             .annotate(
