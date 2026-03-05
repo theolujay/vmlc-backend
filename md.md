@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 STATUS_THEMES = {
     "success": {"color": "#018ABB", "bg_color": "#CCEEFB33", "icon": "check"},
     "pending": {"color": "#065F46", "bg_color": "#ECFDF5", "icon": "clock"},
-    "info": {"color": "#3E4095", "bg_color": "#EFF6FF", "icon": "info"},
     "warning": {"color": "#667185", "bg_color": "#F9FAFB", "icon": "calendar"},
     "error": {"color": "#CB1A14", "bg_color": "#FBEAE9", "icon": "alert"},
     "eliminated": {"color": "#CB1A14", "bg_color": "#FBEAE9", "icon": "alert"},
@@ -170,6 +169,40 @@ class CandidateDashboardService:
             "performance": performance,
             "exam_history": history,
         }
+
+    # @staticmethod
+    # def _get_notifications(candidate: Candidate) -> Dict[str, Any]:
+
+    #     # Fetch last 5 unread notifications
+    #     notifications = Notification.objects.filter(
+    #         recipient=candidate.user,
+    #         is_read=False,
+    #     ).order_by("-created_at")[:5]
+
+    #     notification_map = {"info": [], "success": [], "error": []}
+    #     n_type_key_map = {
+    #         Notification.Type.INFO: "info",
+    #         Notification.Type.SUCCESS: "success",
+    #         Notification.Type.ERROR: "error",
+    #     }
+
+    #     for n in notifications:
+    #         key = n_type_key_map.get(n.type)
+    #         if key:
+    #             notification_map[key].append(
+    #                 {
+    #                     "id": n.id,
+    #                     "message": n.message,
+    #                     "is_read": n.is_read
+    #                 }
+    #             )
+    #     return notification_map
+
+    # @staticmethod
+    # def _get_context(candidate: Candidate) -> Dict[str, Any]:
+    #     from vmlc.views.user.management import ProfileManager
+
+    #     return ProfileManager.serialize_profile(candidate.user) or {}
 
     @staticmethod
     def _get_enrollment_stage_progress(
@@ -554,22 +587,9 @@ class CandidateDashboardService:
             elif is_awaiting_results:
                 status_type = "pending"
             elif not has_taken_exam:
-                status_type = "info"
+                status_type = "warning"
             elif ranking:
-                if current_stage_type == Stage.Type.LEAGUE and policy:
-                    mode = policy.get("mode")
-                    value = policy.get("value")
-                    position = ranking.get("position")
-                    total = ranking.get("total_candidates")
-                    within_cutoff = False
-                    if position is not None and value is not None:
-                        if mode == "top_n":
-                            within_cutoff = position <= value
-                        elif mode == "top_percent" and total:
-                            within_cutoff = (position / total) * 100 <= value
-                    status_type = "success" if within_cutoff else "warning"
-                else:
-                    status_type = "success"
+                status_type = "success"
             else:
                 status_type = "error"
 
@@ -643,15 +663,9 @@ class CandidateDashboardService:
                     "exam_title": exam.get_title(),
                     "stage": slot.competition_stage.type if slot else "N/A",
                     "round": slot.round if slot else None,
-                    "score": (
-                        truncate_float(float(res.score))
-                        if is_published and res.score is not None
-                        else None
-                    ),
+                    "score": truncate_float(float(res.score)) if is_published else None,
                     "percentage": (
-                        truncate_float(float(res.score))
-                        if is_published and res.score is not None
-                        else None
+                        truncate_float(float(res.score)) if is_published else None
                     ),
                     "date": res.recorded_at,
                     "status": exam.status,

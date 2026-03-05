@@ -71,9 +71,9 @@ Drives the interactive status banner and qualification messaging.
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `status_type` | `string` | Semantic state: `"success"`, `"pending"`, `"warning"`, `"error"`. |
-| `status_label` | `string` | Large heading for the status banner. |
-| `status_subtext` | `string` | Explanatory text for the current status. |
+| `status_type` | `string` | Semantic state: `"success"`, `"pending"`, `"info"`, `"warning"`, `"error"`, `"eliminated"`, `"disqualified"`. |
+| `status_label` | `string` | Heading for the status banner (e.g., `"On Track for the Finals"`, `"Results on the Way"`, `"Eliminated"`). |
+| `status_subtext` | `string` | Context-aware explanatory text (e.g., `"Maintaining this position keeps you eligible for the Grand Final."`). |
 | `color` | `string` | Text/Icon color for the banner. |
 | `bg_color` | `string` | Background color for the banner. |
 | `icon` | `string` | Icon identifier (e.g., `"check"`, `"clock"`, `"alert"`, `"calendar"`). |
