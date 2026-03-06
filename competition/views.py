@@ -38,7 +38,7 @@ from competition.tasks import (
 from competition.services.leaderboard import LeaderboardService
 from competition.services.staff_dashboard import StaffCompetitionDashboardService
 from competition.services.candidate_dashboard import CandidateDashboardService
-from competition.services.progression import ProgressionService, ProgressionError
+from competition.services.promotion import PromotionService, PromotionError
 
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
 from vmlc.v2.utils import CacheKeys, get_or_set_cache
@@ -502,7 +502,7 @@ class PromoteCandidatesView(APIView):
         data = serializer.validated_data
 
         try:
-            promoted_count = ProgressionService.promote_candidates(
+            promoted_count = PromotionService.promote_candidates(
                 from_stage_type=data["from_stage"],
                 to_stage_type=data["to_stage"],
                 cutoff_rank=data.get("cutoff_rank", None),
@@ -514,7 +514,7 @@ class PromoteCandidatesView(APIView):
                     "detail": f"Successfully promoted {promoted_count} candidates to {data['to_stage']}.",
                 }
             )
-        except ProgressionError as e:
+        except PromotionError as e:
             return Response(
                 {"status": "error", "message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,

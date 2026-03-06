@@ -129,7 +129,7 @@ def change_candidate_role(modeladmin, request, queryset):
 
 @admin.action(description="Disqualify selected candidates")
 def disqualify_selected_candidates(modeladmin, request, queryset):
-    from competition.services.progression import ProgressionService, ProgressionError
+    from competition.services.promotion import PromotionService, PromotionError
 
     if "apply" in request.POST:
         form = DisqualifyForm(request.POST)
@@ -139,9 +139,9 @@ def disqualify_selected_candidates(modeladmin, request, queryset):
             errors = []
             for candidate in queryset:
                 try:
-                    ProgressionService.disqualify_candidate(candidate.pk, reason=reason)
+                    PromotionService.disqualify_candidate(candidate.pk, reason=reason)
                     count += 1
-                except (ProgressionError, Exception) as e:
+                except (PromotionError, Exception) as e:
                     errors.append(f"Failed to disqualify {candidate}: {str(e)}")
 
             if count:

@@ -45,7 +45,7 @@ from competition.models import (
 )
 from competition.services.ranking import RankingSnapshotGenerator
 from competition.services.leaderboard import LeaderboardService
-from competition.services.progression import ProgressionService
+from competition.services.promotion import PromotionService
 from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
@@ -98,7 +98,7 @@ class Command(BaseCommand):
 
         # Promote top 80 to League
         self.stdout.write("Promoting top 80 candidates to League stage...")
-        ProgressionService.promote_candidates(
+        PromotionService.promote_candidates(
             from_stage_type=Stage.Type.SCREENING,
             to_stage_type=Stage.Type.LEAGUE,
             cutoff_rank=80,
@@ -125,7 +125,7 @@ class Command(BaseCommand):
 
         # Promote top 20 to Final
         self.stdout.write("Promoting top 20 candidates to Final stage...")
-        ProgressionService.promote_candidates(
+        PromotionService.promote_candidates(
             from_stage_type=Stage.Type.LEAGUE,
             to_stage_type=Stage.Type.FINAL,
             cutoff_rank=20,

@@ -27,7 +27,7 @@ Team members who manage the competition platform, from content creation to user 
 ### Verification
 
 - Users must verify their email before accessing most features
-- Document verification is required for role progression
+- Document verification is required for role promotion
 - Verification is managed by staff with appropriate permissions
 
 ## Learn More

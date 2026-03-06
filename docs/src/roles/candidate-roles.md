@@ -25,7 +25,7 @@ Candidates progress through four roles as they advance in the competition.
 
 ## Role: League
 
-**Progression** from screening after staff approval.
+**Promotion** from screening after staff approval.
 
 ### Additional Abilities
 
@@ -40,7 +40,7 @@ Candidates progress through four roles as they advance in the competition.
 
 ## Role: Final
 
-**Progression** to final stage of competition.
+**Promotion** to final stage of competition.
 
 ### Additional Abilities
 
@@ -60,7 +60,7 @@ Candidates progress through four roles as they advance in the competition.
 - All final role permissions
 - Winner status recognition
 
-## Role Progression
+## Role Promotion
 
 ```mermaid
 graph LR

@@ -337,7 +337,7 @@ class RankingSnapshotEntry(models.Model):
     A single candidate's ranking within a specific Ranking Snapshot for an exam.
 
     This is the canonical table for that exam snapshot. It is authoritative
-    for competition display and progression logic, but not for raw exam evaluation.
+    for competition display and promotion logic, but not for raw exam evaluation.
 
     - exam_score: the snapshot score used for ranking (copied at generation time).
     """

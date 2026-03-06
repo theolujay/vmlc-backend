@@ -15,11 +15,11 @@ from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
 logger = logging.getLogger(__name__)
 
 
-class ProgressionError(Exception):
+class PromotionError(Exception):
     pass
 
 
-class ProgressionService:
+class PromotionService:
     """
     Service to handle candidate promotion between competition stages.
     """
@@ -43,7 +43,7 @@ class ProgressionService:
             ).first()
 
         if not competition:
-            raise ProgressionError("No active competition found.")
+            raise PromotionError("No active competition found.")
 
         # Identify the stages
         from_stage = Stage.objects.filter(
@@ -54,9 +54,9 @@ class ProgressionService:
         ).first()
 
         if not from_stage:
-            raise ProgressionError(f"Source stage '{from_stage_type}' not found.")
+            raise PromotionError(f"Source stage '{from_stage_type}' not found.")
         if not to_stage:
-            raise ProgressionError(f"Target stage '{to_stage_type}' not found.")
+            raise PromotionError(f"Target stage '{to_stage_type}' not found.")
 
         # Determine the effective cutoff rank
         if cutoff_rank is None:
@@ -64,7 +64,7 @@ class ProgressionService:
             policy = from_stage.config.get("advancement_policy")
 
             if not policy:
-                raise ProgressionError(
+                raise PromotionError(
                     f"No advancement_policy found for {from_stage_type} -> {to_stage_type}. AND cutoff_rank wasn't provided"
                 )
 
@@ -90,7 +90,7 @@ class ProgressionService:
                     if ranking:
                         total_active_in_stage = ranking.entries.count()
                     else:
-                        raise ProgressionError(
+                        raise PromotionError(
                             f"No active, published {from_stage_type.title()} ranking available to promote candidates to {to_stage_type.title()} stage"
                         )
                 elif from_stage_type == Stage.Type.LEAGUE:
@@ -100,7 +100,7 @@ class ProgressionService:
                     if leaderboard:
                         total_active_in_stage = leaderboard.entries.count()
                     else:
-                        raise ProgressionError(
+                        raise PromotionError(
                             f"No {from_stage_type.title()} leaderboard to promote candidates to {to_stage_type.title()} stage"
                         )
 
@@ -111,11 +111,11 @@ class ProgressionService:
                         1, math.ceil(total_active_in_stage * float(value))
                     )  # resolve cutoff_rank to at least 1
                 else:
-                    raise ProgressionError(
+                    raise PromotionError(
                         f"Cannot calculate top_percent: No enrollments found in {from_stage_type} stage."
                     )
             else:
-                raise ProgressionError(f"Unsupported advancement mode: {mode}")
+                raise PromotionError(f"Unsupported advancement mode: {mode}")
 
         logger.info(
             f"Advancement: Using cutoff_rank={cutoff_rank} for {from_stage_type} -> {to_stage_type}"
@@ -138,7 +138,7 @@ class ProgressionService:
             )
 
             if not ranking:
-                raise ProgressionError("No published Screening ranking snapshot found.")
+                raise PromotionError("No published Screening ranking snapshot found.")
 
             candidate_ids_to_promote = list(
                 ranking.entries.filter(rank__lte=cutoff_rank).values_list(
@@ -155,7 +155,7 @@ class ProgressionService:
         elif from_stage_type == Stage.Type.LEAGUE:
             leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
             if not leaderboard:
-                raise ProgressionError("No League leaderboard found.")
+                raise PromotionError("No League leaderboard found.")
 
             # Use the entries from the leaderboard
             candidate_ids_to_promote = [
@@ -168,7 +168,7 @@ class ProgressionService:
             ]
 
         else:
-            raise ProgressionError(
+            raise PromotionError(
                 f"Promotion from stage '{from_stage_type}' is not supported."
             )
 
@@ -245,7 +245,7 @@ class ProgressionService:
             )
 
         # Send Notifications
-        ProgressionService._send_notifications(
+        PromotionService._send_notifications(
             competition=competition,
             promoted_ids=candidate_ids_to_promote,
             eliminated_ids=candidate_ids_to_eliminate,
@@ -305,7 +305,7 @@ class ProgressionService:
             status=EnrollmentStageProgress.Status.IN_PROGRESS,
         ).update(status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now)
         # Send Notifications
-        ProgressionService._send_absentee_notifications(
+        PromotionService._send_absentee_notifications(
             competition=ranking.competition, absentee_entries=absentee_entries
         )
         # Invalidate Caches
@@ -337,7 +337,7 @@ class ProgressionService:
             ).first()
 
         if not competition:
-            raise ProgressionError("No active competition found.")
+            raise PromotionError("No active competition found.")
 
         now = timezone.now()
 
@@ -349,7 +349,7 @@ class ProgressionService:
         ).first()
 
         if not enrollment:
-            raise ProgressionError(
+            raise PromotionError(
                 f"No active enrollment found for candidate {candidate_id}."
             )
 
@@ -411,7 +411,7 @@ class ProgressionService:
         if notifications:
             created_notifications = Notification.objects.bulk_create(notifications)
             notifications_created.send(
-                sender=ProgressionService._send_absentee_notifications,
+                sender=PromotionService._send_absentee_notifications,
                 notifications=created_notifications,
             )
             logger.info(f"Sent {len(notifications)} absentee elimination notifications.")
@@ -509,5 +509,5 @@ class ProgressionService:
             )
             ns.send_broadcast(staff_broadcast.id)
 
-        logger.info(f"Triggered progression broadcasts for {competition.name}.")
+        logger.info(f"Triggered promotion broadcasts for {competition.name}.")
 
