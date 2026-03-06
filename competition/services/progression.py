@@ -250,6 +250,7 @@ class ProgressionService:
             promoted_ids=candidate_ids_to_promote,
             eliminated_ids=candidate_ids_to_eliminate,
             to_stage_type=to_stage_type,
+            from_stage_type=from_stage_type,
         )
 
         # Invalidate Caches
@@ -416,70 +417,97 @@ class ProgressionService:
             logger.info(f"Sent {len(notifications)} absentee elimination notifications.")
 
     @staticmethod
-    def _send_notifications(competition, promoted_ids, eliminated_ids, to_stage_type):
+    def _send_notifications(
+        competition, promoted_ids, eliminated_ids, to_stage_type, from_stage_type
+    ):
         """
-        Sends platform notifications to candidates about their promotion or elimination.
+        Sends platform notifications to candidates about their promotion or elimination via Broadcast.
+        Also informs staff members.
         """
-        from comms.models import Notification
-        from comms.signals import notifications_created
-        from identity.models import Candidate
+        from comms.models import Broadcast
+        from comms.services.notification import NotificationService
+        from identity.models import Staff
+        from django.conf import settings
 
-        notifications = []
+        ns = NotificationService()
+        ENV = settings.APP_ENVIRONMENT
+        env_prefix = f"{ENV.title()} " if ENV != "production" else ""
 
-        # Promoted Notifications
+        # 1. Promoted Candidates (via Broadcast)
         if promoted_ids:
-            candidates = Candidate.objects.filter(pk__in=promoted_ids).select_related(
-                "user"
-            )
-            subject = f"Congrats!"
+            subject = f"{env_prefix}Congratulations!"
             message = (
-                f"Based on your performance in the previous stage of {competition.name}, "
+                f"Dear Candidate,\n\n"
+                f"Based on your performance in the {from_stage_type.title()} stage, "
                 f"you have successfully advanced to the {to_stage_type.title()} stage. "
-                "Check your dashboard for more information."
+                "Check your dashboard for more information.\n\n"
+                "Regards,\n"
+                "VMLC Team."
             )
-            for cand in candidates:
-                notifications.append(
-                    Notification(
-                        recipient=cand.user,
-                        subject=subject,
-                        message=message,
-                        type=Notification.Type.SUCCESS,
-                        metadata={"send_email": True},
-                    )
-                )
+            promoted_broadcast = Broadcast.objects.create(
+                subject=subject,
+                message=message,
+                mediums=[Broadcast.Mediums.EMAIL],
+                target_roles={"candidate": [to_stage_type]},
+                status=Broadcast.Status.PENDING,
+            )
+            ns.send_broadcast(promoted_broadcast.id)
 
-        # Eliminated Notifications
+        # 2. Eliminated Candidates (via Broadcast)
         if eliminated_ids:
-            candidates = Candidate.objects.filter(pk__in=eliminated_ids).select_related(
-                "user"
-            )
-            subject = f"Update: {competition.get_title()}"
+            subject = f"{env_prefix}Update: {competition.get_title()}"
             message = (
-                "Dear {candidate_full_name},\n\n"
-                f"Thank you for participating in {competition.name}. "
-                "Unfortunately, you did not meet the cutoff for the next stage. "
+                "Dear Candidate,\n\n"
+                f"Thank you for participating in {competition.get_title()}. "
+                f"Unfortunately, you did not meet the cutoff for the {to_stage_type.title()} stage. "
                 "We appreciate your effort and hope to see you in future editions.\n\n"
                 "Regards,\n"
                 "VMLC Team."
             )
-            for cand in candidates:
-                personalized_message = message.format(
-                    candidate_full_name=cand.user.get_full_name()
-                )
-                notifications.append(
-                    Notification(
-                        recipient=cand.user,
-                        subject=subject,
-                        message=personalized_message,
-                        type=Notification.Type.INFO,
-                        metadata={"send_email": True},
-                    )
-                )
-
-        if notifications:
-            created_notifications = Notification.objects.bulk_create(notifications)
-            notifications_created.send(
-                sender=ProgressionService._send_notifications,
-                notifications=created_notifications,
+            eliminated_broadcast = Broadcast.objects.create(
+                subject=subject,
+                message=message,
+                mediums=[Broadcast.Mediums.EMAIL],
+                target_roles={"candidate": [from_stage_type]},
+                status=Broadcast.Status.PENDING,
             )
-            logger.info(f"Sent {len(notifications)} progression notifications.")
+            ns.send_broadcast(eliminated_broadcast.id)
+
+        # 3. Staff Notification (Managers, Admins) (via Broadcast)
+        if promoted_ids or eliminated_ids:
+            staff_subject = (
+                f"{env_prefix}System Update: {from_stage_type.title()} Stage Promotion Completed"
+            )
+            ignore_message = (
+                f"You may ignore this alert, as testing is ongoing.\n\n"
+                if ENV != "production"
+                else ""
+            )
+            staff_message = (
+                f"Candidate promotion from {from_stage_type.title()} to {to_stage_type.title()} "
+                f"has been completed for {competition.name}.\n\n"
+                f"Promoted: {len(promoted_ids)} candidates.\n"
+                f"Eliminated: {len(eliminated_ids)} candidates.\n\n"
+                f"This is an automated message for the {ENV.title()} environment.\n\n"
+                f"{ignore_message}"
+                "Regards,\n"
+                "VMLC Bot."
+            )
+
+            staff_broadcast = Broadcast.objects.create(
+                subject=staff_subject,
+                message=staff_message,
+                mediums=[Broadcast.Mediums.EMAIL],
+                target_roles={
+                    "staff": [
+                        Staff.Roles.ADMIN,
+                        Staff.Roles.MANAGER,
+                        Staff.Roles.SUPERADMIN,
+                    ]
+                },
+                status=Broadcast.Status.PENDING,
+            )
+            ns.send_broadcast(staff_broadcast.id)
+
+        logger.info(f"Triggered progression broadcasts for {competition.name}.")
+
