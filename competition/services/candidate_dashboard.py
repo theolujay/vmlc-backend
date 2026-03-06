@@ -53,15 +53,15 @@ STAGE_CONFIGS = {
             ),
             "warning": (
                 "Below Cut-off",
-                "Your current rank is outside the qualification range.",
+                "You're outside the qualification range.",
             ),
             "error": (
-                "Round Missed",
+                "Exam Missed",
                 "You did not participate in the screening examination.",
             ),
             "eliminated": (
                 "Eliminated",
-                "Your score didn't meet the cut-off for the next stage.",
+                "You didn't meet the cut-off for the League stage.",
             ),
         },
     },
@@ -87,12 +87,12 @@ STAGE_CONFIGS = {
                 "This round hasn't begun yet. Good luck when it does.",
             ),
             "error": (
-                "Round Missed",
-                "You missed a mandatory round and are at risk of elimination.",
+                "Exam Missed",
+                "You missed a round and are at risk of elimination.",
             ),
             "eliminated": (
                 "Eliminated",
-                "You were absent from one round.",
+                "You got far, but can no longer continue.",
             ),
         },
     },
@@ -114,7 +114,7 @@ STAGE_CONFIGS = {
                 "Schedule and details for the final will be shared soon. Prepare well.",
             ),
             "error": (
-                "Round Missed",
+                "Exam Missed",
                 "You did not participate in the final examination.",
             ),
             "eliminated": (
