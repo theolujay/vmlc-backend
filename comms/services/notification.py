@@ -378,19 +378,17 @@ class NotificationService:
         """
         from identity.models import Staff
         from comms.services.slack import SlackService
-        from comms.services.email import create_email_html
 
+        ENV = settings.APP_ENVIRONMENT
         exam = ranking.exam
-        candidate_ids = ranking.entries.values_list("candidate_id", flat=True)
-        from identity.models import Candidate
 
-        candidates = Candidate.objects.filter(pk__in=candidate_ids).select_related(
-            "user"
-        )
+        # Environment-aware subject prefix
+        env_prefix = f"{ENV.title()} " if ENV != "production" else ""
+        subject = f"{env_prefix}Results Published: {exam.get_title()}"
 
-        subject = f"Results Published: {exam.get_title()}"
-        message = (
-            f"Dear {{candidate_name}},\n\n"
+        # 1. Notify Candidates (via Broadcast)
+        candidate_message = (
+            f"Dear Candidate,\n\n"
             f"The results for '{exam.get_title()}' have been published and are now available on your dashboard.\n\n"
             f"Log in now to view your performance:\n\n"
             f"{settings.FRONTEND_BASE_URL}/login\n\n"
@@ -398,60 +396,45 @@ class NotificationService:
             f"VMLC Team."
         )
 
-        # 1. Notify Candidates
-        for cand in candidates:
-            user = cand.user
-            personalized_message = message.format(
-                candidate_name=user.first_name or "Candidate"
-            )
-            html_message = create_email_html(
-                subject=subject, message=personalized_message
-            )
-            self.notify_user(
-                user=user,
-                subject=subject,
-                message=personalized_message,
-                mediums=[Broadcast.Mediums.EMAIL],
-                notification_type="success",
-                metadata={"html_message": html_message},
-            )
+        candidate_broadcast = Broadcast.objects.create(
+            subject=subject,
+            message=candidate_message,
+            mediums=[Broadcast.Mediums.EMAIL],
+            target_roles={"candidate": [ranking.stage]},
+            status=Broadcast.Status.PENDING,
+        )
+        self.send_broadcast(candidate_broadcast.id)
 
-        # 2. Notify Staff (Managers, Admins)
-        staff_to_notify = Staff.objects.filter(
-            role__in=[Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN],
-            user__is_active=True,
-        ).select_related("user")
-
-        staff_subject = f"System Update: Results Published for {exam.get_title()}"
+        # 2. Notify Staff (Managers, Admins) (via Broadcast)
+        staff_subject = f"{env_prefix}System Update: Results Published for {exam.get_title()}"
+        ignore_message = f"You may ignore this alert, as testing is ongoing.\n\n" if ENV != 'production' else ""
         staff_message = (
-            f"The ranking table for '{exam.get_title()}' has been officially published "
+            f"The ranking table for '{exam.get_title()}' has been published "
             f"for {ranking.entries.count()} candidates.\n\n"
-            f"Environment: {settings.APP_ENVIRONMENT.title()}\n\n"
+            f"This is an automated message for the {ENV.title()} environment.\n\n"
+            f"{ignore_message}"
             "Regards,\n"
             "VMLC Bot."
         )
 
-        for staff in staff_to_notify:
-            self.notify_user(
-                user=staff.user,
-                subject=staff_subject,
-                message=staff_message,
-                mediums=[Broadcast.Mediums.EMAIL],
-                notification_type="info",
-                metadata={
-                    "html_message": create_email_html(
-                        subject=staff_subject, message=staff_message
-                    )
-                },
-            )
+        staff_broadcast = Broadcast.objects.create(
+            subject=staff_subject,
+            message=staff_message,
+            mediums=[Broadcast.Mediums.EMAIL],
+            target_roles={
+                "staff": [Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
+            },
+            status=Broadcast.Status.PENDING,
+        )
+        self.send_broadcast(staff_broadcast.id)
 
         # 3. Slack Notification
         slack = SlackService()
         slack.send_ranking_published_notification(ranking)
 
         logger.info(
-            f"Sent 'Results Published' notifications for {exam.get_title()} to "
-            f"{candidates.count()} candidates and {staff_to_notify.count()} staff."
+            f"Triggered 'Results Published' broadcasts for {exam.get_title()} to "
+            f"candidates ({ranking.stage}) and management staff."
         )
 
     def send_phone_msg(self, body: str, recipient: str, medium: str) -> Dict[str, Any]:
