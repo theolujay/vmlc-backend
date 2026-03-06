@@ -551,7 +551,7 @@ class CandidateDashboardService:
         mode = policy.get("mode")
         value = policy.get("value")
         if mode == "top_n":
-            return f"Top {value}"
+            return f"Top {int(value)}"
         if mode == "top_percent":
             return f"Top {round(value * 100)}%"
         return "N/A"
