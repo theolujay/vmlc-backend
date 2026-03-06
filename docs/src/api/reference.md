@@ -212,9 +212,9 @@ _(Permissions are hierarchical; higher roles inherit permissions from lower role
 
 **NOTE**: Users must already have their emails verified and be user-verified to perform actions beyond `get-started`.
 
-#### Role Progression
+#### Role Promotion
 
-- **Candidates**: `screening` → `league` → `final` → `winner` (progression is managed by staff with `admin` role or higher)
+- **Candidates**: `screening` → `league` → `final` → `winner` (promotion is managed by staff with `admin` role or higher)
 - **Staff**: Roles are assigned by a `manager` or `superadmin`.
 
 ---

@@ -27,7 +27,7 @@ High-level overview of the candidate pool and its distribution.
 | :--- | :--- | :--- |
 | `enrolled` | `integer` | Total number of candidates ever enrolled in this edition. |
 | `active` | `integer` | Candidates currently eligible and participating. |
-| `eliminated` | `integer` | Candidates removed via competition progression rules. |
+| `eliminated` | `integer` | Candidates removed via competition promotion rules. |
 | `disqualified` | `integer` | Candidates removed due to violations or inactive accounts. |
 | `stage_breakdown` | `object` | Map of stage slugs to the count of active candidates currently in that stage. |
 

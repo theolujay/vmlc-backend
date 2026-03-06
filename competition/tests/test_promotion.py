@@ -9,11 +9,11 @@ from competition.models import (
 )
 from identity.models import User, Candidate
 from vmlc.models import Exam
-from competition.services.progression import ProgressionService, ProgressionError
+from competition.services.promotion import PromotionService, PromotionError
 from competition.models import RankingSnapshot, RankingSnapshotEntry
 
 
-class ProgressionLogicTest(TestCase):
+class PromotionLogicTest(TestCase):
     def setUp(self):
         self.competition = Competition.objects.create(
             name="Test Comp", edition=1, status=Competition.Status.ACTIVE
@@ -91,7 +91,7 @@ class ProgressionLogicTest(TestCase):
         )
 
         # Perform promotion
-        ProgressionService.promote_candidates(
+        PromotionService.promote_candidates(
             from_stage_type=Stage.Type.SCREENING, to_stage_type=Stage.Type.LEAGUE
         )
 
@@ -111,7 +111,7 @@ class ProgressionLogicTest(TestCase):
 
     def test_disqualify_candidate(self):
         candidate = self.candidates[0]
-        ProgressionService.disqualify_candidate(
+        PromotionService.disqualify_candidate(
             candidate_id=candidate.pk, reason="Cheating"
         )
 
