@@ -37,7 +37,7 @@ STAGE_CONFIGS = {
     Stage.Type.SCREENING: {
         "label": "Screening Stage",
         "accent_color": "#4F46E5",
-        "metric_label": "League Qualification Cut-off",
+        "metric_label": "League Qualification Rank",
         "messages": {
             "success": (
                 "Screening Passed",
@@ -68,7 +68,7 @@ STAGE_CONFIGS = {
     Stage.Type.LEAGUE: {
         "label": "League Stage",
         "accent_color": "#3E4095",
-        "metric_label": "Finalist Qualification Cut-off",
+        "metric_label": "Finalist Qualification Rank",
         "messages": {
             "success": (
                 "On Track for the Finals",
