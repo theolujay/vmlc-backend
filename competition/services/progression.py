@@ -179,31 +179,35 @@ class ProgressionService:
 
         # Update Enrollment
         # Promote meeting cutoff
-        Enrollment.objects.filter(
+        promoted_enrollments_count = Enrollment.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_promote,
-            status=Enrollment.Status.ACTIVE,
-        ).update(current_stage=to_stage, last_active_at=now)
+            status__in=[Enrollment.Status.ACTIVE],
+        ).update(
+            current_stage=to_stage,
+            status=Enrollment.Status.ACTIVE,  # Mark as Active if they were Pending
+            last_active_at=now,
+        )
 
         # Eliminate below cutoff
-        Enrollment.objects.filter(
+        eliminated_enrollments_count = Enrollment.objects.filter(
             competition=competition,
             candidate_id__in=candidate_ids_to_eliminate,
-            status=Enrollment.Status.ACTIVE,
+            status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.PENDING],
         ).update(status=Enrollment.Status.ELIMINATED, last_active_at=now)
 
         # Update Candidate Roles (for permissions)
         from identity.models import Candidate
 
-        Candidate.objects.filter(pk__in=candidate_ids_to_promote).update(
-            role=to_stage_type
+        updated_roles_count = Candidate.objects.filter(
+            pk__in=candidate_ids_to_promote
+        ).update(role=to_stage_type)
+
+        logger.info(
+            f"Updated {promoted_enrollments_count} enrollments to {to_stage_type}, "
+            f"eliminated {eliminated_enrollments_count} enrollments, "
+            f"updated {updated_roles_count} candidate roles."
         )
-        # Not sure if we should also move eliminated candidates back to 'screening' or just keep them.
-        # For now, let's just keep their role as is and not explicitly set it to screening.
-
-        # Candidate.objects.filter(pk__in=candidate_ids_to_eliminate).update(role=Candidate.Roles.SCREENING)
-
-        # TODO: decide on a base role or something other than screening, league... for candidates not in active competition
 
         # Update Old StageProgress
         from_stage = Stage.objects.filter(

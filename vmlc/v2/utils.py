@@ -174,15 +174,9 @@ def delete_many_cache(keys):
 
 def invalidate_candidate_cache(candidate_id, user_id=None):
     """Clear all cache entries related to a specific candidate."""
-    keys = CacheKeys.get_candidate_keys(candidate_id, user_id)
-    # Also clear dashboard-specific keys if we have candidate_id
-    if candidate_id:
-        keys.extend(
-            [
-                CacheKeys.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
-                CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
-            ]
-        )
+    # In our model, Candidate.pk is User.id, so they are the same.
+    effective_user_id = user_id or candidate_id
+    keys = CacheKeys.get_candidate_keys(candidate_id, effective_user_id)
     delete_many_cache(keys)
 
 

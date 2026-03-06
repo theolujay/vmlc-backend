@@ -142,7 +142,7 @@ class Enrollment(models.Model):
     class Status(models.TextChoices):
         # TODO: add PENDING and us it instead of ACTIVE during registration,
         # and then swtich to ACTIVE at first login (which signifies email is verified)
-        PENDING = "pending", "Active"
+        PENDING = "pending", "Pending"
         # currently participating
         ACTIVE = "active", "Active"
         # removed by system rules and is terminal
