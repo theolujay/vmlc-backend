@@ -686,13 +686,12 @@ class NotificationService:
         # send_mass_mail is synchronous. Since send_broadcast is often called
         # from a celery task (send_broadcast_task), we can offload each email
         # to a separate task or just loop here. Offloading is better for scaling.
-        for email in valid_emails:
-            send_mail_task.delay(
-                subject=broadcast.subject,
-                message=broadcast.message,
-                recipient_list=[email],
-                html_message=html_message,
-            )
+        send_mail_task.delay(
+            subject=broadcast.subject,
+            message=broadcast.message,
+            recipient_list=valid_emails,
+            html_message=html_message,
+        )
 
         logger.info(
             "Email tasks queued for broadcast %s to %d recipients (role: %s).",
