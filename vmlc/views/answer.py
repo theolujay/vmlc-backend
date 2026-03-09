@@ -140,9 +140,9 @@ class SubmitAnswersView(APIView):
             subject=f"Submission Successful: {exam.title}",
             message=f"Your submission for the exam '{exam.title}' has been received successfully.",
             mediums=[
-                Broadcast.Mediums.PLATFORM,
+                # Broadcast.Mediums.PLATFORM,
                 Broadcast.Mediums.EMAIL,
-                Broadcast.Mediums.SMS,
+                # Broadcast.Mediums.SMS,
             ],
             notification_type="success",
         )
