@@ -11,7 +11,7 @@ from .base import *
 SECRET_KEY = "dummy"
 DEBUG = False
 TESTING = True
-APP_ENVIRONMENT = "test"
+APP_ENVIRONMENT = read_secret("APP_ENVIRONMENT", "test")
 # Add daphne for testing ASGI applications
 if "daphne" not in INSTALLED_APPS:
     INSTALLED_APPS.insert(0, "daphne")
@@ -29,16 +29,18 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [],
     "DEFAULT_THROTTLE_RATES": {},
 }
-
-# Configure test database
+# configure test database this way to keep it flexible between local dev and CI pipeline
+DATABASE_URL = read_secret(
+    "DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb"
+)
 DATABASES = {
-    "default": dj_database_url.config(
-        default="postgresql://testuser:testpassword@db:5432/testdb"
+    "default": (
+        dj_database_url if APP_ENVIRONMENT == "test"
+        else dj_database_url.parse(
+            DATABASE_URL.replace("db", "localhost")
+        )
     )
 }
-
-# DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
-# DATABASES = {"default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))}
 
 # Use FileSystemStorage for tests to avoid dependency on S3
 USE_S3 = False
@@ -57,8 +59,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
-        # "LOCATION": "redis://localhost:6379/1",
+        "LOCATION": (
+            "redis://redis:6379/1" if APP_ENVIRONMENT == "test" else "redis://localhost:6379/1"
+        ),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
