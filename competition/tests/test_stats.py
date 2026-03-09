@@ -19,21 +19,20 @@ class StatsOverviewDataTest(TestCase):
 
         # Create rounds for league via StageExam
         stage_exam1 = StageExam.objects.create(
-            competition_stage=league, round=1, is_active=True
+            competition_stage=league, round=1, is_active=False
         )
         stage_exam2 = StageExam.objects.create(
-            competition_stage=league, round=2, is_active=True
+            competition_stage=league, round=2, is_active=False
         )
 
         # Create vmlc.Exam linked to StageExam
-        exam1 = Exam.objects.create(competition_slot=stage_exam1, is_active=True)
-        exam2 = Exam.objects.create(competition_slot=stage_exam2, is_active=True)
+        _ = Exam.objects.create(competition_slot=stage_exam1, is_active=True)
+        _ = Exam.objects.create(competition_slot=stage_exam2, is_active=True)
 
-        # Create inactive round/exam (StageExam inactive)
+        # Create unused slot
         stage_exam3 = StageExam.objects.create(
             competition_stage=league, round=3, is_active=False
         )
-        exam3 = Exam.objects.create(competition_slot=stage_exam3, is_active=True)
 
         # Call the function
         data = generate_stats_overview_data()
@@ -54,8 +53,8 @@ class StatsOverviewDataTest(TestCase):
         league_data = next(s for s in stages if s["type"] == Stage.Type.LEAGUE)
         self.assertEqual(league_data["id"], league.id)
         self.assertIn("rounds", league_data)
-        self.assertEqual(league_data["rounds"], [1, 2])  # Round 3 is inactive
-
+        self.assertEqual(league_data["rounds"], [1, 2])
+        self.assertEqual(league_data["available_rounds"], [3])
     def test_no_active_competition(self):
         # No active competition
         Competition.objects.create(
