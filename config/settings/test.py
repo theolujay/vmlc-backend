@@ -38,12 +38,14 @@ REST_FRAMEWORK = {
 # }
 
 DATABASE_URL = read_secret("DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb")
+if APP_ENVIRONMENT == "local_test":
+    DATABASE_URL = DATABASE_URL.replace("db", "localhost")
+
 DATABASES = {
-    "default": (
-            dj_database_url.parse(DATABASE_URL.replace("db", "localhost")
-            if APP_ENVIRONMENT == "local_test"
-            else dj_database_url.config(default=DATABASE_URL)
-        )
+    "default": dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
 
