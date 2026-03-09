@@ -31,8 +31,8 @@ def invalidate_exam_related_caches_task(exam_id):
         logger.warning(f"Exam {exam_id} not found for cache invalidation.")
         return
 
-    invalidate_exam_cache(exam.id)
-    invalidate_score_boards(exam_id=exam.id)
+    invalidate_exam_cache(str(exam.id))
+    invalidate_score_boards(exam_id=str(exam.id))
 
     # Invalidate Candidate Dashboards for everyone in this competition
     if exam.competition_slot and exam.competition_slot.competition_stage:

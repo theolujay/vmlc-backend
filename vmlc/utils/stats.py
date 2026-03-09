@@ -134,7 +134,6 @@ def _get_competition_stats() -> dict:
             # We filter for active StageExams that have a round number
             rounds = (
                 stage.stage_exams.filter(
-                    is_active=True,
                     round__isnull=False,
                     exam__isnull=False,
                 )
@@ -144,7 +143,6 @@ def _get_competition_stats() -> dict:
             )
             available_rounds = (
                 stage.stage_exams.filter(
-                    is_active=True,
                     round__isnull=False,
                     exam__isnull=True,
                 )

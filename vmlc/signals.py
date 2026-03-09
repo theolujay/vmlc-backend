@@ -105,7 +105,7 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
 
         #     transaction.on_commit(
         #         lambda: notify_candidates_about_exam_task.delay(
-        #             instance.id, "scheduled"
+        #             str(instance.id), "scheduled"
         #         )
         #     )
 

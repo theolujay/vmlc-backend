@@ -28,9 +28,7 @@ from vmlc.v2.serializers.exam import (
     CandidateTakeExamSerializer,
     ExamFaceCaptureSerializer,
 )
-from vmlc.serializers import (
-    QuestionListSerializer,
-)
+from vmlc.v2.serializers.question import QuestionV2Serializer
 from vmlc.v2.utils import (
     CacheKeys,
     get_or_set_cache,
@@ -174,7 +172,7 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
             page = self.paginate_queryset(qs)
 
             if page is not None:
-                serialized = QuestionListSerializer(
+                serialized = QuestionV2Serializer(
                     page, many=True, context={"request": request}
                 ).data
                 paginated_response = self.get_paginated_response(serialized)
@@ -182,7 +180,7 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
                 data["questions"]["question_pool_data"] = question_pool_aggregate(qs)
                 return data
 
-            serialized = QuestionListSerializer(
+            serialized = QuestionV2Serializer(
                 qs, many=True, context={"request": request}
             ).data
             data["questions"] = {
@@ -284,7 +282,7 @@ class ExamQuestionsV2View(ListAPIView):
     """
 
     permission_classes = ActiveAdminPermissions
-    serializer_class = QuestionListSerializer
+    serializer_class = QuestionV2Serializer
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs["exam_id"]

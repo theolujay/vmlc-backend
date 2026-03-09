@@ -136,7 +136,7 @@ class SubmitAnswersV2View(APIView):
         from comms.models import Broadcast
 
         notify_user_task.delay(
-            user_id=request.user.id,
+            user_id=str(request.user.id),
             subject=f"Submission Successful: {exam.title}",
             message=f"Your submission for the exam '{exam.title}' has been received successfully.",
             mediums=[Broadcast.Mediums.EMAIL],

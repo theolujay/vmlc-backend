@@ -11,7 +11,7 @@ from .base import *
 SECRET_KEY = "dummy"
 DEBUG = False
 TESTING = True
-APP_ENVIRONMENT = "test"
+APP_ENVIRONMENT = read_secret("APP_ENVIRONMENT", "test")
 # Add daphne for testing ASGI applications
 if "daphne" not in INSTALLED_APPS:
     INSTALLED_APPS.insert(0, "daphne")
@@ -31,14 +31,23 @@ REST_FRAMEWORK = {
 }
 
 # Configure test database
+# DATABASES = {
+#     "default": dj_database_url.config(
+#         default="postgresql://testuser:testpassword@db:5432/testdb"
+#     )
+# }
+
+DATABASE_URL = read_secret("DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb")
+if APP_ENVIRONMENT == "local_test":
+    DATABASE_URL = DATABASE_URL.replace("db", "localhost")
+
 DATABASES = {
     "default": dj_database_url.config(
-        default="postgresql://testuser:testpassword@db:5432/testdb"
+        default=DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
-
-# DATABASE_URL = read_secret("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
-# DATABASES = {"default": dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))}
 
 # Use FileSystemStorage for tests to avoid dependency on S3
 USE_S3 = False
