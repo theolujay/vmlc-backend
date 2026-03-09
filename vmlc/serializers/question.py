@@ -37,6 +37,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "text",
+            "image",
             "option_a",
             "option_b",
             "option_c",
@@ -69,6 +70,7 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "text",
+            "image",
             "option_a",
             "option_b",
             "option_c",
