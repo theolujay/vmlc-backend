@@ -5,6 +5,10 @@ from vmlc.utils.stats import generate_stats_overview_data
 
 
 class StatsOverviewDataTest(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
     def test_competition_stats(self):
         # Create active competition
         comp = Competition.objects.create(
