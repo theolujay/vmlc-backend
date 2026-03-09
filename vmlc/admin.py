@@ -60,7 +60,7 @@ class ExamAdmin(admin.ModelAdmin):
         from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
 
         for exam in queryset:
-            generate_and_send_exam_passcodes_task.delay(exam.id)
+            generate_and_send_exam_passcodes_task.delay(str(exam.id))
         self.message_user(
             request,
             f"Started passcode generation and email tasks for {queryset.count()} exams.",
