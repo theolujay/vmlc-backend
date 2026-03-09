@@ -33,14 +33,12 @@ REST_FRAMEWORK = {
 DATABASE_URL = read_secret(
     "DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb"
 )
-DATABASES = {
-    "default": (
-        dj_database_url if APP_ENVIRONMENT == "test"
-        else dj_database_url.parse(
-            DATABASE_URL.replace("db", "localhost")
-        )
-    )
-}
+PARSED_DATABASE_URL = (
+    dj_database_url.parse(DATABASE_URL.replace("db", "localhost"))
+    if APP_ENVIRONMENT == "local_test"
+    else dj_database_url
+)
+DATABASES = {"default": PARSED_DATABASE_URL}
 
 # Use FileSystemStorage for tests to avoid dependency on S3
 USE_S3 = False
@@ -60,7 +58,9 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": (
-            "redis://redis:6379/1" if APP_ENVIRONMENT == "test" else "redis://localhost:6379/1"
+            "redis://redis:6379/1"
+            if APP_ENVIRONMENT == "test"
+            else "redis://localhost:6379/1"
         ),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
