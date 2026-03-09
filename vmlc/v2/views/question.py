@@ -100,8 +100,10 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
 
         for exam in instance.exams.all():
             invalidate_exam_cache(exam.id)
-
-        instance.archive()
+        if instance.exams.exists():
+            instance.archive()
+        else:
+            instance.delete()
         invalidate_question_pool()
         invalidate_staff_dashboard()
 
