@@ -607,6 +607,60 @@ class CandidateDashboardService:
         return "error"
 
     @staticmethod
+    def _get_scoreboards(
+        active_comp: Competition,
+        current_stage_type: str,
+        rankings: Dict[str, Optional[Dict]],
+    ) -> List[Dict[str, Any]]:
+        """
+        Generates a list of available scoreboards/leaderboards for the candidate.
+        """
+        scoreboards = []
+
+        # 1. League Leaderboard (Cumulative)
+        league_ranking = rankings.get(Stage.Type.LEAGUE)
+        if league_ranking:
+            scoreboards.append(
+                {
+                    "label": "League Leaderboard",
+                    "type": "leaderboard",
+                    "stage": "League",
+                    "is_current": current_stage_type == Stage.Type.LEAGUE,
+                }
+            )
+
+        # 2. Stage-specific Ranking Snapshots (Published)
+        # We fetch all published snapshots for this competition
+        snapshots = RankingSnapshot.objects.filter(
+            competition=active_comp, is_published=True
+        ).order_by("-created_at")
+
+        for snapshot in snapshots:
+            # Avoid duplicating the league leaderboard if we already handled it
+            # (Though ranking snapshots are for specific exams, while league leaderboard is cumulative)
+            label = f"{snapshot.stage.capitalize()} Ranking"
+            if snapshot.exam:
+                label = f"{snapshot.exam.get_title()} Ranking"
+
+            scoreboards.append(
+                {
+                    "label": label,
+                    "type": "ranking",
+                    "exam_id": str(snapshot.exam_id),
+                    "stage": snapshot.stage.capitalize(),
+                    "is_current": (
+                        current_stage_type == snapshot.stage
+                        and not (
+                            snapshot.stage == Stage.Type.LEAGUE
+                            and any(s["type"] == "leaderboard" for s in scoreboards)
+                        )
+                    ),
+                }
+            )
+
+        return scoreboards
+
+    @staticmethod
     def _build_active_context(
         candidate: Candidate,
         active_comp: Competition,
@@ -654,12 +708,17 @@ class CandidateDashboardService:
             enrollment.status if enrollment else Enrollment.Status.ACTIVE
         )
 
+        scoreboards = CandidateDashboardService._get_scoreboards(
+            active_comp, current_stage_type, rankings
+        )
+
         active_context = {
             "stage": current_stage_type,
             "stage_display": config.get("label"),
             "title": f"{config.get('label')} Performance",
             "accent_color": config.get("accent_color"),
             "ranking": ranking,
+            "scoreboards": scoreboards,
             "status_meta": {
                 "has_taken_exam": has_submitted,
                 "is_awaiting_results": is_awaiting_results,

@@ -341,24 +341,22 @@ class CanViewRankingSnapshot(BasePermission):
         except RankingSnapshot.DoesNotExist:
             return False
 
-        # Check if candidate is actively enrolled in this competition
+        # Check if candidate is enrolled in this competition
         enrollment_exists = Enrollment.objects.filter(
             candidate=candidate,
             competition=ranking_snapshot.competition,
-            status=Enrollment.Status.ACTIVE,
         ).exists()
 
         if not enrollment_exists:
             return False
 
-        # Check if candidate submitted the exam
-        exam_submitted = ExamAccess.objects.filter(
+        # Check if the candidate was eligible for the exam
+        exam_access_exists = ExamAccess.objects.filter(
             candidate=candidate,
             exam=ranking_snapshot.exam,
-            status=ExamAccess.Status.SUBMITTED,
         ).exists()
 
-        return exam_submitted
+        return exam_access_exists
 
 
 class CanViewOwnOrStaffRankingSnapshotEntry(BasePermission):
