@@ -2,8 +2,8 @@
 
 The Candidate Dashboard endpoint provides a comprehensive view of a candidate's status, active exams, performance metrics, and history within the competition.
 
-**Endpoint:** `GET /candidate/dashboard/`  
-**Authentication:** Required (Candidate token)  
+**Endpoint:** `GET /candidate/dashboard/`
+**Authentication:** Required (Candidate token)
 **Permissions:** Candidate Profile Required
 
 ---
@@ -64,6 +64,7 @@ This object provides a pre-computed "Performance Context" for the candidate's cu
 | `title` | `string` | Dynamic title (e.g., `"League Performance • Round 3 of 6"`). |
 | `accent_color` | `string` | Hex code for stage-specific branding. |
 | `ranking` | `object` | Current ranking data (`position`, `total_candidates`, `score`, `rank_change`). |
+| `scoreboards` | `array` | List of available ranking/leaderboard links (e.g., `[{ "label": "League Leaderboard", "type": "leaderboard", "stage": "League", "is_current": true }]`). For `type: "ranking"`, `exam_id` is required. |
 | `status_meta` | `object` | Metadata for the status banner (see below). |
 
 #### `status_meta`
@@ -133,6 +134,21 @@ A list of all previous exam results.
         "rank_change": 5,
         "is_active": true
       },
+      "scoreboards": [
+        {
+          "label": "League Leaderboard",
+          "type": "leaderboard",
+          "stage": "League",
+          "is_current": true
+        },
+        {
+          "label": "Screening Ranking",
+          "type": "ranking",
+          "exam_id": "screening-exam-id",
+          "stage": "Screening",
+          "is_current": false
+        }
+      ],
       "status_meta": {
         "status_type": "success",
         "status_label": "On Track for the Finals",

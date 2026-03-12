@@ -95,8 +95,8 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
 
     def get_exam_score(self, obj):
         if obj.exam_score is None:
-            if obj.ranking_snapshot.stage == "league":
-                return "eliminated"
+            # if obj.ranking_snapshot.stage == "league":
+            #     return "eliminated" if obj.ranking_snapshot.round > 1 else "absent"
             return "absent"
         return obj.exam_score
 
