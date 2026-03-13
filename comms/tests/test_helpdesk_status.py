@@ -188,13 +188,13 @@ class HelpdeskStatusTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(len(response.data["results"]), 0)
 
-        # 3. SNOOZED status - should be in list
+        # 3. SNOOZED status - should NOT be in list
         self.thread.status = HelpdeskThread.Status.SNOOZED
         self.thread.snoozed_until = timezone.now() + timedelta(days=1)
         self.thread.save()
         cache.clear()
         response = self.client.get(url)
-        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(len(response.data["results"]), 0)
 
         # 4. Explicit status filter for SNOOZED - should be in list
         response = self.client.get(url + "?status=snoozed")
