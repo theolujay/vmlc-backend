@@ -471,6 +471,62 @@ def send_system_email_task(
             )
 
 
+@shared_task(name="auto_close_in_progress_threads_task", queue="comms")
+def auto_close_in_progress_threads_task():
+    """
+    Periodic task to close helpdesk threads that have been IN_PROGRESS for at least 10 minutes
+    where the last message was NOT from the candidate.
+    """
+    from comms.models import HelpdeskThread, ThreadMessage
+    from django.utils import timezone
+    from django.db.models import OuterRef, Subquery
+
+    ten_minutes_ago = timezone.now() - timezone.timedelta(minutes=10)
+    # Subquery to get the sender_type of the latest message for each thread
+    latest_message_sender_type = Subquery(
+        ThreadMessage.objects.filter(thread=OuterRef("pk"))
+        .order_by("-created_at")
+        .values("sender_type")[:1]
+    )
+    # Find threads that are IN_PROGRESS, last message was > 10 mins ago,
+    # and last message sender was NOT CANDIDATE.
+    threads_to_close = HelpdeskThread.objects.annotate(
+        latest_sender_type=latest_message_sender_type
+    ).filter(
+        status=HelpdeskThread.Status.IN_PROGRESS,
+        last_message_at__lte=ten_minutes_ago,
+    ).exclude(
+        latest_sender_type=ThreadMessage.SenderType.CANDIDATE
+    )
+
+    count = threads_to_close.count()
+    if count > 0:
+        # We need to update them. update() doesn't work directly on annotated querysets in some Django versions
+        # or might be tricky. Let's get IDs and update.
+        thread_ids = list(threads_to_close.values_list("id", flat=True))
+        HelpdeskThread.objects.filter(id__in=thread_ids).update(
+            status=HelpdeskThread.Status.CLOSED,
+            snoozed_until=None
+        )
+
+        logger.info(f"Auto-closed {count} IN_PROGRESS helpdesk threads.")
+
+        # Invalidate stats cache
+        from django.core.cache import cache
+        from vmlc.v2.utils import CacheKeys
+
+        cache.delete(CacheKeys.STATS_HELPDESK)
+        try:
+            cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
+        except ValueError:
+            cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+        # Trigger WebSocket update for staff dashboard
+        broadcast_staff_helpdesk_update_task.delay()
+
+    return count
+
+
 @shared_task(name="cleanup_snoozed_helpdesk_threads_task", queue="comms")
 def cleanup_snoozed_helpdesk_threads_task():
     """
