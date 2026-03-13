@@ -22,11 +22,13 @@ class RankingSnapshotListSerializer(serializers.ModelSerializer):
             "entries_count",
             "is_published",
             "published_at",
+            "scheduled_publish_at",
             "created_at",
         ]
 
     exam = serializers.SerializerMethodField(read_only=True)
     entries_count = serializers.SerializerMethodField(read_only=True)
+    scheduled_publish_at = serializers.SerializerMethodField(read_only=True)
 
     def get_exam(self, obj: RankingSnapshot):
         exam = obj.exam
@@ -41,6 +43,9 @@ class RankingSnapshotListSerializer(serializers.ModelSerializer):
 
     def get_entries_count(self, obj: RankingSnapshot):
         return obj.entries.count()
+
+    def get_scheduled_publish_at(self,obj: RankingSnapshot):
+        return obj.meta.get("scheduled_publish_at", None)
 
 
 class PublishRankingSnapshotSerializer(serializers.Serializer):
