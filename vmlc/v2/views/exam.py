@@ -461,9 +461,11 @@ def candidate_take_exam_V2(request, exam_id):
 
         # Schedule expiration task
         from vmlc.v2.tasks import mark_exam_access_as_expired_task
+        from vmlc.v2.utils import GRACE_PERIOD_MINUTES
 
         mark_exam_access_as_expired_task.apply_async(
-            args=[str(access.id)], eta=access.deadline + timedelta(minutes=5)
+            # Add grace period for network latency
+            args=[str(access.id)], eta=access.deadline + timedelta(minutes=GRACE_PERIOD_MINUTES)
         )
 
     # 3. Global Exam Data Cache
