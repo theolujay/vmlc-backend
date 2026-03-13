@@ -217,10 +217,9 @@ def mark_exam_access_as_expired_task(access_id):
         logger.warning(f"ExamAccess {access_id} not found for expiration task.")
         return
 
-    # Check if still STARTED and deadline + grace period has passed
-    grace_period = timedelta(minutes=5)
+    # Check if still STARTED and deadline has passed
     if access.status == ExamAccess.Status.STARTED:
-        if timezone.now() >= access.deadline + grace_period:
+        if timezone.now() >= access.deadline:
             access.status = ExamAccess.Status.EXPIRED
             access.save(update_fields=["status"])
 
