@@ -485,7 +485,7 @@ def cleanup_snoozed_helpdesk_threads_task():
     )
 
     count = expired_snoozed_threads.update(
-        status=HelpdeskThread.Status.CLOSED, snoozed_until=None
+        status=HelpdeskThread.Status.OPEN, snoozed_until=None
     )
 
     if count > 0:
@@ -499,6 +499,9 @@ def cleanup_snoozed_helpdesk_threads_task():
             cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
         except ValueError:
             cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+        # Trigger WebSocket update for staff dashboard
+        broadcast_staff_helpdesk_update_task.delay()
 
     return count
 

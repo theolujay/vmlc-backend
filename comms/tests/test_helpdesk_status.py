@@ -160,19 +160,43 @@ class HelpdeskStatusTests(APITestCase):
         cleanup_snoozed_helpdesk_threads_task()
 
         self.thread.refresh_from_db()
-        self.assertEqual(self.thread.status, HelpdeskThread.Status.CLOSED)
+        self.assertEqual(self.thread.status, HelpdeskThread.Status.OPEN)
         self.assertIsNone(self.thread.snoozed_until)
 
-    def test_detail_view_reverts_expired_snooze(self):
-        snoozed_until = timezone.now() - timedelta(days=1)
-        self.thread.status = HelpdeskThread.Status.SNOOZED
-        self.thread.snoozed_until = snoozed_until
-        self.thread.save()
+    def test_staff_list_filters_closed_and_snoozed_by_default(self):
+        # Create a message so thread is eligible for list
+        ThreadMessage.objects.create(
+            thread=self.thread,
+            sender=self.candidate_user,
+            sender_type=ThreadMessage.SenderType.CANDIDATE,
+            text="Need help"
+        )
 
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("comms:staff-helpdesk-thread-detail", kwargs={"id": self.thread.id})
-        response = self.client.get(url)
+        url = reverse("comms:staff-helpdesk-threads")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.thread.refresh_from_db()
-        self.assertEqual(self.thread.status, HelpdeskThread.Status.CLOSED)
+        # 1. OPEN status (default) - should be in list
+        self.thread.status = HelpdeskThread.Status.OPEN
+        self.thread.save()
+        response = self.client.get(url)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        # 2. CLOSED status - should NOT be in list
+        self.thread.status = HelpdeskThread.Status.CLOSED
+        self.thread.save()
+        cache.clear() # Clear version-based cache
+        response = self.client.get(url)
+        self.assertEqual(len(response.data["results"]), 0)
+
+        # 3. SNOOZED status - should be in list
+        self.thread.status = HelpdeskThread.Status.SNOOZED
+        self.thread.snoozed_until = timezone.now() + timedelta(days=1)
+        self.thread.save()
+        cache.clear()
+        response = self.client.get(url)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        # 4. Explicit status filter for SNOOZED - should be in list
+        response = self.client.get(url + "?status=snoozed")
+        self.assertEqual(len(response.data["results"]), 1)
+
