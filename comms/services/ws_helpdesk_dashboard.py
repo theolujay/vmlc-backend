@@ -13,6 +13,8 @@ from vmlc.utils.query_filters import (
     annotate_thread_with_last_message_sender_type,
 )
 
+from vmlc.utils.stats import get_helpdesk_stats_cached
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,7 +47,9 @@ class WSHelpdeskDashboardService:
         queryset = filter_helpdesk_threads(queryset, filters)
 
         serializer = HelpdeskThreadListSerializer(queryset, many=True)
+        helpdesk_summary_data = get_helpdesk_stats_cached()
 
         return {
             "results": serializer.data,
+            "helpdesk_summary_data": helpdesk_summary_data,
         }
