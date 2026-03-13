@@ -376,6 +376,9 @@ def filter_helpdesk_threads(
 
     if status:
         queryset = queryset.filter(status=status)
+    else:
+        # Default: Exclude CLOSED threads if no status is specified
+        queryset = queryset.exclude(status=HelpdeskThread.Status.CLOSED)
 
     if priority:
         queryset = queryset.filter(priority=priority)

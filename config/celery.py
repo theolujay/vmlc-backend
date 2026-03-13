@@ -31,4 +31,8 @@ app.conf.beat_schedule = {
         "task": "check_exam_status_transitions_task",
         "schedule": crontab(minute="*"),
     },
+    "cleanup-snoozed-helpdesk-threads-every-5-minutes": {
+        "task": "cleanup_snoozed_helpdesk_threads_task",
+        "schedule": crontab(minute="*/5"),
+    },
 }

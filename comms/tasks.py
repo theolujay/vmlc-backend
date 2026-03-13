@@ -471,6 +471,38 @@ def send_system_email_task(
             )
 
 
+@shared_task(name="cleanup_snoozed_helpdesk_threads_task", queue="comms")
+def cleanup_snoozed_helpdesk_threads_task():
+    """
+    Periodic task to revert SNOOZED helpdesk threads to CLOSED if snoozed_until is in the past.
+    """
+    from comms.models import HelpdeskThread
+    from django.utils import timezone
+
+    now = timezone.now()
+    expired_snoozed_threads = HelpdeskThread.objects.filter(
+        status=HelpdeskThread.Status.SNOOZED, snoozed_until__lte=now
+    )
+
+    count = expired_snoozed_threads.update(
+        status=HelpdeskThread.Status.CLOSED, snoozed_until=None
+    )
+
+    if count > 0:
+        logger.info(f"Reverted {count} SNOOZED helpdesk threads to CLOSED.")
+        # Invalidate stats cache
+        from django.core.cache import cache
+        from vmlc.v2.utils import CacheKeys
+
+        cache.delete(CacheKeys.STATS_HELPDESK)
+        try:
+            cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
+        except ValueError:
+            cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+    return count
+
+
 @shared_task(name="broadcast_staff_helpdesk_update_task", queue="comms")
 def broadcast_staff_helpdesk_update_task():
     """

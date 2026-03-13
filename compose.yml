@@ -64,6 +64,8 @@ services:
 
   redis:
     image: redis:7.2.4-alpine
+    ports:
+      - "6379:6379"
     volumes:
       - dev_redis:/data
     restart: unless-stopped
@@ -165,7 +167,7 @@ services:
     <<: *app-base
     container_name: vmlc-celery_beat
     entrypoint: "./scripts/entrypoint.sh"
-    command: 
+    command:
       - celery
       - -A
       - config
@@ -195,7 +197,7 @@ services:
   #     - "5555:5555"
   #   depends_on:
   #     - redis
-      
+
 volumes:
   dev_db:
   dev_redis:

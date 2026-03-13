@@ -7,6 +7,7 @@ from .views import (
     MarkNotificationAsReadView,
     NotificationHistory,
     StaffHelpdeskThreadDetailView,
+    StaffHelpdeskThreadActionView,
     StaffHelpdeskThreadListView,
     HelpdeskThreadMessageView,
     HelpdeskThreadView,
@@ -32,6 +33,11 @@ urlpatterns = [
         "staff/helpdesk/threads/<uuid:id>/",
         StaffHelpdeskThreadDetailView.as_view(),
         name="staff-helpdesk-thread-detail",
+    ),
+    path(
+        "staff/helpdesk/threads/<uuid:id>/action",
+        StaffHelpdeskThreadActionView.as_view(),
+        name="staff-helpdesk-thread-action",
     ),
     path("support-us/", PublicSupportRequestView.as_view(), name="support-us-inquiry"),
     # Broadcasts
