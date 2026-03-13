@@ -32,7 +32,6 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         self.dashboard_group = None
         self.presence_task = None
         self.current_filters = {}
-        self.current_page = 1
         self.presence_set_name = "online_staff"  # Default
 
     async def connect(self):
@@ -74,7 +73,6 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             await self.channel_layer.group_add(self.dashboard_group, self.channel_name)
             # Initialize dashboard state
             self.current_filters = {}
-            self.current_page = 1
             await self.fetch_and_send_thread_list()
 
         # 3. Presence online
@@ -136,7 +134,6 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             if not self.is_staff:
                 await self.send_error("Permission denied")
                 return
-            self.current_page = data.get("page", 1)
             self.current_filters = data.get("filters", {})
             await self.fetch_and_send_thread_list()
 
@@ -220,7 +217,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
 
     async def fetch_and_send_thread_list(self):
         data = await WSHelpdeskDashboardService.get_thread_list(
-            self.current_page, self.current_filters
+            self.current_filters
         )
         await self.send_json({"type": "helpdesk.list", "data": data})
 

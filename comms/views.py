@@ -581,6 +581,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
     permission_classes = ActiveModeratorPermissions
     serializer_class = HelpdeskThreadListSerializer
     throttle_scope = "helpdesk_threads"
+    pagination_class = None
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -604,10 +605,16 @@ class StaffHelpdeskThreadListView(ListAPIView):
             cached_data["helpdesk_summary_data"] = helpdesk_summary_data
             return Response(cached_data)
 
-        response = super().list(request, *args, **kwargs)
-        response.data["helpdesk_summary_data"] = helpdesk_summary_data
-        cache.set(cache_key, response.data, timeout=3600)
-        return Response(response.data)
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        
+        response_data = {
+            "results": serializer.data,
+            "helpdesk_summary_data": helpdesk_summary_data
+        }
+        
+        cache.set(cache_key, response_data, timeout=3600)
+        return Response(response_data)
 
     def get_queryset(self):
         # Unread count annotation
