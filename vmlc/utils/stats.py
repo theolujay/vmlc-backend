@@ -97,8 +97,11 @@ def _get_helpdesk_stats() -> dict:
         "in_progress_threads": threads_qs.filter(
             status=HelpdeskThread.Status.IN_PROGRESS
         ).count(),
-        "resolved_threads": threads_qs.filter(
-            status=HelpdeskThread.Status.RESOLVED
+        "closed_threads": threads_qs.filter(
+            status=HelpdeskThread.Status.CLOSED
+        ).count(),
+        "snoozed_threads": threads_qs.filter(
+            status=HelpdeskThread.Status.SNOOZED
         ).count(),
         "unassigned_threads": threads_qs.filter(assigned_staff__isnull=True).count(),
         "unattended_candidates": unattended_count,

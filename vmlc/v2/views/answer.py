@@ -12,6 +12,7 @@ from identity.permissions import CandidatePermissions
 from vmlc.models import Exam, ExamAccess, CandidateExamResult, CandidateAnswer
 from vmlc.serializers.answer import CandidateAnswerBulkSerializer
 from vmlc.utils.helpers import sanitize_data
+from vmlc.v2.utils import GRACE_PERIOD_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +69,8 @@ class SubmitAnswersV2View(APIView):
 
         if access.started_at:
             personal_deadline = access.deadline
-            # Add 5 minutes grace period for network latency
-            if timezone.now() <= personal_deadline + timedelta(minutes=5):
+            # Add grace period for network latency
+            if timezone.now() <= personal_deadline + timedelta(minutes=GRACE_PERIOD_MINUTES):
                 is_within_personal_time = True
 
         if not is_globally_open and not is_within_personal_time:

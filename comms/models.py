@@ -69,7 +69,8 @@ class HelpdeskThread(models.Model):
     class Status(models.TextChoices):
         OPEN = "open", "Open"
         IN_PROGRESS = "in_progress", "In Progress"
-        RESOLVED = "resolved", "Resolved"
+        CLOSED = "closed", "Closed"
+        SNOOZED = "snoozed", "Snoozed"
 
     class Priority(models.TextChoices):
         LOW = "low", "Low"
@@ -96,6 +97,7 @@ class HelpdeskThread(models.Model):
         default=Status.OPEN,
         db_index=True,
     )
+    snoozed_until = models.DateTimeField(null=True, blank=True)
     priority = models.CharField(
         max_length=20,
         choices=Priority.choices,
@@ -117,6 +119,19 @@ class HelpdeskThread(models.Model):
 
     def __str__(self) -> str:
         return f"Helpdesk Thread: {self.candidate.user.email} ({self.status})"
+
+    def refresh_status(self) -> None:
+        """
+        Reverts status to CLOSED if SNOOZED and snoozed_until is in the past.
+        """
+        if (
+            self.status == self.Status.SNOOZED
+            and self.snoozed_until
+            and self.snoozed_until < timezone.now()
+        ):
+            self.status = self.Status.CLOSED
+            self.snoozed_until = None
+            self.save(update_fields=["status", "snoozed_until"])
 
 
 class ThreadMessage(models.Model):

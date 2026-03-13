@@ -32,14 +32,17 @@ from comms.models import (
 from comms.serializers import (
     BroadcastDetailSerializer,
     BroadcastListSerializer,
+    HelpdeskThreadActionSerializer,
     NotificationSerializer,
     PublicSupportRequestSerializer,
     HelpdeskThreadDetailSerializer,
     HelpdeskThreadListSerializer,
     ThreadMessageSerializer,
+    HelpdeskThreadActionSerializer,
 )
 from comms.tasks import send_broadcast_task
 from identity.permissions import (
+    ActiveAdminPermissions,
     HasXAPIKey,
     AuthenticatedUser,
     CandidatePermissions,
@@ -490,9 +493,15 @@ class HelpdeskThreadView(APIView):
             cache.delete(CacheKeys.STATS_HELPDESK)
             # No need to check cache on creation
         else:
-            # Check for unread messages first
-            unread_messages = thread.messages.exclude(reads__user=user)
+            # Check for unread messages first (excluding messages sent by the candidate themselves)
+            unread_messages = thread.messages.exclude(reads__user=user).exclude(sender=user)
             if not unread_messages.exists():
+                # If no unread messages from staff, ensure status is IN_PROGRESS if it was OPEN
+                if thread.status == HelpdeskThread.Status.OPEN:
+                    thread.status = HelpdeskThread.Status.IN_PROGRESS
+                    thread.save(update_fields=["status"])
+                    cache.delete(cache_key) # Invalidate detail cache
+
                 cached_data = cache.get(cache_key)
                 if cached_data:
                     logger.info(
@@ -506,6 +515,12 @@ class HelpdeskThreadView(APIView):
                     [MessageRead(message=msg, user=user) for msg in unread_messages],
                     ignore_conflicts=True,
                 )
+                # After reading staff messages, status should be IN_PROGRESS
+                thread.status = HelpdeskThread.Status.IN_PROGRESS
+                thread.save(update_fields=["status"])
+                # Invalidate cache
+                cache.delete(cache_key)
+                cache.delete(CacheKeys.STATS_HELPDESK)
 
         serializer = HelpdeskThreadDetailSerializer(
             thread, context={"request": request}
@@ -529,6 +544,7 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object()
+        instance.refresh_status() # Auto-revert SNOOZED if time passed
         cache_key = CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=instance.id)
 
         # Check for unread messages first
@@ -571,6 +587,70 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
         cache.set(cache_key, response.data, timeout=3600)
         return Response(response.data)
 
+class StaffHelpdeskThreadActionView(APIView):
+    permission_classes = ActiveAdminPermissions
+    serializer_class = HelpdeskThreadActionSerializer
+
+    def patch(self, request, *args, **kwargs):
+        thread_id = kwargs.get("id")
+        try:
+            thread = HelpdeskThread.objects.get(id=thread_id)
+        except HelpdeskThread.DoesNotExist:
+            return Response(
+                {"detail": "Thread not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_status = serializer.validated_data["status"]
+        snoozed_until = serializer.validated_data.get("snoozed_until")
+
+        thread.status = new_status
+        if new_status == HelpdeskThread.Status.SNOOZED:
+            thread.snoozed_until = snoozed_until
+        else:
+            thread.snoozed_until = None
+
+        thread.save(update_fields=["status", "snoozed_until"])
+
+        # Invalidate cache
+        cache.delete(CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=thread.id))
+        cache.delete(CacheKeys.STATS_HELPDESK)
+        try:
+            cache.incr(CacheKeys.HELPDESK_THREADS_VERSION_STAFF)
+        except ValueError:
+            cache.set(CacheKeys.HELPDESK_THREADS_VERSION_STAFF, 1, timeout=86400)
+
+        # Broadcast update
+        def broadcast_update():
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"helpdesk_thread_{thread.id}",
+                {
+                    "type": "helpdesk.thread",
+                    "data": {
+                        "thread_id": str(thread.id),
+                        "update_type": "status_update",
+                        "thread": {
+                            "id": str(thread.id),
+                            "status": thread.status,
+                            "snoozed_until": thread.snoozed_until.isoformat() if thread.snoozed_until else None,
+                        },
+                    },
+                },
+            )
+        transaction.on_commit(broadcast_update)
+
+        return Response(
+            HelpdeskThreadDetailSerializer(thread, context={"request": request}).data
+        )
+
+
+
+
+
 
 class StaffHelpdeskThreadListView(ListAPIView):
     """
@@ -581,6 +661,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
     permission_classes = ActiveModeratorPermissions
     serializer_class = HelpdeskThreadListSerializer
     throttle_scope = "helpdesk_threads"
+    pagination_class = None
 
     def list(self, request, *args, **kwargs):
         user = request.user
@@ -604,10 +685,16 @@ class StaffHelpdeskThreadListView(ListAPIView):
             cached_data["helpdesk_summary_data"] = helpdesk_summary_data
             return Response(cached_data)
 
-        response = super().list(request, *args, **kwargs)
-        response.data["helpdesk_summary_data"] = helpdesk_summary_data
-        cache.set(cache_key, response.data, timeout=3600)
-        return Response(response.data)
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+
+        response_data = {
+            "results": serializer.data,
+            "helpdesk_summary_data": helpdesk_summary_data
+        }
+
+        cache.set(cache_key, response_data, timeout=3600)
+        return Response(response_data)
 
     def get_queryset(self):
         # Unread count annotation
@@ -672,6 +759,24 @@ class HelpdeskThreadMessageView(CreateAPIView):
             if is_staff
             else ThreadMessage.SenderType.CANDIDATE
         )
+
+        # Status logic based on sender
+        if sender_type == ThreadMessage.SenderType.CANDIDATE:
+            # If snoozed and time hasn't passed, keep snoozed. Otherwise OPEN.
+            is_snoozed_active = (
+                thread.status == HelpdeskThread.Status.SNOOZED
+                and thread.snoozed_until
+                and thread.snoozed_until > timezone.now()
+            )
+            if not is_snoozed_active:
+                thread.status = HelpdeskThread.Status.OPEN
+                thread.snoozed_until = None
+        else:
+            # Staff/System reply
+            thread.status = HelpdeskThread.Status.IN_PROGRESS
+
+        thread.save(update_fields=["status", "snoozed_until"])
+
         message = serializer.save(
             thread=thread, sender=request.user, sender_type=sender_type
         )

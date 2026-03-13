@@ -7,7 +7,7 @@ from vmlc.models import Question
 
 
 DEFAULT_TTL = 86400  # 24h
-
+GRACE_PERIOD_MINUTES = 1
 
 class CacheKeys:
     """Centralized cache key patterns."""

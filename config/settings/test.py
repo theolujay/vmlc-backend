@@ -1,5 +1,6 @@
 """
 Test environment settings for CI/CD pipelines and local testing.
+Run with `python manage.py test --settings=config.settings.test --noinput --failfast`
 """
 
 import dj_database_url
@@ -11,7 +12,8 @@ from .base import *
 SECRET_KEY = "dummy"
 DEBUG = False
 TESTING = True
-APP_ENVIRONMENT = read_secret("APP_ENVIRONMENT", "test")
+APP_ENVIRONMENT = "test"
+TEST_ENVIRONMENT = read_secret("TEST_ENVIRONMENT", "ci_test")
 # Add daphne for testing ASGI applications
 if "daphne" not in INSTALLED_APPS:
     INSTALLED_APPS.insert(0, "daphne")
@@ -38,36 +40,27 @@ REST_FRAMEWORK = {
 # }
 
 DATABASE_URL = read_secret("DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb")
-if APP_ENVIRONMENT == "local_test":
-    DATABASE_URL = DATABASE_URL.replace("db", "localhost")
+REDIS_URL = read_secret("REDIS_URL", "redis://redis:6379/1")
+
+if TEST_ENVIRONMENT == "local_test":
+    DATABASE_URL = DATABASE_URL.replace("@db", "@localhost")
+    REDIS_URL = REDIS_URL.replace("redis:6379", "localhost:6379").replace("//redis", "//localhost")
+    print(f"DEBUG: Using local test DB: {DATABASE_URL}")
+    print(f"DEBUG: Using local test Redis: {REDIS_URL}")
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=DATABASE_URL,
+    "default": dj_database_url.parse(
+        url=DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
     )
 }
 
-# Use FileSystemStorage for tests to avoid dependency on S3
-USE_S3 = False
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {
-        "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage"
-    },
-}
-
-# Celery configuration for synchronous task execution in tests
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
-
 # Cache configuration for tests (use a separate Redis DB or dummy cache)
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
-        # "LOCATION": "redis://localhost:6379/1",
+        "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",

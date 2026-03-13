@@ -13,6 +13,8 @@ from vmlc.utils.query_filters import (
     annotate_thread_with_last_message_sender_type,
 )
 
+from vmlc.utils.stats import get_helpdesk_stats_cached
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,8 +32,8 @@ class WSHelpdeskDashboardService:
 
     @staticmethod
     @database_sync_to_async
-    def get_thread_list(page_number, filters):
-        """Fetches and serializes the helpdesk thread list with filters and pagination."""
+    def get_thread_list(filters):
+        """Fetches and serializes the helpdesk thread list with filters."""
         queryset = (
             HelpdeskThread.objects.select_related("candidate", "assigned_staff__user")
             .prefetch_related("messages__reads")
@@ -44,18 +46,10 @@ class WSHelpdeskDashboardService:
         queryset = annotate_thread_with_last_message_sender_type(queryset)
         queryset = filter_helpdesk_threads(queryset, filters)
 
-        paginator = Paginator(queryset, 20)
-        page = paginator.get_page(page_number)
-        serializer = HelpdeskThreadListSerializer(page, many=True)
+        serializer = HelpdeskThreadListSerializer(queryset, many=True)
+        helpdesk_summary_data = get_helpdesk_stats_cached()
 
         return {
             "results": serializer.data,
-            "pagination": {
-                "count": paginator.count,
-                "page": page.number,
-                "page_size": paginator.per_page,
-                "total_pages": paginator.num_pages,
-                "has_next": page.has_next(),
-                "has_previous": page.has_previous(),
-            },
+            "helpdesk_summary_data": helpdesk_summary_data,
         }
