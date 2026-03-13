@@ -379,7 +379,7 @@ def filter_helpdesk_threads(
     else:
         # Default: Exclude CLOSED and SNOOZED threads if no status is specified
         queryset = queryset.exclude(
-            status__in=[HelpdeskThread.Status.CLOSED]
+            status__in=[HelpdeskThread.Status.CLOSED, HelpdeskThread.Status.SNOOZED]
         )
 
     if priority:

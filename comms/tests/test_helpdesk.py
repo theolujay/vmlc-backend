@@ -70,9 +70,15 @@ class HelpdeskTests(APITestCase):
             thread.messages.first().sender_type, ThreadMessage.SenderType.SYSTEM
         )
 
+    @patch("django.db.transaction.on_commit")
     @patch("channels.layers.get_channel_layer")
-    def test_post_message_candidate(self, mock_get_channel_layer):
+    def test_post_message_candidate(
+        self, mock_get_channel_layer, mock_on_commit
+    ):
         """Test candidate posting a message to their thread."""
+        # Mock on_commit to execute immediately
+        mock_on_commit.side_effect = lambda func: func()
+
         mock_layer = MagicMock()
         mock_layer.group_send = AsyncMock()
         mock_get_channel_layer.return_value = mock_layer
