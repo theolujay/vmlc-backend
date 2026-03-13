@@ -1,7 +1,18 @@
 from typing import Any, List
 
 import django_filters
-from django.db.models import Q, OuterRef, QuerySet, Count, Max, Subquery
+from django.db.models import (
+    Q,
+    OuterRef,
+    QuerySet,
+    Count,
+    Max,
+    Subquery,
+    Case,
+    When,
+    Value,
+    IntegerField,
+)
 
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
@@ -392,8 +403,16 @@ def filter_helpdesk_threads(
     if sort:
         queryset = queryset.order_by(sort)
     else:
-        # Default sorting
-        queryset = queryset.order_by("-last_candidate_message_at", "-unread_cnt")
+        # Default sorting: OPEN first, then IN_PROGRESS, then others
+        # Within each status, sort by candidate's latest message date and time
+        queryset = queryset.annotate(
+            status_order=Case(
+                When(status=HelpdeskThread.Status.OPEN, then=Value(1)),
+                When(status=HelpdeskThread.Status.IN_PROGRESS, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+        ).order_by("status_order", "-last_candidate_message_at", "-unread_cnt")
 
     return queryset
 

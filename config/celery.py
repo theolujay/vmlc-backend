@@ -35,4 +35,8 @@ app.conf.beat_schedule = {
         "task": "cleanup_snoozed_helpdesk_threads_task",
         "schedule": crontab(minute="*/5"),
     },
+    "auto-close-in-progress-threads-every-10-minutes": {
+        "task": "auto_close_in_progress_threads_task",
+        "schedule": crontab(minute="*/10"),
+    },
 }
