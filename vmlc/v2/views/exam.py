@@ -16,7 +16,12 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from identity.models import Candidate
-from identity.permissions import ActiveAdminPermissions, ActiveModeratorPermissions, CandidatePermissions, StaffRoleHierarchy
+from identity.permissions import (
+    ActiveAdminPermissions,
+    ActiveModeratorPermissions,
+    CandidatePermissions,
+    StaffRoleHierarchy,
+)
 
 from django.utils import timezone
 from vmlc.models import Exam, Question, CandidateExamResult, ExamAccess
@@ -114,10 +119,8 @@ class ExamListV2View(ListCreateAPIView):
         staff = self.request.user.staff_profile
         if not StaffRoleHierarchy.has_minimum_role(staff.role, "admin"):
             return Response(
-                {
-                    "detail": "You do not have permission to create exams"
-                },
-                status=status.HTTP_403_FORBIDDEN
+                {"detail": "You do not have permission to create exams"},
+                status=status.HTTP_403_FORBIDDEN,
             )
         serializer.save(created_by=staff)
 
@@ -154,7 +157,6 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         )
 
     def retrieve(self, request, *args, **kwargs):
-
         exam_id = self.kwargs[self.lookup_url_kwarg]
         logger.info(
             f"ExamDetailView: request from user {self.request.user.id} for exam {exam_id}"
@@ -409,6 +411,48 @@ class ExamFaceCaptureView(APIView):
         )
 
 
+class ExamTimeView(APIView):
+    """
+    API view for candidates to get server time and deadline for exam timer sync.
+    """
+
+    permission_classes = CandidatePermissions
+
+    def get(self, request, exam_id):
+        candidate = request.user.candidate_profile
+
+        try:
+            exam = Exam.objects.get(pk=exam_id)
+        except Exam.DoesNotExist:
+            raise NotFound("Exam not found.")
+
+        try:
+            access = ExamAccess.objects.get(candidate=candidate, exam=exam)
+        except ExamAccess.DoesNotExist:
+            raise PermissionDenied("You do not have access to this exam.")
+
+        if access.status in [
+            ExamAccess.Status.SUBMITTED,
+            ExamAccess.Status.EXPIRED,
+            ExamAccess.Status.FAILED,
+        ]:
+            raise PermissionDenied("You have already completed or attempted this exam.")
+
+        if not access.started_at or not access.deadline:
+            raise PermissionDenied("Exam has not been started yet.")
+
+        now = timezone.now()
+        return Response(
+            {
+                "server_time": now,
+                "deadline": access.deadline,
+                "remaining_seconds": max(
+                    0, int((access.deadline - now).total_seconds())
+                ),
+            }
+        )
+
+
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
@@ -465,7 +509,8 @@ def candidate_take_exam_V2(request, exam_id):
 
         mark_exam_access_as_expired_task.apply_async(
             # Add grace period for network latency
-            args=[str(access.id)], eta=access.deadline + timedelta(minutes=GRACE_PERIOD_MINUTES)
+            args=[str(access.id)],
+            eta=access.deadline + timedelta(minutes=GRACE_PERIOD_MINUTES),
         )
 
     # 3. Global Exam Data Cache
