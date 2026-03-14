@@ -386,6 +386,21 @@ class RankingSnapshotEntry(models.Model):
         null=True,
         blank=True,
     )
+    violation_score = models.FloatField(
+        default=0.0,
+        help_text="Weighted average of suspicion scores from proctoring heartbeats.",
+    )
+    proctoring_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("clear", "Clear"),
+            ("suspicious", "Suspicious"),
+            ("flagged", "Flagged"),
+        ],
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -10,34 +10,15 @@ This endpoint provides comprehensive performance and identity data for a specifi
 
 ## Response Structure
 
-The response is a JSON object containing three main sections: `exam_details`, `candidate_info`, and `candidate_performance`.
+The response is a JSON object containing four main sections: `exam_details`, `candidate_info`, `candidate_performance`, and `proctoring_summary`.
 
 ### 1. `exam_details`
-High-level information about the exam and overall performance metrics for the ranking snapshot.
-
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | UUID | Unique identifier for the exam. |
-| `title` | String | Display title of the exam (e.g., "Screening Test", "League Round 1"). |
-| `stage` | String | Competition stage (`screening`, `league`, `final`). |
-| `round` | Integer \| null | Round number within the stage (relevant for League). |
-| `scheduled_date` | DateTime \| null | When the exam was scheduled to start. |
-| `concluded_at` | DateTime \| null | When the exam officially ended. |
-| `total_questions` | Integer | Total number of questions in the exam. |
+...
 | `total_candidates` | Integer | Total number of eligible candidates in this ranking snapshot. |
 | `average_score` | Float | Average score achieved by all participants in this exam. |
 
 ### 2. `candidate_info`
-Identity and institutional details of the candidate.
-
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | UUID | Unique identifier for the candidate. |
-| `full_name` | String | Full name of the candidate. |
-| `email` | String | Email address of the candidate. |
-| `state` | String | State of residence/origin of the candidate. |
-| `school_name` | String | Name of the candidate's school. |
-| `school_type` | String | Type of school (`public`, `private`). |
+...
 | `current_class` | String | Class in school (`SS1`, `SS2`, `SS3`). |
 
 ### 3. `candidate_performance`
@@ -49,6 +30,8 @@ Detailed breakdown of the candidate's execution and results.
 | `rank` | Integer | The candidate's rank in this specific ranking snapshot. |
 | `percentile` | Float \| null | The candidate's percentile score. |
 | `time_used` | Integer \| null | Time taken to complete the exam in seconds. |
+| `violation_score` | Float | Weighted average of suspicion scores from proctoring heartbeats. |
+| `proctoring_status` | String \| null | One of `clear`, `suspicious`, or `flagged`. Returns `null` for absentees. |
 | `tie_break_reason` | String \| null | Optional explanation when a tie-break was applied to assign the rank. |
 | `recorded_at` | DateTime \| null | When the exam result was recorded. |
 | `auto_score` | Boolean | Whether the score was automatically computed by the system. |
@@ -57,7 +40,23 @@ Detailed breakdown of the candidate's execution and results.
 | `face_capture` | URL \| null | Absolute URL to the face capture image taken during the exam. |
 | `submissions` | Array | List of individual question responses (only if result exists). |
 
+### 4. `proctoring_summary`
+Summary of automated proctoring telemetry (only available for Staff or if an `ExamAccess` record exists).
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `total_heartbeats` | Integer | Number of heartbeats received from the client. |
+| `total_violations` | Integer | Total count of all violation events across all heartbeats. |
+| `critical_violations` | Integer | Number of critical violations (e.g., MULTI_FACE). |
+| `integrity_score` | Float | Ratio of received heartbeats to expected heartbeats (0.0 - 1.0). |
+| `average_suspicion` | Float | Average suspicion score across all heartbeats (0.0 - 1.0). |
+| `auto_status` | String \| null | Automated status determined by the system. `null` if no heartbeats. |
+| `status` | String \| null | Current proctoring status (manual override if exists). |
+| `is_manually_reviewed` | Boolean | Whether an admin has manually reviewed this attempt. |
+| `timeline_url` | URL | Absolute URL to the Integrity Audit timeline. |
+
 #### `submissions` Array Item:
+...
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `question` | Object | Full question object including text, options, and correct answer. |
@@ -95,6 +94,8 @@ Detailed breakdown of the candidate's execution and results.
         "rank": 3,
         "percentile": 97.5,
         "time_used": 2400,
+        "violation_score": 0.05,
+        "proctoring_status": "clear",
         "tie_break_reason": null,
         "recorded_at": "2026-03-01T09:45:00Z",
         "auto_score": true,
@@ -117,6 +118,17 @@ Detailed breakdown of the candidate's execution and results.
                 "answered_at": "2026-03-01T09:06:12Z"
             }
         ]
+    },
+    "proctoring_summary": {
+        "total_heartbeats": 12,
+        "total_violations": 5,
+        "critical_violations": 1,
+        "integrity_score": 1.0,
+        "average_suspicion": 0.05,
+        "auto_status": "clear",
+        "status": "clear",
+        "is_manually_reviewed": false,
+        "timeline_url": "https://api.vmlc.edu/v2/exams/550e8400-e29b-41d4-a716-446655440000/candidates/6ba7b810-9dad-11d1-80b4-00c04fd430c8/integrity-audit/"
     }
 }
 ```
@@ -140,6 +152,8 @@ Detailed breakdown of the candidate's execution and results.
         "rank": 115,
         "percentile": 4.16,
         "time_used": null,
+        "violation_score": 0.0,
+        "proctoring_status": null,
         "tie_break_reason": null,
         "recorded_at": null,
         "auto_score": false,
@@ -147,6 +161,7 @@ Detailed breakdown of the candidate's execution and results.
         "submitted_at": null,
         "face_capture": null,
         "submissions": []
-    }
+    },
+    "proctoring_summary": null
 }
 ```

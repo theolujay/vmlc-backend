@@ -42,6 +42,8 @@ Represents a single candidate's performance and rank in this snapshot.
 | `rank` | Integer | The rank assigned to the candidate. |
 | `percentile` | Float \| null | Computed percentile score (0-100). |
 | `time_used` | Integer \| null | Time taken to complete the exam in seconds. |
+| `violation_score` | Float | Weighted average of suspicion scores from proctoring heartbeats. |
+| `proctoring_status` | String \| null | One of `clear`, `suspicious`, or `flagged`. Returns `null` for absentees. |
 <!-- | `tie_break_reason` | String \| null | Explanation for why a specific rank was assigned (e.g., tie-break details). | -->
 
 #### `candidate_info` Nested Object:
@@ -90,7 +92,9 @@ Represents a single candidate's performance and rank in this snapshot.
             },
             "exam_score": 95.0,
             "rank": 1,
-            "percentile": 100.0
+            "percentile": 100.0,
+            "violation_score": 0.05,
+            "proctoring_status": "clear"
         },
         {
             "candidate": "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
@@ -105,7 +109,9 @@ Represents a single candidate's performance and rank in this snapshot.
             },
             "exam_score": "absent",
             "rank": 115,
-            "percentile": 4.5
+            "percentile": 4.5,
+            "violation_score": 0.0,
+            "proctoring_status": null
         }
     ]
 }

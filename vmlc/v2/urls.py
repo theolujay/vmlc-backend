@@ -2,6 +2,7 @@ from django.urls import path
 
 from vmlc.v2.views.exam import ExamRetractV2View
 from vmlc.v2.views.auth import DirectAccessLoginView
+from vmlc.v2.views.proctoring import ExamHeartbeatView, IntegrityAuditView, UpdateProctoringStatusView
 from .views import (
     RegistrationV2View,
     PreRegistrationView,
@@ -72,10 +73,26 @@ urlpatterns = [
         name="exam-face-capture",
     ),
     path(
+        "exams/<uuid:exam_id>/heartbeat/",
+        ExamHeartbeatView.as_view(),
+        name="exam-heartbeat",
+    ),
+    path(
+        "exams/<uuid:exam_id>/candidates/<uuid:candidate_id>/integrity-audit/",
+        IntegrityAuditView.as_view(),
+        name="integrity-audit",
+    ),
+    path(
+        "exams/<uuid:exam_id>/candidates/<uuid:candidate_id>/update-status/",
+        UpdateProctoringStatusView.as_view(),
+        name="update-proctoring-status",
+    ),
+    path(
         "exams/<uuid:exam_id>/submit/",
         SubmitAnswersV2View.as_view(),
         name="submit-exam",
     ),
+
     # =============================================================================
     # CANDIDATE MANAGEMENT
     # =============================================================================

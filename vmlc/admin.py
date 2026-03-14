@@ -15,6 +15,8 @@ from .models import (
     ExamAccess,
     ExamAccessPasscode,
     CacheManagement,
+    ExamHeartbeat,
+    ViolationEvent,
 )
 
 from .utils.helpers import (
@@ -440,9 +442,11 @@ class ExamAccessAdmin(admin.ModelAdmin):
         "candidate_email",
         "exam_title",
         "status",
+        "proctoring_status",
+        "is_manually_reviewed",
         "created_at",
     )
-    list_filter = ("status", "facilitator_system")
+    list_filter = ("status", "facilitator_system", "proctoring_status", "is_manually_reviewed")
     search_fields = ("candidate__user__email", "exam__description")
     list_select_related = ("candidate__user", "exam")
     readonly_fields = ("created_at",)
@@ -544,3 +548,17 @@ class ExamAccessPasscodeAdmin(admin.ModelAdmin):
     @admin.display(description="Exam")
     def exam_title(self, obj):
         return obj.exam_access.exam.get_title()
+
+@admin.register(ExamHeartbeat)
+class ExamHeartbeatAdmin(admin.ModelAdmin):
+    list_display = ("id", "exam_access", "sequence_number", "suspicion_score", "timestamp")
+    list_filter = ("timestamp",)
+    search_fields = ("exam_access__candidate__user__email",)
+    readonly_fields = ("timestamp",)
+
+
+@admin.register(ViolationEvent)
+class ViolationEventAdmin(admin.ModelAdmin):
+    list_display = ("id", "heartbeat", "event_type", "is_critical", "timestamp")
+    list_filter = ("event_type", "is_critical", "timestamp")
+    search_fields = ("heartbeat__exam_access__candidate__user__email",)

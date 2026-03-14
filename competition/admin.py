@@ -37,6 +37,8 @@ class RankingSnapshotEntryInline(admin.TabularInline):
     model = RankingSnapshotEntry
     extra = 0
     raw_id_fields = ["candidate", "enrollment"]
+    fields = ["candidate", "enrollment", "exam_score", "rank", "time_used", "proctoring_status", "violation_score"]
+    readonly_fields = ["proctoring_status", "violation_score"]
 
 
 class LeagueLeaderboardEntryInline(admin.TabularInline):
@@ -507,9 +509,15 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
         "candidate_email",
         "exam_score",
         "rank",
+        "proctoring_status",
+        "violation_score",
         "percentile",
     )
-    list_filter = ("ranking_snapshot__competition", "ranking_snapshot__stage")
+    list_filter = (
+        "ranking_snapshot__competition",
+        "ranking_snapshot__stage",
+        "proctoring_status",
+    )
     search_fields = (
         "candidate__user__email",
         "candidate__user__first_name",

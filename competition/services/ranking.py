@@ -150,12 +150,15 @@ class RankingSnapshotGenerator:
             f"for Exam {self.exam.id}."
         )
 
+        from django.db.models import Avg
         exam_access_by_candidate = {
             item["candidate_id"]: item
             for item in ExamAccess.objects.filter(
                 candidate_id__in=eligible_candidate_ids,
                 exam=self.exam,
-            ).values("candidate_id", "status", "started_at", "submitted_at")
+            ).annotate(avg_suspicion=Avg("heartbeats__suspicion_score")).values(
+                "candidate_id", "status", "started_at", "submitted_at", "proctoring_status", "avg_suspicion"
+            )
         }
 
         candidate_scores = {}
@@ -170,9 +173,12 @@ class RankingSnapshotGenerator:
                     if started_at and submitted_at
                     else None
                 )
+                
                 candidate_scores[res.candidate_id] = {
                     "score": float(res.score),
                     "time_used": time_used,  # seconds elapsed between start and submission
+                    "proctoring_status": access.get("proctoring_status"),
+                    "violation_score": access.get("avg_suspicion") or 0.0,
                 }
 
         # Add absentees — eligible candidates with no submitted result
@@ -181,6 +187,8 @@ class RankingSnapshotGenerator:
                 candidate_scores[cand_id] = {
                     "score": absentee_score if absentee_score is not None else "absent",
                     "time_used": None,
+                    "proctoring_status": None,
+                    "violation_score": 0.0,
                 }
 
         logger.debug(
@@ -281,6 +289,8 @@ class RankingSnapshotGenerator:
                     percentile=percentile,
                     time_used=time_used,
                     tie_break_reason=tie_break_reason,
+                    proctoring_status=data.get("proctoring_status"),
+                    violation_score=data.get("violation_score", 0.0),
                 )
             )
 
