@@ -386,7 +386,16 @@ def filter_helpdesk_threads(
         )
 
     if status:
-        queryset = queryset.filter(status=status)
+        if status == "all":
+            # Show all threads (no filtering by status)
+            pass
+        elif status == "default":
+            # Default: Exclude CLOSED and SNOOZED threads
+            queryset = queryset.exclude(
+                status__in=[HelpdeskThread.Status.CLOSED, HelpdeskThread.Status.SNOOZED]
+            )
+        else:
+            queryset = queryset.filter(status=status)
     else:
         # Default: Exclude CLOSED and SNOOZED threads if no status is specified
         queryset = queryset.exclude(
@@ -451,3 +460,8 @@ class ExamFilter(django_filters.FilterSet):
                 | Q(competition_contexts__competition_stage__type__icontains=value)
             ).distinct()
         return queryset
+
+
+def ongoing_exam_exists() -> bool:
+    """Check if any exam is currently ongoing."""
+    return Exam.objects.filter(status=Exam.Status.ONGOING).exists()

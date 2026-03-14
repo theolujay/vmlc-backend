@@ -87,3 +87,98 @@ A periodic task runs every **5 minutes** to identify threads in `snoozed` status
 
 ### 3. Real-time Updates
 All thread activity (messages, status updates) is broadcasted via Django Channels to both the candidate and staff dashboards for real-time UI updates.
+
+---
+
+## WebSocket API
+
+### UnifiedConsumer
+**Endpoint**: `ws://host/ws/comms/`  
+**Authentication**: JWT or API Key required
+
+#### Actions
+
+##### list_threads
+Retrieves the list of helpdesk threads for staff dashboard.
+
+- **Payload**:
+  ```json
+  {
+    "action": "list_threads",
+    "data": {
+      "filters": {
+        "search": "string",
+        "status": "open" | "in_progress" | "closed" | "snoozed" | "default" | "all",
+        "priority": "low" | "medium" | "high",
+        "unread": "true" | "false",
+        "sort": "string (e.g., -last_message_at, -priority)"
+      }
+    }
+  }
+  ```
+
+- **Filter Values**:
+  - `status` accepts specific values or special keywords:
+    - Specific: `open`, `in_progress`, `closed`, `snoozed`
+    - `default`: Shows only `open` and `in_progress` threads (excludes `closed` and `snoozed`) - **applied automatically when at least one exam is ongoing**
+    - `all`: Shows all threads regardless of status - **applied automatically when no exams are ongoing**
+  - Other filters:
+    - `search`: Partial match on candidate's name or email
+    - `priority`: Exact match on thread priority
+    - `unread`: Set to `"true"` to filter threads with unread messages
+    - `sort`: Field to sort by (e.g., `last_message_at`, `-priority`). Defaults to `-unread_cnt, -last_message_at`
+
+- **Response**:
+  ```json
+  {
+    "type": "helpdesk.list",
+    "data": {
+      "results": [...],
+      "helpdesk_summary_data": {...}
+    }
+  }
+  ```
+
+- **Auto-Filter Behavior**: When the WebSocket connects or a `list_threads` action is received without a status filter, the system automatically applies:
+  - `default` filter (OPEN + IN_PROGRESS) if any exam is currently ongoing
+  - `all` filter (all statuses) if no exams are ongoing
+
+##### subscribe_thread
+Subscribes to updates for a specific thread.
+
+- **Payload**:
+  ```json
+  {
+    "action": "subscribe_thread",
+    "data": {
+      "thread_id": "uuid"
+    }
+  }
+  ```
+
+##### unsubscribe_thread
+Unsubscribes from a specific thread.
+
+- **Payload**:
+  ```json
+  {
+    "action": "unsubscribe_thread",
+    "data": {
+      "thread_id": "uuid"
+    }
+  }
+  ```
+
+##### thread.typing
+Sends typing indicator to other participants in a thread.
+
+- **Payload**:
+  ```json
+  {
+    "action": "thread.typing",
+    "data": {
+      "thread_id": "uuid",
+      "is_typing": true
+    }
+  }
+  ```

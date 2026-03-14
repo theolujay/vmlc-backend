@@ -5,6 +5,8 @@ from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 from .services.ws_notification import WSNotificationService
 from .services.ws_helpdesk_dashboard import WSHelpdeskDashboardService
 from .services.ws_helpdesk_thread import WSHelpdeskThreadService
+from vmlc.utils.query_filters import ongoing_exam_exists
+from channels.db import database_sync_to_async
 
 logger = logging.getLogger(__name__)
 
@@ -216,9 +218,11 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     # ============================================================
 
     async def fetch_and_send_thread_list(self):
-        data = await WSHelpdeskDashboardService.get_thread_list(
-            self.current_filters
-        )
+        filters = dict(self.current_filters)
+        if "status" not in filters or not filters["status"]:
+            ongoing_exam_exists = await database_sync_to_async(ongoing_exam_exists)()
+            filters["status"] = "default" if ongoing_exam_exists else "all"
+        data = await WSHelpdeskDashboardService.get_thread_list(filters)
         await self.send_json({"type": "helpdesk.list", "data": data})
 
     async def refresh_presence_periodically(self, user_id):
