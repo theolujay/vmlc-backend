@@ -7,7 +7,7 @@ from competition.models import (
     RankingSnapshot,
     Stage,
 )
-from vmlc.models import Exam, CandidateExamResult
+from vmlc.models import Exam, CandidateExamResult, ExamAccess
 from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
@@ -114,12 +114,6 @@ class StaffCompetitionDashboardService:
             )
         }
 
-        # Count candidates per stage for participation rates
-        # Each stage shows candidates currently in that stage (ACTIVE + ELIMINATED)
-        stage_eligibility_map = {
-            s["current_stage__type"]: s["count"] for s in stage_funnel
-        }
-
         exams_list = []
         for slot in slots:
             try:
@@ -139,7 +133,7 @@ class StaffCompetitionDashboardService:
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"
 
-            eligible_count = ranking.entries.count()
+            eligible_count = exam.access_records.count()
             participation_rate = (
                 (res_stats["sat"] / eligible_count * 100) if eligible_count > 0 else 0
             )
