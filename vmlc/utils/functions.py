@@ -224,11 +224,14 @@ def compute_exam_results(exam_id):
 
         for access in submitted_accesses:
             # Get or create CandidateExamResult for each submitted access
-            candidate_exam_result, created = CandidateExamResult.objects.get_or_create(
+            candidate_exam_result = CandidateExamResult.objects.filter(
                 candidate=access.candidate, exam=exam
-            )
+            ).first()
 
-            if created:
+            if candidate_exam_result is None:
+                candidate_exam_result = CandidateExamResult.objects.create(
+                    candidate=access.candidate, exam=exam
+                )
                 created_count += 1
 
             # Now compute and save the score for this result
