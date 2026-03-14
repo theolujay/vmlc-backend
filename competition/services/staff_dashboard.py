@@ -139,7 +139,7 @@ class StaffCompetitionDashboardService:
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"
 
-            eligible_count = stage_eligibility_map.get(slot.competition_stage.type, 0)
+            eligible_count = ranking.entries.count()
             participation_rate = (
                 (res_stats["sat"] / eligible_count * 100) if eligible_count > 0 else 0
             )
