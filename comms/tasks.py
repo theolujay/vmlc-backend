@@ -738,9 +738,9 @@ def helpdesk_escalation_task(message_id):
             subject = f"URGENT: Helpdesk Escalation - {thread.candidate.user.get_full_name()} - {exam_title}"
             body = (
                 f"Helpdesk thread for {thread.candidate.user.get_full_name()} ({thread.candidate.user.email}) "
-                f"has a new message during an ongoing exam and has been waiting for a reply for over 2 minutes.\\n\\n"
-                f"Exam ID: {exam_id}\\n"
-                f"Latest Message: {latest_message.text}\\n\\n"
+                f"has a new message during an ongoing exam and has been waiting for a reply for over 2 minutes.\n\n"
+                f"Exam ID: {exam_id}\n"
+                f"Latest Message: \n{latest_message.text}\n\n"
                 f"Please review and respond immediately."
             )
 
