@@ -114,12 +114,11 @@ class StaffCompetitionDashboardService:
             )
         }
 
-        # Count total eligible candidates for participation rates
-        # All candidates start from screening stage, so count all ACTIVE + ELIMINATED
-        eligible_count = Enrollment.objects.filter(
-            competition=active_comp,
-            status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.ELIMINATED],
-        ).count()
+        # Count candidates per stage for participation rates
+        # Each stage shows candidates currently in that stage (ACTIVE + ELIMINATED)
+        stage_eligibility_map = {
+            s["current_stage__type"]: s["count"] for s in stage_funnel
+        }
 
         exams_list = []
         for slot in slots:
@@ -139,6 +138,8 @@ class StaffCompetitionDashboardService:
             ranking_status = "pending"
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"
+
+            eligible_count = stage_eligibility_map.get(slot.competition_stage.type, 0)
             participation_rate = (
                 (res_stats["sat"] / eligible_count * 100) if eligible_count > 0 else 0
             )
