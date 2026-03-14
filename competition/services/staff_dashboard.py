@@ -1,6 +1,12 @@
 import logging
 from django.db.models import Count, Avg, Q, Max, Min
-from competition.models import Competition, StageExam, Enrollment, RankingSnapshot, Stage
+from competition.models import (
+    Competition,
+    StageExam,
+    Enrollment,
+    RankingSnapshot,
+    Stage,
+)
 from vmlc.models import Exam, CandidateExamResult
 from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
@@ -32,7 +38,8 @@ class StaffCompetitionDashboardService:
         # 2. Stage-wise Funnel (How many candidates are in each stage right now)
         stage_funnel = (
             Enrollment.objects.filter(
-                competition=active_comp, status=Enrollment.Status.ACTIVE
+                competition=active_comp,
+                status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.ELIMINATED],
             )
             .values("current_stage__type")
             .annotate(count=Count("id"))
@@ -107,11 +114,12 @@ class StaffCompetitionDashboardService:
             )
         }
 
-        # Count total eligible candidates per stage for participation rates
-        # (This is an approximation based on current enrollment in that stage)
-        stage_eligibility_map = {
-            s["current_stage__type"]: s["count"] for s in stage_funnel
-        }
+        # Count total eligible candidates for participation rates
+        # All candidates start from screening stage, so count all ACTIVE + ELIMINATED
+        eligible_count = Enrollment.objects.filter(
+            competition=active_comp,
+            status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.ELIMINATED],
+        ).count()
 
         exams_list = []
         for slot in slots:
@@ -124,14 +132,13 @@ class StaffCompetitionDashboardService:
             if curr_status in [Exam.Status.DRAFT, Exam.Status.CANCELLED]:
                 continue
 
-            res_stats = exam_stats_map.get(exam.id, {"sat": 0, "avg": 0, "highest": 0, "lowest": 0})
+            res_stats = exam_stats_map.get(
+                exam.id, {"sat": 0, "avg": 0, "highest": 0, "lowest": 0}
+            )
             ranking = rankings_map.get(exam.id)
             ranking_status = "pending"
             if ranking:
                 ranking_status = "published" if ranking.is_published else "ready"
-
-            # Participation Rate
-            eligible_count = stage_eligibility_map.get(slot.competition_stage.type, 0)
             participation_rate = (
                 (res_stats["sat"] / eligible_count * 100) if eligible_count > 0 else 0
             )
@@ -149,7 +156,9 @@ class StaffCompetitionDashboardService:
                         "eligible_candidates": eligible_count,
                         "participation_rate": truncate_float(participation_rate),
                         "avg_score": truncate_float(float(res_stats["avg"] or 0)),
-                        "highest_score": truncate_float(float(res_stats["highest"] or 0)),
+                        "highest_score": truncate_float(
+                            float(res_stats["highest"] or 0)
+                        ),
                         "lowest_score": truncate_float(float(res_stats["lowest"] or 0)),
                     },
                 }
@@ -157,7 +166,9 @@ class StaffCompetitionDashboardService:
 
         # 5. Summaries (Top Performers)
         leaderboard_summary_data = []
-        latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
+        latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(
+            active_comp
+        )
         if latest_leaderboard:
             leaderboard_summary_data = LeagueLeaderboardEntrySerializer(
                 latest_leaderboard.processed_entries[:3], many=True
