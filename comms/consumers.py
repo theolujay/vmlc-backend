@@ -220,8 +220,8 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     async def fetch_and_send_thread_list(self):
         filters = dict(self.current_filters)
         if "status" not in filters or not filters["status"]:
-            ongoing_exam_exists = await database_sync_to_async(ongoing_exam_exists)()
-            filters["status"] = "default" if ongoing_exam_exists else "all"
+            has_ongoing_exam = await database_sync_to_async(ongoing_exam_exists)()
+            filters["status"] = "default" if has_ongoing_exam else "all"
         data = await WSHelpdeskDashboardService.get_thread_list(filters)
         await self.send_json({"type": "helpdesk.list", "data": data})
 

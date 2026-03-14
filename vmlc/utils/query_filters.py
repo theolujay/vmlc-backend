@@ -1,6 +1,7 @@
 from typing import Any, List
 
 import django_filters
+from django.utils import timezone
 from django.db.models import (
     Q,
     OuterRef,
@@ -463,5 +464,26 @@ class ExamFilter(django_filters.FilterSet):
 
 
 def ongoing_exam_exists() -> bool:
-    """Check if any exam is currently ongoing."""
-    return Exam.objects.filter(status=Exam.Status.ONGOING).exists()
+    """Check if any exam is currently active (candidates actively taking it)."""
+    from django.core.cache import cache
+
+    cache_key = "ongoing_exam_exists"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    from vmlc.models import ExamAccess
+
+    exam_access = (
+        ExamAccess.objects.select_related("exam")
+        .filter(status=ExamAccess.Status.STARTED)
+        .first()
+    )
+    if not exam_access:
+        cache.set(cache_key, False, timeout=30)
+        return False
+
+    is_exam_ongoing = exam_access.exam.status == Exam.Status.ONGOING
+
+    cache.set(cache_key, is_exam_ongoing, timeout=30)
+    return is_exam_ongoing
