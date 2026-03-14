@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
 
+from competition.models import Stage
 from identity.validators import validate_image
 from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
 
@@ -325,7 +326,6 @@ class Exam(models.Model):
 
     @property
     def concluded_at(self):
-
         if self.scheduled_date is not None and self.open_duration_hours is not None:
             now = timezone.now()
 
@@ -354,7 +354,18 @@ class Exam(models.Model):
         stage_label = stage.get_type_display()
 
         if stage_type == "screening" and slot.round is None:
-            stage_part = "Screening Test"
+            exam_index = (
+                Exam.objects.filter(
+                    competition_slot__competition_stage__type=Stage.Type.SCREENING,
+                    competition_slot__round__isnull=True,
+                    created_at__lt=self.created_at,
+                ).count()
+                + 1
+            )
+
+            stage_part = (
+                f"Screening Test {exam_index}" if exam_index > 1 else "Screening Test"
+            )
         elif stage_type == "league" and slot.round is not None:
             stage_part = f"League Round {slot.round}"
         elif stage_type == "final" and slot.round is None:
@@ -511,9 +522,7 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         ordering = ["-created_at"]
 
 
-class CandidateExamResultSnapshot(
-    models.Model
-):  # pylint: disable=too-few-public-methods
+class CandidateExamResultSnapshot(models.Model):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's result."""
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -665,9 +674,7 @@ class ExamAccess(models.Model):
 
 
 class ExamAccessPasscode(models.Model):
-
     class Status(models.TextChoices):
-
         ISSUED = "issued", "Issued"
 
         USED = "used", "Used"
@@ -717,7 +724,6 @@ class ExamAccessPasscode(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def regenerate_passcode(self, *args):
-
         pass
 
 
@@ -729,7 +735,6 @@ class CacheManagement(models.Model):
     """
 
     class Meta:
-
         managed = False
 
         verbose_name = "Cache Management"
