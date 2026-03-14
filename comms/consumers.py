@@ -34,6 +34,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         self.dashboard_group = None
         self.presence_task = None
         self.current_filters = {}
+        self.current_request_id = None
         self.presence_set_name = "online_staff"  # Default
 
     async def connect(self):
@@ -137,6 +138,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 await self.send_error("Permission denied")
                 return
             self.current_filters = data.get("filters", {})
+            self.current_request_id = data.get("request_id")
             await self.fetch_and_send_thread_list()
 
         # --- Helpdesk Thread Actions ---
@@ -223,6 +225,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             has_ongoing_exam = await database_sync_to_async(ongoing_exam_exists)()
             filters["status"] = "default" if has_ongoing_exam else "all"
         data = await WSHelpdeskDashboardService.get_thread_list(filters)
+        data["filters"] = filters
+        if hasattr(self, "current_request_id") and self.current_request_id is not None:
+            data["request_id"] = self.current_request_id
         await self.send_json({"type": "helpdesk.list", "data": data})
 
     async def refresh_presence_periodically(self, user_id):

@@ -112,7 +112,8 @@ Retrieves the list of helpdesk threads for staff dashboard.
         "priority": "low" | "medium" | "high",
         "unread": "true" | "false",
         "sort": "string (e.g., -last_message_at, -priority)"
-      }
+      },
+      "request_id": 1
     }
   }
   ```
@@ -127,6 +128,7 @@ Retrieves the list of helpdesk threads for staff dashboard.
     - `priority`: Exact match on thread priority
     - `unread`: Set to `"true"` to filter threads with unread messages
     - `sort`: Field to sort by (e.g., `last_message_at`, `-priority`). Defaults to `-unread_cnt, -last_message_at`
+  - `request_id`: Optional integer to identify the request. Will be echoed back in the response.
 
 - **Response**:
   ```json
@@ -134,10 +136,18 @@ Retrieves the list of helpdesk threads for staff dashboard.
     "type": "helpdesk.list",
     "data": {
       "results": [...],
-      "helpdesk_summary_data": {...}
+      "helpdesk_summary_data": {...},
+      "filters": {
+        "status": "open"
+      },
+      "request_id": 1
     }
   }
   ```
+
+- **Notes**:
+  - The `filters` field in the response echoes back the applied filters (including auto-computed `default` or `all` if not specified by client).
+  - The `request_id` field in the response matches the client's request_id for request-response matching.
 
 - **Auto-Filter Behavior**: When the WebSocket connects or a `list_threads` action is received without a status filter, the system automatically applies:
   - `default` filter (OPEN + IN_PROGRESS) if any exam is currently ongoing
