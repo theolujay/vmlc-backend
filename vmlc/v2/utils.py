@@ -9,6 +9,7 @@ from vmlc.models import Question
 DEFAULT_TTL = 86400  # 24h
 GRACE_PERIOD_MINUTES = 1
 
+
 class CacheKeys:
     """Centralized cache key patterns."""
 
@@ -30,6 +31,7 @@ class CacheKeys:
     EXAM_QUESTIONS = "exam:questions:{exam_id}"
     EXAM_RESULTS = "exam:results:{exam_id}"
     CANDIDATE_EXAM_HISTORY = "cand:history:{candidate_id}"
+    INTEGRITY_AUDIT = "proctoring:integrity:{exam_id}:{candidate_id}"
 
     # Questions
     QUESTION_POOL = "pool:questions"
@@ -205,6 +207,13 @@ def invalidate_exam_cache(exam_id):
     except (AttributeError, NotImplementedError):
         # Fallback if the cache backend doesn't support delete_pattern
         pass
+
+
+def invalidate_integrity_audit_cache(exam_id, candidate_id):
+    """Clear integrity audit cache for a specific candidate and exam."""
+    cache.delete(
+        CacheKeys.INTEGRITY_AUDIT.format(exam_id=exam_id, candidate_id=candidate_id)
+    )
 
 
 def invalidate_staff_dashboard():

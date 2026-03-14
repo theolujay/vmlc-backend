@@ -42,6 +42,7 @@ from competition.services.promotion import PromotionService, PromotionError
 
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
 from vmlc.v2.utils import CacheKeys, get_or_set_cache
+from vmlc.services.proctoring import ProctoringService
 
 
 class CandidateDashboardView(APIView):
@@ -423,6 +424,8 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
         exam_access = ExamAccess.objects.filter(
             exam_id=exam_id, candidate_id=candidate_id
         ).first()
+        
+        proctoring_summary = None
         if exam_access:
             candidate_performance["started_at"] = exam_access.started_at
             candidate_performance["submitted_at"] = exam_access.submitted_at
@@ -433,6 +436,12 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
                 )
             else:
                 candidate_performance["face_capture"] = None
+            
+            proctoring_summary = ProctoringService.get_proctoring_summary(exam_access)
+            if proctoring_summary:
+                proctoring_summary["timeline_url"] = request.build_absolute_uri(
+                    f"/v2/exams/{exam_id}/candidates/{candidate_id}/integrity-audit/"
+                )
         else:
             candidate_performance["started_at"] = None
             candidate_performance["submitted_at"] = None
@@ -442,6 +451,7 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             "exam_details": exam_details,
             "candidate_info": candidate_info,
             "candidate_performance": candidate_performance,
+            "proctoring_summary": proctoring_summary,
         }
 
 

@@ -85,6 +85,8 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
             "percentile",
             "time_used",
             "tie_break_reason",
+            "violation_score",
+            "proctoring_status",
         ]
 
     def get_candidate_info(self, obj):

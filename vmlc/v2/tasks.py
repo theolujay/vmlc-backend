@@ -235,3 +235,15 @@ def mark_exam_access_as_expired_task(access_id):
             logger.info(
                 f"ExamAccess {access_id} is still within grace period. No action taken."
             )
+
+
+@shared_task(name="process_heartbeat_events_task")
+def process_heartbeat_events_task(heartbeat_id, events_data):
+    """
+    Background task to process violation events and update the suspicion score
+    for a given heartbeat.
+    """
+    from vmlc.services.proctoring import ProctoringService
+
+    logger.info(f"Processing events for heartbeat {heartbeat_id}")
+    ProctoringService.process_events_and_score(heartbeat_id, events_data)
