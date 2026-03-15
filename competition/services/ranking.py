@@ -141,9 +141,16 @@ class RankingSnapshotGenerator:
                 }
             }
         """
+        # there shouldn't be more than one record per candidate per exam,
+        # but this safety net ensures that the one with the highest score
+        # is selected if there are more than one
         raw_results = CandidateExamResult.objects.filter(
             exam=self.exam,
-        ).select_related("candidate", "candidate__user")
+        ).select_related(
+            "candidate", "candidate__user"
+        ).order_by(
+            "candidate_id", "-score"
+        ).distinct("candidate_id")
 
         logger.debug(
             f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults "
@@ -173,7 +180,7 @@ class RankingSnapshotGenerator:
                     if started_at and submitted_at
                     else None
                 )
-                
+
                 candidate_scores[res.candidate_id] = {
                     "score": float(res.score),
                     "time_used": time_used,  # seconds elapsed between start and submission
