@@ -87,7 +87,7 @@ class StaffCompetitionDashboardService:
         slots = (
             StageExam.objects.filter(competition_stage__competition=active_comp)
             .select_related("competition_stage", "exam")
-            .order_by("competition_stage__order", "round")
+            .order_by("competition_stage__order", "round", "-exam__scheduled_date")
         )
 
         # Batch fetch all exam results for this competition to avoid N+1
