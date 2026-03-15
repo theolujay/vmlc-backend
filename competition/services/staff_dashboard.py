@@ -1,5 +1,5 @@
 import logging
-from django.db.models import Count, Avg, Q, Max, Min
+from django.db.models import F, Count, Avg, Q, Max, Min
 from competition.models import (
     Competition,
     StageExam,
@@ -87,7 +87,11 @@ class StaffCompetitionDashboardService:
         slots = (
             StageExam.objects.filter(competition_stage__competition=active_comp)
             .select_related("competition_stage", "exam")
-            .order_by("competition_stage__order", "round", "-exam__scheduled_date")
+            .order_by(
+                "competition_stage__order",
+                "round",
+                F("exam__scheduled_date").desc(nulls_last=True),
+            )
         )
 
         # Batch fetch all exam results for this competition to avoid N+1
