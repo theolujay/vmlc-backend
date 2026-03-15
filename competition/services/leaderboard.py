@@ -123,12 +123,12 @@ class LeaderboardService:
             is_active=True,
             is_published=True,
         ).first()
+        # DEPRECATED: doesn't align with business logic
+        # if current_ranking:
+        #     # Import here to avoid circular dependency
+        #     from competition.services.promotion import PromotionService
 
-        if current_ranking:
-            # Import here to avoid circular dependency
-            from competition.services.promotion import PromotionService
-
-            PromotionService.eliminate_league_absentees(current_ranking.id)
+        #     PromotionService.eliminate_league_absentees(current_ranking.id)
 
         # 1. Fetch all published league ranking up to as_of_round
         published_rankings = RankingSnapshot.objects.filter(
