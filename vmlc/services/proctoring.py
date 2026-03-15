@@ -1,8 +1,15 @@
 import logging
+import math
 from django.db import transaction
 from vmlc.models import ExamHeartbeat, ViolationEvent, ExamAccess
 
 logger = logging.getLogger(__name__)
+
+# Import heartbeat interval settings from serializers
+from vmlc.v2.serializers.proctoring import (
+    HEARTBEAT_INTERVAL_MINUTES,
+    HEARTBEAT_INTERVAL_TOLERANCE_SECONDS,
+)
 
 SUSPICION_WEIGHTS = {
     "TAB_SWITCH": 0.3,
@@ -26,7 +33,6 @@ class ProctoringService:
         for event_type, count in summary.items():
             weight = SUSPICION_WEIGHTS.get(event_type, 0.05)
             # Logarithmic scaling for high counts to keep score within reasonable bounds
-            import math
 
             if count > 0:
                 score += weight * (1 + math.log10(count))
@@ -183,12 +189,10 @@ class ProctoringService:
             heartbeat__exam_access=exam_access, is_critical=True
         ).count()
 
-        # Simple integrity check: max sequence vs count
-        max_seq = 0
-        if received_count > 0:
-            max_seq = heartbeats.order_by("-sequence_number").first().sequence_number
+        # Improved integrity score calculation
+        # Factors in: sequence gaps, time gaps, and expected coverage
+        integrity_details = ProctoringService._calculate_integrity_score(heartbeats)
 
-        integrity_score = received_count / max_seq if max_seq > 0 else 1.0
         avg_suspicion = (
             sum(h.suspicion_score for h in heartbeats) / received_count
             if received_count > 0
@@ -204,11 +208,100 @@ class ProctoringService:
             "total_heartbeats": received_count,
             "total_violations": total_violations,
             "critical_violations": critical_count,
-            "integrity_score": round(integrity_score, 2),
+            "integrity_score": round(integrity_details["score"], 2),
+            "integrity_flags": integrity_details["flags"],
             "average_suspicion": round(avg_suspicion, 2),
             "auto_status": auto_status,
             "status": exam_access.proctoring_status,
             "is_manually_reviewed": exam_access.is_manually_reviewed,
+        }
+
+    @staticmethod
+    def _calculate_integrity_score(heartbeats):
+        """
+        Calculate a more robust integrity score that accounts for:
+        - Sequence gaps (missing heartbeats)
+        - Time gaps (heartbeats with irregular intervals)
+        - Coverage (how many expected heartbeats we got)
+        """
+        heartbeats_list = list(heartbeats.order_by("sequence_number"))
+        received_count = len(heartbeats_list)
+
+        if received_count == 0:
+            return {"score": 1.0, "flags": []}
+
+        # Get sequence numbers
+        sequences = [h.sequence_number for h in heartbeats_list]
+        max_seq = max(sequences)
+
+        # Count sequence gaps
+        expected_sequences = set(range(1, max_seq + 1))
+        actual_sequences = set(sequences)
+        missing_sequences = expected_sequences - actual_sequences
+        sequence_gap_count = len(missing_sequences)
+
+        # Calculate time gaps (heartbeats with irregular intervals)
+        time_gaps = []
+        for i in range(1, len(heartbeats_list)):
+            prev_hb = heartbeats_list[i - 1]
+            curr_hb = heartbeats_list[i]
+
+            # Calculate actual interval from period_end to period_start
+            if prev_hb.period_end and curr_hb.period_start:
+                interval = (curr_hb.period_start - prev_hb.period_end).total_seconds()
+                expected_interval = HEARTBEAT_INTERVAL_MINUTES * 60
+                tolerance = HEARTBEAT_INTERVAL_TOLERANCE_SECONDS
+
+                # If gap exceeds expected + tolerance, it's a time gap
+                if interval > expected_interval + tolerance:
+                    time_gaps.append(
+                        {
+                            "from_seq": prev_hb.sequence_number,
+                            "to_seq": curr_hb.sequence_number,
+                            "gap_seconds": interval,
+                        }
+                    )
+
+        time_gap_count = len(time_gaps)
+
+        # Build flags for transparency
+        flags = []
+        if sequence_gap_count > 0:
+            flags.append(
+                {
+                    "type": "sequence_gaps",
+                    "count": sequence_gap_count,
+                    "missing": sorted(list(missing_sequences)),
+                    "severity": "high" if sequence_gap_count > 2 else "medium",
+                }
+            )
+
+        if time_gap_count > 0:
+            flags.append(
+                {
+                    "type": "time_gaps",
+                    "count": time_gap_count,
+                    "details": time_gaps,
+                    "severity": "medium",
+                }
+            )
+
+        # Calculate integrity score with multiple factors
+        # Base score: received / max_expected (but penalize for gaps)
+        base_score = received_count / max_seq if max_seq > 0 else 1.0
+
+        # Penalize for sequence gaps (each gap loses 0.1 from score)
+        gap_penalty = min(0.3, sequence_gap_count * 0.1)
+
+        # Penalize for time gaps (each time gap loses 0.05 from score)
+        time_penalty = min(0.2, time_gap_count * 0.05)
+
+        # Final score bounded between 0 and 1
+        final_score = max(0.0, min(1.0, base_score - gap_penalty - time_penalty))
+
+        return {
+            "score": final_score,
+            "flags": flags,
         }
 
     @staticmethod

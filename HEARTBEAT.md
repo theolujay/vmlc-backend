@@ -177,10 +177,10 @@ let clientUuid = crypto.randomUUID();
 
 async function sendHeartbeat(examId, summary, events, faceCapture = null) {
     sequenceNumber++;
-    
+
     const now = new Date();
     const periodStart = new Date(now.getTime() - HEARTBEAT_INTERVAL_MS);
-    
+
     const payload = {
         sequence_number: sequenceNumber,
         client_uuid: clientUuid,
@@ -197,14 +197,14 @@ async function sendHeartbeat(examId, summary, events, faceCapture = null) {
         },
         events: events
     };
-    
+
     const formData = new FormData();
     formData.append('payload', JSON.stringify(payload));
-    
+
     if (faceCapture) {
         formData.append('face_capture', faceCapture);
     }
-    
+
     const response = await fetch(`/v2/exams/${examId}/heartbeat/`, {
         method: 'POST',
         headers: {
@@ -212,12 +212,12 @@ async function sendHeartbeat(examId, summary, events, faceCapture = null) {
         },
         body: formData
     });
-    
+
     if (!response.ok) {
         const error = await response.json();
         console.error('Heartbeat failed:', error);
     }
-    
+
     return response.json();
 }
 
@@ -225,10 +225,10 @@ async function sendHeartbeat(examId, summary, events, faceCapture = null) {
 function startHeartbeat(examId) {
     const summary = { TAB_SWITCH: 0, NO_FACE: 0 };
     const events = [];
-    
+
     // Initial heartbeat
     sendHeartbeat(examId, summary, events);
-    
+
     // Set up interval for subsequent heartbeats
     return setInterval(() => {
         sendHeartbeat(examId, summary, events);
@@ -262,9 +262,9 @@ function onNoFaceDetected() {
 function sendHeartbeatWithSummary(examId) {
     const events = []; // Individual events for this period
     const summary = { ...violationSummary };
-    
+
     sendHeartbeat(examId, summary, events);
-    
+
     // Reset for next interval
     Object.keys(violationSummary).forEach(key => {
         violationSummary[key] = 0;
