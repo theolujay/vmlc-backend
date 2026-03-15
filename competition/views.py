@@ -259,7 +259,9 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         exam_id = self.kwargs[self.lookup_field]
         cache_key = CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id)
         data = get_or_set_cache(
-            cache_key, lambda: self._fetch_snapshot_data(exam_id=exam_id)
+            cache_key,
+            lambda: self._fetch_snapshot_data(exam_id=exam_id),
+            ttl = 3600
         )
         if data is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -424,7 +426,7 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
         exam_access = ExamAccess.objects.filter(
             exam_id=exam_id, candidate_id=candidate_id
         ).first()
-        
+
         proctoring_summary = None
         if exam_access:
             candidate_performance["started_at"] = exam_access.started_at
@@ -436,7 +438,7 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
                 )
             else:
                 candidate_performance["face_capture"] = None
-            
+
             proctoring_summary = ProctoringService.get_proctoring_summary(exam_access)
             if proctoring_summary:
                 proctoring_summary["timeline_url"] = request.build_absolute_uri(

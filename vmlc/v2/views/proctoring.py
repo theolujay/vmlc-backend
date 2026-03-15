@@ -1,6 +1,7 @@
 import logging
 import json
 from datetime import timedelta
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -180,6 +181,7 @@ class UpdateProctoringStatusView(APIView):
             access = ProctoringService.update_proctoring_status(
                 exam_id, candidate_id, new_status
             )
+            cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
             return Response(
                 {
                     "message": f"Proctoring status updated to {new_status}.",
