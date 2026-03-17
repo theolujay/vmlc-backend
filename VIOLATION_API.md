@@ -68,7 +68,7 @@ To improve `RetrieveCandidateRankingSnapshotEntryView`, we will add a summary ob
 "proctoring_summary": {
     "total_heartbeats": 12,
     "total_violations": 5,
-    "integrity_score": 0.92,
+    "proctoring_integrity": 0.92,
     "status": "clear|suspicious|flagged",
     "timeline_url": "/v2/exams/{id}/candidates/{id}/proctoring-timeline/"
 }

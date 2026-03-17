@@ -48,7 +48,7 @@ Summary of automated proctoring telemetry (only available for Staff or if an `Ex
 | `total_heartbeats` | Integer | Number of heartbeats received from the client. |
 | `total_violations` | Integer | Total count of all violation events across all heartbeats. |
 | `critical_violations` | Integer | Number of critical violations (e.g., MULTI_FACE). |
-| `integrity_score` | Float | Ratio of received heartbeats to expected heartbeats (0.0 - 1.0). |
+| `proctoring_integrity` | Float | Ratio of received heartbeats to expected heartbeats (0.0 - 1.0). |
 | `average_suspicion` | Float | Average suspicion score across all heartbeats (0.0 - 1.0). |
 | `auto_status` | String \| null | Automated status determined by the system. `null` if no heartbeats. |
 | `status` | String \| null | Current proctoring status (manual override if exists). |
@@ -123,7 +123,7 @@ Summary of automated proctoring telemetry (only available for Staff or if an `Ex
         "total_heartbeats": 12,
         "total_violations": 5,
         "critical_violations": 1,
-        "integrity_score": 1.0,
+        "proctoring_integrity": 1.0,
         "average_suspicion": 0.05,
         "auto_status": "clear",
         "status": "clear",

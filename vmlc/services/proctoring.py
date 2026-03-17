@@ -201,7 +201,9 @@ class ProctoringService:
             heartbeat__exam_access=exam_access, is_critical=True
         ).count()
 
-        integrity_details = ProctoringService._calculate_integrity_score(heartbeats)
+        integrity_details = ProctoringService._calculate_proctoring_integrity(
+            heartbeats
+        )
 
         burst_multiplier = 1.0
         if received_count > 0:
@@ -232,7 +234,7 @@ class ProctoringService:
             "total_heartbeats": received_count,
             "total_violations": total_violations,
             "critical_violations": critical_count,
-            "integrity_score": round(integrity_details["score"], 2),
+            "proctoring_integrity": round(integrity_details["score"], 2),
             "integrity_flags": integrity_details["flags"],
             "average_suspicion": round(avg_suspicion, 2),
             "auto_status": auto_status,
@@ -311,7 +313,7 @@ class ProctoringService:
         return base_avg * (1 + math.log1p(coverage_ratio))
 
     @staticmethod
-    def _calculate_integrity_score(heartbeats):
+    def _calculate_proctoring_integrity(heartbeats):
         """
         Calculate a more robust integrity score that accounts for:
         - Sequence gaps (missing heartbeats)

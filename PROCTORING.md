@@ -90,7 +90,7 @@ Provides a comprehensive, chronological timeline of a candidate's exam attempt f
     "total_heartbeats": 12,
     "total_violations": 5,
     "critical_violations": 1,
-    "integrity_score": 1.0,
+    "proctoring_integrity": 1.0,
     "average_suspicion": 0.15,
     "auto_status": "clear",
     "status": "clear",
