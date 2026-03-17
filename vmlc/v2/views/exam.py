@@ -24,7 +24,7 @@ from identity.permissions import (
 )
 
 from django.utils import timezone
-from vmlc.models import Exam, Question, CandidateExamResult, ExamAccess
+from vmlc.models import Exam, ExamHeartbeat, Question, CandidateExamResult, ExamAccess
 from vmlc.services.candidate_records import CandidateRecordService
 from vmlc.v2.serializers.exam import (
     ExamListV2Serializer,
@@ -503,6 +503,9 @@ def candidate_take_exam_V2(request, exam_id):
         access.deadline = now + timedelta(minutes=exam.countdown_minutes)
         access.save(update_fields=["status", "started_at", "deadline"])
 
+        # purge pre-existing heartbeats if there was a previous attempt
+        heartbeats = ExamHeartbeat.objects.filter(exam_access=access)
+        heartbeats.delete()
         # Schedule expiration task
         from vmlc.v2.tasks import mark_exam_access_as_expired_task
         from vmlc.v2.utils import GRACE_PERIOD_MINUTES

@@ -69,9 +69,7 @@ class ProctoringService:
 
         summary = payload.get("summary", {})
 
-        # We create the heartbeat object immediately to save the face_capture
-        # but calculation and events will be handled by a task.
-        heartbeat = ExamHeartbeat.objects.get_or_create(
+        heartbeat, _ = ExamHeartbeat.objects.get_or_create(
             sequence_number=payload.get("sequence_number"),
             client_uuid=client_uuid,
             defaults={
