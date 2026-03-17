@@ -57,17 +57,19 @@ class ProctoringService:
 
         # We create the heartbeat object immediately to save the face_capture
         # but calculation and events will be handled by a task.
-        heartbeat = ExamHeartbeat.objects.create(
-            exam_access=exam_access,
+        heartbeat = ExamHeartbeat.objects.get_or_create(
             sequence_number=payload.get("sequence_number"),
             client_uuid=client_uuid,
-            period_start=payload.get("period_start"),
-            period_end=payload.get("period_end"),
-            summary=summary,
-            face_capture=face_capture,
-            # Suspicion score will be updated by the task
-            suspicion_score=0.0,
-            meta=payload.get("meta", {}),
+            defaults={
+                "exam_access": exam_access,
+                "period_start": payload.get("period_start"),
+                "period_end": payload.get("period_end"),
+                "summary": summary,
+                "face_capture": face_capture,
+                # Suspicion score will be updated by the task
+                "suspicion_score": 0.0,
+                "meta": payload.get("meta", {}),
+            },
         )
 
         # Invalidate integrity audit cache

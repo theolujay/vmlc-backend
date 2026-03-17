@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -122,6 +122,14 @@ class IntegrityAuditView(APIView):
                 if last_period_end is not None:
                     period_start = hb.get("period_start")
                     if period_start:
+                        if isinstance(period_start, str):
+                            period_start = datetime.fromisoformat(
+                                period_start.replace("Z", "+00:00")
+                            )
+                        if isinstance(last_period_end, str):
+                            last_period_end = datetime.fromisoformat(
+                                last_period_end.replace("Z", "+00:00")
+                            )
                         actual_gap = period_start - last_period_end
                         expected_gap = expected_interval
                         if actual_gap > expected_gap + time_tolerance:
