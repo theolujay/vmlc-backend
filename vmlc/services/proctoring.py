@@ -1,6 +1,8 @@
 import logging
 import math
+from datetime import timedelta
 from django.db import transaction
+from django.utils import timezone
 from vmlc.models import ExamHeartbeat, ViolationEvent, ExamAccess
 
 logger = logging.getLogger(__name__)
@@ -22,20 +24,32 @@ SUSPICION_WEIGHTS = {
 
 CRITICAL_EVENTS = ["MULTI_FACE", "DEVTOOLS_OPEN"]
 
+RECENCY_WEIGHT_DECAY = 0.5
+
+SUSPICION_THRESHOLDS = {
+    "flagged": 0.7,
+    "suspicious": 0.3,
+}
+
+BURST_DETECTION = {
+    "min_violations": 3,
+    "time_window_seconds": 10,
+    "multiplier": 1.5,
+}
+
 
 class ProctoringService:
     @staticmethod
     def calculate_suspicion_score(summary):
         """
         Calculates a score between 0.0 and 1.0 based on the frequency of violations.
+        Uses square root scaling for more balanced scoring across violation counts.
         """
         score = 0.0
         for event_type, count in summary.items():
             weight = SUSPICION_WEIGHTS.get(event_type, 0.05)
-            # Logarithmic scaling for high counts to keep score within reasonable bounds
-
             if count > 0:
-                score += weight * (1 + math.log10(count))
+                score += weight * (1 + math.sqrt(count))
 
         return min(1.0, score)
 
@@ -178,11 +192,9 @@ class ProctoringService:
         """
         Returns a high-level summary of proctoring data for an attempt.
         """
-        heartbeats = exam_access.heartbeats.all()
+        heartbeats = list(exam_access.heartbeats.all().order_by("sequence_number"))
 
-        # If no heartbeats, we still return the manual status if it's not 'clear'
-        # or just return basic info.
-        received_count = heartbeats.count()
+        received_count = len(heartbeats)
 
         total_violations = sum(
             h.summary.get(k, 0) for h in heartbeats for k in h.summary
@@ -191,17 +203,29 @@ class ProctoringService:
             heartbeat__exam_access=exam_access, is_critical=True
         ).count()
 
-        # Improved integrity score calculation
-        # Factors in: sequence gaps, time gaps, and expected coverage
         integrity_details = ProctoringService._calculate_integrity_score(heartbeats)
 
+        burst_multiplier = 1.0
+        if received_count > 0:
+            burst_multiplier = ProctoringService._detect_burst_violations(exam_access)
+
         avg_suspicion = (
-            sum(h.suspicion_score for h in heartbeats) / received_count
+            sum(h.suspicion_score * burst_multiplier for h in heartbeats)
+            / received_count
             if received_count > 0
             else 0.0
         )
 
-        # Automated status vs manual status
+        avg_suspicion = ProctoringService._apply_recency_weighting(
+            heartbeats, avg_suspicion
+        )
+
+        avg_suspicion = ProctoringService._apply_duration_normalization(
+            exam_access, heartbeats, avg_suspicion
+        )
+
+        avg_suspicion = min(1.0, avg_suspicion)
+
         auto_status = ProctoringService.determine_status(avg_suspicion, critical_count)
         if received_count == 0:
             auto_status = None
@@ -219,6 +243,76 @@ class ProctoringService:
         }
 
     @staticmethod
+    def _detect_burst_violations(exam_access):
+        """
+        Detects if there are clusters of violations occurring in a short time window.
+        Returns a multiplier to apply to the suspicion score.
+        """
+        from django.utils import timezone
+
+        events = ViolationEvent.objects.filter(
+            heartbeat__exam_access=exam_access
+        ).order_by("timestamp")
+
+        if events.count() < BURST_DETECTION["min_violations"]:
+            return 1.0
+
+        events_list = list(events.values_list("timestamp", flat=True))
+        max_multiplier = 1.0
+
+        for i in range(len(events_list)):
+            window_start = events_list[i]
+            window_end = window_start + timedelta(
+                seconds=BURST_DETECTION["time_window_seconds"]
+            )
+
+            count_in_window = sum(1 for ts in events_list[i:] if ts <= window_end)
+
+            if count_in_window >= BURST_DETECTION["min_violations"]:
+                max_multiplier = max(max_multiplier, BURST_DETECTION["multiplier"])
+
+        return max_multiplier
+
+    @staticmethod
+    def _apply_recency_weighting(heartbeats, base_avg):
+        """
+        Applies exponential decay weighting so more recent heartbeats have higher weight.
+        """
+        if not heartbeats or len(heartbeats) <= 1:
+            return base_avg
+
+        n = len(heartbeats)
+        weights = [RECENCY_WEIGHT_DECAY**i for i in range(n)]
+        total_weight = sum(weights)
+
+        weighted_sum = sum(
+            h.suspicion_score * w for h, w in zip(reversed(heartbeats), weights)
+        )
+
+        return weighted_sum / total_weight
+
+    @staticmethod
+    def _apply_duration_normalization(exam_access, heartbeats, base_avg):
+        """
+        Normalizes suspicion score based on exam duration vs expected heartbeats.
+        """
+        if not exam_access.started_at or not heartbeats:
+            return base_avg
+
+        submitted_at = exam_access.submitted_at or timezone.now()
+        duration = submitted_at - exam_access.started_at
+        duration_minutes = duration.total_seconds() / 60
+
+        expected_heartbeats = duration_minutes / HEARTBEAT_INTERVAL_MINUTES
+
+        if expected_heartbeats <= 0:
+            return base_avg
+
+        coverage_ratio = len(heartbeats) / expected_heartbeats
+
+        return base_avg * (1 + math.log1p(coverage_ratio))
+
+    @staticmethod
     def _calculate_integrity_score(heartbeats):
         """
         Calculate a more robust integrity score that accounts for:
@@ -226,7 +320,11 @@ class ProctoringService:
         - Time gaps (heartbeats with irregular intervals)
         - Coverage (how many expected heartbeats we got)
         """
-        heartbeats_list = list(heartbeats.order_by("sequence_number"))
+        if hasattr(heartbeats, "order_by"):
+            heartbeats_list = list(heartbeats.order_by("sequence_number"))
+        else:
+            heartbeats_list = sorted(heartbeats, key=lambda h: h.sequence_number)
+
         received_count = len(heartbeats_list)
 
         if received_count == 0:
@@ -308,8 +406,8 @@ class ProctoringService:
 
     @staticmethod
     def determine_status(avg_suspicion, critical_count):
-        if critical_count > 0 or avg_suspicion > 0.7:
+        if critical_count > 0 or avg_suspicion >= SUSPICION_THRESHOLDS["flagged"]:
             return "flagged"
-        if avg_suspicion > 0.3:
+        if avg_suspicion >= SUSPICION_THRESHOLDS["suspicious"]:
             return "suspicious"
         return "clear"
