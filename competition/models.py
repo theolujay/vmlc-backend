@@ -362,8 +362,7 @@ class RankingSnapshotEntry(models.Model):
     exam_score = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        null=True,
-        blank=True,
+        default=0,
         help_text="Candidate's exam score used for ranking.",
     )
     rank = models.PositiveIntegerField(

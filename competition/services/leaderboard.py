@@ -3,6 +3,7 @@ from typing import Optional
 
 from django.db import transaction
 from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
 from competition.models import (
     Competition,
@@ -151,7 +152,7 @@ class LeaderboardService:
                 enrollment__status=Enrollment.Status.ACTIVE,
             )
             .values("candidate_id", "enrollment_id")
-            .annotate(total_score=Sum("exam_score"))
+            .annotate(total_score=Coalesce(Sum("exam_score"), 0))
             .order_by("-total_score")
         )
 

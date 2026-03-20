@@ -216,16 +216,16 @@ class PublishRankingSnapshotView(APIView):
                 )
                 # Trigger cache invalidation for all candidates in this snapshot
                 transaction.on_commit(
-                    lambda: invalidate_published_ranking_cache_task.delay(
-                        ranking_snapshot_id=ranking.id
+                    lambda ranking_snapshot_id=ranking.id: invalidate_published_ranking_cache_task.delay(
+                        ranking_snapshot_id=ranking_snapshot_id
                     )
                 )
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        lambda: update_leaderboard_task.delay(
-                            competition_id=ranking.competition_id,
-                            as_of_round=ranking.round,
+                        lambda cid=ranking.competition_id, r=ranking.round: update_leaderboard_task.delay(
+                            competition_id=cid,
+                            as_of_round=r,
                         )
                     )
                 return Response(
