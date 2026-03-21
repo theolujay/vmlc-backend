@@ -157,7 +157,8 @@ class PublishRankingSnapshotView(APIView):
 
         if publish_now or publish_at:
             ranking = RankingSnapshot.objects.filter(
-                exam=exam, is_active=True  # only one should be active
+                exam=exam,
+                is_active=True,  # only one should be active
             ).first()
 
             if not ranking:
@@ -223,7 +224,8 @@ class PublishRankingSnapshotView(APIView):
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        lambda cid=ranking.competition_id, r=ranking.round: update_leaderboard_task.delay(
+                        lambda cid=ranking.competition_id,
+                        r=ranking.round: update_leaderboard_task.delay(
                             competition_id=cid,
                             as_of_round=r,
                         )
@@ -259,9 +261,7 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
         exam_id = self.kwargs[self.lookup_field]
         cache_key = CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id)
         data = get_or_set_cache(
-            cache_key,
-            lambda: self._fetch_snapshot_data(exam_id=exam_id),
-            ttl = 3600
+            cache_key, lambda: self._fetch_snapshot_data(exam_id=exam_id), ttl=3600
         )
         if data is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -397,9 +397,9 @@ class RetrieveCandidateRankingSnapshotEntryView(APIView):
             candidate_performance["time_used"] = entry.time_used
             candidate_performance["tie_break_reason"] = entry.tie_break_reason
         else:
-            # For absentees, we still want to provide basic performance info
             candidate_performance = {
-                "score": "absent" if entry.exam_score is None else entry.exam_score,
+                "score": entry.exam_score,
+                "attempt_status": entry.attempt_status,
                 "rank": entry.rank,
                 "percentile": entry.percentile,
                 "time_used": entry.time_used,

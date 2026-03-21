@@ -321,6 +321,7 @@ class RankingSnapshotGenerator:
                     tie_break_reason=tie_break_reason,
                     proctoring_status=data.get("proctoring_status"),
                     violation_score=data.get("violation_score", 0.0),
+                    attempt_status="absent" if score == "absent" else "present",
                 )
             )
 

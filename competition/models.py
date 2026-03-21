@@ -400,6 +400,16 @@ class RankingSnapshotEntry(models.Model):
         blank=True,
         db_index=True,
     )
+    attempt_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("present", "Present"),
+            ("absent", "Absent"),
+            ("disqualified", "Disqualified"),
+        ],
+        default="present",
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

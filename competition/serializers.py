@@ -44,7 +44,7 @@ class RankingSnapshotListSerializer(serializers.ModelSerializer):
     def get_entries_count(self, obj: RankingSnapshot):
         return obj.entries.count()
 
-    def get_scheduled_publish_at(self,obj: RankingSnapshot):
+    def get_scheduled_publish_at(self, obj: RankingSnapshot):
         return obj.meta.get("scheduled_publish_at", None)
 
 
@@ -73,7 +73,6 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
     """
 
     candidate_info = serializers.SerializerMethodField()
-    exam_score = serializers.SerializerMethodField()
 
     class Meta:
         model = RankingSnapshotEntry
@@ -87,6 +86,7 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
             "tie_break_reason",
             "violation_score",
             "proctoring_status",
+            "attempt_status",
         ]
 
     def get_candidate_info(self, obj):
@@ -99,13 +99,6 @@ class RankingSnapshotEntrySerializer(serializers.ModelSerializer):
             "school_type": obj.candidate.school_type,
             "current_class": obj.candidate.current_class,
         }
-
-    def get_exam_score(self, obj):
-        if obj.exam_score is None:
-            # if obj.ranking_snapshot.stage == "league":
-            #     return "eliminated" if obj.ranking_snapshot.round > 1 else "absent"
-            return "absent"
-        return obj.exam_score
 
 
 class RankingSnapshotSerializer(serializers.ModelSerializer):
