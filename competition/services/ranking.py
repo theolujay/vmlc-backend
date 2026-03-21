@@ -72,16 +72,24 @@ class RankingSnapshotGenerator:
         _ = compute_exam_results(self.exam.id)
 
         eligible_candidate_ids = self._find_eligible_candidate_ids()
-        candidate_scores = self._build_candidate_scores(eligible_candidate_ids, absentee_score)
+        candidate_scores = self._build_candidate_scores(
+            eligible_candidate_ids, absentee_score
+        )
 
         if not candidate_scores:
             raise RankingSnapshotGenerationError(
                 f"No eligible candidate results found for Exam {self.exam.id}."
             )
 
-        sorted_candidates = self._sort_candidates(candidate_scores, ranking_policy, tie_break_strategy)
-        ranking_entries_to_create = self._assign_ranks(sorted_candidates, ranking_policy)
-        ranking = self._create_ranking_snapshot(ranking_policy, tie_break_strategy, actor_id)
+        sorted_candidates = self._sort_candidates(
+            candidate_scores, ranking_policy, tie_break_strategy
+        )
+        ranking_entries_to_create = self._assign_ranks(
+            sorted_candidates, ranking_policy
+        )
+        ranking = self._create_ranking_snapshot(
+            ranking_policy, tie_break_strategy, actor_id
+        )
 
         for entry in ranking_entries_to_create:
             entry.ranking_snapshot = ranking
@@ -144,13 +152,14 @@ class RankingSnapshotGenerator:
         # there shouldn't be more than one record per candidate per exam,
         # but this safety net ensures that the one with the highest score
         # is selected if there are more than one
-        raw_results = CandidateExamResult.objects.filter(
-            exam=self.exam,
-        ).select_related(
-            "candidate", "candidate__user"
-        ).order_by(
-            "candidate_id", "-score"
-        ).distinct("candidate_id")
+        raw_results = (
+            CandidateExamResult.objects.filter(
+                exam=self.exam,
+            )
+            .select_related("candidate", "candidate__user")
+            .order_by("candidate_id", "-score")
+            .distinct("candidate_id")
+        )
 
         logger.debug(
             f"RankingSnapshotGenerator: Found {raw_results.count()} raw CandidateExamResults "
@@ -158,13 +167,21 @@ class RankingSnapshotGenerator:
         )
 
         from django.db.models import Avg
+
         exam_access_by_candidate = {
             item["candidate_id"]: item
             for item in ExamAccess.objects.filter(
                 candidate_id__in=eligible_candidate_ids,
                 exam=self.exam,
-            ).annotate(avg_suspicion=Avg("heartbeats__suspicion_score")).values(
-                "candidate_id", "status", "started_at", "submitted_at", "proctoring_status", "avg_suspicion"
+            )
+            .annotate(avg_suspicion=Avg("heartbeats__suspicion_score"))
+            .values(
+                "candidate_id",
+                "status",
+                "started_at",
+                "submitted_at",
+                "proctoring_status",
+                "avg_suspicion",
             )
         }
 
@@ -220,6 +237,7 @@ class RankingSnapshotGenerator:
           candidates can begin the exam at any point during a multi-hour access window.
           Absentees (time_used=None) are always placed last.
         """
+
         def score_as_float(item):
             score = item[1]["score"]
             return -1.0 if score == "absent" else float(score)
@@ -228,10 +246,14 @@ class RankingSnapshotGenerator:
             return sorted(
                 candidate_scores.items(),
                 key=lambda item: (
-                    -score_as_float(item),  # negate so highest score sorts first (ascending)
+                    -score_as_float(
+                        item
+                    ),  # negate so highest score sorts first (ascending)
                     # Lower time_used (faster completion) ranks higher.
                     # Absentees (time_used=None) sort last via float("inf").
-                    item[1]["time_used"] if item[1]["time_used"] is not None else float("inf"),
+                    item[1]["time_used"]
+                    if item[1]["time_used"] is not None
+                    else float("inf"),
                 ),
             )
 
@@ -264,10 +286,7 @@ class RankingSnapshotGenerator:
             tie_break_reason = None
 
             if ranking_policy == "dense":
-                is_tied = (
-                    score == previous_score
-                    and time_used == previous_time_used
-                )
+                is_tied = score == previous_score and time_used == previous_time_used
                 if not is_tied:
                     current_rank += 1
                 else:
@@ -280,7 +299,11 @@ class RankingSnapshotGenerator:
                     current_rank = idx + 1
                 # else: same rank, no comment needed — ties are intentional
 
-            percentile = ((total_candidates - current_rank) / total_candidates) * 100 if total_candidates > 0 else 0.0
+            percentile = (
+                ((total_candidates - current_rank) / total_candidates) * 100
+                if total_candidates > 0
+                else 0.0
+            )
 
             enrollment = Enrollment.objects.filter(
                 candidate_id=candidate_id,
@@ -291,7 +314,7 @@ class RankingSnapshotGenerator:
                 RankingSnapshotEntry(
                     candidate_id=candidate_id,
                     enrollment=enrollment,
-                    exam_score=None if score == "absent" else score,
+                    exam_score=0.0 if score == "absent" else score,
                     rank=current_rank,
                     percentile=percentile,
                     time_used=time_used,
@@ -327,7 +350,9 @@ class RankingSnapshotGenerator:
             meta={
                 "generated_by": str(actor_id) if actor_id else None,
                 "ranking_policy": ranking_policy,
-                "tie_break_strategy": tie_break_strategy if ranking_policy == "dense" else None,
+                "tie_break_strategy": tie_break_strategy
+                if ranking_policy == "dense"
+                else None,
             },
         )
 
