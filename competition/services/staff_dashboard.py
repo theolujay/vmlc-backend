@@ -1,18 +1,21 @@
 import logging
+import logging
 from django.db.models import F, Count, Avg, Q, Max, Min, Exists, OuterRef
 from competition.models import (
     Competition,
     StageExam,
     Enrollment,
     RankingSnapshot,
+    RankingSnapshotEntry,
 )
-from vmlc.models import CandidateAnswer, Exam, CandidateExamResult, ExamAccess
+from vmlc.models import Exam, CandidateExamResult, CandidateAnswer, ExamAccess
 from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
     RankingSnapshotEntrySerializer,
 )
 from vmlc.v2.utils import truncate_float
+
 
 logger = logging.getLogger(__name__)
 
@@ -139,36 +142,85 @@ def _get_exams_list(competition: Competition) -> list:
 
 
 def _build_exam_stats_map(competition: Competition) -> dict:
-    submitted_subquery = ExamAccess.objects.filter(
-        exam=OuterRef("exam"),
-        candidate=OuterRef("candidate"),
-        status=ExamAccess.Status.SUBMITTED,
-    )
+    """
+    Builds a map of exam_id -> aggregate stats.
+    Uses RankingSnapshot data if available and published,
+    otherwise falls back to CandidateExamResult with strict participation checks.
+    """
+    # Identify exams with active rankings in this competition
+    active_rankings = RankingSnapshot.objects.filter(
+        competition=competition, is_active=True
+    ).values_list("exam_id", flat=True)
 
-    has_answers_subquery = CandidateAnswer.objects.filter(
-        candidate_exam_result=OuterRef("id")
-    )
-
-    aggregates = (
-        CandidateExamResult.objects.filter(
-            exam__competition_slot__competition_stage__competition=competition,
-            candidate__user__is_active=True,
+    # 2. Query stats from RankingSnapshotEntry for those exams
+    ranking_aggregates = (
+        RankingSnapshotEntry.objects.filter(
+            ranking_snapshot__exam_id__in=active_rankings,
+            ranking_snapshot__is_active=True,
+            attempt_status="present",
         )
-        .annotate(
-            was_submitted=Exists(submitted_subquery),
-            has_answers=Exists(has_answers_subquery),
-        )
-        .filter(was_submitted=True)
-        .filter(Q(has_answers=True) | Q(score_submitted_by__isnull=False))
-        .values("exam_id")
+        .values("ranking_snapshot__exam_id")
         .annotate(
             sat=Count("id"),
-            avg=Avg("score"),
-            highest=Max("score"),
-            lowest=Min("score"),
+            avg=Avg("exam_score"),
+            highest=Max("exam_score"),
+            lowest=Min("exam_score"),
         )
     )
-    return {res["exam_id"]: res for res in aggregates}
+
+    stats_map = {
+        res["ranking_snapshot__exam_id"]: {
+            "sat": res["sat"],
+            "avg": res["avg"],
+            "highest": res["highest"],
+            "lowest": res["lowest"],
+        }
+        for res in ranking_aggregates
+    }
+
+    # 3. Query "live" stats for remaining exams
+    remaining_exams_ids = (
+        StageExam.objects.filter(competition_stage__competition=competition)
+        .exclude(exam_id__in=active_rankings)
+        .values_list("exam_id", flat=True)
+    )
+
+    if remaining_exams_ids:
+        has_answers_subquery = CandidateAnswer.objects.filter(
+            candidate_exam_result=OuterRef("id")
+        )
+
+        live_aggregates = (
+            CandidateExamResult.objects.filter(
+                exam_id__in=remaining_exams_ids,
+                candidate__user__is_active=True,
+            )
+            .annotate(
+                has_answers=Exists(has_answers_subquery),
+            )
+            .filter(
+                # A candidate is considered to have "sat" if they have answers
+                # or if a staff member manually submitted a score for them.
+                Q(has_answers=True) | Q(score_submitted_by__isnull=False)
+            )
+            .values("exam_id")
+            .annotate(
+                sat=Count("id"),
+                avg=Avg("score"),
+                highest=Max("score"),
+                lowest=Min("score"),
+            )
+        )
+
+        for res in live_aggregates:
+            stats_map[res["exam_id"]] = {
+                "sat": res["sat"],
+                "avg": res["avg"],
+                "highest": res["highest"],
+                "lowest": res["lowest"],
+            }
+
+    return stats_map
 
 
 def _build_rankings_map(competition: Competition) -> dict:
