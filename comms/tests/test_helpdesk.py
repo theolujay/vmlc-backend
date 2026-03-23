@@ -14,7 +14,6 @@ User = get_user_model()
 
 
 class HelpdeskTests(APITestCase):
-
     def setUp(self):
         cache.clear()
         # Create Candidate
@@ -38,6 +37,15 @@ class HelpdeskTests(APITestCase):
         self.staff_profile = Staff.objects.create(
             user=self.staff_user, role=Staff.Roles.ADMIN
         )
+
+        # Create moderator for escalation tests
+        self.moderator_user = User.objects.create_user(
+            email="moderator@example.com",
+            password="password123",
+            first_name="Moderator",
+            last_name="User",
+        )
+        Staff.objects.create(user=self.moderator_user, role=Staff.Roles.MODERATOR)
 
         # Create another Staff
         # self.staff_user2 = User.objects.create_user(
@@ -72,9 +80,7 @@ class HelpdeskTests(APITestCase):
 
     @patch("django.db.transaction.on_commit")
     @patch("channels.layers.get_channel_layer")
-    def test_post_message_candidate(
-        self, mock_get_channel_layer, mock_on_commit
-    ):
+    def test_post_message_candidate(self, mock_get_channel_layer, mock_on_commit):
         """Test candidate posting a message to their thread."""
         # Mock on_commit to execute immediately
         mock_on_commit.side_effect = lambda func: func()
@@ -148,8 +154,8 @@ class HelpdeskTests(APITestCase):
         )
 
     @patch("comms.tasks.slack_service.send_support_escalation_alert")
-    @patch("comms.tasks.notification_service.notify_user")
-    def test_escalation_task_triggers_on_no_reply(self, mock_notify, mock_slack):
+    @patch("comms.tasks.notification_service.send_broadcast")
+    def test_escalation_task_triggers_on_no_reply(self, mock_broadcast, mock_slack):
         """Test that escalation task triggers notifications if no staff reply and candidate is in ongoing exam."""
         from comms.tasks import helpdesk_escalation_task
 
@@ -186,7 +192,7 @@ class HelpdeskTests(APITestCase):
 
         # Verify Slack and Email/SMS were triggered
         mock_slack.assert_called_once()
-        self.assertTrue(mock_notify.called)
+        self.assertTrue(mock_broadcast.called)
 
     @patch("comms.tasks.slack_service.send_support_escalation_alert")
     def test_escalation_task_does_not_trigger_if_no_ongoing_exam(self, mock_slack):
