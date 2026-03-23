@@ -731,7 +731,7 @@ def helpdesk_escalation_task(message_id):
 
             # 2. Get admins and managers for Email/SMS
             escalation_targets = Staff.objects.filter(
-                Q(role=Staff.Roles.MANAGER) | Q(role=Staff.Roles.ADMIN),
+                Q(role=Staff.Roles.ADMIN) | Q(role=Staff.Roles.MODERATOR),
                 user__is_active=True,
             ).select_related("user")
 
@@ -744,24 +744,20 @@ def helpdesk_escalation_task(message_id):
                 f"Please review and respond immediately."
             )
 
-            for staff in escalation_targets:
-                # Send Email
-                notification_service.notify_user(
-                    user=staff.user,
-                    subject=subject,
-                    message=body,
-                    mediums=["email", "platform"],
-                    notification_type="alert",
-                )
-                # Send SMS
-                if staff.user.phone:
-                    notification_service.notify_user(
-                        user=staff.user,
-                        subject=subject,
-                        message=body,
-                        mediums=["sms"],
-                        notification_type="alert",
-                    )
+            from comms.models import Broadcast
+
+            broadcast = Broadcast.objects.create(
+                subject=subject,
+                message=body,
+                mediums=[Broadcast.Medium.EMAIL],
+                target_roles={
+                    "staff": ["moderator", "admin"]
+                },
+            )
+
+            notification_service.send_broadcast(
+                broadcast_id=broadcast.id
+            )
 
     except ThreadMessage.DoesNotExist:
         logger.error(f"Message {message_id} not found for escalation task.")
