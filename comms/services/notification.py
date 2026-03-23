@@ -68,26 +68,26 @@ class NotificationService:
         whether dispatch succeeded.
         """
         if mediums is None:
-            mediums = [Broadcast.Mediums.PLATFORM]
+            mediums = [Broadcast.Medium.PLATFORM]
 
         results: Dict[str, bool] = {}
 
         # Flag for centralized email delivery if both platform and email are requested
-        has_platform = Broadcast.Mediums.PLATFORM in mediums
-        has_email = Broadcast.Mediums.EMAIL in mediums
+        has_platform = Broadcast.Medium.PLATFORM in mediums
+        has_email = Broadcast.Medium.EMAIL in mediums
 
         if has_platform and has_email:
             metadata = metadata or {}
             metadata["send_email"] = True
 
         for medium in mediums:
-            if medium == Broadcast.Mediums.SMS:
+            if medium == Broadcast.Medium.SMS:
                 body_to_send = format_sms_body(subject, message)
             else:
                 body_to_send = f"{subject}:\n\n{message}" if subject else message
 
             try:
-                if medium == Broadcast.Mediums.PLATFORM:
+                if medium == Broadcast.Medium.PLATFORM:
                     results["platform"] = self._send_platform_notification(
                         user=user,
                         subject=subject,
@@ -97,7 +97,7 @@ class NotificationService:
                         expires_at=expires_at,
                     )
 
-                elif medium == Broadcast.Mediums.EMAIL:
+                elif medium == Broadcast.Medium.EMAIL:
                     if has_platform:
                         # Skip explicit email send; handled by Notification signal
                         results["email"] = True
@@ -114,12 +114,12 @@ class NotificationService:
                     )
                     results["email"] = True
 
-                elif medium == Broadcast.Mediums.SMS:
+                elif medium == Broadcast.Medium.SMS:
                     results["sms"] = self._dispatch_phone_notification(
                         user=user, body=body_to_send, medium="sms"
                     )
 
-                elif medium == Broadcast.Mediums.WHATSAPP:
+                elif medium == Broadcast.Medium.WHATSAPP:
                     results["whatsapp"] = self._dispatch_phone_notification(
                         user=user, body=body_to_send, medium="whatsapp"
                     )
@@ -196,14 +196,14 @@ class NotificationService:
                                 "No active %s found for role '%s'" % (user_type, role)
                             )
 
-                        if medium == Broadcast.Mediums.EMAIL:
+                        if medium == Broadcast.Medium.EMAIL:
                             self._send_email_broadcast(broadcast, recipients, role)
-                        elif medium == Broadcast.Mediums.PLATFORM:
+                        elif medium == Broadcast.Medium.PLATFORM:
                             self._send_platform_broadcast(broadcast, recipients, role)
-                        elif medium == Broadcast.Mediums.SMS:
+                        elif medium == Broadcast.Medium.SMS:
                             # Note: Bulk SMS task might update this log asynchronously
                             self._send_sms_broadcast(broadcast, recipients, log)
-                        elif medium == Broadcast.Mediums.WHATSAPP:
+                        elif medium == Broadcast.Medium.WHATSAPP:
                             pass  # Not yet implemented
                         else:
                             raise InvalidMediumError(
@@ -212,8 +212,8 @@ class NotificationService:
 
                         # For synchronous mediums (Email, Platform), we mark as sent here
                         if medium in [
-                            Broadcast.Mediums.EMAIL,
-                            Broadcast.Mediums.PLATFORM,
+                            Broadcast.Medium.EMAIL,
+                            Broadcast.Medium.PLATFORM,
                         ]:
                             log.status = BroadcastLog.MediumStatus.SENT
                             log.sent_at = timezone.now()
@@ -335,8 +335,8 @@ class NotificationService:
                 user=user,
                 subject=subject,
                 message=personalized_message,
-                mediums=[Broadcast.Mediums.EMAIL],
-                # mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Medium.EMAIL],
+                # mediums=[Broadcast.Medium.PLATFORM, Broadcast.Medium.EMAIL],
                 notification_type="info",
                 metadata={"html_message": html_message},
             )
@@ -350,7 +350,7 @@ class NotificationService:
 
             phone_grouped_users.setdefault(phone, []).append(user)
 
-        # phone_mediums = [Broadcast.Mediums.SMS, Broadcast.Mediums.WHATSAPP]
+        # phone_mediums = [Broadcast.Medium.SMS, Broadcast.Medium.WHATSAPP]
         for phone, users in phone_grouped_users.items():
             candidate_name = self._format_grouped_names(users)
             personalized_sms = sms_template.format(
@@ -362,7 +362,7 @@ class NotificationService:
             self.send_bulk_phone_msg(
                 body=personalized_sms,
                 recipients=[phone],
-                medium=Broadcast.Mediums.SMS,
+                medium=Broadcast.Medium.SMS,
             )
 
         logger.info(
@@ -399,7 +399,7 @@ class NotificationService:
         candidate_broadcast = Broadcast.objects.create(
             subject=subject,
             message=candidate_message,
-            mediums=[Broadcast.Mediums.EMAIL],
+            mediums=[Broadcast.Medium.EMAIL],
             target_roles={"candidate": [ranking.stage]},
             status=Broadcast.Status.PENDING,
         )
@@ -420,7 +420,7 @@ class NotificationService:
         staff_broadcast = Broadcast.objects.create(
             subject=staff_subject,
             message=staff_message,
-            mediums=[Broadcast.Mediums.EMAIL],
+            mediums=[Broadcast.Medium.EMAIL],
             target_roles={
                 "staff": [Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
             },

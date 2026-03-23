@@ -91,7 +91,7 @@ logger = logging.getLogger(__name__)
 #                 user=result.candidate.user,
 #                 subject=subject,
 #                 message=message,
-#                 mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+#                 mediums=[Broadcast.Medium.PLATFORM, Broadcast.Medium.EMAIL],
 #                 notification_type="success",
 #             )
 
@@ -356,7 +356,7 @@ def generate_results_snapshot(staff_id=None):
                 user=candidate.user,
                 subject=subject,
                 message=message,
-                mediums=[Broadcast.Mediums.PLATFORM, Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Medium.PLATFORM, Broadcast.Medium.EMAIL],
                 notification_type="success",
             )
 

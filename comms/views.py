@@ -160,16 +160,16 @@ class BroadcastView(ListCreateRetrieveAPIView):
                 failed_count=Count("id", filter=Q(status=Broadcast.Status.FAILED)),
                 partial_count=Count("id", filter=Q(status=Broadcast.Status.PARTIAL)),
                 email_count=Count(
-                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.EMAIL])
+                    "id", filter=Q(mediums__contains=[Broadcast.Medium.EMAIL])
                 ),
                 sms_count=Count(
-                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.SMS])
+                    "id", filter=Q(mediums__contains=[Broadcast.Medium.SMS])
                 ),
                 whatsapp_count=Count(
-                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.WHATSAPP])
+                    "id", filter=Q(mediums__contains=[Broadcast.Medium.WHATSAPP])
                 ),
                 platform_count=Count(
-                    "id", filter=Q(mediums__contains=[Broadcast.Mediums.PLATFORM])
+                    "id", filter=Q(mediums__contains=[Broadcast.Medium.PLATFORM])
                 ),
             )
             cache.set(

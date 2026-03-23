@@ -447,7 +447,7 @@ class PromotionService:
             promoted_broadcast = Broadcast.objects.create(
                 subject=subject,
                 message=message,
-                mediums=[Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Medium.EMAIL],
                 target_roles={"candidate": [to_stage_type]},
                 status=Broadcast.Status.PENDING,
             )
@@ -467,7 +467,7 @@ class PromotionService:
             eliminated_broadcast = Broadcast.objects.create(
                 subject=subject,
                 message=message,
-                mediums=[Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Medium.EMAIL],
                 target_roles={"candidate": [from_stage_type]},
                 status=Broadcast.Status.PENDING,
             )
@@ -497,7 +497,7 @@ class PromotionService:
             staff_broadcast = Broadcast.objects.create(
                 subject=staff_subject,
                 message=staff_message,
-                mediums=[Broadcast.Mediums.EMAIL],
+                mediums=[Broadcast.Medium.EMAIL],
                 target_roles={
                     "staff": [
                         Staff.Roles.ADMIN,

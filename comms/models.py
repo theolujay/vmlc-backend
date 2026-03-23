@@ -223,7 +223,7 @@ class Broadcast(models.Model):
     per medium-role combination to track individual delivery outcomes.
     """
 
-    class Mediums(models.TextChoices):
+    class Medium(models.TextChoices):
         PLATFORM = "platform", "Platform"
         EMAIL = "email", "Email"
         WHATSAPP = "whatsapp", "WhatsApp"
@@ -254,7 +254,7 @@ class Broadcast(models.Model):
         help_text="Optional shorter message for SMS/WhatsApp. If blank, the main message is condensed automatically.",
     )
     mediums = ArrayField(
-        models.CharField(max_length=20, choices=Mediums.choices),
+        models.CharField(max_length=20, choices=Medium.choices),
         default=list,
         help_text="Ordered list of delivery mediums (Email, SMS, Platform, WhatsApp).",
     )
@@ -403,7 +403,7 @@ class BroadcastLog(models.Model):
         on_delete=models.CASCADE,
         related_name="logs",
     )
-    medium = models.CharField(max_length=20, choices=Broadcast.Mediums.choices)
+    medium = models.CharField(max_length=20, choices=Broadcast.Medium.choices)
     target_role = models.CharField(max_length=20, choices=COMBINED_ROLE_CHOICES)
     role_type = models.CharField(
         max_length=10,
