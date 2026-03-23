@@ -182,7 +182,7 @@ def _build_exam_stats_map(competition: Competition) -> dict:
     remaining_exams_ids = (
         StageExam.objects.filter(competition_stage__competition=competition)
         .exclude(exam__id__in=active_rankings)
-        .values_list("exam_id", flat=True)
+        .values_list("exam__id", flat=True)
     )
 
     if remaining_exams_ids:
