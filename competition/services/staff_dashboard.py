@@ -6,7 +6,7 @@ from competition.models import (
     Enrollment,
     RankingSnapshot,
 )
-from vmlc.models import Exam, CandidateExamResult, ExamAccess
+from vmlc.models import CandidateAnswer, Exam, CandidateExamResult, ExamAccess
 from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
@@ -145,13 +145,21 @@ def _build_exam_stats_map(competition: Competition) -> dict:
         status=ExamAccess.Status.SUBMITTED,
     )
 
+    has_answers_subquery = CandidateAnswer.objects.filter(
+        candidate_exam_result=OuterRef("id")
+    )
+
     aggregates = (
         CandidateExamResult.objects.filter(
             exam__competition_slot__competition_stage__competition=competition,
             candidate__user__is_active=True,
         )
-        .annotate(was_submitted=Exists(submitted_subquery))
+        .annotate(
+            was_submitted=Exists(submitted_subquery),
+            has_answers=Exists(has_answers_subquery),
+        )
         .filter(was_submitted=True)
+        .filter(Q(has_answers=True) | Q(score_submitted_by__isnull=False))
         .values("exam_id")
         .annotate(
             sat=Count("id"),
