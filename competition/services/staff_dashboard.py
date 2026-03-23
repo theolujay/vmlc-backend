@@ -1,5 +1,5 @@
 import logging
-from django.db.models import F, Count, Avg, Q, Max, Min
+from django.db.models import F, Count, Avg, Q, Max, Min, Exists, OuterRef
 from competition.models import (
     Competition,
     StageExam,
@@ -139,16 +139,19 @@ def _get_exams_list(competition: Competition) -> list:
 
 
 def _build_exam_stats_map(competition: Competition) -> dict:
-    submitted_candidate_ids = ExamAccess.objects.filter(
-        status=ExamAccess.Status.SUBMITTED
-    ).values_list("candidate__user__id", flat=True)
+    submitted_subquery = ExamAccess.objects.filter(
+        exam=OuterRef("exam"),
+        candidate=OuterRef("candidate"),
+        status=ExamAccess.Status.SUBMITTED,
+    )
 
     aggregates = (
         CandidateExamResult.objects.filter(
             exam__competition_slot__competition_stage__competition=competition,
             candidate__user__is_active=True,
-            candidate__user__id__in=submitted_candidate_ids,
         )
+        .annotate(was_submitted=Exists(submitted_subquery))
+        .filter(was_submitted=True)
         .values("exam_id")
         .annotate(
             sat=Count("id"),
