@@ -155,6 +155,26 @@ class QuestionAdmin(admin.ModelAdmin):
             return obj.created_by.user.get_full_name()
         return None
 
+    @admin.action(description="Archive selected questions")
+    def archive_questions(self, request, queryset):
+        count = queryset.update(is_archived=True)
+        invalidate_question_pool()
+        for question in queryset:
+            for exam in question.exams.all():
+                invalidate_exam_cache(exam.id)
+        invalidate_all_dashboard_caches()
+        self.message_user(request, f"{count} questions archived.")
+
+    @admin.action(description="Unarchive selected questions")
+    def unarchive_questions(self, request, queryset):
+        count = queryset.update(is_archived=False)
+        invalidate_question_pool()
+        for question in queryset:
+            for exam in question.exams.all():
+                invalidate_exam_cache(exam.id)
+        invalidate_all_dashboard_caches()
+        self.message_user(request, f"{count} questions unarchived.")
+
 
 @admin.register(CandidateExamResult)
 class CandidateExamResultAdmin(admin.ModelAdmin):
@@ -405,7 +425,6 @@ class CandidateExamResultSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(FeatureFlag)
 class FeatureFlagAdmin(admin.ModelAdmin):
-
     list_display = ("key", "value", "auto_off_date")
     search_fields = ("key",)
     list_editable = ("value", "auto_off_date")
@@ -446,7 +465,12 @@ class ExamAccessAdmin(admin.ModelAdmin):
         "is_manually_reviewed",
         "created_at",
     )
-    list_filter = ("status", "facilitator_system", "proctoring_status", "is_manually_reviewed")
+    list_filter = (
+        "status",
+        "facilitator_system",
+        "proctoring_status",
+        "is_manually_reviewed",
+    )
     search_fields = ("candidate__user__email", "exam__description")
     list_select_related = ("candidate__user", "exam")
     readonly_fields = ("created_at",)
@@ -549,9 +573,16 @@ class ExamAccessPasscodeAdmin(admin.ModelAdmin):
     def exam_title(self, obj):
         return obj.exam_access.exam.get_title()
 
+
 @admin.register(ExamHeartbeat)
 class ExamHeartbeatAdmin(admin.ModelAdmin):
-    list_display = ("id", "exam_access", "sequence_number", "suspicion_score", "timestamp")
+    list_display = (
+        "id",
+        "exam_access",
+        "sequence_number",
+        "suspicion_score",
+        "timestamp",
+    )
     list_filter = ("timestamp",)
     search_fields = ("exam_access__candidate__user__email",)
     readonly_fields = ("timestamp",)
