@@ -314,6 +314,11 @@ class RankingSnapshot(models.Model):
                 condition=Q(is_published=True),
                 name="one_published_ranking_per_stage_round",
             ),
+            models.UniqueConstraint(
+                fields=["exam"],
+                condition=Q(is_active=True),
+                name="unique_active_snapshot_per_exam",
+            ),
         ]
         indexes = [
             models.Index(fields=["competition", "stage", "round", "is_published"]),
@@ -325,7 +330,7 @@ class RankingSnapshot(models.Model):
             # If this ranking snapshot is prioritised, de-prioritise all others
             # for the same exam to prevent conflict
             with transaction.atomic():
-                RankingSnapshot.objects.select_for_update().filter(
+                RankingSnapshot.objects.filter(
                     is_active=True,
                     exam=self.exam,
                 ).exclude(pk=self.pk).update(is_active=False)

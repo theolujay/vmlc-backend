@@ -144,10 +144,10 @@ def _get_exams_list(competition: Competition) -> list:
 def _build_exam_stats_map(competition: Competition) -> dict:
     """
     Builds a map of exam_id -> aggregate stats.
-    Uses RankingSnapshot data if available and published,
+    Uses RankingSnapshot data if available and active,
     otherwise falls back to CandidateExamResult with strict participation checks.
     """
-    # Identify exams with active rankings in this competition
+    # Identify exams with active rankings in this competition.
     active_rankings = RankingSnapshot.objects.filter(
         competition=competition, is_active=True
     ).values_list("exam_id", flat=True)
