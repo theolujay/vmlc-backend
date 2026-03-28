@@ -470,7 +470,7 @@ class ExamAccessAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = (
-        ("exam__title", admin.RelatedFieldListFilter),
+        "exam_",
         "created_at",
         "status",
         "facilitator_system",
