@@ -120,6 +120,10 @@ class QuestionAdmin(admin.ModelAdmin):
         "archived_at",
         "created_at",
     )
+    actions = [
+        "archive_questions",
+        "unarchive_questions",
+    ]
     readonly_fields = ("created_at", "updated_at", "archived_at")
     list_filter = ("difficulty", "created_by", "is_archived")
     search_fields = ("text", "created_by__user__email")
