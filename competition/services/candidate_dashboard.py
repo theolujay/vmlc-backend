@@ -349,7 +349,12 @@ class CandidateDashboardService:
                         "submitted_at": access.submitted_at,
                     }
 
-                if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]:
+                if (
+                    status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED]
+                    or (
+                        status == Exam.Status.CONCLUDED and access.status == ExamAccess.Status.STARTED
+                        )
+                ):
                     exam_data = {
                         "id": str(exam.id),
                         "title": exam.get_title(),
