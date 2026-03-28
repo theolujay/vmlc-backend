@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
+from django.urls import reverse
 from django.db.models import Count, Sum
 from django import forms
 from django.template.response import TemplateResponse
@@ -26,6 +27,96 @@ from vmlc.v2.utils import (
     invalidate_staff_cache,
     invalidate_staff_dashboard,
 )
+from vmlc.models import ExamAccess, CandidateExamResult, ViolationEvent
+from comms.models import HelpdeskThread
+
+
+class ExamAccessInline(admin.TabularInline):
+    """
+    Shows exams the candidate has access to, including proctoring status and passcodes.
+    """
+
+    model = ExamAccess
+    extra = 0
+    verbose_name = "Exam Access & Proctoring"
+    verbose_name_plural = "Exam Accesses & Proctoring"
+    fields = (
+        "exam",
+        "status",
+        "proctoring_status",
+        "passcode_display",
+        "violations_count",
+        "started_at",
+        "submitted_at",
+        "view_details",
+    )
+    readonly_fields = (
+        "passcode_display",
+        "violations_count",
+        "started_at",
+        "submitted_at",
+        "view_details",
+    )
+
+    def get_queryset(self, request):
+        return ExamAccess.objects.all().select_related("exam", "exam_access")
+
+    @admin.display(description="Passcode")
+    def passcode_display(self, obj):
+        try:
+            return obj.exam_access.passcode
+        except:
+            return "-"
+
+    @admin.display(description="Violations")
+    def violations_count(self, obj):
+        count = ViolationEvent.objects.filter(heartbeat__exam_access=obj).count()
+        if count > 0:
+            return format_html('<span style="color: red; font-weight: bold;">{}</span>', count)
+        return count
+
+    @admin.display(description="Action")
+    def view_details(self, obj):
+        url = reverse("admin:vmlc_examaccess_change", args=[obj.id])
+        return format_html('<a href="{}" class="button">View Full Report</a>', url)
+
+
+class CandidateExamResultInline(admin.TabularInline):
+    """
+    Shows the candidate's exam results and scores.
+    """
+
+    model = CandidateExamResult
+    extra = 0
+    fields = ("exam", "score", "recorded_at", "auto_score", "view_result")
+    readonly_fields = ("recorded_at", "view_result")
+
+    def get_queryset(self, request):
+        return CandidateExamResult.objects.all().select_related("exam")
+
+    @admin.display(description="Action")
+    def view_result(self, obj):
+        url = reverse("admin:vmlc_candidateexamresult_change", args=[obj.id])
+        return format_html('<a href="{}" class="button">View Answers</a>', url)
+
+
+class HelpdeskThreadInline(admin.StackedInline):
+    """
+    Shows the helpdesk thread associated with the candidate.
+    """
+
+    model = HelpdeskThread
+    extra = 0
+    fields = ("status", "priority", "last_message_at", "view_thread")
+    readonly_fields = ("last_message_at", "view_thread")
+
+    def get_queryset(self, request):
+        return HelpdeskThread.objects.all()
+
+    @admin.display(description="Action")
+    def view_thread(self, obj):
+        url = reverse("admin:comms_helpdeskthread_change", args=[obj.id])
+        return format_html('<a href="{}" class="button">Open Helpdesk Thread</a>', url)
 
 
 class CustomUserChangeForm(UserChangeForm):
@@ -475,9 +566,12 @@ class CandidateAdmin(admin.ModelAdmin):
     """
     Admin interface for the Candidate model.
     Displays key candidate details and allows filtering by role, verification, and active status.
+    Now enriched with inlines for Exam Access, Results, and Helpdesk.
     """
 
     actions = [change_candidate_role, disqualify_selected_candidates]
+    inlines = [ExamAccessInline, CandidateExamResultInline, HelpdeskThreadInline]
+
     list_display = (
         "email",
         "full_name",
@@ -492,7 +586,7 @@ class CandidateAdmin(admin.ModelAdmin):
         "is_active",
         "created_at",
     )
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "recent_notifications")
     list_filter = (
         "role",
         "school_type",
@@ -509,6 +603,28 @@ class CandidateAdmin(admin.ModelAdmin):
     )
     list_select_related = ("user", "user__verification")
     date_hierarchy = "created_at"
+
+    fieldsets = (
+        (None, {"fields": ("user", "role")}),
+        (
+            "School Details",
+            {"fields": ("school_name", "school_type", "current_class")},
+        ),
+        (
+            "Recent activity",
+            {
+                "fields": ("recent_notifications",),
+                "description": "Last 5 notifications sent to this candidate.",
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -532,6 +648,24 @@ class CandidateAdmin(admin.ModelAdmin):
             total_score=Sum("results__score"),
             exams_taken_count=Count("results", distinct=True),
         )
+
+    @admin.display(description="Recent Notifications")
+    def recent_notifications(self, obj):
+        from comms.models import Notification
+
+        notifications = Notification.objects.filter(recipient=obj.user).order_by(
+            "-created_at"
+        )[:5]
+        if not notifications.exists():
+            return "No recent notifications."
+
+        html = '<table style="width: 100%; border-collapse: collapse; border: 1px solid #ccc;">'
+        html += '<thead style="background: #f4f4f4;"><tr><th style="text-align: left; padding: 5px;">Subject</th><th style="text-align: left; padding: 5px;">Type</th><th style="text-align: left; padding: 5px;">Sent At</th></tr></thead>'
+        html += "<tbody>"
+        for n in notifications:
+            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 5px;">{n.subject}</td><td style="padding: 5px;">{n.type.upper()}</td><td style="padding: 5px;">{n.created_at.strftime("%Y-%m-%d %H:%M")}</td></tr>'
+        html += "</tbody></table>"
+        return format_html(html)
 
     @admin.display(description="Total Score", ordering="total_score")
     def total_score_display(self, obj):

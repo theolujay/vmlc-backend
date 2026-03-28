@@ -180,6 +180,18 @@ class QuestionAdmin(admin.ModelAdmin):
         self.message_user(request, f"{count} questions unarchived.")
 
 
+class CandidateAnswerInline(admin.TabularInline):
+    """
+    Inline for CandidateAnswer to be shown within CandidateExamResultAdmin.
+    """
+
+    model = CandidateAnswer
+    extra = 0
+    fields = ("question", "selected_option", "answered_at")
+    readonly_fields = ("answered_at",)
+    autocomplete_fields = ("question",)
+
+
 @admin.register(CandidateExamResult)
 class CandidateExamResultAdmin(admin.ModelAdmin):
     """
@@ -187,6 +199,7 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
     Displays result details per candidate and exam.
     """
 
+    inlines = [CandidateAnswerInline]
     list_display = (
         "id",
         "candidate_email",
@@ -458,8 +471,36 @@ class FeatureFlagAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
 
+class ExamAccessPasscodeInline(admin.StackedInline):
+    """
+    Shows passcode and access URL for the specific exam access.
+    """
+
+    model = ExamAccessPasscode
+    extra = 0
+    fields = ("passcode", "access_url", "status", "is_passcode_sent", "expiry_date")
+    readonly_fields = ("passcode", "access_url")
+
+
+class ExamHeartbeatInline(admin.TabularInline):
+    """
+    Shows telemetry heartbeats for the exam access.
+    """
+
+    model = ExamHeartbeat
+    extra = 0
+    fields = ("sequence_number", "suspicion_score", "timestamp", "view_details")
+    readonly_fields = ("timestamp", "view_details")
+
+    @admin.display(description="Action")
+    def view_details(self, obj):
+        url = reverse("admin:vmlc_examheartbeat_change", args=[obj.id])
+        return format_html('<a href="{}" class="button">View Heartbeat & Events</a>', url)
+
+
 @admin.register(ExamAccess)
 class ExamAccessAdmin(admin.ModelAdmin):
+    inlines = [ExamAccessPasscodeInline, ExamHeartbeatInline]
     list_display = (
         "id",
         "candidate_email",
@@ -580,8 +621,20 @@ class ExamAccessPasscodeAdmin(admin.ModelAdmin):
         return obj.exam_access.exam.get_title()
 
 
+class ViolationEventInline(admin.TabularInline):
+    """
+    Shows individual violation events within a heartbeat.
+    """
+
+    model = ViolationEvent
+    extra = 0
+    fields = ("event_type", "is_critical", "timestamp", "metadata")
+    readonly_fields = ("timestamp",)
+
+
 @admin.register(ExamHeartbeat)
 class ExamHeartbeatAdmin(admin.ModelAdmin):
+    inlines = [ViolationEventInline]
     list_display = (
         "id",
         "exam_access",
