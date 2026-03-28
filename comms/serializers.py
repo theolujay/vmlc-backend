@@ -214,6 +214,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
         last_msg = obj.messages.order_by("-created_at").first()
         return last_msg.sender_type if last_msg else None
 
+
 class HelpdeskThreadActionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(
         choices=[HelpdeskThread.Status.CLOSED, HelpdeskThread.Status.SNOOZED]
@@ -221,14 +222,14 @@ class HelpdeskThreadActionSerializer(serializers.Serializer):
     snoozed_until = serializers.DateTimeField(required=False, allow_null=True)
 
     def validate(self, data):
-        if (
-            data.get("status") == HelpdeskThread.Status.SNOOZED
-            and not data.get("snoozed_until")
+        if data.get("status") == HelpdeskThread.Status.SNOOZED and not data.get(
+            "snoozed_until"
         ):
             raise serializers.ValidationError(
                 {"snoozed_until": "This field is required when status is SNOOZED."}
             )
         return data
+
 
 class BroadcastLogSerializer(serializers.ModelSerializer):
     duration = serializers.ReadOnlyField()

@@ -3,6 +3,7 @@ from django.utils import timezone
 from competition.models import Competition, Stage, StageExam, RankingSnapshot
 from vmlc.models import Exam
 
+
 class RankingSnapshotReproductionTest(TestCase):
     def setUp(self):
         self.competition = Competition.objects.create(
@@ -33,7 +34,7 @@ class RankingSnapshotReproductionTest(TestCase):
             exam=self.exam,
             is_active=True,
         )
-        
+
         # This should trigger the save() method and its problematic logic
         ranking2 = RankingSnapshot(
             competition=self.competition,

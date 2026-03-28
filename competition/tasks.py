@@ -104,18 +104,24 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
     logger.info(f"Publishing RankingSnapshot {ranking_snapshot_id}")
     try:
         with transaction.atomic():
-            ranking = RankingSnapshot.objects.select_for_update().get(id=ranking_snapshot_id)
+            ranking = RankingSnapshot.objects.select_for_update().get(
+                id=ranking_snapshot_id
+            )
 
             if not ranking:
                 logger.warning(f"RankingSnapshot {ranking_snapshot_id} not found.")
                 return
 
             if not ranking.is_active:
-                logger.warning(f"RankingSnapshot {ranking_snapshot_id} marked as inactive. Will not publish.")
+                logger.warning(
+                    f"RankingSnapshot {ranking_snapshot_id} marked as inactive. Will not publish."
+                )
                 return
 
             if ranking.is_published:
-                logger.warning(f"RankingSnapshot {ranking_snapshot_id} is already published.")
+                logger.warning(
+                    f"RankingSnapshot {ranking_snapshot_id} is already published."
+                )
                 return
 
             # Enforce the 'one_published_ranking_per_stage_round' constraint by
@@ -160,6 +166,7 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
             transaction.on_commit(lambda: ns.notify_ranking_published(ranking))
 
             from competition.models import Stage
+
             # Trigger leaderboard update if it's a league exam
             if ranking.stage == Stage.Type.LEAGUE:
                 transaction.on_commit(
@@ -174,5 +181,8 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
     except RankingSnapshot.DoesNotExist:
         logger.error(f"RankingSnapshot {ranking_snapshot_id} not found.")
     except Exception as exc:
-        logger.error(f"Error publishing ranking snapshot {ranking_snapshot_id}: {exc}", exc_info=True)
+        logger.error(
+            f"Error publishing ranking snapshot {ranking_snapshot_id}: {exc}",
+            exc_info=True,
+        )
         raise

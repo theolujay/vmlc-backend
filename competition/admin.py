@@ -37,7 +37,15 @@ class RankingSnapshotEntryInline(admin.TabularInline):
     model = RankingSnapshotEntry
     extra = 0
     raw_id_fields = ["candidate", "enrollment"]
-    fields = ["candidate", "enrollment", "exam_score", "rank", "time_used", "proctoring_status", "violation_score"]
+    fields = [
+        "candidate",
+        "enrollment",
+        "exam_score",
+        "rank",
+        "time_used",
+        "proctoring_status",
+        "violation_score",
+    ]
     readonly_fields = ["proctoring_status", "violation_score"]
 
 

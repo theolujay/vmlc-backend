@@ -70,7 +70,9 @@ class SubmitAnswersV2View(APIView):
         if access.started_at:
             personal_deadline = access.deadline
             # Add grace period for network latency
-            if timezone.now() <= personal_deadline + timedelta(minutes=GRACE_PERIOD_MINUTES):
+            if timezone.now() <= personal_deadline + timedelta(
+                minutes=GRACE_PERIOD_MINUTES
+            ):
                 is_within_personal_time = True
 
         if not is_globally_open and not is_within_personal_time:

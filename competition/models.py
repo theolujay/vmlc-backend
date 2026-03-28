@@ -333,7 +333,9 @@ class RankingSnapshot(models.Model):
                 RankingSnapshot.objects.filter(
                     is_active=True,
                     exam=self.exam,
-                ).exclude(pk=self.pk).update(is_active=False)
+                ).exclude(
+                    pk=self.pk
+                ).update(is_active=False)
         super().save(*args, **kwargs)
 
 

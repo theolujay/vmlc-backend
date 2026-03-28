@@ -1,4 +1,4 @@
-code = r'''
+code = r"""
 import csv
 from competition.models import RankingSnapshot
 
@@ -35,5 +35,5 @@ with open("cowrykids.csv", "w", newline="") as csvfile:
                 username,
             ]
         )
-'''
+"""
 exec(code)

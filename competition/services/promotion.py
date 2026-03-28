@@ -30,7 +30,7 @@ class PromotionService:
         from_stage_type: str,
         to_stage_type: str,
         cutoff_rank: int | None = None,
-        competition_id: int | None = None
+        competition_id: int | None = None,
     ):
         """
         Promotes candidates from one stage to the next based on an advancement policy or explicit cutoff.
@@ -303,7 +303,9 @@ class PromotionService:
             enrollment_id__in=enrollment_ids,
             stage__type=Stage.Type.LEAGUE,
             status=EnrollmentStageProgress.Status.IN_PROGRESS,
-        ).update(status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now)
+        ).update(
+            status=EnrollmentStageProgress.Status.DISCONTINUED, discontinued_at=now
+        )
         # Send Notifications
         PromotionService._send_absentee_notifications(
             competition=ranking.competition, absentee_entries=absentee_entries
@@ -414,7 +416,9 @@ class PromotionService:
                 sender=PromotionService._send_absentee_notifications,
                 notifications=created_notifications,
             )
-            logger.info(f"Sent {len(notifications)} absentee elimination notifications.")
+            logger.info(
+                f"Sent {len(notifications)} absentee elimination notifications."
+            )
 
     @staticmethod
     def _send_notifications(
@@ -475,9 +479,7 @@ class PromotionService:
 
         # 3. Staff Notification (Managers, Admins) (via Broadcast)
         if promoted_ids or eliminated_ids:
-            staff_subject = (
-                f"{env_prefix}System Update: {from_stage_type.title()} Stage Promotion Completed"
-            )
+            staff_subject = f"{env_prefix}System Update: {from_stage_type.title()} Stage Promotion Completed"
             ignore_message = (
                 f"You may ignore this alert, as testing is ongoing.\n\n"
                 if ENV != "production"
@@ -510,4 +512,3 @@ class PromotionService:
             ns.send_broadcast(staff_broadcast.id)
 
         logger.info(f"Triggered promotion broadcasts for {competition.name}.")
-

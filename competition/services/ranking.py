@@ -251,9 +251,11 @@ class RankingSnapshotGenerator:
                     ),  # negate so highest score sorts first (ascending)
                     # Lower time_used (faster completion) ranks higher.
                     # Absentees (time_used=None) sort last via float("inf").
-                    item[1]["time_used"]
-                    if item[1]["time_used"] is not None
-                    else float("inf"),
+                    (
+                        item[1]["time_used"]
+                        if item[1]["time_used"] is not None
+                        else float("inf")
+                    ),
                 ),
             )
 
@@ -351,9 +353,9 @@ class RankingSnapshotGenerator:
             meta={
                 "generated_by": str(actor_id) if actor_id else None,
                 "ranking_policy": ranking_policy,
-                "tie_break_strategy": tie_break_strategy
-                if ranking_policy == "dense"
-                else None,
+                "tie_break_strategy": (
+                    tie_break_strategy if ranking_policy == "dense" else None
+                ),
             },
         )
 

@@ -12,6 +12,7 @@ from comms.tasks import cleanup_snoozed_helpdesk_threads_task
 
 User = get_user_model()
 
+
 class HelpdeskStatusTests(APITestCase):
 
     def setUp(self):
@@ -42,7 +43,9 @@ class HelpdeskStatusTests(APITestCase):
 
     def test_staff_update_status_to_closed(self):
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id})
+        url = reverse(
+            "comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id}
+        )
         data = {"status": HelpdeskThread.Status.CLOSED}
         response = self.client.patch(url, data, format="json")
 
@@ -52,11 +55,13 @@ class HelpdeskStatusTests(APITestCase):
 
     def test_staff_update_status_to_snoozed(self):
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id})
+        url = reverse(
+            "comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id}
+        )
         snoozed_until = timezone.now() + timedelta(days=1)
         data = {
             "status": HelpdeskThread.Status.SNOOZED,
-            "snoozed_until": snoozed_until.isoformat()
+            "snoozed_until": snoozed_until.isoformat(),
         }
         response = self.client.patch(url, data, format="json")
 
@@ -67,7 +72,9 @@ class HelpdeskStatusTests(APITestCase):
 
     def test_staff_update_to_snoozed_requires_until(self):
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id})
+        url = reverse(
+            "comms:staff-helpdesk-thread-action", kwargs={"id": self.thread.id}
+        )
         data = {"status": HelpdeskThread.Status.SNOOZED}
         response = self.client.patch(url, data, format="json")
 
@@ -79,7 +86,9 @@ class HelpdeskStatusTests(APITestCase):
         self.thread.save()
 
         self.client.force_authenticate(user=self.candidate_user)
-        url = reverse("comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id})
+        url = reverse(
+            "comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id}
+        )
         data = {"text": "New message"}
         response = self.client.post(url, data, format="json")
 
@@ -94,7 +103,9 @@ class HelpdeskStatusTests(APITestCase):
         self.thread.save()
 
         self.client.force_authenticate(user=self.candidate_user)
-        url = reverse("comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id})
+        url = reverse(
+            "comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id}
+        )
         data = {"text": "New message during snooze"}
         response = self.client.post(url, data, format="json")
 
@@ -109,7 +120,9 @@ class HelpdeskStatusTests(APITestCase):
         self.thread.save()
 
         self.client.force_authenticate(user=self.candidate_user)
-        url = reverse("comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id})
+        url = reverse(
+            "comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id}
+        )
         data = {"text": "New message after snooze expired"}
         response = self.client.post(url, data, format="json")
 
@@ -123,7 +136,9 @@ class HelpdeskStatusTests(APITestCase):
         self.thread.save()
 
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id})
+        url = reverse(
+            "comms:helpdesk-thread-message", kwargs={"thread_id": self.thread.id}
+        )
         data = {"text": "Staff reply"}
         response = self.client.post(url, data, format="json")
 
@@ -140,7 +155,7 @@ class HelpdeskStatusTests(APITestCase):
             thread=self.thread,
             sender=self.staff_user,
             sender_type=ThreadMessage.SenderType.STAFF,
-            text="Staff message"
+            text="Staff message",
         )
 
         self.client.force_authenticate(user=self.candidate_user)
@@ -169,7 +184,7 @@ class HelpdeskStatusTests(APITestCase):
             thread=self.thread,
             sender=self.candidate_user,
             sender_type=ThreadMessage.SenderType.CANDIDATE,
-            text="Need help"
+            text="Need help",
         )
 
         self.client.force_authenticate(user=self.staff_user)
@@ -184,7 +199,7 @@ class HelpdeskStatusTests(APITestCase):
         # 2. CLOSED status - should NOT be in list
         self.thread.status = HelpdeskThread.Status.CLOSED
         self.thread.save()
-        cache.clear() # Clear version-based cache
+        cache.clear()  # Clear version-based cache
         response = self.client.get(url)
         self.assertEqual(len(response.data["results"]), 0)
 
@@ -199,4 +214,3 @@ class HelpdeskStatusTests(APITestCase):
         # 4. Explicit status filter for SNOOZED - should be in list
         response = self.client.get(url + "?status=snoozed")
         self.assertEqual(len(response.data["results"]), 1)
-

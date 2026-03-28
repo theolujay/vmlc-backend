@@ -47,7 +47,9 @@ def handle_bulk_notification_delivery(sender, notifications, **kwargs):
 
     notification_ids = [n.id for n in notifications if n.id]
     if notification_ids:
-        transaction.on_commit(lambda: deliver_notifications_task.delay(notification_ids))
+        transaction.on_commit(
+            lambda: deliver_notifications_task.delay(notification_ids)
+        )
 
 
 post_save.connect(invalidate_notification_cache, sender=Notification)

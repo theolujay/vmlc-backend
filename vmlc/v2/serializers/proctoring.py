@@ -4,14 +4,10 @@ from rest_framework import serializers
 from vmlc.models import ExamHeartbeat, ViolationEvent
 
 HEARTBEAT_INTERVAL_MINUTES = (
-    1
-    if settings.APP_ENVIRONMENT == "development" or "staging"
-    else 5
+    1 if settings.APP_ENVIRONMENT == "development" or "staging" else 5
 )
 HEARTBEAT_INTERVAL_TOLERANCE_SECONDS = (
-    30
-    if settings.APP_ENVIRONMENT == "development" or "staging"
-    else 6
+    30 if settings.APP_ENVIRONMENT == "development" or "staging" else 6
 )
 
 

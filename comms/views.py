@@ -494,13 +494,15 @@ class HelpdeskThreadView(APIView):
             # No need to check cache on creation
         else:
             # Check for unread messages first (excluding messages sent by the candidate themselves)
-            unread_messages = thread.messages.exclude(reads__user=user).exclude(sender=user)
+            unread_messages = thread.messages.exclude(reads__user=user).exclude(
+                sender=user
+            )
             if not unread_messages.exists():
                 # If no unread messages from staff, ensure status is IN_PROGRESS if it was OPEN
                 if thread.status == HelpdeskThread.Status.OPEN:
                     thread.status = HelpdeskThread.Status.IN_PROGRESS
                     thread.save(update_fields=["status"])
-                    cache.delete(cache_key) # Invalidate detail cache
+                    cache.delete(cache_key)  # Invalidate detail cache
 
                 cached_data = cache.get(cache_key)
                 if cached_data:
@@ -544,7 +546,7 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.refresh_status() # Auto-revert SNOOZED if time passed
+        instance.refresh_status()  # Auto-revert SNOOZED if time passed
         cache_key = CacheKeys.HELPDESK_THREAD_DETAIL.format(thread_id=instance.id)
 
         # Check for unread messages first
@@ -587,6 +589,7 @@ class StaffHelpdeskThreadDetailView(RetrieveAPIView):
         cache.set(cache_key, response.data, timeout=3600)
         return Response(response.data)
 
+
 class StaffHelpdeskThreadActionView(APIView):
     permission_classes = ActiveAdminPermissions
     serializer_class = HelpdeskThreadActionSerializer
@@ -625,6 +628,7 @@ class StaffHelpdeskThreadActionView(APIView):
         # Broadcast update
         def broadcast_update():
             from channels.layers import get_channel_layer
+
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
                 f"helpdesk_thread_{thread.id}",
@@ -636,20 +640,21 @@ class StaffHelpdeskThreadActionView(APIView):
                         "thread": {
                             "id": str(thread.id),
                             "status": thread.status,
-                            "snoozed_until": thread.snoozed_until.isoformat() if thread.snoozed_until else None,
+                            "snoozed_until": (
+                                thread.snoozed_until.isoformat()
+                                if thread.snoozed_until
+                                else None
+                            ),
                         },
                     },
                 },
             )
+
         transaction.on_commit(broadcast_update)
 
         return Response(
             HelpdeskThreadDetailSerializer(thread, context={"request": request}).data
         )
-
-
-
-
 
 
 class StaffHelpdeskThreadListView(ListAPIView):
@@ -690,7 +695,7 @@ class StaffHelpdeskThreadListView(ListAPIView):
 
         response_data = {
             "results": serializer.data,
-            "helpdesk_summary_data": helpdesk_summary_data
+            "helpdesk_summary_data": helpdesk_summary_data,
         }
 
         cache.set(cache_key, response_data, timeout=3600)

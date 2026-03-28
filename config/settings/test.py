@@ -39,12 +39,16 @@ REST_FRAMEWORK = {
 #     )
 # }
 
-DATABASE_URL = read_secret("DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb")
+DATABASE_URL = read_secret(
+    "DATABASE_URL", "postgresql://testuser:testpassword@db:5432/testdb"
+)
 REDIS_URL = read_secret("REDIS_URL", "redis://redis:6379/1")
 
 if TEST_ENVIRONMENT == "local_test":
     DATABASE_URL = DATABASE_URL.replace("@db", "@localhost")
-    REDIS_URL = REDIS_URL.replace("redis:6379", "localhost:6379").replace("//redis", "//localhost")
+    REDIS_URL = REDIS_URL.replace("redis:6379", "localhost:6379").replace(
+        "//redis", "//localhost"
+    )
     print(f"DEBUG: Using local test DB: {DATABASE_URL}")
     print(f"DEBUG: Using local test Redis: {REDIS_URL}")
 

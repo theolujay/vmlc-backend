@@ -490,13 +490,13 @@ def auto_close_in_progress_threads_task():
     )
     # Find threads that are IN_PROGRESS, last message was > 10 mins ago,
     # and last message sender was NOT CANDIDATE.
-    threads_to_close = HelpdeskThread.objects.annotate(
-        latest_sender_type=latest_message_sender_type
-    ).filter(
-        status=HelpdeskThread.Status.IN_PROGRESS,
-        last_message_at__lte=ten_minutes_ago,
-    ).exclude(
-        latest_sender_type=ThreadMessage.SenderType.CANDIDATE
+    threads_to_close = (
+        HelpdeskThread.objects.annotate(latest_sender_type=latest_message_sender_type)
+        .filter(
+            status=HelpdeskThread.Status.IN_PROGRESS,
+            last_message_at__lte=ten_minutes_ago,
+        )
+        .exclude(latest_sender_type=ThreadMessage.SenderType.CANDIDATE)
     )
 
     count = threads_to_close.count()
@@ -505,8 +505,7 @@ def auto_close_in_progress_threads_task():
         # or might be tricky. Let's get IDs and update.
         thread_ids = list(threads_to_close.values_list("id", flat=True))
         HelpdeskThread.objects.filter(id__in=thread_ids).update(
-            status=HelpdeskThread.Status.CLOSED,
-            snoozed_until=None
+            status=HelpdeskThread.Status.CLOSED, snoozed_until=None
         )
 
         logger.info(f"Auto-closed {count} IN_PROGRESS helpdesk threads.")
@@ -750,14 +749,10 @@ def helpdesk_escalation_task(message_id):
                 subject=subject,
                 message=body,
                 mediums=[Broadcast.Medium.EMAIL],
-                target_roles={
-                    "staff": ["moderator", "admin"]
-                },
+                target_roles={"staff": ["moderator", "admin"]},
             )
 
-            notification_service.send_broadcast(
-                broadcast_id=broadcast.id
-            )
+            notification_service.send_broadcast(broadcast_id=broadcast.id)
 
     except ThreadMessage.DoesNotExist:
         logger.error(f"Message {message_id} not found for escalation task.")

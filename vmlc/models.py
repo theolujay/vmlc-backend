@@ -522,7 +522,9 @@ class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-metho
         ordering = ["-created_at"]
 
 
-class CandidateExamResultSnapshot(models.Model):  # pylint: disable=too-few-public-methods
+class CandidateExamResultSnapshot(
+    models.Model
+):  # pylint: disable=too-few-public-methods
     """Model for a snapshot of a candidate's result."""
 
     created_at = models.DateTimeField(auto_now_add=True)

@@ -156,9 +156,11 @@ class IntegrityAuditView(APIView):
                 "attempt_summary": {
                     "started_at": access.started_at,
                     "submitted_at": access.submitted_at,
-                    "total_duration": str(access.submitted_at - access.started_at)
-                    if access.submitted_at and access.started_at
-                    else None,
+                    "total_duration": (
+                        str(access.submitted_at - access.started_at)
+                        if access.submitted_at and access.started_at
+                        else None
+                    ),
                 },
                 "proctoring_summary": summary,
                 "timeline": timeline,

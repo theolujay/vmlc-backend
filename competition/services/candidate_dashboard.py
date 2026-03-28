@@ -266,9 +266,7 @@ class CandidateDashboardService:
                 pass
 
         is_qualified = (
-            enrollment.status == Enrollment.Status.ACTIVE
-            if enrollment
-            else True
+            enrollment.status == Enrollment.Status.ACTIVE if enrollment else True
         )
         status_display = enrollment.get_status_display() if enrollment else "Active"
 
@@ -571,9 +569,7 @@ class CandidateDashboardService:
         Determines the status string for the active context status badge.
         Priority order: disqualified > eliminated > missed > pending > ranking-based > info > error.
         """
-        enroll_status = (
-            enrollment.status if enrollment else Enrollment.Status.ACTIVE
-        )
+        enroll_status = enrollment.status if enrollment else Enrollment.Status.ACTIVE
 
         if enroll_status == Enrollment.Status.DISQUALIFIED:
             return "disqualified"
@@ -704,9 +700,7 @@ class CandidateDashboardService:
             policy
         )
 
-        enroll_status = (
-            enrollment.status if enrollment else Enrollment.Status.ACTIVE
-        )
+        enroll_status = enrollment.status if enrollment else Enrollment.Status.ACTIVE
 
         scoreboards = CandidateDashboardService._get_scoreboards(
             active_comp, current_stage_type, rankings

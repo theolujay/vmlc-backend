@@ -406,8 +406,14 @@ class NotificationService:
         self.send_broadcast(candidate_broadcast.id)
 
         # 2. Notify Staff (Managers, Admins) (via Broadcast)
-        staff_subject = f"{env_prefix}System Update: Results Published for {exam.get_title()}"
-        ignore_message = f"You may ignore this alert, as testing is ongoing.\n\n" if ENV != 'production' else ""
+        staff_subject = (
+            f"{env_prefix}System Update: Results Published for {exam.get_title()}"
+        )
+        ignore_message = (
+            f"You may ignore this alert, as testing is ongoing.\n\n"
+            if ENV != "production"
+            else ""
+        )
         staff_message = (
             f"The ranking table for '{exam.get_title()}' has been published "
             f"for {ranking.entries.count()} candidates.\n\n"
@@ -422,7 +428,11 @@ class NotificationService:
             message=staff_message,
             mediums=[Broadcast.Medium.EMAIL],
             target_roles={
-                "staff": [Staff.Roles.ADMIN, Staff.Roles.MANAGER, Staff.Roles.SUPERADMIN]
+                "staff": [
+                    Staff.Roles.ADMIN,
+                    Staff.Roles.MANAGER,
+                    Staff.Roles.SUPERADMIN,
+                ]
             },
             status=Broadcast.Status.PENDING,
         )

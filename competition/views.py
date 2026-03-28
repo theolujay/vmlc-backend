@@ -224,8 +224,7 @@ class PublishRankingSnapshotView(APIView):
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        lambda cid=ranking.competition_id,
-                        r=ranking.round: update_leaderboard_task.delay(
+                        lambda cid=ranking.competition_id, r=ranking.round: update_leaderboard_task.delay(
                             competition_id=cid,
                             as_of_round=r,
                         )

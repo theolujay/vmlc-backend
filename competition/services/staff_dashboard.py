@@ -201,7 +201,8 @@ def _build_exam_stats_map(competition: Competition) -> dict:
             .filter(
                 # A candidate is considered to have "sat" if they have answers
                 # or if a staff member manually submitted a score for them.
-                Q(has_answers=True) | Q(score_submitted_by__isnull=False)
+                Q(has_answers=True)
+                | Q(score_submitted_by__isnull=False)
             )
             .values("exam_id")
             .annotate(
