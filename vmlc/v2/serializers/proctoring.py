@@ -92,7 +92,7 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
     def get_exam(self, obj):
         exam = obj.exam
         return {
-            "id": exam.id,
+            "id": str(exam.id),
             "title": exam.title,
             "status": exam.status,
             "duration_minutes": exam.countdown_minutes,
@@ -145,9 +145,9 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
 
         summary = ProctoringService.get_proctoring_summary(obj)
         last_hb = obj.heartbeats.order_by("-sequence_number").first()
-        recent_events = ViolationEvent.objects.filter(heartbeat__exam_access=obj).order_by(
-            "-timestamp"
-        )[:10]
+        recent_events = ViolationEvent.objects.filter(
+            heartbeat__exam_access=obj
+        ).order_by("-timestamp")[:10]
 
         # Aggregate violations by type for the summary
         violations_by_type = {}

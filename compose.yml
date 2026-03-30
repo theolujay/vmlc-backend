@@ -95,7 +95,7 @@ services:
     <<: *app-base
     container_name: vmlc-django
     entrypoint: "./scripts/entrypoint.sh"
-    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --lifespan off --reload
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --lifespan off --reload --no-access-log
     ports:
       - "8000:8000"
     depends_on:

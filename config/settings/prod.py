@@ -43,7 +43,10 @@ LOGGING = {
         "skip_static_requests": {
             "()": "django.utils.log.CallbackFilter",
             "callback": lambda r: "GET /static/" not in r.getMessage(),
-        }
+        },
+        "sensitive_data": {
+            "()": "vmlc.utils.helpers.SensitiveDataFilter",
+        },
     },
     "formatters": {
         "json": {
@@ -62,7 +65,7 @@ LOGGING = {
             "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "access",
-            "filters": ["skip_static_requests"],
+            "filters": ["skip_static_requests", "sensitive_data"],
         },
     },
     "root": {"level": "INFO", "handlers": ["console"]},

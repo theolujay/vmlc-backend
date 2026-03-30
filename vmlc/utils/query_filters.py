@@ -485,5 +485,5 @@ def ongoing_exam_exists() -> bool:
 
     is_exam_ongoing = exam_access.exam.status == Exam.Status.ONGOING
 
-    cache.set(cache_key, is_exam_ongoing, timeout=30)
+    cache.set(cache_key, is_exam_ongoing, timeout=10)
     return is_exam_ongoing

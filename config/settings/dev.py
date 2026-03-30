@@ -78,11 +78,17 @@ LOGGING = {
     "formatters": {
         "verbose": {"format": "{levelname} {asctime} {module}: {message}", "style": "{"}
     },
+    "filters": {
+        "sensitive_data": {
+            "()": "vmlc.utils.helpers.SensitiveDataFilter",
+        },
+    },
     "handlers": {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["sensitive_data"],
         }
     },
     "loggers": {
