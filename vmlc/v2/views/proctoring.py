@@ -12,14 +12,36 @@ from vmlc.services.proctoring import ProctoringService
 from vmlc.v2.serializers.proctoring import (
     HeartbeatPayloadSerializer,
     ExamHeartbeatSerializer,
+    CandidateLiveStatusV2Serializer,
 )
-from vmlc.v2.utils import CacheKeys, get_or_set_cache
+from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
 from vmlc.utils.exceptions import NotFound, PermissionDenied
 
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL_MINUTES = 5
 HEARTBEAT_INTERVAL_TOLERANCE_SECONDS = 30
+
+
+class CandidateLiveStatusV2View(APIView):
+    """
+    Staff-facing endpoint to get the real-time status of a candidate's exam attempt.
+    """
+
+    permission_classes = ActiveAdminPermissions
+
+    def get(self, request, exam_id, candidate_id):
+        try:
+            access = ExamAccess.objects.select_related(
+                "exam", "candidate__user"
+            ).get(exam_id=exam_id, candidate_id=candidate_id)
+        except ExamAccess.DoesNotExist:
+            raise NotFound("Exam access record not found for this candidate.")
+
+        serializer = CandidateLiveStatusV2Serializer(
+            access, context={"request": request}
+        )
+        return Response(serializer.data)
 
 
 class ExamHeartbeatView(APIView):

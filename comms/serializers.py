@@ -165,6 +165,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
     participating_staff_names = serializers.SerializerMethodField()
     last_message_sender_type = serializers.SerializerMethodField()
     is_candidate_online = serializers.SerializerMethodField()
+    candidate_live_exam_status = serializers.SerializerMethodField()
 
     class Meta:
         model = HelpdeskThread
@@ -177,6 +178,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
             "assigned_staff_name",
             "participating_staff_names",
             "is_candidate_online",
+            "candidate_live_exam_status",
             "status",
             "priority",
             "last_message_at",
@@ -213,6 +215,34 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
     def get_last_message_sender_type(self, obj):
         last_msg = obj.messages.order_by("-created_at").first()
         return last_msg.sender_type if last_msg else None
+
+    def get_candidate_live_exam_status(self, obj):
+        """
+        Retrieves the live exam status for the candidate if they have an active or ongoing attempt.
+        """
+        from vmlc.models import ExamAccess
+        from vmlc.v2.serializers.proctoring import CandidateLiveStatusV2Serializer
+
+        # Find the most recently started active exam attempt for this candidate
+        access = (
+            ExamAccess.objects.filter(
+                candidate=obj.candidate,
+                exam__is_active=True,
+                status__in=[
+                    ExamAccess.Status.STARTED,
+                    ExamAccess.Status.SUBMITTED,
+                    ExamAccess.Status.EXPIRED,
+                ]
+            )
+            .select_related("exam")
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not access:
+            return None
+
+        return CandidateLiveStatusV2Serializer(access, context=self.context).data
 
 
 class HelpdeskThreadActionSerializer(serializers.Serializer):

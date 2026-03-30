@@ -161,6 +161,27 @@ class ProctoringService:
             # Also update status in ranking if not manually reviewed
             ranking_entry_qs.update(proctoring_status=new_status)
 
+        # Trigger WebSocket update for Helpdesk Thread if it exists
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from comms.models import HelpdeskThread
+        from vmlc.v2.serializers.proctoring import CandidateLiveStatusV2Serializer
+
+        try:
+            thread = HelpdeskThread.objects.get(candidate=access.candidate)
+            channel_layer = get_channel_layer()
+            status_data = CandidateLiveStatusV2Serializer(access).data
+
+            async_to_sync(channel_layer.group_send)(
+                f"helpdesk_thread_{str(thread.id)}",
+                {
+                    "type": "helpdesk.thread.exam_telemetry",
+                    "data": status_data
+                }
+            )
+        except HelpdeskThread.DoesNotExist:
+            pass
+
         return heartbeat
 
     @staticmethod

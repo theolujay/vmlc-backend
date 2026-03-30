@@ -81,3 +81,93 @@ class HeartbeatPayloadSerializer(serializers.Serializer):
                     }
                 )
         return attrs
+
+
+class CandidateLiveStatusV2Serializer(serializers.Serializer):
+    exam = serializers.SerializerMethodField()
+    attempt = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
+    proctoring = serializers.SerializerMethodField()
+
+    def get_exam(self, obj):
+        exam = obj.exam
+        return {
+            "id": exam.id,
+            "title": exam.title,
+            "status": exam.status,
+            "duration_minutes": exam.countdown_minutes,
+            "starts_at": exam.scheduled_date,
+            "ends_at": exam.concluded_at,
+        }
+
+    def get_attempt(self, obj):
+        from django.utils import timezone
+
+        now = timezone.now()
+        time_remaining = 0
+        if obj.status == "started" and obj.deadline:
+            time_remaining = max(0, int((obj.deadline - now).total_seconds()))
+
+        time_used = 0
+        if obj.started_at:
+            end_time = obj.submitted_at or now
+            time_used = int((end_time - obj.started_at).total_seconds())
+
+        return {
+            "status": obj.status,
+            "started_at": obj.started_at,
+            "deadline": obj.deadline,
+            "submitted_at": obj.submitted_at,
+            "time_remaining_seconds": time_remaining,
+            "time_used_seconds": time_used,
+        }
+
+    def get_progress(self, obj):
+        from vmlc.models import CandidateAnswer
+
+        # Current data model only saves answers on submission,
+        # so this will be 0 until submission.
+        attempted = CandidateAnswer.objects.filter(
+            candidate_exam_result__candidate=obj.candidate,
+            candidate_exam_result__exam=obj.exam,
+        ).count()
+        total = obj.exam.get_question_count()
+
+        return {
+            "questions_attempted": attempted,
+            "questions_total": total,
+            "percent_complete": round((attempted / total * 100), 2) if total > 0 else 0,
+        }
+
+    def get_proctoring(self, obj):
+        from vmlc.services.proctoring import ProctoringService
+        from vmlc.models import ViolationEvent
+
+        summary = ProctoringService.get_proctoring_summary(obj)
+        last_hb = obj.heartbeats.order_by("-sequence_number").first()
+        recent_events = ViolationEvent.objects.filter(heartbeat__exam_access=obj).order_by(
+            "-timestamp"
+        )[:10]
+
+        # Aggregate violations by type for the summary
+        violations_by_type = {}
+        all_violations = ViolationEvent.objects.filter(heartbeat__exam_access=obj)
+        for v in all_violations:
+            violations_by_type[v.event_type] = (
+                violations_by_type.get(v.event_type, 0) + 1
+            )
+
+        return {
+            "status": summary.get("status"),
+            "suspicion_score": summary.get("average_suspicion"),
+            "last_heartbeat_at": last_hb.timestamp if last_hb else None,
+            "heartbeat_sequence": last_hb.sequence_number if last_hb else 0,
+            "violations": {
+                "total": summary.get("total_violations"),
+                "critical": summary.get("critical_violations"),
+                "by_type": violations_by_type,
+            },
+            "recent_events": ViolationEventSerializer(
+                recent_events, many=True, context=self.context
+            ).data,
+        }
