@@ -4,10 +4,11 @@ from django.contrib.auth.forms import UserChangeForm
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import format_html
 from django.urls import reverse
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 from django import forms
 from django.template.response import TemplateResponse
 
+from competition.models import Stage
 from identity.models import (
     Candidate,
     Staff,
@@ -645,8 +646,19 @@ class CandidateAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         return queryset.annotate(
-            total_score=Sum("results__score"),
-            exams_taken_count=Count("results", distinct=True),
+            total_score=Sum(
+                "results__score",
+                filter=Q(
+                    results__exam__competition_slot__competition_stage__type=Stage.Type.LEAGUE
+                ),
+            ),
+            exams_taken_count=Count(
+                "results",
+                filter=Q(
+                    results__exam__competition_slot__competition_stage__type=Stage.Type.LEAGUE
+                ),
+                distinct=True,
+            ),
         )
 
     @admin.display(description="Recent Notifications")
