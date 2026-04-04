@@ -508,7 +508,9 @@ class ExamAccessAdmin(admin.ModelAdmin):
         "status",
         "proctoring_status",
         "is_manually_reviewed",
-        "created_at",
+        "started_at",
+        "deadline",
+        "submitted_at",
     )
     list_filter = (
         "exam",
