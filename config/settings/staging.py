@@ -63,7 +63,7 @@ LOGGING = {
             "callback": lambda r: "GET /static/" not in r.getMessage(),
         },
         "sensitive_data": {
-            "()": "vmlc.utils.helpers.SensitiveDataFilter",
+            "()": "vmlc.log_filters.SensitiveDataFilter",
         },
     },
     "formatters": {

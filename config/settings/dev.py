@@ -80,7 +80,7 @@ LOGGING = {
     },
     "filters": {
         "sensitive_data": {
-            "()": "vmlc.utils.helpers.SensitiveDataFilter",
+            "()": "vmlc.log_filters.SensitiveDataFilter",
         },
     },
     "handlers": {
