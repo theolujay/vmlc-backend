@@ -458,7 +458,7 @@ class ExamFilter(django_filters.FilterSet):
         if value:
             return queryset.filter(
                 Q(title__icontains=value)
-                | Q(competition_contexts__competition_stage__type__icontains=value)
+                | Q(competition_slot__competition_stage__type__icontains=value)
             ).distinct()
         return queryset
 

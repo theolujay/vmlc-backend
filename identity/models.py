@@ -391,19 +391,19 @@ class CandidateManager(models.Manager):
             total_score=Sum(
                 "results__score",
                 filter=Q(
-                    results__exam__competition_contexts__competition_stage__type="league"
+                    results__exam__competition_slot__competition_stage__type="league"
                 ),
             ),
             average_score=Avg(
                 "results__score",
                 filter=Q(
-                    results__exam__competition_contexts__competition_stage__type="league"
+                    results__exam__competition_slot__competition_stage__type="league"
                 ),
             ),
             exams_taken=Count(
                 "results",
                 filter=Q(
-                    results__exam__competition_contexts__competition_stage__type="league"
+                    results__exam__competition_slot__competition_stage__type="league"
                 ),
                 distinct=True,
             ),
