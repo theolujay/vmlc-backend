@@ -40,6 +40,7 @@ class SubmitAnswersV2View(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers_data = serializer.validated_data["answers"]
+        is_auto_submit = serializer.validated_data["is_auto_submit"]
 
         with transaction.atomic():
             # Lock the ExamAccess row for this candidate+exam pair.
@@ -99,6 +100,7 @@ class SubmitAnswersV2View(APIView):
                 exam=exam,
                 score=0.0,
                 auto_score=False,
+                is_auto_submit=is_auto_submit,
                 recorded_at=timezone.now(),
             )
 

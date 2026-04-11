@@ -18,6 +18,7 @@ class CandidateAnswerSerializer(serializers.ModelSerializer):
 
 
 class CandidateAnswerBulkSerializer(serializers.Serializer):
+    is_auto_submit = serializers.BooleanField(required=False)
     answers = CandidateAnswerSerializer(many=True)
 
     def validate_answers(self, value):

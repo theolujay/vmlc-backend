@@ -451,6 +451,7 @@ class CandidateExamResult(models.Model):
         default=timezone.now
     )  # TODO: consider making this field nullable so generate_ranking_task updates it
     updated_at = models.DateTimeField(auto_now=True)
+    is_auto_submit = models.BooleanField(default=False)
     score_submitted_by = models.ForeignKey(
         "identity.Staff", on_delete=models.SET_NULL, null=True, blank=True
     )
