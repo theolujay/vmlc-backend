@@ -207,11 +207,11 @@ class CandidateExamResultAdmin(admin.ModelAdmin):
         "score",
         "recorded_at",
         "auto_score",
-        "is_auto_sumbit",
+        "is_auto_submit",
         "score_submitted_by_name",
     )
     readonly_fields = ("recorded_at", "updated_at")
-    list_filter = ("exam", "auto_score", "is_auto_sumbit")
+    list_filter = ("exam", "auto_score", "is_auto_submit")
     search_fields = (
         "candidate__user__email",
         "exam__competition_slot__exam__description",  # Exam doesn't have a direct title field anymore
