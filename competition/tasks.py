@@ -68,6 +68,7 @@ def generate_ranking_and_update_leaderboard_task(stage_exam_id, actor_id=None, r
                 competition_id=ranking.competition.id,
                 as_of_round=ranking.round,
             )
+            invalidate_score_boards(exam_id=ranking.exam_id)
 
         logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated.")
 
@@ -89,6 +90,7 @@ def publish_league_leaderboard_update_task(competition_id, as_of_round):
     )
     try:
         LeaderboardService.publish_league_leaderboard_update(competition_id, as_of_round)
+        invalidate_score_boards()
         logger.info("League leaderboard update published")
     except Exception as exc:
         logger.error(f"Error publishing league leaderboard update: {exc}", exc_info=True)
