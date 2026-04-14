@@ -284,7 +284,7 @@ def _build_exam_entry(
 
 
 def _get_leaderboard_summary(competition: Competition) -> list:
-    latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(competition)
+    latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(competition, is_public=True)
     if not latest_leaderboard:
         return []
 
