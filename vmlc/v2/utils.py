@@ -224,7 +224,7 @@ def invalidate_staff_dashboard():
 
 def invalidate_score_boards(exam_id=None):
     """Clear league leaderboard cache."""
-    cache.delete(CacheKeys.LEADERBOARD_LEAGUE)
+    cache.delete(CacheKeys.LEADERBOARD_LEAGUE_PUBLIC)
     cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
 
 
