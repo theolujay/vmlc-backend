@@ -126,7 +126,6 @@ class LeaderboardService:
             stage=Stage.Type.LEAGUE,
             round__lte=as_of_round,
             is_active=True,
-            is_published=True,
         ).values_list("id", flat=True)
 
         if not published_rankings:
