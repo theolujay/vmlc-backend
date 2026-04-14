@@ -30,7 +30,7 @@ class RankingStatus:
 
 class StaffCompetitionDashboardService:
     @staticmethod
-    def get_dashboard_data() -> dict:
+    def get_dashboard_data(is_internal=False) -> dict:
         active_comp = Competition.objects.filter(
             status=Competition.Status.ACTIVE
         ).first()
@@ -41,8 +41,8 @@ class StaffCompetitionDashboardService:
             "stats": _get_enrollment_stats(active_comp),
             "progress": _get_progress(active_comp),
             "exams": _get_exams_list(active_comp),
-            "leaderboard_summary": _get_leaderboard_summary(active_comp),
-            "latest_ranking_summary": _get_latest_ranking_summary(active_comp),
+            "leaderboard_summary": _get_leaderboard_summary(active_comp, is_internal),
+            "latest_ranking_summary": _get_latest_ranking_summary(active_comp, is_internal),
         }
 
 
@@ -283,8 +283,10 @@ def _build_exam_entry(
     }
 
 
-def _get_leaderboard_summary(competition: Competition) -> list:
-    latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(competition, is_public=True)
+def _get_leaderboard_summary(competition: Competition, is_internal) -> list:
+    latest_leaderboard = LeaderboardService.get_latest_league_leaderboard(
+        competition, is_public=(None if is_internal else True)
+    )
     if not latest_leaderboard:
         return []
 
@@ -293,24 +295,28 @@ def _get_leaderboard_summary(competition: Competition) -> list:
     ).data
 
 
-def _get_latest_ranking_summary(competition: Competition) -> dict | None:
-    latest_published_ranking = (
-        RankingSnapshot.objects.filter(competition=competition, is_published=True)
+def _get_latest_ranking_summary(competition: Competition, is_internal) -> dict | None:
+    filters = {"competition": competition}
+    if not is_internal:
+        filters["is_published"] = True
+
+    latest_ranking = (
+        RankingSnapshot.objects.filter(**filters)
         .select_related("exam")
         .order_by("-published_at", "-created_at")
         .first()
     )
-    if not latest_published_ranking:
+    if not latest_ranking:
         return None
 
-    entries = latest_published_ranking.entries.select_related(
+    entries = latest_ranking.entries.select_related(
         "candidate__user"
     ).order_by("rank")[:3]
 
     return {
-        "exam_id": latest_published_ranking.exam_id,
-        "exam_title": str(latest_published_ranking.exam),
-        "stage": latest_published_ranking.stage,
-        "round": latest_published_ranking.round,
+        "exam_id": latest_ranking.exam_id,
+        "exam_title": str(latest_ranking.exam),
+        "stage": latest_ranking.stage,
+        "round": latest_ranking.round,
         "entries": RankingSnapshotEntrySerializer(entries, many=True).data,
     }

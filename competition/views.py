@@ -76,13 +76,27 @@ class StaffCompetitionDashboardView(APIView):
     permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
+        is_internal_view = False
+        if hasattr(request.user, "staff_profile"):
+            from identity.permissions import StaffRoleHierarchy
+            from identity.models import Staff
+
+            if StaffRoleHierarchy.has_minimum_role(
+                request.user.staff_profile.role, Staff.Roles.ADMIN
+            ):
+                is_internal_view = True
+
+        cache_key = (
+            f"{CacheKeys.STAFF_DASHBOARD}:internal" if is_internal_view
+            else f"{CacheKeys.STAFF_DASHBOARD}:public"
+        )
         data = get_or_set_cache(
-            CacheKeys.STAFF_DASHBOARD,
-            lambda: StaffCompetitionDashboardService.get_dashboard_data(),
+            cache_key,
+            lambda: StaffCompetitionDashboardService.get_dashboard_data(is_internal=is_internal_view),
             ttl=3600,
         )
         serializer = CompetitionDashboardSerializer(data)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
 
 class ListRankingSnapshotsView(ListAPIView):
