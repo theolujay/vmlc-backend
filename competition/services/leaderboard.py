@@ -22,6 +22,7 @@ class LeaderboardService:
     @staticmethod
     def get_latest_league_leaderboard(
         competition: Optional[Competition] = None,
+        is_public: Optional[bool] = None
     ) -> Optional[LeagueLeaderboard]:
         """
         Retrieves the latest cumulative leaderboard for the league stage.
@@ -29,6 +30,8 @@ class LeaderboardService:
         Args:
             competition: Optional Competition instance. If not provided,
                         finds the active or latest competition.
+            is_public: If provided, filters by is_public status. If None (default),
+                      returns the latest regardless.
 
         Returns:
             LeagueLeaderboard instance with annotated entries, or None.
@@ -44,10 +47,12 @@ class LeaderboardService:
             return None
 
         # Fetch the latest LeagueLeaderboard for LEAGUE stage
+        filters = {"competition": competition, "stage": Stage.Type.LEAGUE}
+        if is_public is not None:
+            filters["is_public"] = is_public
+
         current_leaderboard = (
-            LeagueLeaderboard.objects.filter(
-                competition=competition, stage=Stage.Type.LEAGUE
-            )
+            LeagueLeaderboard.objects.filter(**filters)
             .order_by("-as_of_round")
             .prefetch_related(
                 "entries", "entries__candidate__user", "entries__candidate"
@@ -115,21 +120,6 @@ class LeaderboardService:
         """
         competition = Competition.objects.get(id=competition_id)
 
-        # First, eliminate any absentees for the current as_of_round if a ranking exists
-        current_ranking = RankingSnapshot.objects.filter(
-            competition=competition,
-            stage=Stage.Type.LEAGUE,
-            round=as_of_round,
-            is_active=True,
-            is_published=True,
-        ).first()
-        # DEPRECATED: doesn't align with business logic
-        # if current_ranking:
-        #     # Import here to avoid circular dependency
-        #     from competition.services.promotion import PromotionService
-
-        #     PromotionService.eliminate_league_absentees(current_ranking.id)
-
         # 1. Fetch all published league ranking up to as_of_round
         published_rankings = RankingSnapshot.objects.filter(
             competition=competition,
@@ -160,7 +150,10 @@ class LeaderboardService:
 
         # 3. Create or update LeagueLeaderboard for this round
         leaderboard, _ = LeagueLeaderboard.objects.get_or_create(
-            competition=competition, stage=Stage.Type.LEAGUE, as_of_round=as_of_round
+            competition=competition,
+            stage=Stage.Type.LEAGUE,
+            as_of_round=as_of_round,
+            is_public=False,
         )
 
         # 4. Prepare and bulk create entries
@@ -169,10 +162,10 @@ class LeaderboardService:
         previous_score = None
         current_rank = 0
 
-        for idx, item in enumerate(candidate_totals):
+        for idx, item in enumerate(candidate_totals, 1):
             score = item["total_score"]
             if score != previous_score:
-                current_rank = idx + 1
+                current_rank = idx
 
             entries_to_create.append(
                 LeagueLeaderboardEntry(
@@ -190,3 +183,15 @@ class LeaderboardService:
         LeagueLeaderboardEntry.objects.bulk_create(entries_to_create)
 
         return leaderboard
+
+    @staticmethod
+    def publish_league_leaderboard_update(competition_id, as_of_round):
+        competition = Competition.objects.get(id=competition_id)
+        leaderboard = LeagueLeaderboard.objects.filter(
+            competition=competition,
+            stage=Stage.Type.LEAGUE,
+            as_of_round=as_of_round,
+        ).first()
+        leaderboard.is_public = True
+        leaderboard.save()
+

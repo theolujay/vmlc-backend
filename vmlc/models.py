@@ -449,7 +449,7 @@ class CandidateExamResult(models.Model):
     score = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     recorded_at = models.DateTimeField(
         default=timezone.now
-    )  # TODO: consider making this field nullable so generate_ranking_task updates it
+    )  # TODO: consider making this field nullable so `generate_ranking_and_update_leaderboard_task` updates it
     updated_at = models.DateTimeField(auto_now=True)
     is_auto_submit = models.BooleanField(default=False)
     score_submitted_by = models.ForeignKey(

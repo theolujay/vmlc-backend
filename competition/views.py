@@ -30,7 +30,8 @@ from competition.serializers import (
     PromoteCandidatesSerializer,
 )
 from competition.tasks import (
-    generate_ranking_task,
+    generate_ranking_and_update_leaderboard_task,
+    publish_league_leaderboard_update_task,
     update_leaderboard_task,
     invalidate_published_ranking_cache_task,
     publish_ranking_task,
@@ -224,7 +225,7 @@ class PublishRankingSnapshotView(APIView):
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        lambda cid=ranking.competition_id, r=ranking.round: update_leaderboard_task.delay(
+                        lambda cid=ranking.competition_id, r=ranking.round: publish_league_leaderboard_update_task.delay(
                             competition_id=cid,
                             as_of_round=r,
                         )
@@ -234,7 +235,7 @@ class PublishRankingSnapshotView(APIView):
                     status=status.HTTP_202_ACCEPTED,
                 )
 
-        generate_ranking_task.delay(
+        generate_ranking_and_update_leaderboard_task.delay(
             stage_exam_id=str(stage_exam_id),
             actor_id=staff.pk,
             ranking_policy=ranking_policy,
@@ -295,9 +296,21 @@ class LeagueLeaderboardView(APIView):
     def get(self, request):
         # TODO: Implement stricter access control.
         # Only candidates in the 'league' stage (or staff) should view this.
+        is_public_filter = True
+
+        if hasattr(request.user, "staff_profile"):
+            from identity.permissions import StaffRoleHierarchy
+            from identity.models import Staff
+
+            if StaffRoleHierarchy.has_minimum_role(
+                request.user.staff_profile.role, Staff.Roles.ADMIN
+            ):
+                is_public_filter = None  # Staff (Admin+) can see the latest regardless
 
         def fetch_and_serialize_leaderboard():
-            leaderboard = LeaderboardService.get_latest_league_leaderboard()
+            leaderboard = LeaderboardService.get_latest_league_leaderboard(
+                is_public=is_public_filter
+            )
             if not leaderboard:
                 return None
 
@@ -311,8 +324,13 @@ class LeagueLeaderboardView(APIView):
             ).data
             return data
 
+        cache_key = (
+            CacheKeys.LEADERBOARD_LEAGUE_PUBLIC
+            if is_public_filter is True
+            else CacheKeys.LEADERBOARD_LEAGUE_INTERNAL
+        )
         data = get_or_set_cache(
-            CacheKeys.LEADERBOARD_LEAGUE, fetch_and_serialize_leaderboard, ttl=86400
+            cache_key, fetch_and_serialize_leaderboard, ttl=86400
         )
 
         if not data:

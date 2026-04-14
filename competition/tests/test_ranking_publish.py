@@ -15,7 +15,7 @@ from competition.models import (
 )
 from vmlc.models import Exam
 from competition.tasks import (
-    generate_ranking_task,
+    generate_ranking_and_update_leaderboard_task,
     update_leaderboard_task,
     invalidate_published_ranking_cache_task,
     publish_ranking_task,

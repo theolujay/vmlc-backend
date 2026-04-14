@@ -445,13 +445,28 @@ class LeagueLeaderboard(models.Model):
     stage = models.CharField(max_length=20, choices=Stage.Type.choices)
     as_of_round = models.PositiveSmallIntegerField(
         null=True, blank=True
-    )  # e.g., Week 3
+    )  # e.g., Round 3
+    is_public = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.is_public:
+            # If this league leaderboard should prioritised as public
+            with transaction.atomic():
+                LeagueLeaderboard.objects.filter(
+                    competition=self.competition,
+                    stage=self.stage,
+                    is_public=True,
+                ).exclude(
+                    pk=self.pk
+                ).update(is_public=False)
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "League Leaderboard"
         verbose_name_plural = "League Leaderboards"
+        ordering = ["-created_at"]
         indexes = [models.Index(fields=["competition", "stage", "as_of_round"])]
 
 

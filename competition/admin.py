@@ -572,8 +572,8 @@ class RankingSnapshotEntryAdmin(admin.ModelAdmin):
 
 @admin.register(LeagueLeaderboard)
 class LeagueLeaderboardAdmin(admin.ModelAdmin):
-    list_display = ("competition", "stage", "as_of_round", "created_at")
-    list_filter = ("competition", "stage")
+    list_display = ("competition", "stage", "as_of_round", "is_public", "created_at")
+    list_filter = ("competition", "stage", "is_public")
     search_fields = ("competition__name",)
     autocomplete_fields = ["competition"]
     inlines = [LeagueLeaderboardEntryInline]

@@ -20,7 +20,8 @@ class CacheKeys:
 
     # Competition
     ENROLLMENT = "enrollment:{user_id}"
-    LEADERBOARD_LEAGUE = "lb:league:latest"
+    LEADERBOARD_LEAGUE_PUBLIC = "lb:league:public:latest"
+    LEADERBOARD_LEAGUE_INTERNAL = "lb:league:internal:latest"
     RANKING_SNAPSHOT = "ranking:snapshot:{exam_id}"
     RANKING_SNAPSHOT_ENTRY = "ranking:snapshot:entry:{exam_id}:{candidate_id}"
     RANKING_SNAPSHOT_LIST = "ranking:snapshot:list"

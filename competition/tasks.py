@@ -47,8 +47,8 @@ def invalidate_published_ranking_cache_task(ranking_snapshot_id):
         )
 
 
-@shared_task(name="generate_ranking_task")
-def generate_ranking_task(stage_exam_id, actor_id=None, ranking_policy="standard"):
+@shared_task(name="generate_ranking_and_update_leaderboard_task")
+def generate_ranking_and_update_leaderboard_task(stage_exam_id, actor_id=None, ranking_policy="standard"):
     """
     Celery task to generate (and optionally publish) ranking snapshot for a stage exam.
     """
@@ -60,9 +60,14 @@ def generate_ranking_task(stage_exam_id, actor_id=None, ranking_policy="standard
         if actor_id and isinstance(actor_id, str):
             actor_id = uuid.UUID(actor_id)
 
-        generator.generate_and_save_ranking(
+        ranking = generator.generate_and_save_ranking(
             actor_id=actor_id, ranking_policy=ranking_policy
         )
+        if ranking.stage == Stage.Type.LEAGUE:
+            update_leaderboard_task.delay(
+                competition_id=ranking.competition.id,
+                as_of_round=ranking.round,
+            )
 
         logger.info(f"Ranking snapshot for StageExam {stage_exam_id} generated.")
 
@@ -77,6 +82,17 @@ def generate_ranking_task(stage_exam_id, actor_id=None, ranking_policy="standard
         )
         raise
 
+@shared_task(name="publish_league_leaderboard_update_task")
+def publish_league_leaderboard_update_task(competition_id, as_of_round):
+    logger.info(
+        "Publishing league leaderboard update"
+    )
+    try:
+        LeaderboardService.publish_league_leaderboard_update(competition_id, as_of_round)
+        logger.info("League leaderboard update published")
+    except Exception as exc:
+        logger.error(f"Error publishing league leaderboard update: {exc}", exc_info=True)
+        raise
 
 @shared_task(name="update_leaderboard_task")
 def update_leaderboard_task(competition_id, as_of_round):
