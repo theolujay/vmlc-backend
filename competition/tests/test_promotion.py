@@ -128,3 +128,27 @@ class PromotionLogicTest(TestCase):
         )
         self.assertEqual(esp.status, EnrollmentStageProgress.Status.DISCONTINUED)
         self.assertIsNotNone(esp.discontinued_at)
+
+    def test_undisqualify_candidate(self):
+        candidate = self.candidates[0]
+        # First disqualify
+        PromotionService.disqualify_candidate(
+            candidate_id=candidate.pk, reason="Cheating"
+        )
+
+        # Then undisqualify
+        PromotionService.undisqualify_candidate(candidate_id=candidate.pk)
+
+        # Check Enrollment
+        enrollment = Enrollment.objects.get(
+            candidate=candidate, competition=self.competition
+        )
+        self.assertEqual(enrollment.status, Enrollment.Status.ACTIVE)
+        self.assertNotIn("disqualification_reason", enrollment.metadata)
+
+        # Check Progress
+        esp = EnrollmentStageProgress.objects.get(
+            enrollment=enrollment, stage=self.screening_stage
+        )
+        self.assertEqual(esp.status, EnrollmentStageProgress.Status.IN_PROGRESS)
+        self.assertIsNone(esp.discontinued_at)

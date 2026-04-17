@@ -378,6 +378,56 @@ class PromotionService:
         return True
 
     @staticmethod
+    @transaction.atomic
+    def undisqualify_candidate(candidate_id, competition_id=None):
+        """
+        Reverses disqualification of a candidate from the competition.
+        """
+        if competition_id:
+            competition = Competition.objects.get(id=competition_id)
+        else:
+            competition = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
+
+        if not competition:
+            raise PromotionError("No active competition found.")
+
+        # Find disqualified enrollment
+        enrollment = Enrollment.objects.filter(
+            competition=competition,
+            candidate_id=candidate_id,
+            status=Enrollment.Status.DISQUALIFIED,
+        ).first()
+
+        if not enrollment:
+            raise PromotionError(
+                f"No disqualified enrollment found for candidate {candidate_id}."
+            )
+
+        # Restore status
+        enrollment.status = Enrollment.Status.ACTIVE
+        # Remove disqualification reason if it exists
+        if enrollment.metadata and "disqualification_reason" in enrollment.metadata:
+            del enrollment.metadata["disqualification_reason"]
+
+        enrollment.save()
+
+        # Update current StageProgress
+        EnrollmentStageProgress.objects.filter(
+            enrollment=enrollment,
+            stage=enrollment.current_stage,
+            status=EnrollmentStageProgress.Status.DISCONTINUED,
+        ).update(status=EnrollmentStageProgress.Status.IN_PROGRESS, discontinued_at=None)
+
+        # Invalidate Caches
+        invalidate_candidate_cache(candidate_id)
+        invalidate_staff_dashboard()
+
+        logger.info(f"Candidate {candidate_id} has been undisqualified.")
+        return True
+
+    @staticmethod
     def _send_absentee_notifications(competition, absentee_entries):
         """
         Sends platform notifications to candidates about their elimination due to absence.

@@ -265,6 +265,32 @@ def disqualify_selected_candidates(modeladmin, request, queryset):
     )
 
 
+@admin.action(description="Undisqualify selected candidates")
+def undisqualify_selected_candidates(modeladmin, request, queryset):
+    from competition.services.promotion import PromotionService, PromotionError
+
+    count = 0
+    errors = []
+    for candidate in queryset:
+        try:
+            PromotionService.undisqualify_candidate(candidate.pk)
+            count += 1
+        except (PromotionError, Exception) as e:
+            errors.append(f"Failed to undisqualify {candidate}: {str(e)}")
+
+    if count:
+        modeladmin.message_user(
+            request, f"Successfully undisqualified {count} candidates."
+        )
+    if errors:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        for error in errors:
+            modeladmin.message_user(request, error, level="ERROR")
+            logger.error(error)
+
+
 @admin.action(description="Change role for selected staff")
 def change_staff_role(modeladmin, request, queryset):
     if "apply" in request.POST:
@@ -570,7 +596,11 @@ class CandidateAdmin(admin.ModelAdmin):
     Now enriched with inlines for Exam Access, Results, and Helpdesk.
     """
 
-    actions = [change_candidate_role, disqualify_selected_candidates]
+    actions = [
+        change_candidate_role,
+        disqualify_selected_candidates,
+        undisqualify_selected_candidates,
+    ]
     inlines = [ExamAccessInline, CandidateExamResultInline, HelpdeskThreadInline]
 
     list_display = (

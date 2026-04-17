@@ -176,6 +176,7 @@ class Enrollment(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     last_active_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(
+        null=True,
         default=dict,
         blank=True,
         help_text="Competition-specific data about the candidate.",
