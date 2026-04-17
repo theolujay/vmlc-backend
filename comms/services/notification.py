@@ -592,8 +592,12 @@ class NotificationService:
             return False
 
         phone = _normalize_phone(user.phone)
-        self.send_phone_msg(body=body, recipient=phone, medium=medium)
-        return True
+        # Use send_bulk_phone_msg instead of send_phone_msg to leverage
+        # robust queuing/retries for Kudi SMS.
+        result = self.send_bulk_phone_msg(body=body, recipients=[phone], medium=medium)
+
+        # Return True if successfully queued or at least one recipient succeeded
+        return result.get("status") == "QUEUED" or result.get("success_count", 0) > 0
 
     def _resolve_recipients(
         self, broadcast: Broadcast, Staff, Candidate
@@ -797,15 +801,21 @@ class NotificationService:
                 "error": "Twilio client not configured.",
                 "sid": None,
             }
+
+        # Ensure recipient has leading + for Twilio E.164 format
+        formatted_recipient = recipient if recipient.startswith("+") else "+" + recipient
+
         message = self.twilio_client.messages.create(
             body=body,
             from_="whatsapp:%s" % settings.TWILIO_FROM_PHONE,
-            to="whatsapp:%s" % recipient,
+            to="whatsapp:%s" % formatted_recipient,
         )
-        logger.info("Sent WhatsApp to %s (SID: %s)", recipient[:8] + "***", message.sid)
+        logger.info(
+            "Sent WhatsApp to %s (SID: %s)", formatted_recipient[:8] + "***", message.sid
+        )
         return {
             "success": True,
-            "recipient": recipient,
+            "recipient": formatted_recipient,
             "error": None,
             "sid": message.sid,
         }
