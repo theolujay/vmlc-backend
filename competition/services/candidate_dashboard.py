@@ -464,7 +464,7 @@ class CandidateDashboardService:
         Fetches the candidate's entry from the latest league leaderboard.
         Returns a ranking dict or None.
         """
-        leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp)
+        leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp, is_public=True)
         if not leaderboard:
             return None
 
