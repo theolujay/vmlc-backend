@@ -5,7 +5,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
-from competition.models import Enrollment
+from competition.models import Enrollment, Competition
+from comms.models import Broadcast
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from vmlc.utils.exceptions import ServerError
@@ -213,3 +214,78 @@ class ExamAccessService:
             data["profile"] = profile_data
 
         return data, None
+
+    @staticmethod
+    def send_candidate_passcodes(candidate_id, mediums=None):
+        """
+        Generates and sends passcodes for all upcoming exams for a specific candidate.
+        Used for targeted individual notifications from Admin.
+        """
+        from comms.services.notification import NotificationService
+
+        if mediums is None:
+            mediums = [Broadcast.Medium.EMAIL]
+
+        # 1. Get candidate and active enrollment
+        enrollment = Enrollment.objects.filter(
+            candidate_id=candidate_id, status=Enrollment.Status.ACTIVE
+        ).first()
+
+        if not enrollment:
+            return 0, "No active enrollment found for candidate."
+
+        # 2. Find upcoming exams for candidate's current stage
+        now = timezone.now()
+        upcoming_exams = Exam.objects.filter(
+            competition_slot__competition_stage=enrollment.current_stage,
+            is_active=True,
+            scheduled_date__gte=now - timedelta(hours=1),  # Allow slightly past
+        )
+
+        if not upcoming_exams.exists():
+            return 0, f"No upcoming exams found for stage {enrollment.current_stage}."
+
+        # 3. Ensure passcodes exist (generate if missing)
+        sent_count = 0
+        service = NotificationService()
+        user = enrollment.candidate.user
+
+        for exam in upcoming_exams:
+            # This generates if missing or expired
+            ExamAccessService.generate_passcodes(exam.id)
+
+            # Get the record
+            p_record = ExamAccessPasscode.objects.filter(
+                exam_access__exam=exam,
+                exam_access__candidate_id=candidate_id,
+                status=ExamAccessPasscode.Status.ISSUED,
+            ).first()
+
+            if not p_record:
+                continue
+
+            exam_title = exam.get_title()
+            subject = f"Direct Access to your {exam_title}"
+            message = (
+                f"Hello {user.first_name},\n\n"
+                f"You can access your upcoming exam '{exam_title}' directly by clicking the link below:\n\n"
+                f"{p_record.access_url}\n\n"
+                "Note: This link is valid only during the exam period."
+            )
+
+            # Dispatch via requested mediums
+            service.notify_user(
+                user=user,
+                subject=subject,
+                message=message,
+                mediums=mediums,
+            )
+
+            # Mark as sent if email was one of the mediums
+            if Broadcast.Medium.EMAIL in mediums:
+                p_record.is_passcode_sent = True
+                p_record.save(update_fields=["is_passcode_sent"])
+
+            sent_count += 1
+
+        return sent_count, None

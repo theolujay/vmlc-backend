@@ -291,6 +291,57 @@ def undisqualify_selected_candidates(modeladmin, request, queryset):
             logger.error(error)
 
 
+@admin.action(description="Send Direct Access Passcodes via Email")
+def send_passcodes_via_email(modeladmin, request, queryset):
+    from vmlc.services.exam_access import ExamAccessService
+    from comms.models import Broadcast
+
+    _send_passcodes_action(
+        modeladmin, request, queryset, [Broadcast.Medium.EMAIL], "Email"
+    )
+
+
+@admin.action(description="Send Direct Access Passcodes via SMS")
+def send_passcodes_via_sms(modeladmin, request, queryset):
+    from vmlc.services.exam_access import ExamAccessService
+    from comms.models import Broadcast
+
+    _send_passcodes_action(
+        modeladmin, request, queryset, [Broadcast.Medium.SMS], "SMS"
+    )
+
+
+def _send_passcodes_action(modeladmin, request, queryset, mediums, medium_name):
+    from vmlc.services.exam_access import ExamAccessService
+    from competition.models import Enrollment
+
+    total_sent = 0
+    errors = []
+
+    for obj in queryset:
+        # Handle both Candidate and Enrollment objects
+        if isinstance(obj, Enrollment):
+            candidate_id = obj.candidate_id
+        else:
+            candidate_id = obj.pk
+
+        count, error = ExamAccessService.send_candidate_passcodes(
+            candidate_id, mediums=mediums
+        )
+        if error:
+            errors.append(f"Failed for {obj}: {error}")
+        else:
+            total_sent += count
+
+    if total_sent:
+        modeladmin.message_user(
+            request, f"Successfully sent {total_sent} passcodes via {medium_name}."
+        )
+    if errors:
+        for error in errors:
+            modeladmin.message_user(request, error, level="ERROR")
+
+
 @admin.action(description="Change role for selected staff")
 def change_staff_role(modeladmin, request, queryset):
     if "apply" in request.POST:
@@ -600,6 +651,8 @@ class CandidateAdmin(admin.ModelAdmin):
         change_candidate_role,
         disqualify_selected_candidates,
         undisqualify_selected_candidates,
+        send_passcodes_via_email,
+        send_passcodes_via_sms,
     ]
     inlines = [ExamAccessInline, CandidateExamResultInline, HelpdeskThreadInline]
 

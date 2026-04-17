@@ -20,6 +20,8 @@ from .models import (
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
 )
+from identity.admin import send_passcodes_via_email, send_passcodes_via_sms
+
 
 
 class StageInline(admin.TabularInline):
@@ -246,6 +248,7 @@ class StageExamAdmin(admin.ModelAdmin):
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
+    actions = [send_passcodes_via_email, send_passcodes_via_sms]
     list_display = (
         "candidate_email",
         "candidate_full_name",
