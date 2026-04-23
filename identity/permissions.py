@@ -305,14 +305,12 @@ class IsActiveModeratorOrCandidate(BasePermission):
         is_candidate = get_candidate_profile(request) is not None
         return is_active_moderator or is_candidate
 
-
-class CanViewRankingSnapshot(BasePermission):
+class CanViewScoreboard(BasePermission):
     """
-    Grants access to a ranking snapshot if:
+    Grants access to a scoreboard if:
     1. The user is staff (any role).
     OR
     2. The user is a candidate who is actively enrolled in the exam's competition
-       AND has submitted the exam for which the ranking snapshot is requested.
     """
 
     message = "You do not have permission to view this ranking snapshot."
@@ -324,38 +322,29 @@ class CanViewRankingSnapshot(BasePermission):
         # Staff always have permission
         if get_staff_profile(request):
             return True
-
-        candidate = get_candidate_profile(request)
-        if not candidate:
-            return False
+        # Must be a candidate at this point
+        enrollment = request.enrollment
+        if enrollment is None:
+            False
 
         exam_id = view.kwargs.get("exam_id")
-        if not exam_id:
-            return False
+        scoreboard = view.kwargs.get("scoreboard")
 
-        try:
-            ranking_snapshot = RankingSnapshot.objects.select_related(
-                "competition", "exam__competition_slot__competition_stage__competition"
-            ).get(exam_id=exam_id, is_published=True)
-        except RankingSnapshot.DoesNotExist:
-            return False
+        if scoreboard == "leaderboard":
+            return True
 
-        # Check if candidate is enrolled in this competition
-        enrollment_exists = Enrollment.objects.filter(
-            candidate=candidate,
-            competition=ranking_snapshot.competition,
-        ).exists()
+        if scoreboard == "ranking":
+            if not exam_id:
+                return False
+            try:
+                ranking_snapshot = RankingSnapshot.objects.select_related(
+                    "competition", "exam__competition_slot__competition_stage__competition"
+                ).get(exam_id=exam_id, is_published=True)
 
-        if not enrollment_exists:
-            return False
+                return True if ranking_snapshot is not None else False
+            except RankingSnapshot.DoesNotExist:
+                return False
 
-        # Check if the candidate was eligible for the exam
-        # exam_access_exists = ExamAccess.objects.filter(
-        #     candidate=candidate,
-        #     exam=ranking_snapshot.exam,
-        # ).exists()
-
-        # return exam_access_exists
         return True
 
 

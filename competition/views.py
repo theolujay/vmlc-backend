@@ -13,7 +13,7 @@ from identity.permissions import (
     ActiveModeratorPermissions,
     ActiveSuperadminPermissions,
     ActiveVolunteerPermissions,
-    CanViewRankingSnapshot,
+    CanViewScoreboard,
     CandidatePermissions,
     IsLeagueParticipantOrStaff,
     get_enrollment,
@@ -267,11 +267,12 @@ class RetrieveRankingSnapshotView(RetrieveAPIView):
     """
 
     serializer_class = RankingSnapshotSerializer
-    permission_classes = [CanViewRankingSnapshot]
+    permission_classes = [CanViewScoreboard]
     # permission_classes = ActiveModeratorPermissions
     lookup_field = "exam_id"
 
     def get(self, request, *args, **kwargs):
+        self.kwargs["scoreboard"] = "ranking"
         exam_id = self.kwargs[self.lookup_field]
         cache_key = CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id)
         data = get_or_set_cache(
@@ -305,11 +306,10 @@ class LeagueLeaderboardView(APIView):
     View to retrieve the cumulative league leaderboard.
     """
 
-    permission_classes = [CanViewRankingSnapshot]
+    permission_classes = [CanViewScoreboard]
 
     def get(self, request):
-        # TODO: Implement stricter access control.
-        # Only candidates in the 'league' stage (or staff) should view this.
+        self.kwargs["scoreboard"] = "leaderboard"
         is_public_filter = True
 
         if hasattr(request.user, "staff_profile"):
