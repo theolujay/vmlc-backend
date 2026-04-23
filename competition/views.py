@@ -305,7 +305,7 @@ class LeagueLeaderboardView(APIView):
     View to retrieve the cumulative league leaderboard.
     """
 
-    permission_classes = IsLeagueParticipantOrStaff
+    permission_classes = [CanViewRankingSnapshot]
 
     def get(self, request):
         # TODO: Implement stricter access control.
