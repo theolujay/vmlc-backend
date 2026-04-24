@@ -102,7 +102,7 @@ class Command(BaseCommand):
                 exam, created = Exam.objects.get_or_create(
                     description=f"Demo Exam for {competition.name} Screening",
                     defaults={
-                        "delivery_mode": Exam.ExamDeliveryMode.ONLINE,
+                        "delivery_mode": Exam.ExamDeliveryMode.VIRTUAL,
                         "scheduled_date": timezone.now() + timedelta(minutes=2),
                         "open_duration_hours": 2,
                         "countdown_minutes": 60,

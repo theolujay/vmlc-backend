@@ -148,7 +148,7 @@ class Exam(models.Model):
         return self.get_title()
 
     class ExamDeliveryMode(models.TextChoices):
-        ONLINE = "online", "Online (Remote)"
+        VIRTUAL = "virtual", "Virtual"
         IN_PERSON = "in_person", "In-Person (CBT Venue)"
 
     class Status(models.TextChoices):
@@ -168,7 +168,7 @@ class Exam(models.Model):
     delivery_mode = models.CharField(
         max_length=20,
         choices=ExamDeliveryMode.choices,
-        default=ExamDeliveryMode.ONLINE,
+        default=ExamDeliveryMode.VIRTUAL,
         db_index=True,
     )
     scheduled_date = models.DateTimeField(blank=True, null=True, db_index=True)
@@ -660,6 +660,19 @@ class ExamAccess(models.Model):
     is_manually_reviewed = models.BooleanField(
         default=False,
         help_text="Whether an admin has manually confirmed or cleared this attempt.",
+    )
+
+    is_unlocked = models.BooleanField(
+        default=False,
+        help_text="Whether this session has been unlocked via QR code (for final exams).",
+    )
+    unlocked_by = models.ForeignKey(
+        "identity.Staff",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="unlocked_exams",
+        help_text="The admin who scanned the QR code to unlock this session.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

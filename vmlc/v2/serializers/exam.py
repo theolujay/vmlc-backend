@@ -284,6 +284,7 @@ class CandidateTakeExamSerializer(serializers.ModelSerializer):
                 "started_at": exam_access.started_at,
                 "deadline": exam_access.deadline,
                 "submitted_at": exam_access.submitted_at,
+                "is_unlocked": exam_access.is_unlocked,
             }
         return None
 

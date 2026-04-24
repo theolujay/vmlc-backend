@@ -61,6 +61,14 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         await self.accept()
         logger.info(f"Unified WebSocket connected: {user.email}")
 
+        # Send socket_id (channel_name) to the client
+        await self.send_json({
+            "type": "connection.established",
+            "data": {
+                "socket_id": self.channel_name
+            }
+        })
+
         # 1. Always subscribe to private notification group
         self.user_group = f"user__{user.pk}"
         await self.channel_layer.group_add(self.user_group, self.channel_name)
@@ -174,12 +182,51 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                         "is_typing": data.get("is_typing", False),
                     },
                 )
+        elif action == "exam.unlock_request":
+            if not self.is_staff:
+                await self.send_error("Permission denied")
+                return
+
+            candidate_id = data.get("candidate_id")
+            exam_id = data.get("exam_id")
+            target_socket_id = data.get("socket_id")
+
+            if not candidate_id or not exam_id or not target_socket_id:
+                await self.send_error("candidate_id, exam_id, and socket_id are required")
+                return
+
+            # Update database state (as an audit trail and for verification gate)
+            success = await self.persist_exam_unlock(candidate_id, exam_id, user)
+            
+            if success:
+                # Send specifically to the device that generated the QR
+                await self.channel_layer.send(
+                    target_socket_id,
+                    {
+                        "type": "exam.unlocked",
+                        "data": {
+                            "exam_id": exam_id,
+                            "unlocked_by_name": f"{user.first_name} {user.last_name}".strip() or user.email,
+                            "timestamp": str(asyncio.get_event_loop().time())
+                        },
+                    }
+                )
+            else:
+                await self.send_error("Failed to unlock exam session. Access record not found.")
+
         else:
             await self.send_error(f"Unknown action: {action}")
 
     # ============================================================
     # Group Message Handlers
     # ============================================================
+
+    async def exam_unlocked(self, event):
+        """Forwards exam unlock events to the candidate."""
+        await self.send_json({
+            "type": "exam.unlocked",
+            "data": event.get("data", {})
+        })
 
     async def notification_activity(self, event):
         """Forwards notification events to the client."""
@@ -239,6 +286,28 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 )
         except asyncio.CancelledError:
             pass
+
+    @database_sync_to_async
+    def persist_exam_unlock(self, candidate_id, exam_id, staff_user):
+        """Persists the unlock status in the database."""
+        from vmlc.models import ExamAccess
+        from identity.models import Staff
+        
+        try:
+            access = ExamAccess.objects.get(candidate_id=candidate_id, exam_id=exam_id)
+            access.is_unlocked = True
+            
+            # Get the staff record
+            try:
+                staff = Staff.objects.get(user=staff_user)
+                access.unlocked_by = staff
+            except Staff.DoesNotExist:
+                pass
+                
+            access.save()
+            return True
+        except ExamAccess.DoesNotExist:
+            return False
 
     async def send_error(self, message):
         await self.send_json({"type": "error", "message": message})
