@@ -19,7 +19,7 @@ class ExamListV2Serializer(serializers.ModelSerializer):
             "id",
             "title",
             "status",
-            # "competition_title",
+            "delivery_mode",
             "question_count",
             "scheduled_date",
             "concluded_at",
@@ -31,6 +31,10 @@ class ExamListV2Serializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
 
+    def get_stage(self, obj):
+        if not obj.competition_slot:
+            return None
+        return obj.competition_slot.competition_stage.type
     def get_title(self, obj):
         return obj.title
 
