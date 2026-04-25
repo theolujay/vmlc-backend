@@ -1,8 +1,7 @@
 import logging
-from typing import Optional
 from competition.models import Competition, Enrollment, Stage
 from identity.models import Candidate
-from vmlc.models import Exam
+from vmlc.models import Exam, ExamAccess
 
 logger = logging.getLogger(__name__)
 
@@ -13,18 +12,18 @@ class EligibilityService:
     """
 
     @staticmethod
-    def can_take_exam(candidate: Candidate, exam: Exam) -> bool:
+    def can_take_exam(candidate: Candidate, exam: Exam) -> tuple[bool, str | None, ExamAccess | None]:
         """
         Determines if a candidate is eligible to take a specific exam based on
         competition rules and their current progress.
         """
         if not candidate.user.is_active:
             logger.warning(f"Candidate {candidate.pk} is inactive.")
-            return False
+            return False, "Your account is currently inactive. Please contact support.", None
 
         # If exam is not active, nobody can take it
         if not exam.is_active:
-            return False
+            return False, "This exam is not active at the moment.", None
 
         # Check if the exam is currently open (time-wise)
         if not exam.is_currently_open:
@@ -33,14 +32,21 @@ class EligibilityService:
             # probably makes it required for a user to refresh their dashboard
             # to check the expected state (exam.is_currently_open=True).
             # But what handles this state change, check_exam_status_transitions_task in vmlc/v2/tasks.py?
-            return False
+            return False, "This exam is not currently open for attempts.", None
+
+        access = ExamAccess.objects.filter(
+            candidate=candidate, exam=exam,
+        ).first()
+
+        if not access:
+            return False, "Identity verification (face capture) required before taking the exam.", None
 
         # Check competition context
         slot = getattr(exam, "competition_slot", None)
         if not slot:
             # If not enrolled in a competition, we allow it if it's active and open.
             # TODO: look the issue where candidates may not be enrollment of a competition
-            return True
+            return True, None, access
 
         # Get active enrollment for THIS exam's competition
         exam_competition = slot.competition_stage.competition
@@ -72,7 +78,7 @@ class EligibilityService:
             logger.info(
                 f"Candidate {candidate.pk} has no active competition enrollment or valid role fallback."
             )
-            return False
+            return False, "You are not enrolled in the required stage for this exam.", access
 
         # Check if candidate's current stage matches the exam's stage
         if candidate_current_stage != slot.competition_stage:
@@ -81,7 +87,11 @@ class EligibilityService:
                 f"Candidate stage: {candidate_current_stage.type}, "
                 f"Exam stage: {slot.competition_stage.type}"
             )
-            return False
+            return (
+                False,
+                f"This exam is for the {slot.competition_stage.type.title()} stage, but your current stage is {candidate_current_stage.type.title()}.",
+                access,
+            )
 
         # Ensure they have a PENDING or IN_PROGRESS EnrollmentStageProgress for this stage
         from competition.models import EnrollmentStageProgress
@@ -99,18 +109,32 @@ class EligibilityService:
                 logger.info(
                     f"Candidate {candidate.pk} has no valid progress for stage {slot.competition_stage.type}"
                 )
-                return False
+                return False, "You do not have active progress for this competition stage.", access
 
-        # Check if they have already submitted this exam
-        from vmlc.models import ExamAccess
-
-        if ExamAccess.objects.filter(
-            candidate=candidate, exam=exam, status=ExamAccess.Status.SUBMITTED
-        ).exists():
+        # Check if they have already submitted, failed or if access expired
+        if access.status == ExamAccess.Status.SUBMITTED:
             logger.info(f"Candidate {candidate.pk} already submitted exam {exam.pk}.")
-            return False
+            return False, "You have already submitted an attempt for this exam.", access
 
-        return True
+        if access.status == ExamAccess.Status.EXPIRED:
+            logger.info(f"Candidate {candidate.pk} attempt for exam {exam.pk} expired.")
+            return False, "Your attempt for this exam has expired.", access
+
+        if access.status == ExamAccess.Status.FAILED:
+            logger.info(f"Candidate {candidate.pk} attempt for exam {exam.pk} failed.")
+            return False, "You have failed this exam attempt and cannot retake it.", access
+
+        if not access.face_capture:
+            return (
+                False,
+                "Identity verification (face capture) required before taking the exam.",
+                access,
+            )
+
+        if exam.stage == "final" and not access.is_unlocked:
+            return False, "Your access to this final exam has not yet been unlocked.", access
+
+        return True, None, access
 
     @staticmethod
     def can_view_leaderboard(candidate: Candidate, stage_type: str) -> bool:

@@ -331,11 +331,8 @@ class CandidateDashboardService:
                 exam = slot.exam
                 status = exam.status
 
-                is_eligible = EligibilityService.can_take_exam(candidate, exam)
+                is_eligible, _, access = EligibilityService.can_take_exam(candidate, exam)
 
-                access = ExamAccess.objects.filter(
-                    candidate=candidate, exam=exam
-                ).first()
 
                 has_participated = (
                     access.status == ExamAccess.Status.SUBMITTED if access else False

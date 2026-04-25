@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 
 from django.db.models import Avg, Count, Q
@@ -15,6 +16,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from competition.services.eligibility import EligibilityService
 from identity.models import Candidate
 from identity.permissions import (
     ActiveAdminPermissions,
@@ -456,9 +458,6 @@ class ExamTimeView(APIView):
 @api_view(["GET"])
 @permission_classes(CandidatePermissions)
 def candidate_take_exam_V2(request, exam_id):
-    from datetime import timedelta
-    from competition.services.eligibility import EligibilityService
-    from vmlc.v2.utils import CacheKeys, get_or_set_cache
 
     candidate = request.user.candidate_profile
 
@@ -468,33 +467,16 @@ def candidate_take_exam_V2(request, exam_id):
     except Exam.DoesNotExist:
         raise NotFound("Exam not found.")
 
-    if not EligibilityService.can_take_exam(candidate, exam):
+    is_eligible, in_eligibility_reason, access = EligibilityService.can_take_exam(candidate, exam)
+
+    if not is_eligible:
         logger.warning(
-            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}"
+            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}. Reason: {in_eligibility_reason}"
         )
-        raise PermissionDenied("You are not eligible to take this exam at this time.")
+        raise PermissionDenied(f"{in_eligibility_reason}")
 
     # 2. Access Management (Always dynamic)
     now = timezone.now()
-    try:
-        access = ExamAccess.objects.get(candidate=candidate, exam=exam)
-    except ExamAccess.DoesNotExist:
-        raise PermissionDenied(
-            "Identity verification (face capture) required before taking the exam."
-        )
-
-    if not access.face_capture:
-        raise PermissionDenied(
-            "Identity verification (face capture) required before taking the exam."
-        )
-
-    # Check if already submitted or expired
-    if access.status in [
-        ExamAccess.Status.SUBMITTED,
-        ExamAccess.Status.EXPIRED,
-        ExamAccess.Status.FAILED,
-    ]:
-        raise PermissionDenied("You have already completed or attempted this exam.")
 
     # If in PENDING or ISSUED, update to STARTED
     if access.status in [ExamAccess.Status.PENDING, ExamAccess.Status.ISSUED]:

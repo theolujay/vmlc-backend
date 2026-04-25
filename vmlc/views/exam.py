@@ -570,11 +570,13 @@ def candidate_take_exam(request, exam_id):
         logger.error(f"Exam with id {exam_id} not found.")
         raise NotFound("Exam not found.")
 
-    if not EligibilityService.can_take_exam(candidate, exam):
+    is_eligible, in_eligibility_reason, _ = EligibilityService.can_take_exam(candidate, exam)
+
+    if not is_eligible:
         logger.warning(
-            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}"
+            f"Candidate {candidate.pk} failed eligibility check for exam {exam_id}."
         )
-        raise PermissionDenied("You are not eligible to take this exam at this time.")
+        raise PermissionDenied(in_eligibility_reason)
 
     serializer = CandidateExamSerializer(exam)
     return Response(serializer.data)
