@@ -391,6 +391,9 @@ class Exam(models.Model):
         """
         Overridden save to synchronize StageExam visibility and notify on status changes.
         """
+        if self.stage == "final":
+            self.delivery_mode = self.ExamDeliveryMode.IN_PERSON
+
         # Ensure scheduled_date is a datetime object
         if isinstance(self.scheduled_date, str):
             from django.utils.dateparse import parse_datetime

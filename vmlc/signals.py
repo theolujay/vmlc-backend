@@ -14,6 +14,7 @@ from identity.models import (
 from vmlc.models import (
     CandidateExamResult,
     Exam,
+    ExamAccess,
 )
 from comms.models import (
     HelpdeskThread,
@@ -25,7 +26,16 @@ from .tasks import (
     generate_stats_overview_task,
     # update_staff_dashboard_cache_task,
 )
-from competition.models import Competition, Stage, RankingSnapshot, Enrollment
+from competition.models import (
+    Competition,
+    Stage,
+    RankingSnapshot,
+    Enrollment,
+    StageExam,
+    RankingSnapshotEntry,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+)
 
 
 from vmlc.v2.utils import CacheKeys
@@ -85,11 +95,15 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
             instance.candidate_id, user_id=instance.candidate.user_id
         )
         invalidate_staff_dashboard()
-    elif isinstance(instance, (Competition, Stage, RankingSnapshot, Enrollment)):
+    elif isinstance(instance, RankingSnapshot):
+        invalidate_staff_dashboard()
+        invalidate_score_boards(exam_id=instance.exam_id)
+    elif isinstance(instance, RankingSnapshotEntry):
+        invalidate_staff_dashboard()
+        invalidate_score_boards(exam_id=instance.ranking_snapshot.exam_id)
+    elif isinstance(instance, (Competition, Stage, Enrollment, StageExam, LeagueLeaderboard, LeagueLeaderboardEntry, ExamAccess)):
         invalidate_staff_dashboard()
         invalidate_score_boards()
-    elif isinstance(instance, RankingSnapshot):
-        invalidate_score_boards(exam_id=instance.exam.id)
     elif isinstance(instance, Exam):
         from vmlc.v2.tasks import invalidate_exam_related_caches_task
         from django.db import transaction
@@ -163,6 +177,11 @@ models_to_watch = [
     ThreadMessage,
     MessageRead,
     CowrywiseKidProfile,
+    StageExam,
+    RankingSnapshotEntry,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+    ExamAccess,
 ]
 for model in models_to_watch:
     post_save.connect(refresh_stats_overview_cache, sender=model)
@@ -192,6 +211,11 @@ for model in models_to_watch:
         Enrollment,
         Exam,
         CowrywiseKidProfile,
+        StageExam,
+        RankingSnapshotEntry,
+        LeagueLeaderboard,
+        LeagueLeaderboardEntry,
+        ExamAccess,
     ]:
         post_save.connect(invalidate_dashboard_on_change, sender=model)
         post_delete.connect(invalidate_dashboard_on_change, sender=model)

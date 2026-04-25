@@ -220,6 +220,9 @@ def invalidate_integrity_audit_cache(exam_id, candidate_id):
 def invalidate_staff_dashboard():
     """Clear global staff dashboard cache."""
     cache.delete(CacheKeys.STAFF_DASHBOARD)
+    # Clear variations used in StaffCompetitionDashboardView
+    cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:internal")
+    cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:public")
 
 
 def invalidate_score_boards(exam_id=None):
