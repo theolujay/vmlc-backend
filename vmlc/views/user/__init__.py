@@ -6,6 +6,11 @@ from .verification import (
     UserVerificationActionView,
 )
 from .management import (
+    BulkNotificationView,
+    BulkStaffImportView,
+    BulkCandidateImportView,
+    ResetUserPasswordView,
+    UserActivityLogView,
     StaffInviteView,
     CandidateInviteView,
     AccountManagementView,
@@ -22,6 +27,11 @@ __all__ = [
     "UserVerificationListView",
     "UserVerificationActionView",
     # management
+    "BulkNotificationView",
+    "BulkStaffImportView",
+    "BulkCandidateImportView",
+    "ResetUserPasswordView",
+    "UserActivityLogView",
     "AccountManagementView",
     "StaffInviteView",
     "CandidateInviteView",
