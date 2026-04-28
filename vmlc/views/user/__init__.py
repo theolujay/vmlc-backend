@@ -12,6 +12,7 @@ from .management import (
     UserListView,
     UserDetailView,
 )
+from .export import UserExportView
 
 __all__ = [
     # verification
@@ -26,4 +27,5 @@ __all__ = [
     "CandidateInviteView",
     "UserListView",
     "UserDetailView",
+    "UserExportView",
 ]

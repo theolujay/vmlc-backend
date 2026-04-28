@@ -117,6 +117,7 @@ def filter_candidates(
     Supported filters:
         - role: Candidate role (e.g., 'league', 'final')
         - school_name: Filter by school name
+        - state: Filter by state
         - is_active: 'true' or 'false' (filters based on user's active status)
         - search: Partial match on email, first name, last name, or school name
         - ordering: Sort by 'first_name', 'last_name', or 'date_joined' (prefix with '-' for descending)
@@ -130,6 +131,8 @@ def filter_candidates(
     """
     role: Any = params.get("role")
     school_name: Any = params.get("school_name")
+    state: Any = params.get("state")
+    current_class: Any = params.get("current_class")
     is_active: Any = params.get("is_active")
     search: Any = params.get("search")
     ordering: Any = params.get("ordering")
@@ -139,6 +142,12 @@ def filter_candidates(
 
     if school_name:
         queryset = queryset.filter(school_name__icontains=school_name)
+
+    if state:
+        queryset = queryset.filter(user__state__icontains=state)
+
+    if current_class:
+        queryset = queryset.filter(current_class=current_class)
 
     if is_active is not None:
         if is_active.lower() == "true":
