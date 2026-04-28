@@ -125,6 +125,7 @@ dependencies = [
     "servestatic>=3.1.0",
     "django-db-connection-pool>=1.2.6",
     "twilio>=9.8.7",
+    "openpyxl==3.1.3",
 ]
 
 # ---------------------------------------

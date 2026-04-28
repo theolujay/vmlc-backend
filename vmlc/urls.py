@@ -46,6 +46,7 @@ from .views import (
     StaffListView,
     SubmitAnswersView,
     UserDetailView,
+    UserExportView,
     UserListView,
     UserVerificationActionView,
     UserVerificationDocumentView,
@@ -134,6 +135,7 @@ urlpatterns = [
         name="user-verification-action",
     ),
     path("user/list/", UserListView.as_view(), name="user-list"),
+    path("user/export/", UserExportView.as_view(), name="user-export"),
     # =============================================================================
     # USER & ACCOUNT MANAGEMENT
     # =============================================================================

@@ -64,6 +64,7 @@ from .user import (
     UserVerificationActionView,
     CandidateInviteView,
     StaffInviteView,
+    UserExportView,
     UserListView,
     UserDetailView,
 )
@@ -125,6 +126,7 @@ __all__ = [
     "UserVerificationActionView",
     "StaffInviteView",
     "CandidateInviteView",
+    "UserExportView",
     "UserListView",
     "UserDetailView",
     "RegistrationMetricsView",
