@@ -160,6 +160,7 @@ def filter_candidates(
             Q(user__email__icontains=search)
             | Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
+            | Q(user__phone__icontains=search)
             | Q(school_name__icontains=search)
         )
 
