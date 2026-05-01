@@ -28,6 +28,15 @@ class Command(BaseCommand):
         file_path = options["file_path"]
         staff_email = options.get("staff_email")
         competition_id = options.get("competition_id")
+        if competition_id is None:
+            competition = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
+            if competition is None:
+                raise CommandError(
+                    "No active competition found. Provide --competition-id or create an active competition."
+                )
+            competition_id = competition.id
 
         try:
             with open(file_path, "r") as f:
