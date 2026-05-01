@@ -22,6 +22,8 @@ from .views import (
     QuestionDetailV2View,
     QuestionBulkActionV2View,
     SubmitAnswersV2View,
+    AutoSaveAnswersV2View,
+    GetSavedAnswersV2View,
 )
 from vmlc.views.status import registration_status
 
@@ -106,6 +108,16 @@ urlpatterns = [
         "exams/<uuid:exam_id>/submit/",
         SubmitAnswersV2View.as_view(),
         name="submit-exam",
+    ),
+    path(
+        "exams/<uuid:exam_id>/auto-save/",
+        AutoSaveAnswersV2View.as_view(),
+        name="auto-save-answers",
+    ),
+    path(
+        "exams/<uuid:exam_id>/saved-answers/",
+        GetSavedAnswersV2View.as_view(),
+        name="get-saved-answers",
     ),
     # =============================================================================
     # CANDIDATE MANAGEMENT

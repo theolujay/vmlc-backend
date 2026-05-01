@@ -196,10 +196,11 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 return
 
             # Update database state (as an audit trail and for verification gate)
-            success = await self.persist_exam_unlock(candidate_id, exam_id, user)
+            result = await self.persist_exam_unlock(candidate_id, exam_id, user)
             
-            if success:
-                # Send specifically to the device that generated the QR
+            if result == "success":
+                # Send specifically to the device that generated the QR — prevents
+                # an imposter from unlocking the exam on a different machine
                 await self.channel_layer.send(
                     target_socket_id,
                     {
@@ -211,6 +212,8 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                         },
                     }
                 )
+            elif result == "not_final":
+                await self.send_error("This exam is not a final exam and cannot be unlocked via QR.")
             else:
                 await self.send_error("Failed to unlock exam session. Access record not found.")
 
@@ -289,23 +292,40 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
 
     @database_sync_to_async
     def persist_exam_unlock(self, candidate_id, exam_id, staff_user):
-        """Persists the unlock status in the database."""
-        from vmlc.models import ExamAccess
-        from identity.models import Staff
+        """Persists the unlock status in the database.
         
+        Returns:
+            "success" - exam unlocked successfully
+            "not_final" - exam is not a final exam
+            False - access record not found
+        """
+        from vmlc.models import ExamAccess, Exam
+        from identity.models import Staff
+
         try:
             access = ExamAccess.objects.get(candidate_id=candidate_id, exam_id=exam_id)
+
+            # Only final exams can be unlocked via QR
+            exam = (
+                Exam.objects.select_related(
+                    "competition_slot__competition_stage"
+                )
+                .get(pk=exam_id)
+            )
+            if exam.stage != "final":
+                return "not_final"
+
             access.is_unlocked = True
-            
+
             # Get the staff record
             try:
                 staff = Staff.objects.get(user=staff_user)
                 access.unlocked_by = staff
             except Staff.DoesNotExist:
                 pass
-                
+
             access.save()
-            return True
+            return "success"
         except ExamAccess.DoesNotExist:
             return False
 
