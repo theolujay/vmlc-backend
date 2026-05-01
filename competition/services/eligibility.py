@@ -1,4 +1,5 @@
 import logging
+from django.core.cache import cache
 from competition.models import Competition, Enrollment, Stage
 from identity.models import Candidate
 from vmlc.models import Exam, ExamAccess
@@ -132,7 +133,11 @@ class EligibilityService:
             )
 
         if exam.stage == "final" and not access.is_unlocked:
-            return False, "Your access to this final exam has not yet been unlocked.", access
+            is_qr_unlocked = cache.get(
+                f"qr_unlock:{candidate.pk}:{exam.pk}"
+            ) is not None
+            if not is_qr_unlocked:
+                return False, "Your access to this final exam has not yet been unlocked.", access
 
         return True, None, access
 

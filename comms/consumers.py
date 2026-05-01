@@ -195,9 +195,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                 await self.send_error("candidate_id, exam_id, and socket_id are required")
                 return
 
-            # Update database state (as an audit trail and for verification gate)
-            result = await self.persist_exam_unlock(candidate_id, exam_id, user)
-            
+            # Register a temporary QR unlock in cache (not DB)
+            result = await self.register_qr_unlock(candidate_id, exam_id, user)
+
             if result == "success":
                 # Send specifically to the device that generated the QR — prevents
                 # an imposter from unlocking the exam on a different machine
@@ -291,21 +291,21 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             pass
 
     @database_sync_to_async
-    def persist_exam_unlock(self, candidate_id, exam_id, staff_user):
-        """Persists the unlock status in the database.
-        
+    def register_qr_unlock(self, candidate_id, exam_id, staff_user):
+        """Records a temporary QR unlock in cache (not DB).
+
+        Only final exams can be unlocked via QR.
         Returns:
-            "success" - exam unlocked successfully
+            "success" - QR unlock registered in cache
             "not_final" - exam is not a final exam
             False - access record not found
         """
-        from vmlc.models import ExamAccess, Exam
         from identity.models import Staff
+        from vmlc.models import ExamAccess, Exam
+        from django.core.cache import cache
 
         try:
             access = ExamAccess.objects.get(candidate_id=candidate_id, exam_id=exam_id)
-
-            # Only final exams can be unlocked via QR
             exam = (
                 Exam.objects.select_related(
                     "competition_slot__competition_stage"
@@ -315,7 +315,6 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             if exam.stage != "final":
                 return "not_final"
 
-            access.is_unlocked = True
 
             # Get the staff record
             try:
@@ -327,6 +326,8 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             access.save()
             return "success"
         except ExamAccess.DoesNotExist:
+            return False
+        except Exam.DoesNotExist:
             return False
 
     async def send_error(self, message):
