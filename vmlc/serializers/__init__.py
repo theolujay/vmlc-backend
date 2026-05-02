@@ -18,6 +18,7 @@ from .candidate import (
     CandidateListSerializer,
     CandidateDetailSerializer,
 )
+from .comms import BulkNotificationSerializer
 from .exam import (
     ExamListSerializer,
     ExamDetailSerializer,
@@ -80,6 +81,8 @@ __all__ = [
     "MinimalCandidateSerializer",
     "CandidateListSerializer",
     "CandidateDetailSerializer",
+    # comms
+    "BulkNotificationSerializer",
     # exam
     "ExamListSerializer",
     "ExamDetailSerializer",
