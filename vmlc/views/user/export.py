@@ -1,6 +1,7 @@
 import io
 import logging
 from datetime import datetime
+from collections import defaultdict
 
 from django.http import HttpResponse
 from rest_framework.views import APIView
@@ -10,6 +11,8 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from identity.models import Staff, Candidate
 from identity.permissions import ActiveManagerPermissions
 from vmlc.utils.query_filters import filter_staffs, filter_candidates
+from competition.models import Competition, Stage, StageExam, Enrollment
+from vmlc.models import CandidateExamResult, Exam
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,7 @@ class UserExportView(APIView):
     def get(self, request, *args, **kwargs):
         profile_type = request.query_params.get("profile")
         columns_param = request.query_params.get("columns", "")
+        include_exam_data = request.query_params.get("include_exam_data", "").lower() == "true"
 
         if profile_type == "candidate":
             queryset = Candidate.objects.select_related("user").order_by("-created_at")
@@ -65,7 +69,12 @@ class UserExportView(APIView):
             else:
                 columns = ALL_CANDIDATE_COLUMNS
 
-            return self._export_candidates(queryset, filename, columns)
+            exam_columns = []
+            exam_data_map = {}
+            if include_exam_data:
+                exam_columns, exam_data_map = self._prepare_exam_data(queryset)
+
+            return self._export_candidates(queryset, filename, columns, exam_columns, exam_data_map)
 
         elif profile_type == "staff":
             queryset = Staff.objects.select_related("user").order_by("-created_at")
@@ -83,12 +92,95 @@ class UserExportView(APIView):
         else:
             return HttpResponse("Invalid profile type. Must be 'candidate' or 'staff'.", status=400)
 
-    def _export_candidates(self, queryset, filename, columns):
+    def _prepare_exam_data(self, queryset):
+        """
+        Prepare exam columns and data map for candidates.
+        Returns (exam_columns, exam_data_map) where:
+        - exam_columns: list of dicts with 'key' and 'label' for each exam
+        - exam_data_map: dict of {candidate_id: {exam_key: score}}
+        """
+        # Get active competition
+        try:
+            competition = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            if not competition:
+                competition = Competition.objects.order_by("-edition").first()
+        except Competition.DoesNotExist:
+            return [], {}
+
+        # Get all stage exams for the competition, ordered by stage order then round
+        stage_exams = (
+            StageExam.objects
+            .filter(competition_stage__competition=competition)
+            .select_related("competition_stage", "exam")
+            .order_by("competition_stage__order", "round")
+        )
+
+        # Build exam columns
+        exam_columns = []
+        exam_key_map = {}  # exam_id -> key
+
+        for slot in stage_exams:
+            try:
+                exam = slot.exam
+            except Exam.DoesNotExist:
+                continue
+
+            stage_type = slot.competition_stage.type
+
+            if slot.round:
+                key = f"exam_{stage_type}_r{slot.round}"
+                label = f"{slot.competition_stage.get_type_display()} R{slot.round}"
+            else:
+                key = f"exam_{stage_type}"
+                label = slot.competition_stage.get_type_display()
+
+            exam_columns.append({"key": key, "label": label})
+            exam_key_map[exam.id] = key
+
+        # Add last_stage column
+        exam_columns.append({"key": "last_stage", "label": "Last Stage"})
+
+        # Build exam data map: {candidate_id: {exam_key: score}}
+        exam_data_map = defaultdict(dict)
+
+        # Get all results for candidates in queryset
+        candidate_ids = [c.pk for c in queryset]
+        results = (
+            CandidateExamResult.objects
+            .filter(candidate_id__in=candidate_ids, exam_id__in=exam_key_map.keys())
+            .select_related("exam")
+        )
+
+        for result in results:
+            key = exam_key_map.get(result.exam_id)
+            if key:
+                exam_data_map[result.candidate_id][key] = float(result.score)
+
+        # Get last stage for each candidate from enrollment
+        enrollments = (
+            Enrollment.objects
+            .filter(candidate_id__in=candidate_ids, competition=competition)
+            .select_related("current_stage")
+        )
+
+        for enrollment in enrollments:
+            if enrollment.current_stage:
+                exam_data_map[enrollment.candidate_id]["last_stage"] = enrollment.current_stage.get_type_display()
+            else:
+                exam_data_map[enrollment.candidate_id]["last_stage"] = "N/A"
+
+        return exam_columns, exam_data_map
+
+    def _export_candidates(self, queryset, filename, columns, exam_columns=None, exam_data_map=None):
         wb = Workbook()
         ws = wb.active
         ws.title = "Candidates"
 
+        # Build headers
         headers = [CANDIDATE_COLUMNS.get(c, {}).get("label", c) for c in columns]
+        if exam_columns:
+            headers.extend([col["label"] for col in exam_columns])
+
         self._setup_sheet(ws, headers)
 
         for index, candidate in enumerate(queryset, start=1):
@@ -120,6 +212,16 @@ class UserExportView(APIView):
                     row_data.append(candidate.status)
                 else:
                     row_data.append("")
+
+            # Add exam data
+            if exam_columns:
+                candidate_exam_data = exam_data_map.get(candidate.pk, {})
+                for col in exam_columns:
+                    if col["key"] == "last_stage":
+                        row_data.append(candidate_exam_data.get("last_stage", "N/A"))
+                    else:
+                        score = candidate_exam_data.get(col["key"])
+                        row_data.append(score if score is not None else "N/A")
 
             ws.append(row_data)
 
