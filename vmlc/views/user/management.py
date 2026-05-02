@@ -1040,7 +1040,7 @@ class BulkNotificationView(APIView):
             delivery_methods.append("SMS")
 
         return Response({
-            "message": f"Notifications queued for {target_count} users via {', '.join(delivery_methods)}.",
+            "message": f"{', '.join(delivery_methods)} sent to {target_count} users.",
         })
 
 
