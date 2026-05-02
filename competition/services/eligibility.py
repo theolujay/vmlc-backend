@@ -35,12 +35,13 @@ class EligibilityService:
             # But what handles this state change, check_exam_status_transitions_task in vmlc/v2/tasks.py?
             return False, "This exam is not currently open for attempts.", None
 
-        access = ExamAccess.objects.filter(
+        access, created = ExamAccess.objects.get_or_create(
             candidate=candidate, exam=exam,
-        ).first()
-
-        if not access:
-            return False, "Identity verification (face capture) required before taking the exam.", None
+            defaults={
+                "status": ExamAccess.Status.PENDING,
+                "facilitator_system": ExamAccess.Facilitator.VMLC,
+            },
+        )
 
         # Check competition context
         slot = getattr(exam, "competition_slot", None)
@@ -124,13 +125,6 @@ class EligibilityService:
         if access.status == ExamAccess.Status.FAILED:
             logger.info(f"Candidate {candidate.pk} attempt for exam {exam.pk} failed.")
             return False, "You have failed this exam attempt and cannot retake it.", access
-
-        if not access.face_capture:
-            return (
-                False,
-                "Identity verification (face capture) required before taking the exam.",
-                access,
-            )
 
         if exam.stage == "final" and not access.is_unlocked:
             is_qr_unlocked = cache.get(
