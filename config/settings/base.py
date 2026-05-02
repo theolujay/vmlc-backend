@@ -276,7 +276,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_PAGINATION_CLASS": "vmlc.pagination.StandardResultsSetPagination",
-    "PAGE_SIZE": 20,
+    "PAGE_SIZE": 50,
 }
 
 SIMPLE_JWT = {
