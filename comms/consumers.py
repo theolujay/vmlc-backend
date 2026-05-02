@@ -323,7 +323,13 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             except Staff.DoesNotExist:
                 pass
 
-            access.save()
+            # is_unlocked is kept False by design as a manual override/verification flag.
+            # The actual eligibility is granted via a temporary cache entry.
+            access.is_unlocked = False
+            access.save(update_fields=["unlocked_by", "is_unlocked"])
+
+            # Register a temporary QR unlock in cache for EligibilityService
+            cache.set(f"qr_unlock:{candidate_id}:{exam_id}", True, timeout=300) # 5 minutes
             return "success"
         except ExamAccess.DoesNotExist:
             return False

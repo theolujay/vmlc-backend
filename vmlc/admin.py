@@ -546,36 +546,42 @@ class ExamAccessAdmin(admin.ModelAdmin):
     def unlock_exam_access(self, request, queryset):
         from channels.layers import get_channel_layer
         from django.utils import timezone
-        import asyncio
+        from asgiref.sync import async_to_sync
+        from django.core.cache import cache
 
         channel_layer = get_channel_layer()
         unlocked_count = 0
         already_unlocked = 0
 
         for access in queryset:
-            if access.is_unlocked:
+            # Check for existing cache entry as well
+            is_qr_unlocked = cache.get(f"qr_unlock:{access.candidate_id}:{access.exam_id}")
+            if access.is_unlocked or is_qr_unlocked:
                 already_unlocked += 1
                 continue
 
-            access.is_unlocked = True
+            # is_unlocked is kept False by design as a manual override/verification flag.
+            # The actual eligibility is granted via a temporary cache entry.
+            access.is_unlocked = False
             access.unlocked_by = request.user.staff_profile if hasattr(request.user, "staff_profile") else None
             access.save(update_fields=["is_unlocked", "unlocked_by"])
+
+            # Register a temporary QR unlock in cache for EligibilityService
+            cache.set(f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300)
 
             # Send unlock signal via WebSocket to candidate's user group
             if channel_layer:
                 try:
-                    asyncio.run(
-                        channel_layer.group_send(
-                            f"user__{access.candidate_id}",
-                            {
-                                "type": "exam.unlocked",
-                                "data": {
-                                    "exam_id": str(access.exam_id),
-                                    "unlocked_by_name": request.user.get_full_name() or request.user.email,
-                                    "timestamp": str(timezone.now().timestamp()),
-                                },
-                            }
-                        )
+                    async_to_sync(channel_layer.group_send)(
+                        f"user__{access.candidate_id}",
+                        {
+                            "type": "exam.unlocked",
+                            "data": {
+                                "exam_id": str(access.exam_id),
+                                "unlocked_by_name": request.user.get_full_name() or request.user.email,
+                                "timestamp": str(timezone.now().timestamp()),
+                            },
+                        }
                     )
                     unlocked_count += 1
                 except Exception as e:
@@ -587,7 +593,7 @@ class ExamAccessAdmin(admin.ModelAdmin):
             else:
                 self.message_user(
                     request,
-                    "Channel layer not available. Exam unlocked in DB but no WebSocket signal sent.",
+                    "Channel layer not available. Exam unlocked in cache but no WebSocket signal sent.",
                     level=messages.WARNING,
                 )
                 unlocked_count += 1
@@ -595,7 +601,7 @@ class ExamAccessAdmin(admin.ModelAdmin):
         if unlocked_count:
             self.message_user(
                 request,
-                f"Unlocked {unlocked_count} exam session(s) and sent WebSocket signal(s).",
+                f"Unlocked {unlocked_count} exam session(s) in cache and sent WebSocket signal(s).",
                 level=messages.SUCCESS,
             )
         if already_unlocked:
@@ -609,51 +615,57 @@ class ExamAccessAdmin(admin.ModelAdmin):
         """Individual unlock action from change form button."""
         from channels.layers import get_channel_layer
         from django.utils import timezone
-        import asyncio
+        from asgiref.sync import async_to_sync
+        from django.core.cache import cache
 
         access = self.get_object(request, access_id)
         if access is None:
             self.message_user(request, "Exam access not found.", level=messages.ERROR)
             return redirect("admin:vmlc_examaccess_changelist")
 
-        if access.is_unlocked:
+        is_qr_unlocked = cache.get(f"qr_unlock:{access.candidate_id}:{access.exam_id}")
+        if access.is_unlocked or is_qr_unlocked:
             self.message_user(request, "This exam session is already unlocked.", level=messages.INFO)
             return redirect("admin:vmlc_examaccess_change", access_id)
 
+        # is_unlocked is kept False by design as a manual override/verification flag.
+        # The actual eligibility is granted via a temporary cache entry.
+        access.is_unlocked = False
         access.unlocked_by = request.user.staff_profile if hasattr(request.user, "staff_profile") else None
-        access.save(update_fields=["unlocked_by"])
+        access.save(update_fields=["unlocked_by", "is_unlocked"])
+
+        # Register a temporary QR unlock in cache for EligibilityService
+        cache.set(f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300)
 
         channel_layer = get_channel_layer()
         if channel_layer:
             try:
-                asyncio.run(
-                    channel_layer.group_send(
-                        f"user__{access.candidate_id}",
-                        {
-                            "type": "exam.unlocked",
-                            "data": {
-                                "exam_id": str(access.exam_id),
-                                "unlocked_by_name": request.user.get_full_name() or request.user.email,
-                                "timestamp": str(timezone.now().timestamp()),
-                            },
-                        }
-                    )
+                async_to_sync(channel_layer.group_send)(
+                    f"user__{access.candidate_id}",
+                    {
+                        "type": "exam.unlocked",
+                        "data": {
+                            "exam_id": str(access.exam_id),
+                            "unlocked_by_name": request.user.get_full_name() or request.user.email,
+                            "timestamp": str(timezone.now().timestamp()),
+                        },
+                    }
                 )
                 self.message_user(
                     request,
-                    f"Exam unlocked for {access.candidate.user.email} — WebSocket signal sent.",
+                    f"Exam unlocked for {access.candidate.user.email} (cache only) — WebSocket signal sent.",
                     level=messages.SUCCESS,
                 )
             except Exception as e:
                 self.message_user(
                     request,
-                    f"Exam unlocked in DB but WebSocket signal failed: {e}",
+                    f"Exam unlocked in cache but WebSocket signal failed: {e}",
                     level=messages.WARNING,
                 )
         else:
             self.message_user(
                 request,
-                "Exam unlocked in DB. Channel layer unavailable — no WebSocket signal sent.",
+                "Exam unlocked in cache. Channel layer unavailable — no WebSocket signal sent.",
                 level=messages.WARNING,
             )
 
