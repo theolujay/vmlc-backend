@@ -1021,9 +1021,9 @@ class BulkNotificationView(APIView):
 
                 # Send SMS if needed
                 if send_sms and sms_recipients:
-                    sms_message = f"{subject}\n\n{message}"
+                    sms_message = f"{subject}:\n\n{message}"
                     send_bulk_sms_task.delay(
-                        message=sms_message,
+                        body=sms_message,
                         recipients=sms_recipients
                     )
 
