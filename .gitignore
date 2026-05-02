@@ -97,6 +97,7 @@ dmypy.json
 # IDE / Editors
 .idea/
 .vscode/
+*.code-workspace
 .spyderproject
 .spyproject
 .ropeproject

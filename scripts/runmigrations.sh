@@ -149,10 +149,10 @@ setup_django_env() {
 
     log_info "Database migrations completed successfully"
 
-    log_info "Clearing cache..."
-    if ! python manage.py shell -c "from django.core.cache import cache; cache.clear()"; then
-        log_error "Clearing cache failed. Ignoring..."
-    fi
+    # log_info "Clearing cache..."
+    # if ! python manage.py shell -c "from django.core.cache import cache; cache.clear()"; then
+    #     log_error "Clearing cache failed. Ignoring..."
+    # fi
 
     # if [[ "${DJANGO_SETTINGS_MODULE}" == *"prod"* ]]; then
     #     log_info "Initializing Verboheit MLC 3.0 Competition..."

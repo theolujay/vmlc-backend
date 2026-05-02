@@ -184,6 +184,7 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
 
     Supported filters:
         - role: Staff role (e.g., 'moderator', 'admin', 'owner')
+        - state: Filter by state
         - is_active: 'true' or 'false' (based on user's active status)
         - search: Partial match on first name, last name, or email
         - ordering: Sort by 'first_name', 'last_name', or 'date_joined' (prefix with '-' for descending)
@@ -196,12 +197,16 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
         QuerySet: Filtered queryset.
     """
     role: Any = params.get("role")
+    state: Any = params.get("state")
     is_active: Any = params.get("is_active")
     search: Any = params.get("search")
     ordering: Any = params.get("ordering")
 
     if role:
         queryset = queryset.filter(role=role)
+
+    if state:
+        queryset = queryset.filter(user__state__icontains=state)
 
     if is_active is not None:
         if is_active.lower() == "true":
@@ -214,6 +219,7 @@ def filter_staffs(queryset: QuerySet[Staff], params: Any) -> QuerySet[Staff]:
             Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
             | Q(user__email__icontains=search)
+            | Q(user__phone__icontains=search)
         )
 
     if ordering:

@@ -945,3 +945,615 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         if self.profile == "staff":
             return Staff.objects.select_related("user", "user__verification").all()
         return User.objects.none()
+
+
+class BulkNotificationView(APIView):
+    """
+    Send bulk notification/email/SMS to selected users.
+    """
+    permission_classes = ActiveManagerPermissions
+
+    def post(self, request):
+        from comms.models import Notification
+        from comms.signals import notifications_created
+        from comms.tasks import send_bulk_sms_task
+
+        user_ids = request.data.get("user_ids", [])
+        subject = request.data.get("subject")
+        message = request.data.get("message")
+        medium = request.data.get("medium", "email")
+
+        if not user_ids or not subject or not message:
+            return Response(
+                {"error": "user_ids, subject, and message are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get user profiles
+        users = User.objects.filter(id__in=user_ids)
+        target_count = users.count()
+
+        if target_count == 0:
+            return Response(
+                {"error": "No valid users found."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Determine delivery options
+        send_email = medium in ["email", "both"]
+        send_sms = medium in ["sms", "both"]
+
+        # Collect phone numbers for SMS
+        sms_recipients = []
+        if send_sms:
+            for user in users:
+                if user.phone:
+                    sms_recipients.append(user.phone)
+
+        # We create a Notification record for each user.
+        # This provides history and dashboard visibility.
+        metadata = {}
+        if send_email:
+            metadata["send_email"] = True
+        if send_sms:
+            metadata["send_sms"] = True
+
+        notifications = [
+            Notification(
+                recipient=user,
+                subject=subject,
+                message=message,
+                type=Notification.Type.INFO,
+                metadata=metadata,
+            )
+            for user in users
+        ]
+
+        try:
+            with transaction.atomic():
+                created_notifications = Notification.objects.bulk_create(notifications)
+
+                # Trigger background delivery (WebSocket and/or Email)
+                notifications_created.send(
+                    sender=self.__class__,
+                    notifications=created_notifications
+                )
+
+                # Send SMS if needed
+                if send_sms and sms_recipients:
+                    sms_message = f"{subject}\n\n{message}"
+                    send_bulk_sms_task.delay(
+                        message=sms_message,
+                        recipients=sms_recipients
+                    )
+
+        except Exception as e:
+            logger.error(f"Failed to create bulk notifications: {e}")
+            return Response(
+                {"error": f"Failed to create notifications: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        delivery_methods = []
+        if send_email:
+            delivery_methods.append("email")
+        if send_sms:
+            delivery_methods.append("SMS")
+
+        return Response({
+            "message": f"Notifications queued for {target_count} users via {', '.join(delivery_methods)}.",
+        })
+
+
+class ResetUserPasswordView(APIView):
+    """
+    Reset a user's password and send them a temporary password via email.
+    """
+    permission_classes = ActiveManagerPermissions
+
+    def post(self, request):
+        from identity.models import User
+        from vmlc.utils.auth import generate_password
+        from comms.tasks import send_mail_task
+        from django.conf import settings
+
+        user_id = request.data.get("user_id")
+
+        if not user_id:
+            return Response(
+                {"error": "user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Generate temporary password
+        temp_password = generate_password()
+        user.set_password(temp_password)
+        user.save(update_fields=["password"])
+
+        # Send email with temporary password
+        subject = "Password Reset - Verbohit MLC"
+        message = (
+            f"Hello {user.first_name},\n\n"
+            f"Your password has been reset by an administrator.\n\n"
+            f"Your temporary password is: {temp_password}\n\n"
+            f"Please log in and change your password immediately.\n\n"
+            f"Login URL: {settings.FRONTEND_LOGIN}\n\n"
+            f"Regards,\n"
+            f"Management, Verbohit MLC."
+        )
+
+        try:
+            send_mail_task.delay(
+                subject=subject,
+                message=message,
+                recipient_list=[user.email],
+            )
+        except Exception as e:
+            logger.error(f"Failed to send password reset email: {e}")
+            return Response(
+                {"error": "Password reset but failed to send email. Please contact IT."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response({
+            "message": f"Password reset for {user.email}. Temporary password sent via email.",
+        })
+
+
+class UserActivityLogView(ListAPIView):
+    """
+    Retrieve activity log for a specific user.
+    """
+    permission_classes = ActiveModeratorPermissions
+    serializer_class = None
+
+    def list(self, request, *args, **kwargs):
+        from vmlc.models import Event
+        from identity.models import User
+
+        user_id = request.query_params.get("user_id")
+
+        if not user_id:
+            return Response(
+                {"error": "user_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get events for this user
+        events = Event.objects.filter(actor=user).order_by("-timestamp")[:50]
+
+        return Response({
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            },
+            "activities": [
+                {
+                    "event_name": e.event_name,
+                    "timestamp": e.timestamp.isoformat(),
+                    "metadata": e.metadata,
+                }
+                for e in events
+            ]
+        })
+
+
+class BulkStaffImportView(APIView):
+    """
+    Bulk import staff from CSV/Excel file.
+    """
+    permission_classes = ActiveManagerPermissions
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        import io
+        from openpyxl import load_workbook
+
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"error": "No file uploaded."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Determine file type and load
+        filename = file.name.lower()
+        rows = []
+
+        try:
+            if filename.endswith(".csv"):
+                # Read CSV
+                content = file.read().decode("utf-8")
+                import csv
+                reader = csv.DictReader(io.StringIO(content))
+                rows = list(reader)
+            elif filename.endswith((".xlsx", ".xls")):
+                # Read Excel
+                wb = load_workbook(filename=io.BytesIO(file.read()), read_only=True)
+                ws = wb.active
+                headers = [cell.value for cell in ws[1]]
+                # Skip header row, read all data rows
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if any(row):  # Skip empty rows
+                        row_dict = dict(zip(headers, row))
+                        rows.append(row_dict)
+                wb.close()
+            else:
+                return Response(
+                    {"error": "Invalid file format. Only CSV and Excel files are supported."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            logger.error(f"Failed to parse file: {e}")
+            return Response(
+                {"error": f"Failed to parse file: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not rows:
+            return Response(
+                {"error": "No data found in file."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Expected columns
+        required_fields = ["email", "first_name", "last_name"]
+        optional_fields = ["phone", "state", "role", "occupation"]
+        all_fields = required_fields + optional_fields
+
+        # Validate columns from first row
+        first_row = rows[0]
+        missing_required = [f for f in required_fields if f not in first_row]
+        if missing_required:
+            return Response(
+                {"error": f"Missing required columns: {', '.join(missing_required)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Process each row
+        results = {
+            "success": [],
+            "errors": [],
+            "created": 0,
+            "failed": 0,
+        }
+
+        VALID_ROLES = ["volunteer", "moderator", "admin", "manager", "superadmin"]
+        VALID_STATES = ["lagos", "ogun", "rivers", "abuja"]
+
+        for idx, row in enumerate(rows, start=2):  # Start at 2 to account for header
+            email = row.get("email", "").strip().lower()
+            first_name = row.get("first_name", "").strip()
+            last_name = row.get("last_name", "").strip()
+            phone = row.get("phone", "").strip()
+            state = row.get("state", "").strip().lower()
+            role = row.get("role", "volunteer").strip().lower()
+            occupation = row.get("occupation", "").strip()
+
+            # Validate required fields
+            if not email:
+                results["errors"].append({
+                    "row": idx,
+                    "error": "Email is required",
+                })
+                results["failed"] += 1
+                continue
+
+            if not first_name:
+                results["errors"].append({
+                    "row": idx,
+                    "error": "First name is required",
+                })
+                results["failed"] += 1
+                continue
+
+            if not last_name:
+                results["errors"].append({
+                    "row": idx,
+                    "error": "Last name is required",
+                })
+                results["failed"] += 1
+                continue
+
+            # Validate role
+            if role and role not in VALID_ROLES:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Invalid role '{role}'. Valid roles: {', '.join(VALID_ROLES)}",
+                })
+                results["failed"] += 1
+                continue
+
+            # Validate state
+            if state and state not in VALID_STATES:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Invalid state '{state}'. Valid states: {', '.join(VALID_STATES)}",
+                })
+                results["failed"] += 1
+                continue
+
+            # Check if user exists
+            try:
+                if User.objects.filter(email__iexact=email).exists():
+                    results["errors"].append({
+                        "row": idx,
+                        "error": f"Email '{email}' already exists",
+                    })
+                    results["failed"] += 1
+                    continue
+            except Exception as e:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Database error: {str(e)}",
+                })
+                results["failed"] += 1
+                continue
+
+            # Generate password and create user
+            try:
+                temp_password = generate_password()
+                user = User.objects.create_user(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone or None,
+                    state=state or None,
+                    password=temp_password,
+                )
+
+                staff = Staff.objects.create(
+                    user=user,
+                    role=role or "volunteer",
+                    occupation=occupation or "",
+                    created_by=request.user.staff_profile,
+                )
+
+                # Send invitation email
+                try:
+                    subject = "Welcome to Verbohit MLC"
+                    message = (
+                        f"Hello {first_name},\n\n"
+                        f"You have been invited to join Verbohit MLC as a {role or 'volunteer'}.\n\n"
+                        f"Your login credentials:\n"
+                        f"Email: {email}\n"
+                        f"Password: {temp_password}\n\n"
+                        f"Please log in and change your password immediately.\n\n"
+                        f"Login URL: {settings.FRONTEND_LOGIN}\n\n"
+                        f"Regards,\n"
+                        f"Management, Verbohit MLC."
+                    )
+                    send_mail_task.delay(
+                        subject=subject,
+                        message=message,
+                        recipient_list=[email],
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send invitation email for {email}: {e}")
+
+                results["success"].append({
+                    "row": idx,
+                    "email": email,
+                    "staff_id": str(staff.pk),
+                })
+                results["created"] += 1
+
+            except Exception as e:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Failed to create staff: {str(e)}",
+                })
+                results["failed"] += 1
+                continue
+
+        return Response(results)
+
+
+class BulkCandidateImportView(APIView):
+    """
+    Bulk import candidates from CSV/Excel file.
+    """
+    permission_classes = ActiveManagerPermissions
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        import io
+        from openpyxl import load_workbook
+
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"error": "No file uploaded."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Determine file type and load
+        filename = file.name.lower()
+        rows = []
+
+        try:
+            if filename.endswith(".csv"):
+                content = file.read().decode("utf-8")
+                import csv
+                reader = csv.DictReader(io.StringIO(content))
+                rows = list(reader)
+            elif filename.endswith((".xlsx", ".xls")):
+                wb = load_workbook(filename=io.BytesIO(file.read()), read_only=True)
+                ws = wb.active
+                headers = [cell.value for cell in ws[1]]
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if any(row):
+                        row_dict = dict(zip(headers, row))
+                        rows.append(row_dict)
+                wb.close()
+            else:
+                return Response(
+                    {"error": "Invalid file format. Only CSV and Excel files are supported."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            logger.error(f"Failed to parse file: {e}")
+            return Response(
+                {"error": f"Failed to parse file: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not rows:
+            return Response(
+                {"error": "No data found in file."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Expected columns
+        required_fields = ["email", "first_name", "last_name"]
+        missing_required = [f for f in required_fields if f not in rows[0]]
+        if missing_required:
+            return Response(
+                {"error": f"Missing required columns: {', '.join(missing_required)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        results = {
+            "success": [],
+            "errors": [],
+            "created": 0,
+            "failed": 0,
+        }
+
+        VALID_CLASSES = ["SS1", "SS2", "SS3"]
+        VALID_SCHOOL_TYPES = ["public", "private"]
+        VALID_STATES = ["lagos", "ogun", "rivers", "abuja"]
+        VALID_ROLES = ["screening", "league", "final", "winner"]
+
+        for idx, row in enumerate(rows, start=2):
+            email = row.get("email", "").strip().lower()
+            first_name = row.get("first_name", "").strip()
+            last_name = row.get("last_name", "").strip()
+            phone = row.get("phone", "").strip()
+            state = row.get("state", "").strip().lower()
+            school_name = row.get("school_name", "").strip()
+            school_type = row.get("school_type", "").strip().lower()
+            current_class = row.get("current_class", "").strip().upper()
+
+            # Validate required fields
+            if not email:
+                results["errors"].append({"row": idx, "error": "Email is required"})
+                results["failed"] += 1
+                continue
+            if not first_name:
+                results["errors"].append({"row": idx, "error": "First name is required"})
+                results["failed"] += 1
+                continue
+            if not last_name:
+                results["errors"].append({"row": idx, "error": "Last name is required"})
+                results["failed"] += 1
+                continue
+
+            # Validate optional fields
+            if current_class and current_class not in VALID_CLASSES:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Invalid class '{current_class}'. Valid: {', '.join(VALID_CLASSES)}",
+                })
+                results["failed"] += 1
+                continue
+
+            if school_type and school_type not in VALID_SCHOOL_TYPES:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Invalid school_type '{school_type}'. Valid: {', '.join(VALID_SCHOOL_TYPES)}",
+                })
+                results["failed"] += 1
+                continue
+
+            if state and state not in VALID_STATES:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Invalid state '{state}'. Valid: {', '.join(VALID_STATES)}",
+                })
+                results["failed"] += 1
+                continue
+
+            # Check if user exists
+            if User.objects.filter(email__iexact=email).exists():
+                results["errors"].append({"row": idx, "error": f"Email '{email}' already exists"})
+                results["failed"] += 1
+                continue
+
+            # Create user and candidate
+            try:
+                temp_password = generate_password()
+                user = User.objects.create_user(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone or None,
+                    state=state or None,
+                    password=temp_password,
+                )
+
+                candidate = Candidate.objects.create(
+                    user=user,
+                    school_name=school_name or "",
+                    school_type=school_type or "public",
+                    current_class=current_class or "SS1",
+                    role=Candidate.Roles.SCREENING,
+                    created_by=request.user.staff_profile,
+                )
+
+                # Send invitation email
+                try:
+                    subject = "Welcome to Verbohit MLC"
+                    message = (
+                        f"Hello {first_name},\n\n"
+                        f"You have been invited to participate in Verbohit MLC.\n\n"
+                        f"Your login credentials:\n"
+                        f"Email: {email}\n"
+                        f"Password: {temp_password}\n\n"
+                        f"Please log in and change your password immediately.\n\n"
+                        f"Login URL: {settings.FRONTEND_LOGIN}\n\n"
+                        f"Regards,\n"
+                        f"Management, Verbohit MLC."
+                    )
+                    send_mail_task.delay(
+                        subject=subject,
+                        message=message,
+                        recipient_list=[email],
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send invitation email for {email}: {e}")
+
+                results["success"].append({
+                    "row": idx,
+                    "email": email,
+                    "candidate_id": str(candidate.pk),
+                })
+                results["created"] += 1
+
+            except Exception as e:
+                results["errors"].append({
+                    "row": idx,
+                    "error": f"Failed to create candidate: {str(e)}",
+                })
+                results["failed"] += 1
+                continue
+
+        return Response(results)

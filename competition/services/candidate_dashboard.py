@@ -344,6 +344,7 @@ class CandidateDashboardService:
                         "started_at": access.started_at,
                         "deadline": access.deadline,
                         "submitted_at": access.submitted_at,
+                        "is_unlocked": access.is_unlocked,
                     }
 
                 if status in [Exam.Status.ONGOING, Exam.Status.SCHEDULED] or (

@@ -56,6 +56,11 @@ from .status import (
     registration_status,
 )
 from .user import (
+    BulkNotificationView,
+    BulkStaffImportView,
+    BulkCandidateImportView,
+    ResetUserPasswordView,
+    UserActivityLogView,
     AccountManagementView,
     UserVerificationStatusView,
     UserVerificationUploadView,
@@ -119,6 +124,11 @@ __all__ = [
     "StaffListView",
     "AssignStaffRoleView",
     # user
+    "BulkNotificationView",
+    "BulkStaffImportView",
+    "BulkCandidateImportView",
+    "ResetUserPasswordView",
+    "UserActivityLogView",
     "UserVerificationStatusView",
     "UserVerificationUploadView",
     "UserVerificationDocumentView",

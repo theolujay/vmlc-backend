@@ -13,84 +13,151 @@ from vmlc.utils.query_filters import filter_staffs, filter_candidates
 
 logger = logging.getLogger(__name__)
 
+CANDIDATE_COLUMNS = {
+    "sn": {"label": "S/N", "key": "sn"},
+    "full_name": {"label": "Full Name", "key": "full_name"},
+    "email": {"label": "Email", "key": "email"},
+    "phone": {"label": "Phone", "key": "phone"},
+    "school_name": {"label": "School Name", "key": "school_name"},
+    "school_type": {"label": "School Type", "key": "school_type"},
+    "current_class": {"label": "Current Class", "key": "current_class"},
+    "state": {"label": "State", "key": "state"},
+    "role": {"label": "Role", "key": "role"},
+    "date_joined": {"label": "Date Joined", "key": "date_joined"},
+    "status": {"label": "Status", "key": "status"},
+}
+
+STAFF_COLUMNS = {
+    "sn": {"label": "S/N", "key": "sn"},
+    "full_name": {"label": "Full Name", "key": "full_name"},
+    "email": {"label": "Email", "key": "email"},
+    "phone": {"label": "Phone", "key": "phone"},
+    "occupation": {"label": "Occupation", "key": "occupation"},
+    "role": {"label": "Role", "key": "role"},
+    "date_joined": {"label": "Date Joined", "key": "date_joined"},
+    "status": {"label": "Status", "key": "status"},
+}
+
+ALL_CANDIDATE_COLUMNS = list(CANDIDATE_COLUMNS.keys())
+ALL_STAFF_COLUMNS = list(STAFF_COLUMNS.keys())
+
+
 class UserExportView(APIView):
     """
     Export user data (staff or candidates) to Excel format.
     Inherits filters and sorting from the list view.
+    Supports column selection via 'columns' query parameter (comma-separated).
     """
     permission_classes = ActiveManagerPermissions
 
     def get(self, request, *args, **kwargs):
         profile_type = request.query_params.get("profile")
+        columns_param = request.query_params.get("columns", "")
 
         if profile_type == "candidate":
             queryset = Candidate.objects.select_related("user").order_by("-created_at")
             queryset = filter_candidates(queryset, request.query_params)
             filename = f"candidates_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            return self._export_candidates(queryset, filename)
+
+            if columns_param:
+                columns = [c.strip() for c in columns_param.split(",") if c.strip()]
+                columns = [c for c in columns if c in ALL_CANDIDATE_COLUMNS]
+            else:
+                columns = ALL_CANDIDATE_COLUMNS
+
+            return self._export_candidates(queryset, filename, columns)
 
         elif profile_type == "staff":
             queryset = Staff.objects.select_related("user").order_by("-created_at")
             queryset = filter_staffs(queryset, request.query_params)
             filename = f"staff_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            return self._export_staff(queryset, filename)
+
+            if columns_param:
+                columns = [c.strip() for c in columns_param.split(",") if c.strip()]
+                columns = [c for c in columns if c in ALL_STAFF_COLUMNS]
+            else:
+                columns = ALL_STAFF_COLUMNS
+
+            return self._export_staff(queryset, filename, columns)
 
         else:
             return HttpResponse("Invalid profile type. Must be 'candidate' or 'staff'.", status=400)
 
-    def _export_candidates(self, queryset, filename):
+    def _export_candidates(self, queryset, filename, columns):
         wb = Workbook()
         ws = wb.active
         ws.title = "Candidates"
 
-        headers = [
-            "S/N", "Full Name", "Email", "Phone", "School Name", "School Type",
-            "Current Class", "State", "Role", "Date Joined", "Status"
-        ]
-
+        headers = [CANDIDATE_COLUMNS.get(c, {}).get("label", c) for c in columns]
         self._setup_sheet(ws, headers)
 
         for index, candidate in enumerate(queryset, start=1):
             user = candidate.user
-            ws.append([
-                index,
-                f"{user.first_name} {user.last_name}",
-                user.email,
-                user.phone or "N/A",
-                candidate.school_name,
-                candidate.get_school_type_display() if hasattr(candidate, 'get_school_type_display') else candidate.school_type,
-                candidate.current_class or "N/A",
-                user.state or "N/A",
-                candidate.get_role_display(),
-                user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A",
-                candidate.status
-            ])
+            row_data = []
+
+            for col in columns:
+                if col == "sn":
+                    row_data.append(index)
+                elif col == "full_name":
+                    row_data.append(f"{user.first_name} {user.last_name}")
+                elif col == "email":
+                    row_data.append(user.email)
+                elif col == "phone":
+                    row_data.append(user.phone or "N/A")
+                elif col == "school_name":
+                    row_data.append(candidate.school_name)
+                elif col == "school_type":
+                    row_data.append(candidate.get_school_type_display() if hasattr(candidate, 'get_school_type_display') else candidate.school_type)
+                elif col == "current_class":
+                    row_data.append(candidate.current_class or "N/A")
+                elif col == "state":
+                    row_data.append(user.state or "N/A")
+                elif col == "role":
+                    row_data.append(candidate.get_role_display())
+                elif col == "date_joined":
+                    row_data.append(user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A")
+                elif col == "status":
+                    row_data.append(candidate.status)
+                else:
+                    row_data.append("")
+
+            ws.append(row_data)
 
         return self._get_response(wb, filename)
 
-    def _export_staff(self, queryset, filename):
+    def _export_staff(self, queryset, filename, columns):
         wb = Workbook()
         ws = wb.active
         ws.title = "Staff"
 
-        headers = [
-            "S/N", "Full Name", "Email", "Phone", "Occupation", "Role", "Date Joined", "Status"
-        ]
-
+        headers = [STAFF_COLUMNS.get(c, {}).get("label", c) for c in columns]
         self._setup_sheet(ws, headers)
 
         for index, staff in enumerate(queryset, start=1):
             user = staff.user
-            ws.append([
-                index,
-                f"{user.first_name} {user.last_name}",
-                user.email,
-                user.phone or "N/A",
-                staff.occupation or "N/A",
-                staff.get_role_display(),
-                user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A",
-                staff.status
-            ])
+            row_data = []
+
+            for col in columns:
+                if col == "sn":
+                    row_data.append(index)
+                elif col == "full_name":
+                    row_data.append(f"{user.first_name} {user.last_name}")
+                elif col == "email":
+                    row_data.append(user.email)
+                elif col == "phone":
+                    row_data.append(user.phone or "N/A")
+                elif col == "occupation":
+                    row_data.append(staff.occupation or "N/A")
+                elif col == "role":
+                    row_data.append(staff.get_role_display())
+                elif col == "date_joined":
+                    row_data.append(user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A")
+                elif col == "status":
+                    row_data.append(staff.status)
+                else:
+                    row_data.append("")
+
+            ws.append(row_data)
 
         return self._get_response(wb, filename)
 
@@ -106,7 +173,6 @@ class UserExportView(APIView):
             cell.fill = header_fill
             cell.alignment = header_alignment
 
-        # Adjust column widths
         for column in ws.columns:
             max_length = 0
             column_letter = column[0].column_letter

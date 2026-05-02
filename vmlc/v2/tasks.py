@@ -116,11 +116,11 @@ def check_exam_status_transitions_task():
 
     # Passcode Generation: Identify exams that became SCHEDULED since the last run
     # (Exam status is SCHEDULED if scheduled_date is in the future)
-    newly_scheduled_exams = Exam.objects.filter(
+    newly_scheduled_exams = Exam.objects.select_related("competition_slot__competition_stage").filter(
         is_active=True, scheduled_date__gt=now, updated_at__gt=last_run
     )
     for exam in newly_scheduled_exams:
-        generate_and_send_exam_passcodes_task.delay(str(exam.id))
+        generate_and_send_exam_passcodes_task.delay(str(exam.id), exam.stage)
         logger.info(
             f"Triggered passcode task for newly scheduled/updated exam {exam.id}"
         )
@@ -189,14 +189,32 @@ def check_exam_status_transitions_task():
 
 
 @shared_task(name="generate_and_send_exam_passcodes_task")
-def generate_and_send_exam_passcodes_task(exam_id):
+def generate_and_send_exam_passcodes_task(exam_id, exam_stage=None):
     """
     Task to generate passcodes and send them via email to eligible candidates.
     """
+    from vmlc.models import Exam
+    from competition.models import Stage
     from vmlc.services.exam_access import ExamAccessService
+
+    stage = exam_stage
 
     logger.info(f"Generating and sending passcodes for exam {exam_id}")
     ExamAccessService.generate_passcodes(exam_id)
+
+    if stage is None:
+        try:
+            exam = Exam.objects.select_related("competition_slot__competition_stage").get(pk=exam_id)
+            stage = exam.stage
+        except Exam.DoesNotExist:
+            logger.warning(f"Exam {exam_id} not found for passcode task.")
+            return
+
+    # Only send passcodes for Screening and Final exams
+    if stage not in [Stage.Type.SCREENING, Stage.Type.FINAL]:
+        logger.info(f"Skipping passcode generation for exam {exam_id} (Stage: {stage})")
+        return
+
     ExamAccessService.send_passcode_emails(exam_id)
 
 

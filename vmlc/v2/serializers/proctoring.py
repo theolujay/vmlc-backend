@@ -89,6 +89,10 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
     progress = serializers.SerializerMethodField()
     proctoring = serializers.SerializerMethodField()
 
+    @staticmethod
+    def _iso(dt):
+        return dt.isoformat() if dt else None
+
     def get_exam(self, obj):
         exam = obj.exam
         return {
@@ -96,8 +100,8 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
             "title": exam.title,
             "status": exam.status,
             "duration_minutes": exam.countdown_minutes,
-            "starts_at": exam.scheduled_date,
-            "ends_at": exam.concluded_at,
+            "starts_at": self._iso(exam.scheduled_date),
+            "ends_at": self._iso(exam.concluded_at),
         }
 
     def get_attempt(self, obj):
@@ -115,9 +119,9 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
 
         return {
             "status": obj.status,
-            "started_at": obj.started_at,
-            "deadline": obj.deadline,
-            "submitted_at": obj.submitted_at,
+            "started_at": self._iso(obj.started_at),
+            "deadline": self._iso(obj.deadline),
+            "submitted_at": self._iso(obj.submitted_at),
             "time_remaining_seconds": time_remaining,
             "time_used_seconds": time_used,
         }
@@ -160,7 +164,7 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
         return {
             "status": summary.get("status"),
             "suspicion_score": summary.get("average_suspicion"),
-            "last_heartbeat_at": last_hb.timestamp if last_hb else None,
+            "last_heartbeat_at": self._iso(last_hb.timestamp) if last_hb else None,
             "heartbeat_sequence": last_hb.sequence_number if last_hb else 0,
             "violations": {
                 "total": summary.get("total_violations"),
