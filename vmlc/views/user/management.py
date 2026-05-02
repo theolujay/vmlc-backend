@@ -957,17 +957,16 @@ class BulkNotificationView(APIView):
         from comms.models import Notification
         from comms.signals import notifications_created
         from comms.tasks import send_bulk_sms_task
+        from vmlc.serializers.comms import BulkNotificationSerializer
 
-        user_ids = request.data.get("user_ids", [])
-        subject = request.data.get("subject")
-        message = request.data.get("message")
-        medium = request.data.get("medium", "email")
+        serializer = BulkNotificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
 
-        if not user_ids or not subject or not message:
-            return Response(
-                {"error": "user_ids, subject, and message are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user_ids = validated_data["user_ids"]
+        message = validated_data["message"]
+        medium = validated_data.get("medium", "email")
+        subject = validated_data.get("subject", "")
 
         # Get user profiles
         users = User.objects.filter(id__in=user_ids)
@@ -1021,7 +1020,7 @@ class BulkNotificationView(APIView):
 
                 # Send SMS if needed
                 if send_sms and sms_recipients:
-                    sms_message = f"{subject}:\n\n{message}"
+                    sms_message = f"{subject}:\n\n{message}" if subject else message
                     send_bulk_sms_task.delay(
                         body=sms_message,
                         recipients=sms_recipients
