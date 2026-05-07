@@ -954,7 +954,7 @@ class BulkNotificationView(APIView):
     permission_classes = ActiveManagerPermissions
 
     def post(self, request):
-        from comms.models import Notification
+        from comms.models import Notification, Broadcast
         from comms.signals import notifications_created
         from comms.tasks import send_bulk_sms_task
         from vmlc.serializers.comms import BulkNotificationSerializer
@@ -978,6 +978,24 @@ class BulkNotificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Map medium string to Broadcast mediums list
+        medium_map = {
+            "email": [Broadcast.Medium.EMAIL],
+            "sms": [Broadcast.Medium.SMS],
+            "both": [Broadcast.Medium.EMAIL, Broadcast.Medium.SMS],
+        }
+
+        # Create a Broadcast record to track this batch
+        broadcast = Broadcast.objects.create(
+            created_by=request.user.staff_profile,
+            subject=subject or "Bulk Notification",
+            message=message,
+            mediums=medium_map.get(medium, [Broadcast.Medium.EMAIL]),
+            target_roles={},
+            total_recipients=target_count,
+            status=Broadcast.Status.IN_PROGRESS,
+        )
+
         # Determine delivery options
         send_email = medium in ["email", "both"]
         send_sms = medium in ["sms", "both"]
@@ -991,7 +1009,7 @@ class BulkNotificationView(APIView):
 
         # We create a Notification record for each user.
         # This provides history and dashboard visibility.
-        metadata = {}
+        metadata = {"broadcast_id": broadcast.id}
         if send_email:
             metadata["send_email"] = True
         if send_sms:
@@ -1023,11 +1041,15 @@ class BulkNotificationView(APIView):
                     sms_message = f"{subject}:\n\n{message}" if subject else message
                     send_bulk_sms_task.delay(
                         body=sms_message,
-                        recipients=sms_recipients
+                        recipients=sms_recipients,
+                        broadcast_log_id=None,
+                        broadcast_id=broadcast.id,
                     )
 
         except Exception as e:
             logger.error(f"Failed to create bulk notifications: {e}")
+            broadcast.status = Broadcast.Status.FAILED
+            broadcast.save(update_fields=["status"])
             return Response(
                 {"error": f"Failed to create notifications: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1041,6 +1063,7 @@ class BulkNotificationView(APIView):
 
         return Response({
             "message": f"{', '.join(delivery_methods)} sent to {target_count} users.",
+            "broadcast_id": broadcast.id,
         })
 
 

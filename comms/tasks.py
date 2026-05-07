@@ -72,6 +72,12 @@ def deliver_notifications_task(notification_ids: List[int]):
                 or create_email_html(n.subject, n.message),
             )
 
+    return {
+        "notification_ids": notification_ids,
+        "count": len(notifications),
+        "status": "completed",
+    }
+
 
 @shared_task(
     bind=True,
@@ -235,7 +241,7 @@ def notify_candidates_about_exam_task(exam_id, event_type):
     queue="comms",
 )
 def send_bulk_sms_task(
-    self, body: str, recipients: List[str], broadcast_log_id: int = None
+    self, body: str, recipients: List[str], broadcast_log_id: int = None, broadcast_id: int = None
 ):
     """
     Sends bulk SMS and retries if the balance is insufficient.
@@ -332,7 +338,7 @@ def send_bulk_sms_task(
                         f"Invalidated broadcast cache for broadcast {broadcast.pk} from task."
                     )
 
-            return {"status": "SUCCESS", "count": len(recipients)}
+            return {"status": "SUCCESS", "count": len(recipients), "broadcast_id": broadcast_id}
         else:
             message = response.get("message", "Unknown error from Kudi")
             logger.error(

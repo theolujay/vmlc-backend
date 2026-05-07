@@ -102,10 +102,98 @@ post_delete.connect(invalidate_helpdesk_cache, sender=HelpdeskThread)
 post_delete.connect(invalidate_helpdesk_cache, sender=ThreadMessage)
 
 
+def _notify_broadcast_sender(broadcast, status="sent", summary=None, medium=None):
+    """Create a delivery summary Notification for the broadcast creator."""
+    sender_staff = broadcast.created_by
+    if not sender_staff or not sender_staff.user:
+        return
+
+    mediums = medium or ", ".join(broadcast.mediums)
+    if status == "sent":
+        subject = f"Bulk Notification {'Delivered' if medium else 'Sent'}"
+        message = (
+            f"Your bulk notification \"{broadcast.subject}\" was delivered "
+            f"to {broadcast.total_recipients} user(s) via {mediums}."
+        )
+        ntype = Notification.Type.SUCCESS
+    else:
+        subject = "Bulk Notification Delivery Failed"
+        message = (
+            f"Your bulk notification \"{broadcast.subject}\" "
+            f"failed during delivery via {mediums}."
+        )
+        if summary:
+            message += f" Details: {summary}"
+        ntype = Notification.Type.ERROR
+
+    # Avoid duplicate success notifications for the same broadcast
+    if ntype == Notification.Type.SUCCESS:
+        existing = Notification.objects.filter(
+            recipient=sender_staff.user,
+            metadata__broadcast_id=broadcast.id,
+            type=Notification.Type.SUCCESS,
+        ).exists()
+        if existing:
+            return
+
+    Notification.objects.create(
+        recipient=sender_staff.user,
+        subject=subject,
+        message=message,
+        type=ntype,
+        metadata={"broadcast_id": broadcast.id},
+    )
+
+
+def _handle_notifications_delivery_complete(result):
+    """Process deliver_notifications_task result and notify sender."""
+    if not result or not isinstance(result, dict):
+        return
+    n_ids = result.get("notification_ids", [])
+    if not n_ids:
+        return
+
+    notifications = Notification.objects.filter(id__in=n_ids)
+    broadcast_ids = set()
+    for n in notifications:
+        bid = n.metadata.get("broadcast_id")
+        if bid:
+            broadcast_ids.add(bid)
+
+    for bid in broadcast_ids:
+        try:
+            broadcast = Broadcast.objects.get(id=bid)
+            broadcast.status = Broadcast.Status.SENT
+            broadcast.save(update_fields=["status"])
+            _notify_broadcast_sender(
+                broadcast, status="sent", medium="email / in-app"
+            )
+        except Broadcast.DoesNotExist:
+            logger.warning("Broadcast %s not found for delivery notification.", bid)
+
+
+def _handle_bulk_sms_complete(result):
+    """Process send_bulk_sms_task result and notify sender."""
+    if not result or not isinstance(result, dict):
+        return
+    bid = result.get("broadcast_id")
+    if not bid:
+        return
+
+    try:
+        broadcast = Broadcast.objects.get(id=bid)
+        _notify_broadcast_sender(broadcast, status="sent", medium="SMS")
+    except Broadcast.DoesNotExist:
+        logger.warning("Broadcast %s not found for SMS completion.", bid)
+
+
 @task_success.connect
 def task_success_handler(sender=None, result=None, **kwargs):
     """Handle successful task completion"""
-    if sender and sender.name == "send_broadcast_task":
+    if not sender:
+        return
+
+    if sender.name == "send_broadcast_task":
         if result and isinstance(result, dict):
             success_rate = (
                 result.get("successful_attempts", 0)
@@ -129,13 +217,22 @@ def task_success_handler(sender=None, result=None, **kwargs):
                     message=f"Broadcast {result.get('broadcast_id')} had low success rate: {result}",
                 )
 
+    elif sender.name == "deliver_notifications_task":
+        _handle_notifications_delivery_complete(result)
+
+    elif sender.name == "send_bulk_sms_task":
+        _handle_bulk_sms_complete(result)
+
 
 @task_failure.connect
 def task_failure_handler(
     sender=None, task_id=None, exception=None, traceback=None, einfo=None, **kwargs
 ):
     """Handle failed tasks"""
-    if sender and sender.name == "send_broadcast_task":
+    if not sender:
+        return
+
+    if sender.name == "send_broadcast_task":
         logger.error(
             "Broadcast task %s failed with exception: %s", task_id, repr(exception)
         )
@@ -150,6 +247,13 @@ def task_failure_handler(
                     f"Traceback:\n{einfo.traceback if einfo else 'Not available'}"
                 ),
             )
+
+    elif sender.name in ("deliver_notifications_task", "send_bulk_sms_task"):
+        logger.error(
+            "Bulk delivery task %s failed with exception: %s",
+            sender.name,
+            repr(exception),
+        )
 
 
 # You could even create webhooks to notify external systems

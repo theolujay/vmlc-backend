@@ -25,6 +25,6 @@ def format_sms_body(subject: str, message: str) -> str:
     clean_message = " ".join(message.split()) if message else ""
 
     if clean_subject:
-        return f"{clean_subject}: \n{clean_message}"
+        return f"{clean_subject}: {clean_message}"
 
     return clean_message
