@@ -4,9 +4,9 @@ from typing import List, Any, Dict
 
 from django.db import DatabaseError
 from django.conf import settings
-from django.core.mail import send_mail
 from celery import shared_task
 from celery.exceptions import Retry
+from django.core.mail import EmailMultiAlternatives
 
 from identity.models import User
 from vmlc.utils.exceptions import ServerError
@@ -64,12 +64,18 @@ def deliver_notifications_task(notification_ids: List[int]):
 
         # 2. Email delivery if flagged in metadata
         if n.metadata.get("send_email"):
+            image_path = n.metadata.get("image_path")
+            html_message = n.metadata.get("html_message") or create_email_html(
+                n.subject,
+                n.message,
+                image_cid="email_image" if image_path else None,
+            )
             send_mail_task.delay(
                 subject=n.subject,
                 message=n.message,
                 recipient_list=[n.recipient.email],
-                html_message=n.metadata.get("html_message")
-                or create_email_html(n.subject, n.message),
+                html_message=html_message,
+                image_path=image_path,
             )
 
     return {
@@ -371,19 +377,31 @@ def send_bulk_sms_task(
     default_retry_delay=60,
     queue="comms",
 )
-def send_mail_task(self, subject, message, recipient_list, html_message=None):
+def send_mail_task(self, subject, message, recipient_list, html_message=None, image_path=None):
     """
     Celery task to send an email asynchronously.
+    Supports inline image attachment via image_path.
     """
     try:
-        send_mail(
+        email = EmailMultiAlternatives(
             subject=subject,
-            message=message,
+            body=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=recipient_list,
-            fail_silently=False,
-            html_message=html_message,
+            to=recipient_list,
         )
+
+        if image_path:
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(image_path)
+            if content_type is None:
+                content_type = "application/octet-stream"
+            with open(image_path, "rb") as f:
+                email.attach("image", f.read(), content_type, headers={"Content-ID": "<email_image>"})
+
+        if html_message:
+            email.attach_alternative(html_message, "text/html")
+
+        email.send(fail_silently=False)
         logger.info(f"Successfully sent email to {recipient_list}")
     except Exception as exc:
         logger.error(f"Failed to send email to {recipient_list}: {exc}")

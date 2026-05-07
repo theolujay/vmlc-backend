@@ -16,15 +16,19 @@ def create_email_html(
     message: str,
     otp: Optional[str] = None,
     otp_message: Optional[str] = None,
+    image_cid: Optional[str] = None,
 ) -> str:
     """
     Renders the email HTML template with the provided context.
+    If image_cid is provided, an inline image with that Content-ID
+    is embedded in the email body.
     """
     context = {
         "subject": subject,
         "message": message,
         "otp": otp,
         "otp_message": otp_message,
+        "image_cid": image_cid,
     }
     return render_to_string("comms/email_base.html", context)
 
