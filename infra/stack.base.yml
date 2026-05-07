@@ -22,6 +22,7 @@ x-vmlc-secrets: &vmlc-secrets
   - gmail-host-user
   - gmail-host-password
   - django-secret-key
+  - kudi-api-key
   - su-email
   - su-password
   - slack-webhook-url
