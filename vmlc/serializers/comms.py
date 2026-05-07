@@ -13,7 +13,7 @@ class BulkNotificationSerializer(serializers.Serializer):
     )
     message = serializers.CharField(
         required=True,
-        help_text="Message content (max 160 chars for SMS)"
+        help_text="Message content"
     )
     medium = serializers.ChoiceField(
         choices=["email", "sms", "both"],
@@ -46,12 +46,6 @@ class BulkNotificationSerializer(serializers.Serializer):
         if medium in ["email", "both"] and not subject.strip():
             raise serializers.ValidationError({
                 "subject": "Subject is required for email notifications."
-            })
-
-        # SMS message length validation
-        if medium in ["sms", "both"] and len(data["message"]) > 160:
-            raise serializers.ValidationError({
-                "message": "SMS message cannot exceed 160 characters."
             })
 
         return data
