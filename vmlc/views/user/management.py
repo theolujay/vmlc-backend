@@ -958,6 +958,10 @@ class BulkNotificationView(APIView):
         from comms.signals import notifications_created
         from comms.tasks import send_bulk_sms_task
         from vmlc.serializers.comms import BulkNotificationSerializer
+        import base64
+        import uuid
+        import os
+        from django.conf import settings
 
         serializer = BulkNotificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1000,6 +1004,23 @@ class BulkNotificationView(APIView):
         send_email = medium in ["email", "both"]
         send_sms = medium in ["sms", "both"]
 
+        # Handle attached image
+        image_path = None
+        image_raw = validated_data.get("image_base64", "")
+        image_filename = validated_data.get("image_name", "")
+        if image_raw and send_email:
+            try:
+                image_data = base64.b64decode(image_raw)
+                ext = os.path.splitext(image_filename)[1] or ".png"
+                safe_name = f"{uuid.uuid4()}{ext}"
+                upload_dir = os.path.join(settings.MEDIA_ROOT, "broadcast_images")
+                os.makedirs(upload_dir, exist_ok=True)
+                image_path = os.path.join(upload_dir, safe_name)
+                with open(image_path, "wb") as f:
+                    f.write(image_data)
+            except Exception as e:
+                logger.warning("Failed to save attached image: %s", e)
+
         # Collect phone numbers for SMS
         sms_recipients = []
         if send_sms:
@@ -1010,6 +1031,9 @@ class BulkNotificationView(APIView):
         # We create a Notification record for each user.
         # This provides history and dashboard visibility.
         metadata = {"broadcast_id": broadcast.id}
+        if image_path:
+            metadata["image_path"] = image_path
+            metadata["image_name"] = image_filename or "image.png"
         if send_email:
             metadata["send_email"] = True
         if send_sms:

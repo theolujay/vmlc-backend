@@ -27,6 +27,23 @@ class BulkNotificationSerializer(serializers.Serializer):
         default="",
         help_text="Subject (required for email, optional for SMS)"
     )
+    image_base64 = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Base64-encoded image data to embed in email"
+    )
+    image_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Original filename of the attached image"
+    )
+
+    def validate_image_base64(self, value):
+        if value and not value.strip():
+            return ""
+        return value
 
     def validate_user_ids(self, value):
         if not value:
