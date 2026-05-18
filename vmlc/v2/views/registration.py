@@ -1,7 +1,5 @@
 import logging
 
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from rest_framework import status, parsers
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
@@ -30,33 +28,6 @@ class RegistrationV2View(CreateAPIView):
     serializer_class = RegistrationV2Serializer
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
-    @swagger_auto_schema(
-        operation_summary="Register User (Candidate/Volunteer)",
-        operation_description="Registers a new user as either a Candidate or a Volunteer.",
-        request_body=RegistrationV2Serializer,
-        responses={
-            201: openapi.Response(
-                description="Action completed successfully.",
-                examples={
-                    "application/json": {
-                        "status": "success",
-                        "message": "Action completed successfully.",
-                    }
-                },
-            ),
-            400: openapi.Response(description="Bad Request"),
-        },
-        tags=["Registration V2"],
-        manual_parameters=[
-            openapi.Parameter(
-                "x-api-key",
-                openapi.IN_HEADER,
-                description="API Key",
-                type=openapi.TYPE_STRING,
-                required=True,
-            )
-        ],
-    )
     def post(self, request, *args, **kwargs):
         # 1. Sanitize Data (logging mostly)
         safe_data = sanitize_data(request.data)
@@ -153,50 +124,6 @@ class PreRegistrationView(CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = PreRegUserSerializer
 
-    @swagger_auto_schema(
-        operation_summary="Pre-Register Interested User (Candidate/Volunteer)",
-        operation_description="Registers a new user as either an interested Candidate or a Volunteer.",
-        request_body=PreRegUserSerializer,
-        responses={
-            201: openapi.Response(
-                description="Action completed successfully.",
-                examples={
-                    "application/json": {
-                        "status": "success",
-                        "message": "Action completed successfully.",
-                    }
-                },
-            ),
-            400: openapi.Response(
-                description="Validation Error",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "status": openapi.Schema(
-                            type=openapi.TYPE_STRING, example="error"
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING, example="Validation failed."
-                        ),
-                        "errors": openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            description="Field-specific validation errors",
-                        ),
-                    },
-                ),
-            ),
-        },
-        tags=["Registration V2"],
-        manual_parameters=[
-            openapi.Parameter(
-                "x-api-key",
-                openapi.IN_HEADER,
-                description="API Key",
-                type=openapi.TYPE_STRING,
-                required=True,
-            )
-        ],
-    )
     def post(self, request, *args, **kwargs):
         # 1. Sanitize Data (logging mostly)
         safe_data = sanitize_data(request.data)

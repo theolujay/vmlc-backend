@@ -10,7 +10,6 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
-from django.utils.decorators import method_decorator
 from django.core.files.uploadedfile import UploadedFile
 
 from rest_framework.settings import api_settings
@@ -25,9 +24,6 @@ from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.exceptions import ValidationError
 
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-
 from vmlc.serializers import (
     StaffListSerializer,
     StaffInviteSerializer,
@@ -37,17 +33,6 @@ from vmlc.serializers import (
 )
 from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
 from vmlc.utils.auth import generate_password
-from vmlc.utils.swagger_schemas import (
-    api_key,
-    bearer_auth,
-    staff_registration_request_body,
-    candidate_registration_request_body,
-    account_management_response_schema,
-    error_response_401,
-    error_response_403,
-    error_response_404,
-    error_response_400,
-)
 from identity.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
@@ -298,18 +283,6 @@ class AccountManagementView(APIView):
 
         return target_user
 
-    @swagger_auto_schema(
-        operation_summary="Get User Account",
-        operation_description="Retrieve the account and profile data of the target user.",
-        responses={
-            200: account_management_response_schema,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["Account Management"],
-        manual_parameters=[api_key, bearer_auth],
-    )
     def get(self, request, user_id=None):
         """Retrieve account and profile data."""
         logger.info(
@@ -337,84 +310,6 @@ class AccountManagementView(APIView):
 
         return Response(response_data)
 
-    @swagger_auto_schema(
-        operation_summary="Update User Account",
-        operation_description="Partially update user and/or profile data.",
-        manual_parameters=[
-            openapi.Parameter(
-                "first_name",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="User's first name.",
-            ),
-            openapi.Parameter(
-                "last_name",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="User's last name.",
-            ),
-            openapi.Parameter(
-                "profile_picture",
-                openapi.IN_FORM,
-                type=openapi.TYPE_FILE,
-                description="User's profile picture.",
-            ),
-            openapi.Parameter(
-                "phone",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="User's phone number.",
-            ),
-            openapi.Parameter(
-                "state",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="User's state of origin.",
-            ),
-            openapi.Parameter(
-                "school_name",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="Candidate's school.",
-            ),
-            openapi.Parameter(
-                "school_type",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                enum=["public", "private"],
-                description="Candidate's school type.",
-            ),
-            openapi.Parameter(
-                "current_class",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                enum=["SS1", "SS2", "SS3"],
-                description="Candidate's current class.",
-            ),
-            openapi.Parameter(
-                "cowrywise_kid_profile.username",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="Candidate's Cowrywise Kids username.",
-            ),
-            openapi.Parameter(
-                "occupation",
-                openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="Staff's occupation.",
-            ),
-            api_key,
-            bearer_auth,
-        ],
-        responses={
-            200: openapi.Response("Account updated successfully."),
-            400: error_response_400,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["User Management"],
-    )
     def patch(self, request, user_id=None):
         """Partially update user and/or profile data."""
         logger.info(
@@ -510,26 +405,6 @@ class BaseInviteView(CreateAPIView):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user.staff_profile)
 
-    @swagger_auto_schema(
-        operation_summary=f"Create {profile_type.title()} User",
-        operation_description=(
-            f"Creates a new {profile_type.title()} user with the provided details."
-            " An invitation email with login credentials will be sent to the user."
-        ),
-        request_body=(
-            staff_registration_request_body
-            if profile_type == "staff"
-            else candidate_registration_request_body
-        ),
-        responses={
-            201: openapi.Response(f"{profile_type.title()} user created successfully."),
-            400: error_response_400,
-            401: error_response_401,
-            403: error_response_403,
-        },
-        tags=["User Management"],
-        manual_parameters=[api_key, bearer_auth],
-    )
     def post(self, request, *args, **kwargs):
         request_data = request.data.copy()
         temp_password = generate_password()
@@ -597,20 +472,6 @@ class BaseInviteView(CreateAPIView):
         )
 
 
-# @method_decorator(
-#     name="post",
-#     decorator=swagger_auto_schema(
-#         operation_summary="Staff Invite",
-#         operation_description="Create a staff profile and send the user an invite.",
-#         responses={
-#             200: staff_invite_response_schema,
-#             401: error_response_401,
-#             403: error_response_403,
-#         },
-#         tags=["Staff"],
-#         manual_parameters=[api_key, bearer_auth],
-#     ),
-# )
 class StaffInviteView(BaseInviteView):
     """
     API view to create a new staff member.
@@ -621,29 +482,6 @@ class StaffInviteView(BaseInviteView):
     profile_type = "staff"
 
 
-@method_decorator(
-    name="get",
-    decorator=swagger_auto_schema(
-        operation_summary="List Users",
-        operation_description="List all users. Can be filtered by profile type ('staff' or 'candidate').",
-        manual_parameters=[
-            openapi.Parameter(
-                "profile",
-                openapi.IN_QUERY,
-                description="Filter by user profile type ('staff' or 'candidate').",
-                type=openapi.TYPE_STRING,
-            ),
-            api_key,
-            bearer_auth,
-        ],
-        responses={
-            200: openapi.Response("Paginated list of users."),
-            401: error_response_401,
-            403: error_response_403,
-        },
-        tags=["User Management"],
-    ),
-)
 class UserListView(ListAPIView):
     """
     List all users with pagination and optional filtering.
@@ -766,76 +604,6 @@ class UserListView(ListAPIView):
         return combined
 
 
-@method_decorator(
-    name="get",
-    decorator=swagger_auto_schema(
-        operation_summary="Get User Profile",
-        operation_description="Retrieve details for a specific staff or candidate profile.",
-        responses={
-            200: openapi.Response(
-                "Profile details for a staff or candidate member. The schema depends on the user profile.",
-                schema=UserProfileDetailSerializer,
-            ),
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["User Management"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
-@method_decorator(
-    name="patch",
-    decorator=swagger_auto_schema(
-        operation_summary="Update User Profile",
-        operation_description="Partially update a staff or candidate profile. The available fields depend on the profile type.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "school_name": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Candidate's school. (Candidate only)",
-                ),
-                "occupation": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Staff's occupation. (Staff only)",
-                ),
-                "role": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="User role within the system."
-                ),
-                "is_active": openapi.Schema(
-                    type=openapi.TYPE_BOOLEAN, description="Set profile active status."
-                ),
-            },
-        ),
-        responses={
-            200: openapi.Response(
-                "Profile updated successfully.", schema=UserProfileDetailSerializer
-            ),
-            400: error_response_400,
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["User Management"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
-@method_decorator(
-    name="delete",
-    decorator=swagger_auto_schema(
-        operation_summary="Deactivate User Profile",
-        operation_description="Deactivates a staff or candidate profile by setting `is_active` to false (soft delete).",
-        responses={
-            204: openapi.Response("Profile deactivated successfully."),
-            401: error_response_401,
-            403: error_response_403,
-            404: error_response_404,
-        },
-        tags=["User Management"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
 class UserDetailView(RetrieveUpdateDestroyAPIView):
     """
     Retrieve, update, or deactivate a specific staff or candidate member.

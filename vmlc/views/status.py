@@ -5,7 +5,6 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.throttling import AnonRateThrottle
 
 from django.conf import settings
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -22,12 +21,6 @@ class RegistrationStatusThrottle(AnonRateThrottle):
     rate = "5000/hour"
 
 
-@swagger_auto_schema(
-    method="get",
-    operation_summary="Health Check",
-    operation_description="Health check endpoint.",
-    tags=["Status"],
-)
 @api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
 def health_check(request):
@@ -42,12 +35,6 @@ def health_check(request):
     )
 
 
-@swagger_auto_schema(
-    method="get",
-    operation_summary="Registration Status",
-    operation_description="Check registration status.",
-    tags=["Status"],
-)
 @api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
 @throttle_classes([RegistrationStatusThrottle])
@@ -80,12 +67,6 @@ def registration_status(request):
     return Response(reg_status_data, status=status.HTTP_200_OK)
 
 
-@swagger_auto_schema(
-    method="get",
-    operation_summary="Statistics Overview",
-    operation_description="Retrieve user statistics.",
-    tags=["Status"],
-)
 @api_view(["GET"])
 @permission_classes(ActiveVolunteerPermissions)
 def stats_overview(request):

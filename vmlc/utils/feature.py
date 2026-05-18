@@ -21,17 +21,12 @@ class ToggleFeatureFlagView(APIView):
     Subclasses must specify `feature_flag_key` and `permission_classes`.
     """
 
-    swagger_schema = None
     permission_classes = [
         IsAuthenticated,
         HasMinimumStaffRole("manager"),
     ]
     feature_flag_key = None
 
-    # @swagger_auto_schema(
-    #     operation_description="Toggle a feature flag.",
-    #     manual_parameters=[api_key, bearer_auth],
-    # )
     def post(self, request, *args, **kwargs):
         return self._toggle_feature_flag(request, *args, **kwargs)
 

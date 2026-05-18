@@ -5,13 +5,10 @@ Authentication-related API views for login, logout, and registration.
 from asyncio import sleep
 import logging
 
-from django.utils.decorators import method_decorator
 from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
 from django.db import transaction
 
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -37,43 +34,9 @@ from vmlc.utils.exceptions import (
     ServerError,
     ValidationError,
 )
-from vmlc.utils.swagger_schemas import (
-    api_key,
-    bearer_auth,
-    error_response_400,
-    error_response_401,
-    error_response_404,
-    login_request_body,
-    login_response_schema,
-    logout_request_body,
-    password_change_otp_confirm_request_body,
-    password_change_request_body,
-    request_password_change_request_body,
-    resend_email_otp_request_body,
-    resend_password_change_otp_request_body,
-    verify_email_otp_request_body,
-    token_refresh_response_schema,
-    token_refresh_request_body,
-)
-
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(
-    name="post",
-    decorator=swagger_auto_schema(
-        operation_summary="Refresh Access Token",
-        operation_description="Takes a refresh token and returns an access token.",
-        request_body=token_refresh_request_body,
-        responses={
-            200: token_refresh_response_schema,
-            400: error_response_400,
-            401: error_response_401,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key, bearer_auth],
-    ),
-)
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [HasXAPIKey]
 
@@ -85,18 +48,6 @@ class VerifyEmailOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Verify Email with OTP",
-        operation_description="Verifies a user's email address using an OTP.",
-        request_body=verify_email_otp_request_body,
-        responses={
-            200: openapi.Response("Email verified successfully."),
-            400: error_response_400,
-            404: error_response_404,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._verify_email(request.data)
 
@@ -146,18 +97,6 @@ class SendEmailOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Sends/resends Email OTP",
-        operation_description="Sends/resends an OTP to a user's email address for verification.",
-        request_body=resend_email_otp_request_body,
-        responses={
-            200: openapi.Response("OTP has been sent to your email address"),
-            400: error_response_400,
-            429: openapi.Response("Rate limit exceeded"),
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._resend_email_otp(request.data)
 
@@ -201,20 +140,6 @@ class RequestPasswordChangeView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Request Password Change",
-        operation_description="Requests a password change and sends an OTP to the user's email.",
-        request_body=request_password_change_request_body,
-        responses={
-            200: openapi.Response(
-                "Password change verification code sent to your email"
-            ),
-            400: error_response_400,
-            429: openapi.Response("Rate limit exceeded"),
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._request_password_change(request.data)
 
@@ -268,19 +193,6 @@ class PasswordChangeOTPConfirmView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Confirm Password Change with OTP",
-        operation_description="Confirms a password change request using an OTP.",
-        request_body=password_change_otp_confirm_request_body,
-        responses={
-            200: openapi.Response(
-                "OTP verified. User confirmed for password change. Proceed to change password."
-            ),
-            400: error_response_400,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._confirm_password_change_otp(request.data)
 
@@ -313,19 +225,6 @@ class PasswordChangeView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Change Password",
-        operation_description="Changes a user's password after OTP verification.",
-        request_body=password_change_request_body,
-        responses={
-            200: openapi.Response(
-                "Password changed successfully. Please log in with your new password."
-            ),
-            400: error_response_400,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._change_password(request.data)
 
@@ -377,18 +276,6 @@ class ResendPasswordChangeOTPView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="Resend Password Change OTP",
-        operation_description="Resends a password change OTP to the user's email.",
-        request_body=resend_password_change_otp_request_body,
-        responses={
-            200: openapi.Response("Password change verification code has been resent"),
-            400: error_response_400,
-            429: openapi.Response("Rate limit exceeded"),
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._resend_password_change_otp(request.data)
 
@@ -495,18 +382,6 @@ class LoginView(TokenObtainPairView):
     permission_classes = [HasXAPIKey]
     throttle_scope = "login"
 
-    @swagger_auto_schema(
-        operation_summary="User Login",
-        operation_description="Authenticates a user and returns access and refresh tokens.",
-        request_body=login_request_body,
-        responses={
-            200: login_response_schema,
-            400: error_response_400,
-            401: error_response_401,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email", "N/A")
         response = super().post(request, *args, **kwargs)
@@ -525,17 +400,6 @@ class LogoutView(APIView):
 
     permission_classes = [HasXAPIKey]
 
-    @swagger_auto_schema(
-        operation_summary="User Logout",
-        operation_description="Blacklists a refresh token to log a user out.",
-        request_body=logout_request_body,
-        responses={
-            204: openapi.Response("Successfully logged out."),
-            400: error_response_400,
-        },
-        tags=["Authentication"],
-        manual_parameters=[api_key],
-    )
     def post(self, request):
         return self._logout(request.data.get("refresh"))
 
