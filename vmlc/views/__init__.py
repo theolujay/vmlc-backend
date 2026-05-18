@@ -2,7 +2,6 @@
 This package contains all the views for the API.
 """
 
-from .answer import SubmitAnswersView
 from .auth import (
     RefreshTokenView,
     VerifyEmailOTPView,
@@ -20,31 +19,7 @@ from .candidate import (
     AssignCandidateRoleView,
     CandidateMeView,
 )
-from .exam import (
-    ExamListView,
-    ExamDetailView,
-    ExamResultsView,
-    ExamQuestionsView,
-    ExamHistoryView,
-    candidate_take_exam,
-)
-from .leaderboard import (
-    PublishLeaderboardView,
-    LoadLeaderboardView,
-    LoadLeaderboardDetailView,
-)
 from .metrics import RegistrationMetricsView
-from .question import (
-    QuestionListView,
-    QuestionDetailView,
-    QuestionExamAssociationView,
-    BulkAddQuestionsToExamsView,
-    BulkQuestionArchiveView,
-)
-from .exam_result import (
-    SubmitScoreView,
-    PublishScoresView,
-)
 from .staff import (
     StaffListView,
     AssignStaffRoleView,
@@ -75,8 +50,6 @@ from .user import (
 )
 
 __all__ = [
-    # answer
-    "SubmitAnswersView",
     # auth
     "RefreshTokenView",
     "VerifyEmailOTPView",
@@ -92,33 +65,11 @@ __all__ = [
     "CandidateMeView",
     "CandidateListView",
     "AssignCandidateRoleView",
-    # dashboard
     "AccountManagementView",
-    # exam
-    "ExamListView",
-    "ExamDetailView",
-    "ExamResultsView",
-    "ExamQuestionsView",
-    "ExamHistoryView",
-    "candidate_take_exam",
-    # leaderboard
-    "PublishLeaderboardView",
-    "LoadLeaderboardView",
-    "LoadLeaderboardDetailView",
-    # question
-    "QuestionListView",
-    "QuestionDetailView",
-    "QuestionExamAssociationView",
-    "BulkAddQuestionsToExamsView",
-    "BulkQuestionArchiveView",
     # status
     "health_check",
     "stats_overview",
     "registration_status",
-    # result
-    # "CandidateExamResultListView",
-    "SubmitScoreView",
-    "PublishScoresView",
     # staff
     "StaffMeView",
     "StaffListView",

@@ -25,25 +25,7 @@ def compute_candidate_result_task(candidate_result_id):
     compute_candidate_result(candidate_result_id)
 
 
-@shared_task(name="generate_leaderboard_snapshot_task")
-def generate_leaderboard_snapshot_task(staff_id=None):
-    """
-    Celery task to generate and publish the leaderboard snapshot.
-    """
-    pass
-    # from vmlc.utils.functions import generate_leaderboard_snapshot
 
-    # return generate_leaderboard_snapshot(staff_id)
-
-
-@shared_task(name="generate_results_snapshot_task")
-def generate_results_snapshot_task(staff_id=None):
-    """
-    Celery task to generate and publish the results snapshot.
-    """
-    from vmlc.utils.functions import generate_results_snapshot
-
-    generate_results_snapshot(staff_id)
 
 
 @shared_task(name="validate_user_verification_files_task")

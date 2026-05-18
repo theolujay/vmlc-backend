@@ -18,28 +18,15 @@ from .views import (
     AccountManagementView,
     AssignCandidateRoleView,
     AssignStaffRoleView,
-    BulkAddQuestionsToExamsView,
     BulkCandidateImportView,
-    BulkQuestionArchiveView,
     BulkNotificationView,
     BulkStaffImportView,
     CandidateInviteView,
     CandidateListView,
-    ExamDetailView,
-    ExamHistoryView,
-    ExamListView,
-    ExamQuestionsView,
-    ExamResultsView,
-    LoadLeaderboardDetailView,
-    LoadLeaderboardView,
     LoginView,
     LogoutView,
     PasswordChangeOTPConfirmView,
     PasswordChangeView,
-    PublishLeaderboardView,
-    QuestionDetailView,
-    QuestionExamAssociationView,
-    QuestionListView,
     RefreshTokenView,
     RegistrationMetricsView,
     RequestPasswordChangeView,
@@ -48,7 +35,6 @@ from .views import (
     SendEmailOTPView,
     StaffInviteView,
     StaffListView,
-    SubmitAnswersView,
     UserActivityLogView,
     UserDetailView,
     UserExportView,
@@ -59,7 +45,6 @@ from .views import (
     UserVerificationStatusView,
     UserVerificationUploadView,
     VerifyEmailOTPView,
-    candidate_take_exam,
     health_check,
     stats_overview,
     registration_status,
@@ -175,11 +160,6 @@ urlpatterns = [
         AssignCandidateRoleView.as_view(),
         name="candidate-role-assign",
     ),
-    path(
-        "candidates/<uuid:candidate_id>/exam-history/",
-        ExamHistoryView.as_view(),
-        name="candidate-exam-history",
-    ),
     # =============================================================================
     # STAFF MANAGEMENT
     # =============================================================================
@@ -189,70 +169,6 @@ urlpatterns = [
         "staff/<uuid:staff_id>/roles/assign/",
         AssignStaffRoleView.as_view(),
         name="staff-role-assign",
-    ),
-    # =============================================================================
-    # EXAM & QUESTION MANAGEMENT
-    # =============================================================================
-    # Exams
-    path("exams/", ExamListView.as_view(), name="exam-list"),
-    path("exams/<uuid:exam_id>/", ExamDetailView.as_view(), name="exam-detail"),
-    path(
-        "exams/<uuid:exam_id>/questions/",
-        ExamQuestionsView.as_view(),
-        name="exam-questions",
-    ),
-    path(
-        "exams/<uuid:exam_id>/results/", ExamResultsView.as_view(), name="exam-results"
-    ),
-    # Questions
-    path("questions/", QuestionListView.as_view(), name="question-list"),
-    path(
-        "questions/<int:question_id>/",
-        QuestionDetailView.as_view(),
-        name="question-detail",
-    ),
-    path(
-        "questions/<int:question_id>/exams/",
-        QuestionExamAssociationView.as_view(),
-        name="question-exam-associations",
-    ),
-    path(
-        "questions/bulk-add-to-exams/",
-        BulkAddQuestionsToExamsView.as_view(),
-        name="bulk-question-exam-associations",
-    ),
-    path(
-        "questions/bulk-archive/",
-        BulkQuestionArchiveView.as_view(),
-        name="bulk-question-archive",
-    ),
-    # =============================================================================
-    # SUBMISSIONS & SCORING
-    # =============================================================================
-    path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam, name="take-exam"),
-    path(
-        "exams/<uuid:exam_id>/submit-exam-answers/",
-        SubmitAnswersView.as_view(),
-        name="submit-exam-answers",
-    ),
-    # path(
-    #     "exams/<uuid:exam_id>/submit-exam-score/",
-    #     SubmitScoreView.as_view(),
-    #     name="submit-exam-score",
-    # ),
-    # =============================================================================
-    # LEADERBOARD
-    # =============================================================================
-    path("leaderboard/", LoadLeaderboardView.as_view(), name="load-leaderboard"),
-    path(
-        "leaderboard/publish/",
-        PublishLeaderboardView.as_view(),
-        name="publish-leaderboard",
-    ),
-    path(
-        "leaderboard/<str:stage>/<int:round>/candidate/<uuid:candidate_id>/",
-        LoadLeaderboardDetailView.as_view(),
-        name="load-leaderboard-detail",
     ),
     path("stats/overview/", stats_overview, name="stats-overview"),
     path(

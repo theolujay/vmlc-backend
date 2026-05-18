@@ -118,16 +118,6 @@ def invalidate_all_candidate_dashboards():
         cache.delete(f"candidate_dashboard_{candidate.pk}")
 
 
-def invalidate_all_candidate_records():
-    """
-    Invalidates Candidate.records cache for all candidate
-    """
-    from identity.models import Candidate
-
-    for candidate in Candidate.objects.all():
-        cache.delete(f"candidate_records_{candidate.pk}")
-
-
 def invalidate_all_dashboard_caches():
     """
     Invalidates all dashboard caches for both staff and candidates.

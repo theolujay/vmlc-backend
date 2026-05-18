@@ -19,17 +19,6 @@ from .candidate import (
     CandidateDetailSerializer,
 )
 from .comms import BulkNotificationSerializer
-from .exam import (
-    ExamListSerializer,
-    ExamDetailSerializer,
-    CandidateExamSerializer,
-    ExamResultSerializer,
-)
-from .leaderboard import (
-    PublishLeaderboardSerializer,
-    CandidateLeaderboardPerfSerializer,
-    LeaderboardSnapshotListSerializer,
-)
 from .question import (
     QuestionListSerializer,
     QuestionDetailSerializer,
@@ -45,11 +34,6 @@ from ..v2.serializers.registration import RegistrationV2Serializer
 from .role import (
     CandidateRoleSerializer,
     StaffRoleSerializer,
-)
-from .exam_result import (
-    CandidateExamResultSerializer,
-    SubmitScoreSerializer,
-    CandidateExamScoreSerializer,
 )
 from .staff import (
     MinimalStaffSerializer,
@@ -83,15 +67,6 @@ __all__ = [
     "CandidateDetailSerializer",
     # comms
     "BulkNotificationSerializer",
-    # exam
-    "ExamListSerializer",
-    "ExamDetailSerializer",
-    "CandidateExamSerializer",
-    "ExamResultSerializer",
-    # leaderboard
-    "LeaderboardSnapshotListSerializer",
-    "CandidateLeaderboardPerfSerializer",
-    "PublishLeaderboardSerializer",
     # question
     "QuestionListSerializer",
     "QuestionDetailSerializer",
@@ -105,10 +80,6 @@ __all__ = [
     # role
     "CandidateRoleSerializer",
     "StaffRoleSerializer",
-    # result
-    "CandidateExamResultSerializer",
-    "SubmitScoreSerializer",
-    "CandidateExamScoreSerializer",
     # staff
     "MinimalStaffSerializer",
     "StaffListSerializer",
