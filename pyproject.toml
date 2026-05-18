@@ -1,7 +1,7 @@
 [project]
 name = "vmlc-backend"
 version = "0.3.2"
-description = "Backend service for the Verboheit Mathematics League Competition."
+description = "Django/DRF ASGI backend for the Verboheit Math League — a free annual math competition for Nigerian senior secondary students. Powers candidate exam-taking, automated scoring, real-time leaderboards, staff management, proctoring, and dashboards."
 readme = "README.md"
 requires-python = ">=3.11"
 
