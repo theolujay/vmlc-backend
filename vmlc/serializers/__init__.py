@@ -27,14 +27,9 @@ from .question import (
 from .registration import (
     CandidateRegistrationSerializer,
     StaffRegistrationSerializer,
-    CandidateInviteSerializer,
     StaffInviteSerializer,
 )
 from ..v2.serializers.registration import RegistrationV2Serializer
-from .role import (
-    CandidateRoleSerializer,
-    StaffRoleSerializer,
-)
 from .staff import (
     MinimalStaffSerializer,
     StaffListSerializer,
@@ -43,10 +38,6 @@ from .staff import (
 from .user import (
     UserSerializer,
     MinimalUserSerializer,
-    UserVerificationStatusSerializer,
-    UserVerificationUploadSerializer,
-    UserVerificationActionSerializer,
-    UserVerificationListSerializer,
 )
 from .user_profile import UserProfileDetailSerializer, UserProfileListSerializer
 
@@ -74,24 +65,15 @@ __all__ = [
     # registration
     "CandidateRegistrationSerializer",
     "StaffRegistrationSerializer",
-    "CandidateInviteSerializer",
     "StaffInviteSerializer",
     "RegistrationV2Serializer",
-    # role
-    "CandidateRoleSerializer",
-    "StaffRoleSerializer",
     # staff
     "MinimalStaffSerializer",
     "StaffListSerializer",
     "StaffDetailSerializer",
-    "StaffInviteSerializer",
     # user
     "UserSerializer",
     "MinimalUserSerializer",
-    "UserVerificationStatusSerializer",
-    "UserVerificationUploadSerializer",
-    "UserVerificationActionSerializer",
-    "UserVerificationListSerializer",
     "UserProfileDetailSerializer",
     "UserProfileListSerializer",
 ]

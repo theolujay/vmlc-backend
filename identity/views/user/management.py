@@ -30,7 +30,9 @@ from drf_yasg import openapi
 
 from vmlc.serializers import (
     StaffListSerializer,
+    StaffInviteSerializer,
     CandidateListSerializer,
+    UserProfileDetailSerializer,
     UserProfileListSerializer,
 )
 from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
@@ -53,11 +55,6 @@ from identity.permissions import (
     ActiveAdminPermissions,
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
-)
-from vmlc.serializers import (
-    StaffInviteSerializer,
-    CandidateInviteSerializer,
-    UserProfileDetailSerializer,
 )
 from vmlc.tasks import (
     revoke_user_invite_task,
@@ -622,30 +619,6 @@ class StaffInviteView(BaseInviteView):
     permission_classes = ActiveManagerPermissions
     serializer_class = StaffInviteSerializer
     profile_type = "staff"
-
-
-# @method_decorator(
-#     name="post",
-#     decorator=swagger_auto_schema(
-#         operation_summary="Candidate Invite",
-#         operation_description="Create a candidate profile and send the user an invite.",
-#         responses={
-#             200: candidate_invite_response_schema,
-#             401: error_response_401,
-#             403: error_response_403,
-#         },
-#         tags=["Candidate"],
-#         manual_parameters=[api_key, bearer_auth],
-#     ),
-# )
-class CandidateInviteView(BaseInviteView):
-    """
-    API view to create a new candidate.
-    """
-
-    permission_classes = ActiveManagerPermissions
-    serializer_class = CandidateInviteSerializer
-    profile_type = "candidate"
 
 
 @method_decorator(

@@ -25,19 +25,6 @@ def compute_candidate_result_task(candidate_result_id):
     compute_candidate_result(candidate_result_id)
 
 
-
-
-
-@shared_task(name="validate_user_verification_files_task")
-def validate_user_verification_files_task(user_verification_id):
-    """
-    Celery task to validate user verification files.
-    """
-    from vmlc.utils.functions import validate_user_verification_files
-
-    validate_user_verification_files(user_verification_id)
-
-
 @shared_task(name="update_staff_dashboard_cache_task")
 def update_staff_dashboard_cache_task(staff_id=None):
     """

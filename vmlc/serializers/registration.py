@@ -237,36 +237,3 @@ class StaffInviteSerializer(BaseRegistrationSerializer):
 
         return value
 
-
-class CandidateInviteSerializer(BaseRegistrationSerializer):
-    """
-    Serializer for registering new candidates.
-    """
-
-    created_by = MinimalStaffSerializer(read_only=True)
-    school_name = serializers.CharField(max_length=100, required=False)
-    school_type = serializers.ChoiceField(
-        choices=[("public", "Public"), ("private", "Private")], required=False
-    )
-    current_class = serializers.ChoiceField(
-        choices=[("SS1", "SS1"), ("SS2", "SS2"), ("SS3", "SS3")], required=False
-    )
-    role = serializers.ChoiceField(choices=Candidate.Roles.choices, required=False)
-
-    class Meta:
-        model = Candidate
-        fields = [
-            "email",
-            "first_name",
-            "last_name",
-            "phone",
-            "state",
-            "password",
-            "password2",
-            "role",
-            "school_name",
-            "school_type",
-            "current_class",
-            "created_by",
-            "generate_password",
-        ]

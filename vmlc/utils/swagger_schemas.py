@@ -237,31 +237,6 @@ account_management_request_body = openapi.Schema(
     },
 )
 
-user_verification_status_response_schema = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    properties={
-        "status": openapi.Schema(type=openapi.TYPE_STRING),
-        "detail": openapi.Schema(type=openapi.TYPE_STRING),
-    },
-)
-
-user_verification_list_response_schema = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    properties={
-        "results": openapi.Schema(
-            type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)
-        )
-    },
-)
-
-user_verification_action_request_body = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    properties={
-        "is_approved": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        "is_rejected": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-    },
-)
-
 submit_answers_request_body = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
