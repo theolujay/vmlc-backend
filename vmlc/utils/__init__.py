@@ -2,8 +2,6 @@
 This package contains all the utility functions for the API.
 """
 
-from . import auth
-
 # from ..utils.feature import ToggleFeatureFlagView
 from .query_filters import (
     filter_candidates,
@@ -14,8 +12,6 @@ from .query_filters import (
 from .stats import generate_stats_overview_data
 
 __all__ = [
-    # auth
-    "auth",
     # dashboard_utils
     # feature
     # "ToggleFeatureFlagView",

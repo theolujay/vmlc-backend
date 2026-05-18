@@ -12,7 +12,7 @@ from competition.models import (
 )
 from vmlc.models import CandidateExamResult, Exam, ExamAccess
 from identity.models import Candidate
-from vmlc.utils.functions import compute_exam_results
+from core.utils.functions import compute_exam_results
 
 logger = logging.getLogger(__name__)
 

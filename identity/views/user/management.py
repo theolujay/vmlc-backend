@@ -32,7 +32,7 @@ from vmlc.serializers import (
     UserProfileListSerializer,
 )
 from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
-from vmlc.utils.auth import generate_password
+        from core.utils.auth import generate_password
 from identity.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
@@ -243,7 +243,7 @@ class AccountCacheManager:
 
         if hasattr(user, "candidate_profile"):
             cache.delete(f"candidate_dashboard_{user.candidate_profile.pk}")
-            from vmlc.utils.helpers import invalidate_all_staff_dashboards
+            from core.utils.helpers import invalidate_all_staff_dashboards
 
             invalidate_all_staff_dashboards()
 
@@ -840,7 +840,7 @@ class ResetUserPasswordView(APIView):
 
     def post(self, request):
         from identity.models import User
-        from vmlc.utils.auth import generate_password
+from core.utils.auth import generate_password
         from comms.tasks import send_mail_task
         from django.conf import settings
 

@@ -28,7 +28,7 @@ from identity.serializers.auth import (
 )
 from comms.tasks import send_mail_task
 from comms.services.email import create_email_html
-from vmlc.utils.exceptions import (
+from core.utils.exceptions import (
     InvalidTokenError,
     NotFound,
     ServerError,

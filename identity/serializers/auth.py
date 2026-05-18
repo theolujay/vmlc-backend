@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
-from vmlc.utils.auth import (
+from core.utils.auth import (
     send_otp_to_email,
     resend_otp_to_email,
     send_password_change_otp,

@@ -15,7 +15,7 @@ from vmlc.v2.serializers.proctoring import (
     CandidateLiveStatusV2Serializer,
 )
 from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
-from vmlc.utils.exceptions import NotFound, PermissionDenied
+from core.utils.exceptions import NotFound, PermissionDenied
 
 logger = logging.getLogger(__name__)
 

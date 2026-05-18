@@ -6,7 +6,7 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
-from vmlc.utils.events import log_event
+from core.utils.events import log_event
 from identity.models import Candidate, CowrywiseKidProfile
 from identity.permissions import CandidatePermissions
 from identity.serializers import CowrywiseKidProfileSerializer

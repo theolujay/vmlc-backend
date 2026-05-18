@@ -12,7 +12,7 @@ from identity.permissions import CandidatePermissions
 from vmlc.models import Exam, ExamAccess, CandidateExamResult, CandidateAnswer
 from vmlc.serializers.answer import CandidateAnswerBulkSerializer
 from vmlc.v2.serializers.answer import AutoSaveAnswersBulkSerializer
-from vmlc.utils.helpers import sanitize_data
+from core.utils.helpers import sanitize_data
 from vmlc.v2.utils import GRACE_PERIOD_MINUTES, invalidate_exam_cache
 
 logger = logging.getLogger(__name__)

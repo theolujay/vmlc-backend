@@ -15,7 +15,7 @@ from identity.models import (
     validate_document_file,
     validate_face_id,
 )
-from vmlc.utils.auth import generate_password
+from core.utils.auth import generate_password
 from vmlc.utils.user import normalize_title
 
 

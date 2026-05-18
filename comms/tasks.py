@@ -9,7 +9,7 @@ from celery.exceptions import Retry
 from django.core.mail import EmailMultiAlternatives
 
 from identity.models import User
-from vmlc.utils.exceptions import ServerError
+from core.utils.exceptions import ServerError
 from comms.services.notification import NotificationService
 from comms.services.kudi_sms import KudiSmsService
 from comms.services.slack import SlackService
@@ -655,7 +655,7 @@ def send_otp_on_registration_task(self, user_id):
     Celery task to send OTP to user on registration.
     """
     from identity.models import User
-    from vmlc.utils.auth import send_otp_to_email
+    from core.utils.auth import send_otp_to_email
     from celery.exceptions import Retry
 
     try:

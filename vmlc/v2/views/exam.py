@@ -44,7 +44,7 @@ from vmlc.v2.utils import (
     invalidate_staff_dashboard,
     question_pool_aggregate,
 )
-from vmlc.utils.exceptions import PermissionDenied, NotFound
+from core.utils.exceptions import PermissionDenied, NotFound
 from vmlc.utils.query_filters import ExamFilter
 
 

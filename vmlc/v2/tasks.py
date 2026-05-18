@@ -58,7 +58,7 @@ def invalidate_exam_related_caches_task(exam_id):
     # Also invalidate staff dashboard
     invalidate_staff_dashboard()
 
-    from vmlc.utils.events import log_event
+    from core.utils.events import log_event
 
     log_event(
         event_name="CACHE_INVALIDATION_EXAM",
@@ -81,7 +81,7 @@ def check_exam_status_transitions_task():
     from vmlc.models import Exam
     from django.utils import timezone
     from datetime import timedelta
-    from vmlc.utils.events import log_event
+    from core.utils.events import log_event
 
     now = timezone.now()
     # We look for exams that have scheduled_date or conclusion_time

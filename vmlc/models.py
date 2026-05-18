@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from competition.models import Stage
 from identity.validators import validate_image
-from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
+from core.storage_backends import PrivateMediaStorage, PublicMediaStorage
 
 logger = logging.getLogger(__name__)
 

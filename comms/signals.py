@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
-from vmlc.utils.exceptions import ValidationError
+from core.utils.exceptions import ValidationError
 from vmlc.v2.utils import CacheKeys, invalidate_notifications
 from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
 

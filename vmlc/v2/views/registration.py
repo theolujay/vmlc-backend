@@ -13,8 +13,8 @@ from vmlc.v2.serializers.registration import (
     PreRegUserSerializer,
     RegistrationV2Serializer,
 )
-from vmlc.utils.exceptions import PermissionDenied
-from vmlc.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
+from core.utils.exceptions import PermissionDenied
+from core.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class PreRegistrationView(CreateAPIView):
             serializer.is_valid(raise_exception=True)
             pre_reg_user = serializer.save()
 
-            from vmlc.utils.events import log_event
+            from core.utils.events import log_event
 
             log_event(
                 event_name="PRE_REGISTRATION",

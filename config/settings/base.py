@@ -46,10 +46,11 @@ INSTALLED_APPS = [
     "django_celery_results",
     "django_celery_beat",
     "channels",
+    "core",
+    "comms",
+    "competition",
     "identity",
     "vmlc",
-    "competition",
-    "comms",
 ]
 
 MIDDLEWARE = [
@@ -177,7 +178,7 @@ if USE_S3:
     AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024
 
     STORAGES = {
-        "default": {"BACKEND": "vmlc.storage_backends.PrivateMediaStorage"},
+        "default": {"BACKEND": "core.storage_backends.PrivateMediaStorage"},
         "staticfiles": {
             "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage"
         },
@@ -274,7 +275,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_PAGINATION_CLASS": "vmlc.pagination.StandardResultsSetPagination",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 50,
 }
 

@@ -1,5 +1,5 @@
 from django.test import TestCase
-from vmlc.utils.auth import generate_otp
+from core.utils.auth import generate_otp
 
 
 class AuthUtilsTest(TestCase):

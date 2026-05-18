@@ -9,7 +9,7 @@ from competition.models import Enrollment, Competition
 from comms.models import Broadcast
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from vmlc.utils.exceptions import ServerError
+from core.utils.exceptions import ServerError
 
 logger = logging.getLogger(__name__)
 

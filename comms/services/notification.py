@@ -18,7 +18,7 @@ from comms.utils import (
     format_sms_body,
     is_placeholder_phone as _is_placeholder_phone,
 )
-from vmlc.utils.exceptions import (
+from core.utils.exceptions import (
     InvalidMediumError,
     NoRecipientsFoundError,
     ServerError,

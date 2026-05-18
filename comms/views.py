@@ -49,7 +49,7 @@ from identity.permissions import (
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
 )
-from vmlc.utils.helpers import sanitize_data
+from core.utils.helpers import sanitize_data
 from vmlc.utils.query_filters import (
     annotate_thread_with_last_message_sender_type,
     filter_broadcasts,

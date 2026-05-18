@@ -20,7 +20,7 @@ def compute_candidate_result_task(candidate_result_id):
     """
     Celery task to calculate and save the auto score for a candidate's exam submission.
     """
-    from vmlc.utils.functions import compute_candidate_result
+    from core.utils.functions import compute_candidate_result
 
     compute_candidate_result(candidate_result_id)
 
@@ -31,29 +31,11 @@ def update_staff_dashboard_cache_task(staff_id=None):
     Celery task to update the staff dashboard cache.
     """
     pass
-    # from vmlc.utils.functions import update_staff_dashboard_cache
+    # from core.utils.functions import update_staff_dashboard_cache
 
-    # update_staff_dashboard_cache(staff_id)
+    # from core.utils.functions import update_candidate_dashboard_cache
 
-
-@shared_task(name="update_candidate_dashboard_cache_task")
-def update_candidate_dashboard_cache_task(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-    pass
-    # from vmlc.utils.functions import update_candidate_dashboard_cache
-
-    # update_candidate_dashboard_cache(candidate_id)
-
-
-@shared_task(name="update_candidate_ranking_cache_task")
-def update_candidate_ranking_cache_task():
-    """
-    Celery task to update the candidate ranking cache for all league candidates.
-    """
-    pass
-    # from vmlc.utils.functions import update_candidate_ranking_cache
+    # from core.utils.functions import update_candidate_ranking_cache
 
     # update_candidate_ranking_cache()
 
@@ -170,7 +152,7 @@ def disable_expired_feature_flags_task(self, feature_flag_id):
 def clear_pre_reg_user(user_email, user_type="candidate"):
 
     from identity.models import PreRegUser
-    from vmlc.utils.events import log_event
+    from core.utils.events import log_event
 
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)
