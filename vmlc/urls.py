@@ -2,7 +2,6 @@
 URL configuration for the API endpoints of the application.
 
 This module defines URL patterns for all API routes, including:
-- Authentication and JWT token handling
 - User registration (candidates and staff)
 - Candidate and staff management
 - Exams and questions
@@ -23,16 +22,8 @@ from .views import (
     BulkStaffImportView,
     CandidateInviteView,
     CandidateListView,
-    LoginView,
-    LogoutView,
-    PasswordChangeOTPConfirmView,
-    PasswordChangeView,
-    RefreshTokenView,
     RegistrationMetricsView,
-    RequestPasswordChangeView,
     ResetUserPasswordView,
-    ResendPasswordChangeOTPView,
-    SendEmailOTPView,
     StaffInviteView,
     StaffListView,
     UserActivityLogView,
@@ -44,7 +35,6 @@ from .views import (
     UserVerificationListView,
     UserVerificationStatusView,
     UserVerificationUploadView,
-    VerifyEmailOTPView,
     health_check,
     stats_overview,
     registration_status,
@@ -59,36 +49,8 @@ urlpatterns = [
     path("health/", health_check, name="health-check"),
     path("registration/", registration_status, name="registration-status"),
     # =============================================================================
-    # AUTHENTICATION
+    # USER DOCUMENT VERIFICATION
     # =============================================================================
-    path("auth/login/", LoginView.as_view(), name="login"),
-    path("auth/logout/", LogoutView.as_view(), name="logout"),
-    path("auth/token/refresh/", RefreshTokenView.as_view(), name="token-refresh"),
-    # Password Change
-    path(
-        "auth/password-change/request/",
-        RequestPasswordChangeView.as_view(),
-        name="request-password-change",
-    ),
-    path(
-        "auth/password-change/confirm-otp/",
-        PasswordChangeOTPConfirmView.as_view(),
-        name="verify-password-change-otp",
-    ),
-    path(
-        "auth/password-change/",
-        PasswordChangeView.as_view(),
-        name="password-change",
-    ),
-    path(
-        "auth/password-change/resend-otp/",
-        ResendPasswordChangeOTPView.as_view(),
-        name="resend-password-change-otp",
-    ),
-    # Email Verification
-    path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
-    path("send-email-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
-    # User Document Verification
     path(
         "user/verification/status/",
         UserVerificationStatusView.as_view(),

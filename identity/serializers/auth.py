@@ -12,7 +12,7 @@ from vmlc.utils.auth import (
 )
 
 from identity.models import EmailOTP, User
-from .. import utils
+from vmlc import utils
 
 logger = logging.getLogger(__name__)
 

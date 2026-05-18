@@ -6,7 +6,7 @@ from .answer import (
     CandidateAnswerSerializer,
     CandidateAnswerBulkSerializer,
 )
-from .auth import (
+from identity.serializers.auth import (
     VerifyEmailOTPSerializer,
     SendEmailOTPSerializer,
     RequestPasswordChangeSerializer,

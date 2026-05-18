@@ -22,7 +22,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from identity.models import User
 from identity.permissions import HasXAPIKey
-from ..serializers import (
+from identity.serializers.auth import (
     PasswordChangeOTPConfirmSerializer,
     PasswordChangeSerializer,
     RequestPasswordChangeSerializer,
@@ -31,13 +31,13 @@ from ..serializers import (
 )
 from comms.tasks import send_mail_task
 from comms.services.email import create_email_html
-from ..utils.exceptions import (
+from vmlc.utils.exceptions import (
     InvalidTokenError,
     NotFound,
     ServerError,
     ValidationError,
 )
-from ..utils.swagger_schemas import (
+from vmlc.utils.swagger_schemas import (
     api_key,
     bearer_auth,
     error_response_400,
@@ -427,7 +427,7 @@ class ResendPasswordChangeOTPView(APIView):
                     },
                     status=status.HTTP_200_OK,
                 )
-            from .. import utils
+            from vmlc import utils
 
             utils.auth.resend_otp_to_email(user)
             logger.info(f"Password change OTP resent to user {user.id}")
@@ -475,7 +475,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         )
 
         # Add profile information (candidate or staff)
-        from .user.management import ProfileManager
+        from vmlc.views.user.management import ProfileManager
 
         profile_data = ProfileManager.serialize_profile(self.user)
 
