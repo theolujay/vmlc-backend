@@ -623,10 +623,14 @@ def send_welcome_mail_task(
     from identity.models import User, PreRegUser
     from celery.exceptions import Retry
 
-    if is_pre_reg:
-        user = PreRegUser.objects.get(pk=user_id)
-    else:
-        user = User.objects.get(pk=user_id)
+    try:
+        if is_pre_reg:
+            user = PreRegUser.objects.get(pk=user_id)
+        else:
+            user = User.objects.get(pk=user_id)
+    except (PreRegUser.DoesNotExist, User.DoesNotExist):
+        logger.error(f"User with id {user_id} does not exist.")
+        return
 
     try:
         send_welcome_email(user, generated_password)
