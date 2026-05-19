@@ -69,7 +69,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
     queryset = Question.objects.filter(is_archived=False).select_related(
         "created_by__user", "updated_by__user"
     )
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+    parser_classes = (parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
