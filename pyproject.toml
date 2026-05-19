@@ -150,6 +150,8 @@ dev = [
     "responses>=0.25.8",
     "daphne>=4.2.1",
     "ruff>=0.15.1",
+    "mypy>=2.1.0",
+    "coverage>=7.14.0",
 ]
 
 # Testing tools
