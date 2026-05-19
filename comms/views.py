@@ -842,39 +842,38 @@ class HelpdeskThreadMessageView(CreateAPIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def assign_staff_automatically(self, thread):
+    def assign_staff_automatically(self, thread, staff=None):
         """
-        Assign thread automatically to the staff with the lowest load.
+        Assign thread to staff. If staff is provided, assign to that staff member.
+        Otherwise, auto-assign to staff with the lowest load.
         """
-        from identity.models import Staff
+        assigned_staff = staff
+        if assigned_staff is None:
+            from identity.models import Staff
 
-        # Define active staff roles allowed to handle helpdesk
-        support_roles = [
-            Staff.Roles.SUPERADMIN,
-            Staff.Roles.MANAGER,
-            Staff.Roles.ADMIN,
-            Staff.Roles.MODERATOR,
-        ]
+            support_roles = [
+                Staff.Roles.SUPERADMIN,
+                Staff.Roles.MANAGER,
+                Staff.Roles.ADMIN,
+                Staff.Roles.MODERATOR,
+            ]
 
-        # Find staff with lowest load (active threads they are assigned to)
-        # TODO: Improve this to auto-assign based on ongoing exams
-        best_staff = (
-            Staff.objects.filter(user__is_active=True, role__in=support_roles)
-            .annotate(
-                load=Count(
-                    "assigned_helpdesk_threads",
-                    filter=Q(
-                        assigned_helpdesk_threads__status=HelpdeskThread.Status.IN_PROGRESS
-                    ),
+            assigned_staff = (
+                Staff.objects.filter(user__is_active=True, role__in=support_roles)
+                .annotate(
+                    load=Count(
+                        "assigned_helpdesk_threads",
+                        filter=Q(
+                            assigned_helpdesk_threads__status=HelpdeskThread.Status.IN_PROGRESS
+                        ),
+                    )
                 )
+                .order_by("load")
+                .first()
             )
-            .order_by("load")
-            .first()
-        )
 
-        if best_staff:
-            thread.assigned_staff = best_staff
+        if assigned_staff:
+            thread.assigned_staff = assigned_staff
             thread.status = HelpdeskThread.Status.IN_PROGRESS
             thread.save(update_fields=["assigned_staff", "status"])
-            # Invalidate helpdesk stats cache
             cache.delete(CacheKeys.STATS_HELPDESK)

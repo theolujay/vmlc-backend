@@ -82,7 +82,7 @@ class SMSRobustnessTest(TestCase):
     @patch("django.conf.settings.TWILIO_ACCOUNT_SID", "ACxxx")
     @patch("django.conf.settings.TWILIO_AUTH_TOKEN", "authxxx")
     @patch("django.conf.settings.TWILIO_FROM_PHONE", "+12345")
-    def test_whatsapp_recipient_formatting(self):
+    def test_whatsapp_recipient_formatting(self, mock_twilio_client):
         """
         Verify that WhatsApp recipient is correctly formatted with a leading '+'.
         """
