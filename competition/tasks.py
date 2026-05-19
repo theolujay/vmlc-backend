@@ -11,7 +11,7 @@ from competition.services.ranking import (
 )
 from competition.services.leaderboard import LeaderboardService
 from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
-from vmlc.v2.utils import invalidate_candidate_cache, invalidate_score_boards
+from core.utils.cache import invalidate_candidate_cache, invalidate_score_boards
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +204,29 @@ def publish_ranking_task(ranking_snapshot_id, actor_id=None):
             exc_info=True,
         )
         raise
+
+
+@shared_task(name="generate_stats_overview_task")
+def generate_stats_overview_task():
+    """
+    Asynchronously generates and caches each part of the statistics overview individually.
+    """
+    from competition.utils.stats import (
+        get_candidate_stats_cached,
+        get_staff_stats_cached,
+        get_exam_stats_cached,
+        get_competition_stats_cached,
+        get_helpdesk_stats_cached,
+        get_funnel_metrics_cached,
+        get_geographic_stats_cached,
+    )
+
+    get_candidate_stats_cached()
+    get_staff_stats_cached()
+    get_exam_stats_cached()
+    get_competition_stats_cached()
+    get_helpdesk_stats_cached()
+    get_funnel_metrics_cached()
+    get_geographic_stats_cached()
+
+    logger.info("Successfully regenerated decentralized stats overview caches.")

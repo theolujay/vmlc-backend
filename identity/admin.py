@@ -22,7 +22,7 @@ from identity.models import (
 # These are imported from vmlc as they are core to the application's admin functionality
 from comms.tasks import send_mail_task
 from comms.services.email import create_email_html
-from vmlc.v2.utils import (
+from core.utils.cache import (
     invalidate_user_cache,
     invalidate_candidate_cache,
     invalidate_staff_cache,

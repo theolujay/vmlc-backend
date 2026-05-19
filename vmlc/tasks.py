@@ -1,422 +1,263 @@
-import os
 import logging
-
-from django.utils import timezone
-from django.conf import settings
-from django.core.files import File
-from django.core.cache import cache
 from celery import shared_task
-from celery.exceptions import Retry
+from django.core.cache import cache
 
-from vmlc.utils import generate_stats_overview_data
-from vmlc.v2 import tasks as v2_tasks  # this helps celery_find the tasks in /vmlc/v2
-
-v2_tasks.do_nothing()  # this helps bypass linters flagging v2_tasks as unused
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="compute_candidate_result_task")
-def compute_candidate_result_task(candidate_result_id):
+@shared_task(name="invalidate_exam_related_caches_task")
+def invalidate_exam_related_caches_task(exam_id):
     """
-    Celery task to calculate and save the auto score for a candidate's exam submission.
+    Invalidates caches related to a specific exam, including candidate dashboards.
     """
-    from vmlc.utils.functions import compute_candidate_result
-
-    compute_candidate_result(candidate_result_id)
-
-
-@shared_task(name="generate_leaderboard_snapshot_task")
-def generate_leaderboard_snapshot_task(staff_id=None):
-    """
-    Celery task to generate and publish the leaderboard snapshot.
-    """
-    pass
-    # from vmlc.utils.functions import generate_leaderboard_snapshot
-
-    # return generate_leaderboard_snapshot(staff_id)
-
-
-@shared_task(name="generate_results_snapshot_task")
-def generate_results_snapshot_task(staff_id=None):
-    """
-    Celery task to generate and publish the results snapshot.
-    """
-    from vmlc.utils.functions import generate_results_snapshot
-
-    generate_results_snapshot(staff_id)
-
-
-@shared_task(name="validate_user_verification_files_task")
-def validate_user_verification_files_task(user_verification_id):
-    """
-    Celery task to validate user verification files.
-    """
-    from vmlc.utils.functions import validate_user_verification_files
-
-    validate_user_verification_files(user_verification_id)
-
-
-@shared_task(name="update_staff_dashboard_cache_task")
-def update_staff_dashboard_cache_task(staff_id=None):
-    """
-    Celery task to update the staff dashboard cache.
-    """
-    pass
-    # from vmlc.utils.functions import update_staff_dashboard_cache
-
-    # update_staff_dashboard_cache(staff_id)
-
-
-@shared_task(name="update_candidate_dashboard_cache_task")
-def update_candidate_dashboard_cache_task(candidate_id=None):
-    """
-    Celery task to update the candidate dashboard cache.
-    """
-    pass
-    # from vmlc.utils.functions import update_candidate_dashboard_cache
-
-    # update_candidate_dashboard_cache(candidate_id)
-
-
-@shared_task(name="update_candidate_ranking_cache_task")
-def update_candidate_ranking_cache_task():
-    """
-    Celery task to update the candidate ranking cache for all league candidates.
-    """
-    pass
-    # from vmlc.utils.functions import update_candidate_ranking_cache
-
-    # update_candidate_ranking_cache()
-
-
-@shared_task(
-    name="disable_expired_feature_flags_task",
-    bind=True,
-    max_retries=3,
-    default_retry_delay=300,  # 5 minutes
-)
-def disable_expired_feature_flags_task(self, feature_flag_id):
-    """
-    Automatically disable feature flags that have reached their auto_off_date.
-
-    Args:
-        feature_flag_id: Primary key of the FeatureFlag to check and disable
-
-    Returns:
-        dict: Status of the operation with relevant details
-    """
-    from .models import FeatureFlag
-
-    try:
-        feature_flag = FeatureFlag.objects.get(pk=feature_flag_id)
-    except FeatureFlag.DoesNotExist:
-        logger.error(f"FeatureFlag with id {feature_flag_id} does not exist")
-        return {
-            "status": "error",
-            "message": f"FeatureFlag {feature_flag_id} not found",
-        }
-
-    try:
-        # Check if flag should be disabled
-        if not feature_flag.auto_off_date:
-            logger.info(
-                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
-                "has no auto_off_date set - skipping"
-            )
-            return
-
-        # Check if the flag is already disabled
-        if not feature_flag.value:
-            logger.info(
-                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
-                "is already disabled"
-            )
-            return
-
-        # Check if expiration time has been reached
-        now = timezone.now()
-        if feature_flag.auto_off_date > now:
-            time_remaining = feature_flag.auto_off_date - now
-            logger.info(
-                f"FeatureFlag '{feature_flag.key}' (id: {feature_flag_id}) "
-                f"not yet expired. Time remaining: {time_remaining}"
-            )
-            return
-
-        feature_flag.value = False
-        feature_flag.save(update_fields=["value"])
-        cache.delete("status:registration")
-
-        readable_flag_key = feature_flag.key.replace("_", " ").title()
-
-        logger.info(
-            f"Successfully auto-disabled feature flag '{feature_flag.key}' "
-            f"(id: {feature_flag_id}) at {now.isoformat()}"
-        )
-
-        # Send notification email to admins
-        admin_emails = [email for _, email in settings.ADMINS]
-        if admin_emails:
-            from comms.tasks import send_mail_task
-
-            send_mail_task.delay(
-                subject=f"{readable_flag_key} Auto-Disabled - System Notification",
-                message=(
-                    f"This is an automated system notification.\n\n"
-                    f"Feature Flag: {readable_flag_key}\n"
-                    f"Status: Successfully disabled\n"
-                    f"Scheduled Disable Time: {feature_flag.auto_off_date.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
-                    f"Actual Disable Time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}\n\n"
-                    f"This feature flag was automatically disabled as scheduled.\n\n"
-                    f"Regards,\n"
-                    f"VMLC System\n"
-                ),
-                recipient_list=admin_emails,
-            )
-            logger.info(
-                f"Auto-disable notification sent for '{feature_flag.key}' "
-                f"to {len(admin_emails)} admin(s)"
-            )
-
-        return
-
-    except Exception as exc:
-        logger.exception(
-            f"Error disabling feature flag '{feature_flag.key}' "
-            f"(id: {feature_flag_id}): {exc}"
-        )
-
-        # Retry the task if it's a transient error
-        try:
-            raise self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            logger.error(
-                f"Max retries exceeded for disabling feature flag "
-                f"'{feature_flag.key}' (id: {feature_flag_id})"
-            )
-            return
-
-
-@shared_task(name="clear_pre_reg_user")
-def clear_pre_reg_user(user_email, user_type="candidate"):
-
-    from identity.models import PreRegUser
-    from vmlc.utils.events import log_event
-
-    try:
-        pre_reg_user = PreRegUser.objects.get(email=user_email)
-        pre_reg_user.delete()
-        log_event(
-            event_name="PRE_REG_CONVERSION",
-            metadata={
-                "email": user_email,
-                "user_type": user_type,
-                "interest_type": pre_reg_user.interest_type,
-            },
-        )
-        logger.info(
-            f"[{user_email}] fully registered. PreRegUser entity cleared and conversion event logged."
-        )
-    except PreRegUser.DoesNotExist:
-        logger.info(f"PreRegUser entity not found for [{user_email}]")
-
-
-@shared_task(name="revoke_user_invite_task")
-def revoke_user_invite_task(user_id):
-    """
-    Celery task to revoke user credentials if they haven't logged in within a week since invite.
-    """
-    from identity.models import User
-
-    try:
-        user = User.objects.get(pk=user_id)
-        if user.last_login is None:
-            user.delete()
-            from comms.tasks import send_mail_task
-
-            send_mail_task.delay(
-                subject="Your account has been revoked",
-                message=f"Your account has been revoked because you didn't log in within seven days of receiving your invite. "
-                f"Please contact {settings.SUPPORT_EMAIL} if you have any inquires.\n\n"
-                "Regards,\n\nManagement, Verboheit MLC",
-                recipient_list=[user.email],
-            )
-            logger.info(f"Revoked credentials for user {user.email} due to inactivity.")
-        else:
-            logger.info(f"User {user.email} has logged in. No action taken.")
-    except User.DoesNotExist:
-        logger.warning(f"User with id {user_id} not found for invite revocation.")
-
-
-@shared_task(name="generate_stats_overview_task")
-def generate_stats_overview_task():
-    """
-    Asynchronously generates and caches each part of the statistics overview individually.
-    """
-    from vmlc.utils.stats import (
-        get_candidate_stats_cached,
-        get_staff_stats_cached,
-        get_exam_stats_cached,
-        get_competition_stats_cached,
-        get_helpdesk_stats_cached,
-        get_funnel_metrics_cached,
-        get_geographic_stats_cached,
+    from vmlc.models import Exam
+    from competition.models import Enrollment
+    from core.utils.cache import (
+        CacheKeys,
+        invalidate_staff_dashboard,
+        invalidate_exam_cache,
+        invalidate_score_boards,
     )
 
-    # Calling these will trigger the cached calculation for each piece
-    get_candidate_stats_cached()
-    get_staff_stats_cached()
-    get_exam_stats_cached()
-    get_competition_stats_cached()
-    get_helpdesk_stats_cached()
-    get_funnel_metrics_cached()
-    get_geographic_stats_cached()
-
-    logger.info("Successfully regenerated decentralized stats overview caches.")
-
-
-@shared_task(
-    bind=True,
-    name="upload_user_documents_task",
-    max_retries=5,
-    default_retry_delay=60,
-    queue="files",
-    acks_late=True,
-    reject_on_worker_lost=True,
-)
-def upload_user_documents_task(self, user_id, file_mappings):
-    """
-    Asynchronously uploads multiple user documents from temporary paths.
-
-    Args:
-        user_id: ID of the user
-        file_mappings: List of dicts with keys: temp_path, field_name, original_name
-    """
-    from identity.models import User, UserVerification
-
-    uploaded_files = []
-    failed_files = []
-
     try:
-        user = User.objects.get(pk=user_id)
-        verification, _ = UserVerification.objects.get_or_create(user=user)
+        exam = Exam.objects.select_related(
+            "competition_slot__competition_stage__competition"
+        ).get(pk=exam_id)
+    except Exam.DoesNotExist:
+        logger.warning(f"Exam {exam_id} not found for cache invalidation.")
+        return
 
-        logger.info(
-            f"Starting document upload for user {user_id} with {len(file_mappings)} files"
+    invalidate_exam_cache(str(exam.id))
+    invalidate_score_boards(exam_id=str(exam.id))
+
+    # Invalidate Candidate Dashboards for everyone in this competition
+    if exam.competition_slot and exam.competition_slot.competition_stage:
+        competition = exam.competition_slot.competition_stage.competition
+
+        candidates = Enrollment.objects.filter(competition=competition).values_list(
+            "candidate_id", "candidate__user_id"
         )
 
-        for file_info in file_mappings:
-            temp_path = file_info["temp_path"]
-            field_name = file_info["field_name"]
-            original_name = file_info["original_name"]
+        all_keys = []
+        for candidate_id, user_id in candidates:
+            all_keys.extend(CacheKeys.get_candidate_keys(candidate_id, user_id))
 
-            try:
-                # Check if file exists, with retry logic for sync delays
-                if not os.path.exists(temp_path):
-                    if self.request.retries < 3:
-                        logger.warning(
-                            f"Temp file {temp_path} not found (attempt {self.request.retries + 1}). "
-                            f"Will retry..."
-                        )
-                        # Cleanup any successfully uploaded files before retry
-                        _cleanup_temp_files(uploaded_files)
-                        raise self.retry(countdown=5)
-                    else:
-                        logger.error(f"Temp file {temp_path} not found after retries")
-                        failed_files.append(
-                            {"file": temp_path, "error": "File not found"}
-                        )
-                        continue
+        # Delete in chunks to be safe with when competition is large
+        CHUNK_SIZE = 500
+        for i in range(0, len(all_keys), CHUNK_SIZE):
+            cache.delete_many(all_keys[i : i + CHUNK_SIZE])
 
-                # Verify file is readable and has content
-                file_size = os.path.getsize(temp_path)
-                if file_size == 0:
-                    logger.error(f"Temp file {temp_path} is empty")
-                    failed_files.append({"file": temp_path, "error": "Empty file"})
-                    os.remove(temp_path)
-                    continue
+        logger.info(
+            f"Invalidated caches for {len(candidates)} candidates for exam {exam_id}"
+        )
 
-                logger.info(
-                    f"Uploading {field_name} ({file_size} bytes) for user {user_id}"
+    # Also invalidate staff dashboard
+    invalidate_staff_dashboard()
+
+    from core.utils.events import log_event
+
+    log_event(
+        event_name="CACHE_INVALIDATION_EXAM",
+        metadata={
+            "exam_id": str(exam_id),
+            "affected_candidates_count": (
+                len(candidates) if "candidates" in locals() else 0
+            ),
+            "reason": "Exam update or status change",
+        },
+    )
+
+
+@shared_task(name="check_exam_status_transitions_task")
+def check_exam_status_transitions_task():
+    """
+    Periodic task to check for exams that have transitioned status due to time.
+    Invalidates caches if a transition is detected.
+    """
+    from vmlc.models import Exam
+    from django.utils import timezone
+    from datetime import timedelta
+    from core.utils.events import log_event
+
+    now = timezone.now()
+    # We look for exams that have scheduled_date or conclusion_time
+    # within the last few minutes (to catch transitions)
+    # or just check all active exams if the number is small.
+
+    # For simplicity and correctness, we can look for exams that are
+    # either about to start or just ended.
+    # But a better way is to track the last run time.
+
+    last_run = cache.get("last_exam_status_check_time")
+    if not last_run:
+        last_run = now - timedelta(minutes=5)
+
+    if isinstance(last_run, str):
+        from dateutil import parser
+
+        last_run = parser.isoparse(last_run)
+
+    # Exams that transitioned from SCHEDULED to ONGOING
+    starting_exams = Exam.objects.filter(
+        scheduled_date__gt=last_run, scheduled_date__lte=now, is_active=True
+    )
+
+    # Exams that transitioned from ONGOING to CONCLUDED
+    # Conclusion time is scheduled_date + open_duration_hours
+    # This is harder to query directly in DB without F expressions and timedelta,
+    # but we can do it.
+
+    # Or just fetch all exams that are recently concluded
+    # (where scheduled_date + open_duration_hours is between last_run and now)
+
+    # Passcode Generation: Identify exams that became SCHEDULED since the last run
+    # (Exam status is SCHEDULED if scheduled_date is in the future)
+    newly_scheduled_exams = Exam.objects.select_related("competition_slot__competition_stage").filter(
+        is_active=True, scheduled_date__gt=now, updated_at__gt=last_run
+    )
+    for exam in newly_scheduled_exams:
+        generate_and_send_exam_passcodes_task.delay(str(exam.id), exam.stage)
+        logger.info(
+            f"Triggered passcode task for newly scheduled/updated exam {exam.id}"
+        )
+
+    # Let's just invalidate for any exam that is "Active" and has a
+    # scheduled_date in a relevant range.
+
+    transitioned_exams = list(starting_exams)
+
+    # For concluding exams:
+    # scheduled_date = now - open_duration_hours
+    # We can iterate over potentially ongoing/scheduled exams and check.
+
+    active_exams = Exam.objects.filter(is_active=True).exclude(scheduled_date=None)
+    for exam in active_exams:
+        if exam.scheduled_date and exam.open_duration_hours:
+            conclusion_time = exam.scheduled_date + timedelta(
+                hours=exam.open_duration_hours
+            )
+            start_time = exam.scheduled_date
+
+            reminder_time = start_time - timedelta(hours=1)
+            if last_run < reminder_time <= now:
+                # 1 hour reminder
+                from comms.tasks import notify_candidates_about_exam_task
+
+                notify_candidates_about_exam_task.delay(str(exam.id), "reminder")
+                logger.info(f"Triggered 1-hour reminder for exam {exam.id}")
+
+            if last_run < start_time <= now:
+                # Started
+                transitioned_exams.append(exam)
+                # Notify candidates that the exam has started
+                from comms.tasks import (
+                    notify_candidates_about_exam_task,
+                    notify_staff_about_exam_event_task,
                 )
 
-                # Upload to storage
-                with open(temp_path, "rb") as f:
-                    django_file = File(f, name=original_name)
+                notify_candidates_about_exam_task.delay(str(exam.id), "started")
+                notify_staff_about_exam_event_task.delay(str(exam.id), "ongoing")
+                logger.info(f"Triggered start time notification for exam {exam.id}")
 
-                    if field_name == "face_id":
-                        verification.face_id.save(original_name, django_file, save=True)
-                    elif field_name == "id_card":
-                        verification.id_card.save(original_name, django_file, save=True)
-                    elif field_name == "verification_document":
-                        verification.verification_document.save(
-                            original_name, django_file, save=True
-                        )
-                    else:
-                        logger.error(f"Unknown field_name: {field_name}")
-                        failed_files.append(
-                            {"file": temp_path, "error": f"Unknown field: {field_name}"}
-                        )
-                        os.remove(temp_path)
-                        continue
+            elif last_run < conclusion_time <= now:
+                # Concluded
+                transitioned_exams.append(exam)
+                from comms.tasks import notify_staff_about_exam_event_task
 
-                uploaded_files.append(temp_path)
-                logger.info(f"Successfully uploaded {field_name} for user {user.email}")
+                notify_staff_about_exam_event_task.delay(str(exam.id), "concluded")
+                logger.info(f"Triggered conclusion notification for exam {exam.id}")
 
-            except IOError as e:
-                logger.error(f"IOError processing {temp_path}: {e}")
-                if self.request.retries < self.max_retries:
-                    _cleanup_temp_files(uploaded_files)
-                    raise self.retry(exc=e, countdown=10)
-                failed_files.append({"file": temp_path, "error": str(e)})
-            except Exception as e:
-                logger.error(f"Unexpected error processing {temp_path}: {e}")
-                failed_files.append({"file": temp_path, "error": str(e)})
+    unique_exam_ids = {str(e.id) for e in transitioned_exams}
+    for exam_id in unique_exam_ids:
+        invalidate_exam_related_caches_task.delay(exam_id)
+        logger.info(f"Triggered invalidation for transitioned exam {exam_id}")
 
-        # Cleanup temp files
-        _cleanup_temp_files(uploaded_files + [f["file"] for f in failed_files])
-
-        if failed_files:
-            logger.error(
-                f"Failed to upload some files for user {user_id}: {failed_files}"
-            )
-            # Optionally send notification to admins
-
-        if not uploaded_files and failed_files:
-            # All uploads failed
-            raise Exception(f"All file uploads failed for user {user_id}")
-
-        logger.info(
-            f"Document upload task completed for user {user_id}. "
-            f"Success: {len(uploaded_files)}, Failed: {len(failed_files)}"
+    if unique_exam_ids:
+        log_event(
+            event_name="EXAM_STATUS_TRANSITION_DETECTED",
+            metadata={
+                "transitioned_exam_ids": list(unique_exam_ids),
+                "timestamp": now.isoformat(),
+            },
         )
 
-    except User.DoesNotExist:
-        logger.error(f"User {user_id} not found during document upload")
-        _cleanup_temp_files([f["temp_path"] for f in file_mappings])
-    except Retry:
-        raise
-    except Exception as exc:
-        logger.error(
-            f"Failed to upload documents for user {user_id}: {exc}", exc_info=True
-        )
-        _cleanup_temp_files([f["temp_path"] for f in file_mappings])
-        if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=60)
-        else:
-            # Final failure - log and potentially alert admins
-            logger.critical(
-                f"Permanent failure uploading documents for user {user_id} "
-                f"after {self.max_retries} retries"
-            )
+    cache.set("last_exam_status_check_time", now, timeout=86400)
 
 
-def _cleanup_temp_files(file_paths):
-    """Helper to cleanup temporary files."""
-    for path in file_paths:
+@shared_task(name="generate_and_send_exam_passcodes_task")
+def generate_and_send_exam_passcodes_task(exam_id, exam_stage=None):
+    """
+    Task to generate passcodes and send them via email to eligible candidates.
+    """
+    from vmlc.models import Exam
+    from competition.models import Stage
+    from vmlc.services.exam_access import ExamAccessService
+
+    stage = exam_stage
+
+    logger.info(f"Generating and sending passcodes for exam {exam_id}")
+    ExamAccessService.generate_passcodes(exam_id)
+
+    if stage is None:
         try:
-            if os.path.exists(path):
-                os.remove(path)
-                logger.debug(f"Cleaned up temp file: {path}")
-        except Exception as e:
-            logger.warning(f"Failed to cleanup temp file {path}: {e}")
+            exam = Exam.objects.select_related("competition_slot__competition_stage").get(pk=exam_id)
+            stage = exam.stage
+        except Exam.DoesNotExist:
+            logger.warning(f"Exam {exam_id} not found for passcode task.")
+            return
+
+    # Only send passcodes for Screening and Final exams
+    if stage not in [Stage.Type.SCREENING, Stage.Type.FINAL]:
+        logger.info(f"Skipping passcode generation for exam {exam_id} (Stage: {stage})")
+        return
+
+    ExamAccessService.send_passcode_emails(exam_id)
+
+
+@shared_task(name="mark_exam_access_as_expired_task")
+def mark_exam_access_as_expired_task(access_id):
+    """
+    Marks an ExamAccess as EXPIRED if it's still in STARTED status after its deadline.
+    Includes a 5-minute grace period consistent with SubmitAnswersV2View.
+    """
+    from vmlc.models import ExamAccess
+    from core.utils.cache import invalidate_candidate_cache
+    from django.utils import timezone
+    from datetime import timedelta
+
+    try:
+        access = ExamAccess.objects.select_related("candidate").get(pk=access_id)
+    except ExamAccess.DoesNotExist:
+        logger.warning(f"ExamAccess {access_id} not found for expiration task.")
+        return
+
+    # Check if still STARTED and deadline has passed
+    if access.status == ExamAccess.Status.STARTED:
+        if timezone.now() >= access.deadline:
+            access.status = ExamAccess.Status.EXPIRED
+            access.save(update_fields=["status"])
+
+            # Invalidate cache so candidate sees the expired status
+            invalidate_candidate_cache(access.candidate_id, access.candidate.user_id)
+
+            logger.info(
+                f"ExamAccess {access_id} marked as EXPIRED for candidate {access.candidate_id}"
+            )
+        else:
+            # If we're called before the grace period (unlikely given ETA),
+            # we could reschedule, but for now just log it.
+            logger.info(
+                f"ExamAccess {access_id} is still within grace period. No action taken."
+            )
+
+
+@shared_task(name="process_heartbeat_events_task")
+def process_heartbeat_events_task(heartbeat_id, events_data):
+    """
+    Background task to process violation events and update the suspicion score
+    for a given heartbeat.
+    """
+    from vmlc.services.proctoring import ProctoringService
+
+    logger.info(f"Processing events for heartbeat {heartbeat_id}")
+    ProctoringService.process_events_and_score(heartbeat_id, events_data)

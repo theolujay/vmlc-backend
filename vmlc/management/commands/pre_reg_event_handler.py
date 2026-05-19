@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 
 from identity.models import PreRegUser, User
 from vmlc.models import Event
-from vmlc.utils.events import log_event
+from core.utils.events import log_event
 
 
 class Command(BaseCommand):

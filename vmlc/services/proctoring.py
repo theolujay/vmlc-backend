@@ -8,7 +8,7 @@ from vmlc.models import ExamHeartbeat, ViolationEvent, ExamAccess
 logger = logging.getLogger(__name__)
 
 # Import heartbeat interval settings from serializers
-from vmlc.v2.serializers.proctoring import (
+from vmlc.serializers.proctoring import (
     HEARTBEAT_INTERVAL_MINUTES,
     HEARTBEAT_INTERVAL_TOLERANCE_SECONDS,
 )
@@ -85,12 +85,12 @@ class ProctoringService:
         )
 
         # Invalidate integrity audit cache
-        from vmlc.v2.utils import invalidate_integrity_audit_cache
+        from core.utils.cache import invalidate_integrity_audit_cache
 
         invalidate_integrity_audit_cache(exam_access.exam_id, exam_access.candidate_id)
 
         # Trigger the async task to process events and calculate score
-        from vmlc.v2.tasks import process_heartbeat_events_task
+        from vmlc.tasks import process_heartbeat_events_task
 
         # We pass only the data needed. events_data is a list of dicts.
         events_data = payload.get("events", [])
@@ -165,7 +165,7 @@ class ProctoringService:
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
         from comms.models import HelpdeskThread
-        from vmlc.v2.serializers.proctoring import CandidateLiveStatusV2Serializer
+        from vmlc.serializers.proctoring import CandidateLiveStatusV2Serializer
 
         try:
             thread = HelpdeskThread.objects.get(candidate=access.candidate)

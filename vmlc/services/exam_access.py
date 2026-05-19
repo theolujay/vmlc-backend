@@ -9,7 +9,7 @@ from competition.models import Enrollment, Competition
 from comms.models import Broadcast
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from vmlc.utils.exceptions import ServerError
+from core.utils.exceptions import ServerError
 
 logger = logging.getLogger(__name__)
 
@@ -196,8 +196,8 @@ class ExamAccessService:
         user = p_record.exam_access.candidate.user
         refresh = RefreshToken.for_user(user)
 
-        from vmlc.v2.utils import invalidate_candidate_cache
-        from vmlc.views.user.management import ProfileManager
+        from core.utils.cache import invalidate_candidate_cache
+        from identity.views.user.management import ProfileManager
 
         # Invalidate cache since status might change
         invalidate_candidate_cache(p_record.exam_access.candidate.pk, user.id)

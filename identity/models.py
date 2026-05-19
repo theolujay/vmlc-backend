@@ -15,8 +15,7 @@ from django.db.models import Avg, Count, F, Max, Min, Q, Sum, Window
 from django.db.models.functions import Rank
 from django.utils import timezone
 
-# TODO: move to core/utils/storage
-from vmlc.storage_backends import PrivateMediaStorage, PublicMediaStorage
+from core.storage_backends import PrivateMediaStorage, PublicMediaStorage
 from identity.validators import (
     validate_profile_picture,
     validate_face_id,
@@ -558,7 +557,7 @@ class Candidate(models.Model):
     @property
     def status(self):
         """Get the user status"""
-        from vmlc.utils.user import get_last_concluded_exam
+        from identity.utils.user import get_last_concluded_exam
 
         if not self.user.is_active:
             return "deactivated"

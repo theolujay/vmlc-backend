@@ -1,263 +1,127 @@
 """
-URL configuration for the API endpoints of the application.
-
-This module defines URL patterns for all API routes, including:
-- Authentication and JWT token handling
-- User registration (candidates and staff)
-- Candidate and staff management
-- Exams and questions
-- Dashboard and account operations
-- Leaderboard
-
-All views are organized and grouped by functionality for clarity.
+URL configuration for the v1 API endpoints.
 """
 
 from django.urls import path
 
 from .views import (
-    AccountManagementView,
-    AssignCandidateRoleView,
-    AssignStaffRoleView,
-    BulkAddQuestionsToExamsView,
-    BulkCandidateImportView,
-    BulkQuestionArchiveView,
-    BulkNotificationView,
-    BulkStaffImportView,
-    CandidateInviteView,
-    CandidateListView,
-    ExamDetailView,
-    ExamHistoryView,
-    ExamListView,
-    ExamQuestionsView,
-    ExamResultsView,
-    LoadLeaderboardDetailView,
-    LoadLeaderboardView,
-    LoginView,
-    LogoutView,
-    PasswordChangeOTPConfirmView,
-    PasswordChangeView,
-    PublishLeaderboardView,
-    QuestionDetailView,
-    QuestionExamAssociationView,
-    QuestionListView,
-    RefreshTokenView,
-    RegistrationMetricsView,
-    RequestPasswordChangeView,
-    ResetUserPasswordView,
-    ResendPasswordChangeOTPView,
-    SendEmailOTPView,
-    StaffInviteView,
-    StaffListView,
-    SubmitAnswersView,
-    UserActivityLogView,
-    UserDetailView,
-    UserExportView,
-    UserListView,
-    UserVerificationActionView,
-    UserVerificationDocumentView,
-    UserVerificationListView,
-    UserVerificationStatusView,
-    UserVerificationUploadView,
-    VerifyEmailOTPView,
-    candidate_take_exam,
-    health_check,
-    stats_overview,
-    registration_status,
+    ExamRetractV2View,
+    ExamTimeView,
+    ExamListV2View,
+    ExamDetailV2View,
+    ExamResultsV2View,
+    ExamQuestionsV2View,
+    ExamHistoryV2View,
+    ExamFaceCaptureView,
+    candidate_take_exam_V2,
+)
+from .views.proctoring import (
+    CandidateLiveStatusV2View,
+    ExamHeartbeatView,
+    IntegrityAuditView,
+    UpdateProctoringStatusView,
+)
+from .views.question import (
+    QuestionListCreateV2View,
+    QuestionDetailV2View,
+    QuestionBulkActionV2View,
+)
+from .views.answer import (
+    SubmitAnswersV2View,
+    AutoSaveAnswersV2View,
+    GetSavedAnswersV2View,
 )
 
 app_name = "vmlc"
 
 urlpatterns = [
     # =============================================================================
-    # HEALTH & ROOT
-    # =============================================================================
-    path("health/", health_check, name="health-check"),
-    path("registration/", registration_status, name="registration-status"),
-    # =============================================================================
-    # AUTHENTICATION
-    # =============================================================================
-    path("auth/login/", LoginView.as_view(), name="login"),
-    path("auth/logout/", LogoutView.as_view(), name="logout"),
-    path("auth/token/refresh/", RefreshTokenView.as_view(), name="token-refresh"),
-    # Password Change
-    path(
-        "auth/password-change/request/",
-        RequestPasswordChangeView.as_view(),
-        name="request-password-change",
-    ),
-    path(
-        "auth/password-change/confirm-otp/",
-        PasswordChangeOTPConfirmView.as_view(),
-        name="verify-password-change-otp",
-    ),
-    path(
-        "auth/password-change/",
-        PasswordChangeView.as_view(),
-        name="password-change",
-    ),
-    path(
-        "auth/password-change/resend-otp/",
-        ResendPasswordChangeOTPView.as_view(),
-        name="resend-password-change-otp",
-    ),
-    # Email Verification
-    path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
-    path("send-email-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
-    # User Document Verification
-    path(
-        "user/verification/status/",
-        UserVerificationStatusView.as_view(),
-        name="user-verification-status",
-    ),
-    path(
-        "user/verification/status/<uuid:user_id>/",
-        UserVerificationStatusView.as_view(),
-        name="user-verification-status-admin",
-    ),
-    path(
-        "user/verification/upload/",
-        UserVerificationUploadView.as_view(),
-        name="user-verification-upload",
-    ),
-    path(
-        "user/verification/documents/<str:file_type>/",
-        UserVerificationDocumentView.as_view(),
-        name="user-verification-document",
-    ),
-    path(
-        "user/verification/documents/<str:file_type>/<uuid:user_id>/",
-        UserVerificationDocumentView.as_view(),
-        name="user-verification-document-admin",
-    ),
-    path(
-        "user/verification/list/",
-        UserVerificationListView.as_view(),
-        name="user-verification-list",
-    ),
-    path(
-        "user/verification/action/<uuid:user_id>/",
-        UserVerificationActionView.as_view(),
-        name="user-verification-action",
-    ),
-    path("user/list/", UserListView.as_view(), name="user-list"),
-    path("user/export/", UserExportView.as_view(), name="user-export"),
-    path("user/bulk-notification/", BulkNotificationView.as_view(), name="user-bulk-notification"),
-    path("user/reset-password/", ResetUserPasswordView.as_view(), name="user-reset-password"),
-    path("user/activity/", UserActivityLogView.as_view(), name="user-activity"),
-    path("user/import/staff/", BulkStaffImportView.as_view(), name="user-import-staff"),
-    path("user/import/candidate/", BulkCandidateImportView.as_view(), name="user-import-candidate"),
-    # =============================================================================
-    # USER & ACCOUNT MANAGEMENT
-    # =============================================================================
-    path(
-        "account-management/",
-        AccountManagementView.as_view(),
-        name="account-management",
-    ),
-    path(
-        "account-management/<uuid:user_id>/",
-        AccountManagementView.as_view(),
-        name="account-management-detail",
-    ),
-    path("staff/invite/", StaffInviteView.as_view(), name="staff-invite"),
-    path("candidate/invite/", CandidateInviteView.as_view(), name="candidate-invite"),
-    # =============================================================================
-    # CANDIDATE MANAGEMENT
-    # =============================================================================
-    path("candidates/", CandidateListView.as_view(), name="candidate-list"),
-    path(
-        "candidates/<uuid:candidate_id>/",
-        UserDetailView.as_view(),
-        name="candidate-detail",
-    ),
-    path(
-        "candidates/<uuid:candidate_id>/roles/assign/",
-        AssignCandidateRoleView.as_view(),
-        name="candidate-role-assign",
-    ),
-    path(
-        "candidates/<uuid:candidate_id>/exam-history/",
-        ExamHistoryView.as_view(),
-        name="candidate-exam-history",
-    ),
-    # =============================================================================
-    # STAFF MANAGEMENT
-    # =============================================================================
-    path("staff/", StaffListView.as_view(), name="staff-list"),
-    path("staff/<uuid:staff_id>/", UserDetailView.as_view(), name="staff-detail"),
-    path(
-        "staff/<uuid:staff_id>/roles/assign/",
-        AssignStaffRoleView.as_view(),
-        name="staff-role-assign",
-    ),
-    # =============================================================================
     # EXAM & QUESTION MANAGEMENT
     # =============================================================================
-    # Exams
-    path("exams/", ExamListView.as_view(), name="exam-list"),
-    path("exams/<uuid:exam_id>/", ExamDetailView.as_view(), name="exam-detail"),
+    path("exams/", ExamListV2View.as_view(), name="exam-list"),
+    path("exams/<uuid:exam_id>/", ExamDetailV2View.as_view(), name="exam-detail"),
+    path(
+        "exams/<uuid:exam_id>/retract/",
+        ExamRetractV2View.as_view(),
+        name="exam-retract",
+    ),
     path(
         "exams/<uuid:exam_id>/questions/",
-        ExamQuestionsView.as_view(),
+        ExamQuestionsV2View.as_view(),
         name="exam-questions",
     ),
     path(
-        "exams/<uuid:exam_id>/results/", ExamResultsView.as_view(), name="exam-results"
+        "exams/<uuid:exam_id>/results/",
+        ExamResultsV2View.as_view(),
+        name="exam-results",
     ),
     # Questions
-    path("questions/", QuestionListView.as_view(), name="question-list"),
+    path("questions/", QuestionListCreateV2View.as_view(), name="question-list"),
     path(
         "questions/<int:question_id>/",
-        QuestionDetailView.as_view(),
+        QuestionDetailV2View.as_view(),
         name="question-detail",
     ),
     path(
-        "questions/<int:question_id>/exams/",
-        QuestionExamAssociationView.as_view(),
-        name="question-exam-associations",
-    ),
-    path(
-        "questions/bulk-add-to-exams/",
-        BulkAddQuestionsToExamsView.as_view(),
-        name="bulk-question-exam-associations",
-    ),
-    path(
-        "questions/bulk-archive/",
-        BulkQuestionArchiveView.as_view(),
-        name="bulk-question-archive",
+        "questions/bulk-action/",
+        QuestionBulkActionV2View.as_view(),
+        name="question-bulk-action",
     ),
     # =============================================================================
     # SUBMISSIONS & SCORING
     # =============================================================================
-    path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam, name="take-exam"),
+    path("exams/<uuid:exam_id>/take-exam/", candidate_take_exam_V2, name="take-exam"),
     path(
-        "exams/<uuid:exam_id>/submit-exam-answers/",
-        SubmitAnswersView.as_view(),
-        name="submit-exam-answers",
+        "exams/<uuid:exam_id>/face-capture/",
+        ExamFaceCaptureView.as_view(),
+        name="exam-face-capture",
     ),
-    # path(
-    #     "exams/<uuid:exam_id>/submit-exam-score/",
-    #     SubmitScoreView.as_view(),
-    #     name="submit-exam-score",
-    # ),
+    path(
+        "exams/<uuid:exam_id>/time/",
+        ExamTimeView.as_view(),
+        name="exam-time",
+    ),
+    path(
+        "exams/<uuid:exam_id>/heartbeat/",
+        ExamHeartbeatView.as_view(),
+        name="exam-heartbeat",
+    ),
+    path(
+        "exams/<uuid:exam_id>/candidates/<uuid:candidate_id>/live-status/",
+        CandidateLiveStatusV2View.as_view(),
+        name="candidate-live-status",
+    ),
+    path(
+        "exams/<uuid:exam_id>/candidates/<uuid:candidate_id>/integrity-audit/",
+        IntegrityAuditView.as_view(),
+        name="integrity-audit",
+    ),
+    path(
+        "exams/<uuid:exam_id>/candidates/<uuid:candidate_id>/update-status/",
+        UpdateProctoringStatusView.as_view(),
+        name="update-proctoring-status",
+    ),
+    path(
+        "exams/<uuid:exam_id>/submit/",
+        SubmitAnswersV2View.as_view(),
+        name="submit-exam",
+    ),
+    path(
+        "exams/<uuid:exam_id>/auto-save/",
+        AutoSaveAnswersV2View.as_view(),
+        name="auto-save-answers",
+    ),
+    path(
+        "exams/<uuid:exam_id>/saved-answers/",
+        GetSavedAnswersV2View.as_view(),
+        name="get-saved-answers",
+    ),
     # =============================================================================
-    # LEADERBOARD
+    # CANDIDATE MANAGEMENT
     # =============================================================================
-    path("leaderboard/", LoadLeaderboardView.as_view(), name="load-leaderboard"),
     path(
-        "leaderboard/publish/",
-        PublishLeaderboardView.as_view(),
-        name="publish-leaderboard",
-    ),
-    path(
-        "leaderboard/<str:stage>/<int:round>/candidate/<uuid:candidate_id>/",
-        LoadLeaderboardDetailView.as_view(),
-        name="load-leaderboard-detail",
-    ),
-    path("stats/overview/", stats_overview, name="stats-overview"),
-    path(
-        "stats/registration-trends/",
-        RegistrationMetricsView.as_view(),
-        name="registration-trends",
+        "candidates/<uuid:candidate_id>/exam-history/",
+        ExamHistoryV2View.as_view(),
+        name="candidate-exam-history",
     ),
 ]

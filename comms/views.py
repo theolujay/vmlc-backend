@@ -49,16 +49,16 @@ from identity.permissions import (
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
 )
-from vmlc.utils.helpers import sanitize_data
-from vmlc.utils.query_filters import (
+from core.utils.helpers import sanitize_data
+from core.utils.query_filters import (
     annotate_thread_with_last_message_sender_type,
     filter_broadcasts,
     filter_helpdesk_threads,
     annotate_thread_with_staff_unread_count,
     annotate_thread_with_last_candidate_message_at,
 )
-from vmlc.utils.stats import get_helpdesk_stats_cached
-from vmlc.v2.utils import CacheKeys, invalidate_notifications
+from competition.utils.stats import get_helpdesk_stats_cached
+from core.utils.cache import CacheKeys, invalidate_notifications
 
 
 logger = logging.getLogger(__name__)

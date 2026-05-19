@@ -1,3 +1,4 @@
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
@@ -42,7 +43,7 @@ from competition.services.candidate_dashboard import CandidateDashboardService
 from competition.services.promotion import PromotionService, PromotionError
 
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from vmlc.v2.utils import CacheKeys, get_or_set_cache
+from core.utils.cache import CacheKeys, get_or_set_cache
 from vmlc.services.proctoring import ProctoringService
 
 
@@ -56,7 +57,7 @@ class CandidateDashboardView(APIView):
     def get(self, request):
         candidate = request.user.candidate_profile
         enrollment = get_enrollment(request)
-        from vmlc.v2.utils import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache_key = CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate.pk)
 
@@ -570,3 +571,13 @@ class PromoteCandidatesView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+@api_view(["GET"])
+@permission_classes([ActiveVolunteerPermissions])
+def stats_overview(request):
+    logger.info("Stats overview request by %s", request.user.id)
+    from competition.utils.stats import generate_stats_overview_data
+
+    data = generate_stats_overview_data()
+    return Response(data)

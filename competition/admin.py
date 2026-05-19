@@ -2,13 +2,13 @@ from django.contrib import admin
 from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
-from vmlc.utils.exceptions import ValidationError
-from vmlc.v2.utils import (
+from core.utils.exceptions import ValidationError
+from core.utils.cache import (
     invalidate_score_boards,
     invalidate_candidate_cache,
     invalidate_exam_cache,
 )
-from vmlc.utils.helpers import invalidate_all_dashboard_caches
+from core.utils.helpers import invalidate_all_dashboard_caches
 from .models import (
     Competition,
     Stage,

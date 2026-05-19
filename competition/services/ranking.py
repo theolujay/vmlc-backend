@@ -12,7 +12,7 @@ from competition.models import (
 )
 from vmlc.models import CandidateExamResult, Exam, ExamAccess
 from identity.models import Candidate
-from vmlc.utils.functions import compute_exam_results
+from core.utils.functions import compute_exam_results
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +364,7 @@ class RankingSnapshotGenerator:
         Registers a post-commit hook to invalidate all ranking-related caches.
         candidate_ids and exam_id are captured explicitly to avoid closure issues.
         """
-        from vmlc.v2.utils import (
+        from core.utils.cache import (
             invalidate_staff_dashboard,
             invalidate_score_boards,
             invalidate_exam_cache,

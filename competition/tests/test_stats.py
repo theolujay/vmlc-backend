@@ -1,7 +1,7 @@
 # from django.test import TestCase
 # from competition.models import Competition, Stage, StageExam
 # from vmlc.models import Exam
-# from vmlc.utils.stats import generate_stats_overview_data
+# from competition.utils.stats import generate_stats_overview_data
 
 
 # class StatsOverviewDataTest(TestCase):

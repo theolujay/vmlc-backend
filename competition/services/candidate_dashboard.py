@@ -19,7 +19,7 @@ from competition.services.leaderboard import LeaderboardService
 from competition.services.eligibility import EligibilityService
 from identity.models import Candidate
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from vmlc.v2.utils import truncate_float
+from core.utils.cache import truncate_float
 
 logger = logging.getLogger(__name__)
 

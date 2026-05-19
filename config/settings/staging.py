@@ -26,10 +26,10 @@ AWS_S3_LOCATION_PREFIX = read_secret("AWS_S3_LOCATION_PREFIX", "staging")
 
 STORAGES = {
     "default": {
-        "BACKEND": "vmlc.storage_backends.PrivateMediaStorage",
+        "BACKEND": "core.storage_backends.PrivateMediaStorage",
     },
     "public": {
-        "BACKEND": "vmlc.storage_backends.PublicMediaStorage",
+        "BACKEND": "core.storage_backends.PublicMediaStorage",
     },
     "staticfiles": {
         "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage",
@@ -63,7 +63,7 @@ LOGGING = {
             "callback": lambda r: "GET /static/" not in r.getMessage(),
         },
         "sensitive_data": {
-            "()": "vmlc.log_filters.SensitiveDataFilter",
+            "()": "core.log_filters.SensitiveDataFilter",
         },
     },
     "formatters": {

@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from identity.models import (
-    Candidate,
     Staff,
     UserVerification,
 )
@@ -22,7 +21,7 @@ User = get_user_model()
 class HealthCheckTest(APITestCase):
 
     def test_health_check(self):
-        url = reverse("vmlc:health-check")
+        url = reverse("health-check")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -127,30 +126,4 @@ class QuestionEndpointsTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
-class DashboardEndpointsTest(APITestCase):
 
-    def setUp(self):
-        self.api_key, self.key = APIKey.objects.create_key(name="test-key")
-        self.client.credentials(HTTP_X_API_KEY=self.key)
-        self.candidate_user = User.objects.create_user(
-            email="candidate@example.com",
-            password="password123",
-            first_name="Candidate",
-            last_name="User",
-        )
-        self.candidate_profile = Candidate.objects.create(
-            user=self.candidate_user, school_name="Test School"
-        )
-
-        self.staff_user = User.objects.create_user(
-            email="staff@example.com",
-            password="password123",
-            first_name="Staff",
-            last_name="User",
-        )
-        self.staff_profile = Staff.objects.create(
-            user=self.staff_user, role=Staff.Roles.MODERATOR
-        )
-        self.verification = UserVerification.objects.create(
-            user=self.staff_user, is_approved=False
-        )

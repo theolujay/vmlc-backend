@@ -20,12 +20,13 @@ class AuthEndpointsTest(APITestCase):
         )
 
     def test_login(self):
-        url = reverse("vmlc:login")
+        url = reverse("identity:login")
         data = {"email": "testuser@example.com", "password": "password123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
+        self.assertNotIn("refresh", response.data)
+        self.assertIn("refresh", response.cookies)
 
 
 class LoginErrorTest(APITestCase):
@@ -40,14 +41,14 @@ class LoginErrorTest(APITestCase):
         )
 
     def test_login_invalid_password(self):
-        url = reverse("vmlc:login")
+        url = reverse("identity:login")
         data = {"email": "testuser@example.com", "password": "wrongpassword"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data["detail"], "Invalid email or password")
 
     def test_login_invalid_email(self):
-        url = reverse("vmlc:login")
+        url = reverse("identity:login")
         data = {"email": "wronguser@example.com", "password": "password123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

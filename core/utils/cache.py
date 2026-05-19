@@ -1,0 +1,262 @@
+import math
+from django.core.cache import cache
+
+from django.db.models import Count, Q
+
+
+DEFAULT_TTL = 86400  # 24h
+GRACE_PERIOD_MINUTES = 10
+
+
+class CacheKeys:
+    """Centralized cache key patterns."""
+
+    # Dashboards
+    CANDIDATE_DASHBOARD = "dash:cand:{candidate_id}"
+    CANDIDATE_DASHBOARD_V2 = "dash:cand:v2:{candidate_id}"
+    STAFF_DASHBOARD = "dash:staff:global"
+
+    # Competition
+    ENROLLMENT = "enrollment:{user_id}"
+    LEADERBOARD_LEAGUE_PUBLIC = "lb:league:public:latest"
+    LEADERBOARD_LEAGUE_INTERNAL = "lb:league:internal:latest"
+    RANKING_SNAPSHOT = "ranking:snapshot:{exam_id}"
+    RANKING_SNAPSHOT_ENTRY = "ranking:snapshot:entry:{exam_id}:{candidate_id}"
+    RANKING_SNAPSHOT_LIST = "ranking:snapshot:list"
+
+    # Exams
+    EXAM_DETAIL = "exam:detail:{exam_id}"
+    EXAM_TAKE_V2 = "exam:take:v2:{exam_id}"
+    EXAM_QUESTIONS = "exam:questions:{exam_id}"
+    EXAM_RESULTS = "exam:results:{exam_id}"
+    CANDIDATE_EXAM_HISTORY = "cand:history:{candidate_id}"
+    INTEGRITY_AUDIT = "proctoring:integrity:{exam_id}:{candidate_id}"
+
+    # Questions
+    QUESTION_POOL = "pool:questions"
+
+    # Identity & Account
+    USER_ACCOUNT_MANAGEMENT = "user:account:{user_id}"
+    USER_VERIFICATION = "user:verification:{user_id}"
+    CANDIDATE_PROFILE = "cand:profile:{user_id}"
+    CANDIDATE_DETAIL = "cand:detail:{user_id}"
+    CANDIDATE_DETAIL_BY_PK = "cand:detail:pk:{candidate_id}"
+    STAFF_PROFILE = "staff:profile:{user_id}"
+    STAFF_DETAIL_BY_PK = "staff:detail:pk:{staff_id}"
+    STAFF_DASHBOARD_DATA = "staff:dashboard:{user_id}"
+
+    # Metrics & Status
+    REGISTRATION_METRICS = "metrics:registration"
+    REGISTRATION_STATUS = "status:registration"
+    STATS_OVERVIEW = "status:stats:overview"
+    STATS_CANDIDATES = "status:stats:candidates"
+    STATS_STAFF = "status:stats:staff"
+    STATS_EXAMS = "status:stats:exams"
+    STATS_COMPETITION = "status:stats:competition"
+    STATS_HELPDESK = "status:stats:helpdesk"
+    STATS_FUNNEL = "status:stats:funnel"
+    STATS_GEOGRAPHICS = "status:stats:geographics"
+
+    # Feature Flags
+    FEATURE_FLAG = "feature:flag:{key}"
+
+    # Broadcasts
+    BROADCAST_DETAIL = "broadcast_detail_{broadcast_id}"
+    BROADCAST_SUMMARY = "broadcast_summary_data"
+
+    # Notifications
+    NOTIFICATIONS_VERSION = "notifications_version_{user_id}"
+    NOTIFICATIONS_LIST = "notifications_{user_id}_{version}_{query_hash}"
+    NOTIFICATION_STATS = "notification_stats_{user_id}_{version}"
+
+    # Helpdesk
+    HELPDESK_THREAD_DETAIL = "helpdesk:thread:detail:{thread_id}"
+    HELPDESK_THREADS_VERSION_STAFF = "helpdesk_threads_version_staff"
+    HELPDESK_THREAD_LIST_STAFF = (
+        "helpdesk:threads:staff:{user_id}_{version}_{query_hash}"
+    )
+
+    # Legacy keys (for invalidation during transition)
+    _LEGACY_CANDIDATE_DASHBOARD = "candidate_dashboard_{candidate_id}"
+    _LEGACY_CANDIDATE_DASHBOARD_V2 = "candidate_dashboard_v2_{candidate_id}"
+    _LEGACY_ACCOUNT_MANAGEMENT = "account_management_{user_id}"
+    _LEGACY_USER_VERIFICATION = "user_verification_status_{user_id}"
+    _LEGACY_CANDIDATE_PROFILE = "candidate_profile_{user_id}"
+    _LEGACY_CANDIDATE_DETAIL = "candidate_detail_{user_id}"
+    _LEGACY_STAFF_PROFILE = "staff_profile_{user_id}"
+    _LEGACY_STAFF_DASHBOARD = "staff_dashboard_data_{user_id}"
+    _LEGACY_EXAM_HISTORY = "exam_history_{user_id}"
+    _LEGACY_QUESTION_POOL = "question_pool_data"
+    _LEGACY_REGISTRATION_STATUS = "registration_status"
+    _LEGACY_FEATURE_FLAG = "feature_flag_{key}"
+
+    @classmethod
+    def get_candidate_keys(cls, candidate_id, user_id=None):
+        keys = [
+            cls.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
+            cls.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
+            cls.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id),
+            cls._LEGACY_CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
+            cls._LEGACY_CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
+        ]
+        if user_id:
+            keys.extend(
+                [
+                    cls.ENROLLMENT.format(user_id=user_id),
+                    cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+                    cls.USER_VERIFICATION.format(user_id=user_id),
+                    cls.CANDIDATE_PROFILE.format(user_id=user_id),
+                    cls.CANDIDATE_DETAIL.format(user_id=user_id),
+                    cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+                    cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),
+                    cls._LEGACY_CANDIDATE_PROFILE.format(user_id=user_id),
+                    cls._LEGACY_CANDIDATE_DETAIL.format(user_id=user_id),
+                    cls._LEGACY_EXAM_HISTORY.format(user_id=user_id),
+                ]
+            )
+        return keys
+
+    @classmethod
+    def get_user_keys(cls, user_id):
+        return [
+            cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+            cls.USER_VERIFICATION.format(user_id=user_id),
+            cls.CANDIDATE_PROFILE.format(user_id=user_id),
+            cls.CANDIDATE_DETAIL.format(user_id=user_id),
+            cls.STAFF_PROFILE.format(user_id=user_id),
+            cls.STAFF_DASHBOARD_DATA.format(user_id=user_id),
+            cls.ENROLLMENT.format(user_id=user_id),
+            cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+            cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),
+            cls._LEGACY_CANDIDATE_PROFILE.format(user_id=user_id),
+            cls._LEGACY_CANDIDATE_DETAIL.format(user_id=user_id),
+            cls._LEGACY_STAFF_PROFILE.format(user_id=user_id),
+            cls._LEGACY_STAFF_DASHBOARD.format(user_id=user_id),
+            cls._LEGACY_EXAM_HISTORY.format(user_id=user_id),
+        ]
+
+    @classmethod
+    def get_staff_keys(cls, user_id):
+        return [
+            cls.STAFF_PROFILE.format(user_id=user_id),
+            cls.STAFF_DASHBOARD_DATA.format(user_id=user_id),
+            cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+            cls._LEGACY_STAFF_PROFILE.format(user_id=user_id),
+            cls._LEGACY_STAFF_DASHBOARD.format(user_id=user_id),
+            cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
+        ]
+
+    @classmethod
+    def get_exam_keys(cls, exam_id):
+        return [
+            cls.EXAM_DETAIL.format(exam_id=exam_id),
+            cls.EXAM_TAKE_V2.format(exam_id=exam_id),
+            cls.EXAM_QUESTIONS.format(exam_id=exam_id),
+            cls.EXAM_RESULTS.format(exam_id=exam_id),
+            cls.RANKING_SNAPSHOT.format(exam_id=exam_id),
+        ]
+
+
+def get_or_set_cache(key, fn, ttl=DEFAULT_TTL):
+    data = cache.get(key)
+    if data is not None:
+        return data
+    data = fn()
+    cache.set(key, data, ttl)
+    return data
+
+
+def delete_many_cache(keys):
+    cache.delete_many(keys)
+
+
+def invalidate_candidate_cache(candidate_id, user_id=None):
+    effective_user_id = user_id or candidate_id
+    keys = CacheKeys.get_candidate_keys(candidate_id, effective_user_id)
+    delete_many_cache(keys)
+
+
+def invalidate_user_cache(user_id):
+    keys = CacheKeys.get_user_keys(user_id)
+    delete_many_cache(keys)
+
+
+def invalidate_staff_cache(user_id):
+    keys = CacheKeys.get_staff_keys(user_id)
+    delete_many_cache(keys)
+
+
+def invalidate_exam_cache(exam_id):
+    keys = CacheKeys.get_exam_keys(exam_id)
+    delete_many_cache(keys)
+
+    detail_pattern = f"{CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)}*"
+    try:
+        cache.delete_pattern(detail_pattern)
+    except (AttributeError, NotImplementedError):
+        pass
+
+
+def invalidate_integrity_audit_cache(exam_id, candidate_id):
+    cache.delete(
+        CacheKeys.INTEGRITY_AUDIT.format(exam_id=exam_id, candidate_id=candidate_id)
+    )
+
+
+def invalidate_staff_dashboard():
+    cache.delete(CacheKeys.STAFF_DASHBOARD)
+    cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:internal")
+    cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:public")
+
+
+def invalidate_score_boards(exam_id=None):
+    cache.delete(CacheKeys.LEADERBOARD_LEAGUE_PUBLIC)
+    cache.delete(CacheKeys.LEADERBOARD_LEAGUE_INTERNAL)
+    cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
+
+
+def invalidate_question_pool():
+    cache.delete(CacheKeys.QUESTION_POOL)
+    cache.delete(CacheKeys._LEGACY_QUESTION_POOL)
+
+
+def invalidate_feature_flag(key):
+    cache.delete(CacheKeys.FEATURE_FLAG.format(key=key))
+    cache.delete(CacheKeys._LEGACY_FEATURE_FLAG.format(key=key))
+
+
+def invalidate_registration_status():
+    cache.delete(CacheKeys.REGISTRATION_STATUS)
+    cache.delete(CacheKeys._LEGACY_REGISTRATION_STATUS)
+
+
+def invalidate_notifications(user_id):
+    version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user_id)
+    try:
+        cache.incr(version_key)
+    except ValueError:
+        cache.set(version_key, 1, 86400)
+
+    pattern = f"notifications_{user_id}_*"
+    try:
+        cache.delete_pattern(pattern)
+    except (AttributeError, NotImplementedError):
+        pass
+
+
+def question_pool_aggregate(qs):
+    from vmlc.models import Question
+
+    return qs.aggregate(
+        total_questions=Count("id"),
+        hard_questions_count=Count("id", filter=Q(difficulty=Question.Difficulty.HARD)),
+        moderate_questions_count=Count(
+            "id", filter=Q(difficulty=Question.Difficulty.MODERATE)
+        ),
+        easy_questions_count=Count("id", filter=Q(difficulty=Question.Difficulty.EASY)),
+    )
+
+
+def truncate_float(val):
+    factor = 10.0**2
+    return math.trunc(val * factor) / factor

@@ -15,10 +15,6 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(lambda: [n.name for n in apps.get_app_configs()])
 
 app.conf.beat_schedule = {
-    "update-staff-dashboard-cache-every-30-minutes": {
-        "task": "update_staff_dashboard_cache_task",
-        "schedule": crontab(minute="0,15"),
-    },
     "notify-prereg-users-every-4-days": {
         "task": "notify_prereg_users_via_whatsapp_task",
         "schedule": crontab(minute=0, hour=10, day_of_month="*/4"),

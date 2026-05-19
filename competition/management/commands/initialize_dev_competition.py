@@ -20,10 +20,8 @@ from identity.models import (
 from vmlc.models import (
     CandidateAnswer,
     CandidateExamResult,
-    CandidateExamResultSnapshot,
     Exam,
     FeatureFlag,
-    LeaderboardSnapshot,
     Question,
 )
 from competition.models import (
@@ -144,8 +142,6 @@ class Command(BaseCommand):
         Question.objects.all().delete()
         Enrollment.objects.all().delete()
         EnrollmentStageProgress.objects.all().delete()
-        LeaderboardSnapshot.objects.all().delete()
-        CandidateExamResultSnapshot.objects.all().delete()
 
     def _generate_nigerian_phone(self):
         prefix = random.choice(["070", "080", "081", "090", "091"])

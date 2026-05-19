@@ -41,16 +41,16 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-    "drf_yasg",
     "django_filters",
     "storages",
     "django_celery_results",
     "django_celery_beat",
     "channels",
+    "core",
+    "comms",
+    "competition",
     "identity",
     "vmlc",
-    "competition",
-    "comms",
 ]
 
 MIDDLEWARE = [
@@ -178,7 +178,7 @@ if USE_S3:
     AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024
 
     STORAGES = {
-        "default": {"BACKEND": "vmlc.storage_backends.PrivateMediaStorage"},
+        "default": {"BACKEND": "core.storage_backends.PrivateMediaStorage"},
         "staticfiles": {
             "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage"
         },
@@ -275,15 +275,16 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-    "DEFAULT_PAGINATION_CLASS": "vmlc.pagination.StandardResultsSetPagination",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 50,
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 SWAGGER_USE_COMPAT_RENDERERS = False
 
@@ -293,7 +294,7 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = (
-    str(read_secret("CORS_ALLOW_CREDENTIALS", "false")).lower() == "true"
+    str(read_secret("CORS_ALLOW_CREDENTIALS", "true")).lower() == "true"
 )
 CORS_ALLOW_ALL_ORIGINS = (
     str(read_secret("CORS_ALLOW_ALL_ORIGINS", "false")).lower() == "true"
@@ -349,7 +350,7 @@ CELERY_TASK_ROUTES = {
     "send_broadcast_task": {"queue": "comms", "priority": 8},
     "broadcast_staff_helpdesk_update_task": {"queue": "comms", "priority": 7},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
-    "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
+    # "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
     # "validate_user_verification_files_task": {"queue": "files", "priority": 5},
     # "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
     "generate_results_snapshot_task": {"queue": "reports", "priority": 3},

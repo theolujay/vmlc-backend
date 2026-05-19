@@ -1,16 +1,13 @@
 import io
 from PIL import Image
 from django.urls import reverse
-from django.test import TestCase
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
 
 from identity.models import User, Candidate, Staff, PreRegUser
 from vmlc.models import FeatureFlag
-from vmlc.serializers import CandidateRegistrationSerializer
-
-
 def generate_photo_file(name="test.jpg"):
     file = io.BytesIO()
     image = Image.new("RGB", (100, 100))
@@ -18,36 +15,6 @@ def generate_photo_file(name="test.jpg"):
     file.name = name
     file.seek(0)
     return file
-
-
-class CandidateRegistrationSerializerTest(TestCase):
-
-    def test_valid_data(self):
-        data = {
-            "email": "newcandidate@example.com",
-            "first_name": "New",
-            "last_name": "Candidate",
-            "phone": "08012345678",
-            "password": "testpassword123",
-            "password2": "testpassword123",
-            "school_name": "New School",
-        }
-        serializer = CandidateRegistrationSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-
-    def test_password_mismatch(self):
-        data = {
-            "email": "newcandidate@example.com",
-            "first_name": "New",
-            "last_name": "Candidate",
-            "phone": "08012345678",
-            "password": "newpassword123",
-            "password2": "wrongpassword",
-            "school_name": "New School",
-        }
-        serializer = CandidateRegistrationSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("password2", serializer.errors)
 
 
 class RegistrationV2Tests(APITestCase):
@@ -60,7 +27,7 @@ class RegistrationV2Tests(APITestCase):
             key="staff_registration", defaults={"value": True}
         )
 
-        self.url = reverse("vmlc-v2:register")
+        self.url = reverse("identity:register")
 
     def test_candidate_missing_fields(self):
         data = {
@@ -182,7 +149,7 @@ class RegistrationV2Tests(APITestCase):
 
 class PreRegistrationTestCase(APITestCase):
     def setUp(self):
-        self.url = reverse("vmlc-v2:pre-register")
+        self.url = reverse("identity:pre-register")
 
         self.valid_payload = {
             "full_name": "Test User",

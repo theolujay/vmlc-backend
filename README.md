@@ -1,162 +1,258 @@
-**Project Overview**
+<div align="center">
+  <h1>VMLC Backend</h1>
+  <p>
+    <strong>Django/DRF ASGI backend for the Verboheit Math League</strong><br>
+    A free annual mathematics competition for Nigerian senior secondary students.<br>
+    Powers candidate exam-taking, automated scoring, and real-time leaderboards,<br>
+    alongside staff management, proctoring, and dashboards.
+  </p>
+</div>
 
-- **Name:** `vmlc-backend` — backend service for the Verboheit Mathematics League Competition (VMLC).
-- **Purpose:** Provide APIs and real-time channels for participant registration, exams, scoring, leaderboards, and administrative workflows.
-## Project Overview
+---
 
--   **Name:** `vmlc-backend` — backend service for the Verboheit Mathematics League Competition (VMLC).
--   **Purpose:** Provide HTTP APIs and real-time channels for participant registration, exams, scoring, leaderboards, and administrative workflows. The backend favors short-lived API responses and offloads heavy work (scoring, file validation, notifications) to Celery.
+## About
 
-## Architecture (detailed)
+The **Verboheit Mathematics League Competition (VMLC)** is a free annual mathematics competition for senior secondary school students (SS1–SS3) across Nigeria — Lagos, Ogun, Rivers, Cross River, and Abuja.
 
--   **HTTP API (REST):** Built with Django 5.x + Django REST Framework. Core business logic (models, serializers, viewsets) is in `vmlc/`. APIs follow DRF patterns with serializers in `vmlc/serializers/` and API routers registered in `config/urls.py` and `vmlc/urls.py`.
--   **Real-time (WebSockets):** Implemented using `channels` + `daphne`. ASGI routing is wired in `config/asgi.py` which mounts `comms.routing.websocket_urlpatterns` behind `comms.middleware.DualAuthMiddlewareStack` (a custom auth stack that allows token and session fallback). Consumers and broadcast logic live in `comms/` and some consumers also in `vmlc/consumers.py`.
--   **Background processing (Celery):** Celery is configured in `config/celery.py` and tasks are auto-discovered from installed apps. Workers run with named queues; the development compose file launches a `celery_worker` and `celery_beat`. Queue names used in `compose.dev.yml` include: `default,emails,comms,scoring,files,reports,cache` — keep new tasks aligned to these queues when possible.
--   **Persistence & Storage:** PostgreSQL is the primary DB. Redis is used for caching and as the Celery broker. Media storage uses AWS S3 via `django-storages` and `boto3` (signed URLs and storage backends are implemented in `vmlc/storage_backends.py`).
--   **Observability:** OpenTelemetry instrumentation is present; OTEL env vars are set in `compose.*.yml`. Grafana dashboards and Prometheus config live in `grafana/` and `prometheus.yml`.
+This backend service powers the entire competition lifecycle: candidate registration and verification, multi-stage exam delivery, automated scoring, cumulative leaderboards, real-time communications, and staff administration tools.
 
-## Environment Configuration
+---
 
-The project uses environment variables for sensitive data and deployment-specific settings. A template file, `.example.env`, lists all possible environment variables used across different environments.
+## Features
 
-To configure your environment:
+### For Candidates
+- **Registration & Identity Verification** — Email OTP, document upload, facial capture
+- **Multi-stage Exams** — Screening (MCQ) → 6-Week League → Knockout Final
+- **Real-time Leaderboards** — Cumulative league table updated after each round
+- **Proctoring** — Heartbeat telemetry, violation tracking, QR-based exam unlock
+- **Notifications** — In-app, email, SMS, and WhatsApp broadcasts
 
-1.  **Create an environment-specific file:**
-    *   For local development (without Docker): Create a `.env` file in the project root.
-    *   For Dockerized local development: Create a `.env` file in the project root.
-    *   For staging deployment: Create a `staging.env` file in the project root.
-    *   For production deployment: Create a `prod.env` file in the project root.
+### For Staff
+- **Candidate & Enrollment Management** — Registration review, stage promotion
+- **Exam Authoring & Administration** — Question banks, scheduling, delivery modes
+- **Helpdesk** — Thread-based support with auto-assignment and escalation
+- **Dashboards & Analytics** — Real-time staff dashboard with cached aggregation
+- **Ranking & Results Publishing** — Snapshot-based ranking with scheduled publishing
 
-2.  **Copy variables from `.example.env`:** Copy the contents of `.example.env` into your newly created environment file (e.g., `.env`) and fill in the appropriate values.
+---
 
-3.  **Set `DJANGO_SETTINGS_MODULE`:** This crucial environment variable tells Django which settings file to load.
-    *   `config.settings.dev` for local development (without Docker).
-    *   `config.settings.docker_dev` for local development (with Docker).
-    *   `config.settings.staging` for staging deployments.
-    *   `config.settings.prod` for production deployments.
+## Competition Stages
 
-    *Example for local development (`.env` file):*
-    ```
-    DJANGO_SETTINGS_MODULE=config.settings.dev
-    SECRET_KEY=your_secret_key
-    DEBUG=True
-    # ... other variables
-    ```
-    *Note: `manage.py` and `wsgi.py` usually set a default `DJANGO_SETTINGS_MODULE`. Ensure your specific environment overrides it if necessary.*
+| Stage | Format | Details |
+|---|---|---|
+| **Screening** | Online MCQ | Initial qualifying round; cutoff score determines advancement |
+| **League** | Weekly quizzes × 6 weeks | Cumulative standings; top 10 advance to final |
+| **Final** | In-person exam | Knockout round among top 10 candidates |
 
-## Key Files & Directories (expanded)
+Questions are drawn from the senior secondary mathematics curriculum (WAEC, JAMB, SAT).
 
--   `vmlc/` — core app: models (`vmlc/models.py`), view logic (`vmlc/views.py`), serializers (`vmlc/serializers/`), and application tasks (`vmlc/tasks.py`). Look here first for domain logic (exams, candidates, scoring).
--   `comms/` — real-time module: `consumers.py`, `middleware.py` (check `DualAuthMiddlewareStack`), `routing.py`, `tasks.py` and `utils.py` used by broadcasts and websocket handlers. Review `comms/tests.py` for consumer test patterns.
--   `config/` — project bootstrap: `asgi.py` (ASGI app + websocket stack), `wsgi.py`, `celery.py` (beat schedule + autoload), and `urls.py` (API routes + health endpoints).
--   `scripts/` — container lifecycle helpers: `entrypoint.sh`, `runmigrations.sh` (DB wait, migrate, collectstatic for prod), `runserver.sh`. These are executed by containers; keep changes minimal and robust to missing env vars.
--   `compose.*.yml` & `Dockerfile` — how the app is built and composed locally and in staging/prod. `Dockerfile` defines multiple stages (`development`, `test`, `staging`, `production`) — use the `development` stage for local iterative work.
+---
 
-## Developer Workflows & Commands (practical tips)
+## Tech Stack
 
--   Start the full development environment (recommended):
+| Layer | Technology |
+|---|---|
+| **Framework** | Django 5.2, Django REST Framework 3.16 |
+| **ASGI Server** | Uvicorn + Gunicorn |
+| **Real-time** | Django Channels 4, Redis channel layer |
+| **Background Jobs** | Celery 5.5, Celery Beat, Redis broker |
+| **Database** | PostgreSQL 17 |
+| **Cache / Broker** | Redis 7 |
+| **Storage** | AWS S3 via django-storages (public & private) |
+| **Auth** | JWT (SimpleJWT), API keys, session fallback |
+| **Observability** | OpenTelemetry, Prometheus, Grafana, structured JSON logging |
+| **Monitoring** | django-health-check, django-prometheus |
 
-    ```bash
-    docker compose -f compose.yml -f compose.dev.yml up --build
-    docker compose exec django python manage.py migrate
-    ```
+---
 
-    Notes:
-    -   The compose file uses service names `django`, `db`, `redis`, `celery_worker`, `celery_beat`. `db-migrate` runs `./scripts/runmigrations.sh` to perform safer migrations with readiness checks.
-    -   If you change the Docker image or Python deps, rebuild the image and bring containers down first:
+## Architecture
 
-    ```bash
-    docker compose -f compose.yml -f compose.dev.yml down --volumes --remove-orphans
-    docker compose -f compose.yml -f compose.dev.yml up --build
-    ```
+```
+                    HTTP                          WebSocket
+                      |                              |
+                ┌─────┴─────┐              ┌────────┴────────┐
+                │  Uvicorn  │              │   Daphne/ASGI   │
+                │  (Gunicorn)│              │  (Channels)     │
+                └─────┬─────┘              └────────┬────────┘
+                      │                              │
+                ┌─────┴──────────────────────────────┴────────┐
+                │               ProtocolTypeRouter             │
+                │        (config/asgi.py)                      │
+                └─────┬──────────────────────────────┬────────┘
+                      │                              │
+                ┌─────┴─────┐              ┌────────┴────────┐
+                │  REST API  │              │   WebSocket     │
+                │  (DRF)    │              │   Consumers     │
+                └─────┬─────┘              └────────┬────────┘
+                      │                              │
+          ┌───────────┼───────────┬──────────────────┘
+          │           │           │
+    ┌─────┴────┐ ┌───┴───┐ ┌────┴────┐
+    │ vmlc/    │ │identity│ │comms/   │
+    │ (exams,  │ │ (users,│ │(realtime,│
+    │ scoring) │ │ auth)  │ │ support)│
+    └──────────┘ └───────┘ └─────────┘
+          │
+    ┌─────┴────┐
+    │competition│
+    │(stages,  │
+    │rankings) │
+    └──────────┘
+          │
+    ┌─────┴──────────────────────┐
+    │        Celery Workers       │
+    │  scoring │ emails │ comms  │
+    │  files   │ reports│ cache  │
+    └────────────────────────────┘
+```
 
--   Running locally without Docker (development loop):
+The backend is fully ASGI — HTTP and WebSocket traffic share the same port. Heavy operations (scoring, ranking computation, notification dispatch, file processing) are offloaded to Celery workers across named queues.
 
-    ```bash
-    # Ensure DJANGO_SETTINGS_MODULE is set in your shell or .env file (see Environment Configuration section)
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    python manage.py migrate
-    python manage.py runserver
-    ```
+---
 
--   Running tests:
+## Project Structure
 
-    ```bash
-    pytest
-    # or run tests for an app
-    pytest vmlc/tests
-    ```
+```
+config/              Django project bootstrap
+├── settings/        Environment-specific settings (dev, prod, staging, docker_dev)
+├── asgi.py          ASGI application + WebSocket routing
+├── celery.py        Celery app + beat schedule
+└── urls.py          API route registration
 
-    Tips:
-    -   For quick shell work use: `docker compose exec django python manage.py shell`.
+identity/            User & authentication
+├── models.py        User, Candidate, Staff, EmailOTP, CowrywiseKidProfile
+├── permissions.py   Role hierarchy (superadmin → volunteer)
+└── views.py         Registration, login, verification, profile
 
-## Conventions & Patterns to Preserve (detailed)
+vmlc/                Core exam engine
+├── models.py        Exam, Question, CandidateExamResult, Heartbeat, ViolationEvent
+├── serializers/     DRF serializers
+├── views.py         Exam-taking, scoring, leaderboards
+├── consumers.py     WebSocket consumers for proctoring
+├── tasks.py         Celery tasks (scoring, ranking, notifications)
+└── storage_backends.py  S3 public/private storage backends
 
--   Environment-driven settings: Settings are loaded based on `DJANGO_SETTINGS_MODULE` and environment-specific `.env` files. Refer to the [Environment Configuration](#environment-configuration) section for details.
--   Task discovery and queues: Celery uses `app.autodiscover_tasks()`; task functions are registered by name and routed to queues by the worker `-Q` argument in `compose.dev.yml`. Add new queues in both `compose` files and worker startup flags if needed.
--   WebSocket authentication: `DualAuthMiddlewareStack` supports multiple auth schemes (session & token). Modify middleware with caution — tests for `comms/test_consumers.py` illustrate expected behaviors.
--   Migrations & startup: `scripts/runmigrations.sh` contains strict checks (DB readiness, Django system checks). Avoid adding long-running initialization steps to this script; it's intended to be idempotent and fast.
+competition/         Competition lifecycle
+├── models.py        Competition, Stage, StageExam, Enrollment, RankingSnapshot
+├── views.py         Dashboards, rankings, leaderboards, promotions
+└── tasks.py         Celery tasks (cache updates, notifications)
 
-## Integration & Infra Notes (concrete)
+comms/               Communications & real-time
+├── consumers.py     Unified WebSocket consumer (notifications, helpdesk, broadcasts)
+├── middleware.py     DualAuthMiddlewareStack (JWT / session / API key)
+├── models.py        HelpdeskThread, Broadcast, Notification, BackupLog
+├── tasks.py         Celery tasks (broadcast dispatch, email, SMS)
+└── routing.py       WebSocket URL patterns
 
--   S3 / Storage:
-    -   `django-storages` and `boto3` dependencies are present. Storage backends live in `vmlc/storage_backends.py` — review for signed URL generation and bucket naming conventions before changing behavior.
+scripts/             Container lifecycle entrypoints
+docker/              Docker support files
+infra/               Infrastructure / deployment manifests
+```
 
--   OpenTelemetry & Metrics:
-    -   OTEL is enabled in compose via `OTEL_EXPORTER_OTLP_ENDPOINT` and related env vars. Instrumentation packages are listed in `requirements.txt` and `pyproject.toml`. Avoid duplicate instrumentation in both middleware and app startup.
+---
 
--   Deployment & CI:
-    -   Deployment manifests live in `stack.*.yml` GitHub Actions workflows are in `.github/workflows/` (`deploy-staging.yml`, `deploy-prod.yml`) — coordinate infra changes with ops.
+## Quick Start
 
-## Examples
+### Using Docker (recommended)
 
-1)  Minimal Celery task skeleton (place in `vmlc/tasks.py` or `vmlc/tasks/<module>.py`):
+```bash
+cp .example.env .env
+docker compose up --build
+```
 
-    ```python
-    from celery import shared_task
+Migrations run automatically via the `db-migrate` service. The Django server, Celery worker, and Celery beat all start once migrations complete.
 
-    @shared_task(name='recalculate_leaderboard')
-    def recalculate_leaderboard(league_id):
-            # Import inside task to avoid startup cost
-            from vmlc.models import Leaderboard
+The API is available at `http://localhost:8000`. Swagger docs at `/docs/swagger/`.
 
-            # Implementation: fetch candidates, compute results, persist snapshot
-            Leaderboard.recalculate_for_league(league_id)
+### Local Development
 
-            return True
-    ```
+Requires Python 3.13, PostgreSQL, and Redis.
 
-    Notes: use short, stable task `name=` values for backward compatibility with worker queues and monitoring.
+```bash
+python -m venv .venv && source .venv/bin/activate
+cp .example.env .env
+uv sync
+python manage.py migrate
+python manage.py runserver
+```
 
-2)  Minimal WebSocket consumer skeleton (in `comms/consumers.py` or a new file):
+### Running Tests
 
-    ```python
-    from channels.generic.websocket import AsyncJsonWebsocketConsumer
+```bash
+pytest
+pytest vmlc/tests        # App-specific tests
+pytest comms/tests       # WebSocket consumer tests
+```
 
-    class NotificationsConsumer(AsyncJsonWebsocketConsumer):
-            async def connect(self):
-                    # `DualAuthMiddlewareStack` ensures `scope["user"]` may be set
-                    if not self.scope.get('user') or not self.scope['user'].is_authenticated:
-                            await self.close()
-                            return
-                    await self.accept()
+---
 
-            async def receive_json(self, content, **kwargs):
-                    # Handle client messages
-                    await self.send_json({"echo": content})
+## Configuration
 
-            async def disconnect(self, code):
-                    pass
-    ```
+The project uses environment-driven settings via `DJANGO_SETTINGS_MODULE`:
 
-    Register in `comms/routing.py` and ensure `config/asgi.py` mounts the `comms.routing.websocket_urlpatterns` with the `DualAuthMiddlewareStack`.
+| Environment | Settings Module | Config File |
+|---|---|---|
+| Local dev | `config.settings.dev` | `.env` |
+| Docker dev | `config.settings.docker_dev` | `.env` |
+| Test | `config.settings.test` | `.env` |
+| Staging | `config.settings.staging` | `.env.staging` |
+| Production | `config.settings.prod` | `.env.prod` |
 
-## Quick Editing Checklist
+See `.example.env` for all available variables.
 
--   Run linting and tests after changes: `pytest`, `pylint` (configured in `pyproject.toml`).
--   If changing Celery tasks/queues, update `compose.*.yml` worker `- -Q` flags and add beat entries in `config/celery.py` if periodic.
--   If changing auth or middleware: update `comms/tests.py` and `vmlc/tests` to cover token/session fallbacks.
+---
 
+## API Documentation
 
+Interactive API docs are available when the server is running:
+
+- **Swagger UI** — `/docs/swagger/`
+- **ReDoc** — `/docs/redoc/`
+- **OpenAPI Schema** — `/docs/schema.json`, `/docs/schema.yaml`
+
+### API Versions
+
+| Version | Prefix | Namespace |
+|---|---|---|
+| v1 | `/v1/` | Exams, questions, results, candidate management |
+| v2 | `/v2/` | Refined registration, proctoring, auto-save, integrity audit |
+
+---
+
+## Deployment
+
+CI/CD is managed via GitHub Actions (`.github/workflows/`):
+
+| Branch | Environment | Pipeline |
+|---|---|---|
+| `release` / `preview` | Staging | Build, test, deploy to staging infra |
+| `main` | Production | Build, test, deploy to production infra |
+
+Both pipelines include: Docker image build → push to GHCR → Docker Stack Deploy → health verification → Slack notification.
+
+---
+
+## Contributing
+
+1. Create a feature branch from `main`
+2. Make your changes
+3. Run `pytest` and ensure all tests pass
+4. Open a pull request against `main`
+
+### Code Style
+
+- Python: Black (88 chars), isort, Ruff
+- Linting: `pylint` (configured in pyproject.toml)
+- Type checking: MyPy-compatible type hints encouraged
+
+---
+
+<div align="center">
+  <p>
+    <a href="https://verboheit.org">Verboheit.org</a> ·
+    <a href="https://vmlc.verboheit.org">VMLC Landing</a>
+  </p>
+  <p>
+    Built by <a href="https://verboheit.org">Verboheit Consulting</a>
+  </p>
+</div>
