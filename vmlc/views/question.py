@@ -25,7 +25,7 @@ class QuestionListCreateV2View(ListCreateAPIView):
     permission_classes = ActiveModeratorPermissions
     serializer_class = QuestionV2Serializer
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+    parser_classes = (parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser)
 
     def get_queryset(self):
         queryset = (
