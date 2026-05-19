@@ -28,6 +28,7 @@ from identity.serializers.auth import (
 )
 from comms.tasks import send_mail_task
 from comms.services.email import create_email_html
+from core.utils.cookies import set_refresh_cookie, unset_refresh_cookie
 from core.utils.exceptions import (
     InvalidTokenError,
     NotFound,
@@ -38,7 +39,29 @@ logger = logging.getLogger(__name__)
 
 
 class RefreshTokenView(TokenRefreshView):
+    """
+    Reads the refresh token from the HttpOnly cookie instead of the request body.
+    Sets the new refresh token as an HttpOnly cookie on success.
+    """
+
     permission_classes = [HasXAPIKey]
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        request.data._mutable = True
+        request.data["refresh"] = refresh_token
+        request.data._mutable = False
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            new_refresh = response.data.pop("refresh", None)
+            if new_refresh:
+                set_refresh_cookie(response, new_refresh)
+        return response
 
 
 class VerifyEmailOTPView(APIView):
@@ -376,6 +399,7 @@ class LoginView(TokenObtainPairView):
     """
     Custom login view to handle user authentication and token generation.
     Uses the custom serializer to include user data in the response.
+    Sets the refresh token as an HttpOnly cookie.
     """
 
     serializer_class = CustomTokenObtainPairSerializer
@@ -386,6 +410,9 @@ class LoginView(TokenObtainPairView):
         email = request.data.get("email", "N/A")
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
+            refresh = response.data.pop("refresh", None)
+            if refresh:
+                set_refresh_cookie(response, refresh)
             logger.info("User with email '%s' logged in successfully.", email)
         else:
             logger.warning("Failed login attempt for email: %s", email)
@@ -395,19 +422,18 @@ class LoginView(TokenObtainPairView):
 class LogoutView(APIView):
     """
     Handles user logout by blacklisting the provided refresh token.
-    Uses AllowAny permission to handle expired access tokens.
+    Reads the refresh token from the HttpOnly cookie (fallback to request body).
     """
 
     permission_classes = [HasXAPIKey]
 
     def post(self, request):
-        return self._logout(request.data.get("refresh"))
+        refresh_token = request.COOKIES.get("refresh") or request.data.get("refresh")
+        response = self._logout(refresh_token)
+        unset_refresh_cookie(response)
+        return response
 
     def _logout(self, refresh_token):
-        """
-        Expects a 'refresh' token in the request body.
-        Extracts user info from the refresh token for logging.
-        """
         if not refresh_token:
             raise ValidationError("Refresh token is required")
 
@@ -435,6 +461,7 @@ class LogoutView(APIView):
 class DirectAccessLoginView(APIView):
     """
     Login via a unique single-use passcode for direct exam access.
+    Sets the refresh token as an HttpOnly cookie.
     """
 
     permission_classes = [HasXAPIKey]
@@ -460,4 +487,8 @@ class DirectAccessLoginView(APIView):
         logger.info(
             f"Direct access login successful for user {data['profile']['user']['email']}"
         )
-        return Response(data, status=status.HTTP_200_OK)
+        response = Response(data, status=status.HTTP_200_OK)
+        refresh = data.pop("refresh", None)
+        if refresh:
+            set_refresh_cookie(response, refresh)
+        return response

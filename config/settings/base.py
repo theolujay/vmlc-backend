@@ -280,10 +280,11 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 SWAGGER_USE_COMPAT_RENDERERS = False
 
@@ -293,7 +294,7 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = (
-    str(read_secret("CORS_ALLOW_CREDENTIALS", "false")).lower() == "true"
+    str(read_secret("CORS_ALLOW_CREDENTIALS", "true")).lower() == "true"
 )
 CORS_ALLOW_ALL_ORIGINS = (
     str(read_secret("CORS_ALLOW_ALL_ORIGINS", "false")).lower() == "true"
