@@ -53,9 +53,9 @@ class RefreshTokenView(TokenRefreshView):
                 {"detail": "Refresh token not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        request.data._mutable = True
-        request.data["refresh"] = refresh_token
-        request.data._mutable = False
+        data = request.data.copy()
+        data["refresh"] = refresh_token
+        request._full_data = data
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
             new_refresh = response.data.pop("refresh", None)

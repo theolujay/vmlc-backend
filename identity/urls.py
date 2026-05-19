@@ -13,6 +13,7 @@ from .views import (
     CowrywiseKidProfileView,
 )
 from .views.registration import RegistrationV2View, PreRegistrationView
+from .views.auth import DirectAccessLoginView
 
 app_name = "identity"
 
@@ -24,6 +25,7 @@ urlpatterns = [
     # Authentication
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
+    path("auth/direct-access/", DirectAccessLoginView.as_view(), name="direct-access-login"),
     path("auth/token/refresh/", RefreshTokenView.as_view(), name="token-refresh"),
     path(
         "auth/password-change/request/",

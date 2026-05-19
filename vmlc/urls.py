@@ -21,9 +21,7 @@ from .views import (
     stats_overview,
     registration_status,
 )
-from identity.views.registration import RegistrationV2View, PreRegistrationView
 from vmlc.views.exam import ExamRetractV2View, ExamTimeView, ExamListV2View, ExamDetailV2View, ExamResultsV2View, ExamQuestionsV2View, ExamHistoryV2View, ExamFaceCaptureView, candidate_take_exam_V2
-from vmlc.views.auth import DirectAccessLoginView
 from vmlc.views.proctoring import (
     CandidateLiveStatusV2View,
     ExamHeartbeatView,
@@ -85,16 +83,6 @@ urlpatterns = [
         RegistrationMetricsView.as_view(),
         name="registration-trends",
     ),
-    # =============================================================================
-    # V2 ROUTES (merged from vmlc.v2.urls)
-    # =============================================================================
-    path("register/", RegistrationV2View.as_view(), name="register"),
-    path(
-        "auth/direct-access/",
-        DirectAccessLoginView.as_view(),
-        name="direct-access-login",
-    ),
-    path("pre-register/", PreRegistrationView.as_view(), name="pre-register"),
     # =============================================================================
     # EXAM & QUESTION MANAGEMENT
     # =============================================================================

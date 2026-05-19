@@ -25,7 +25,8 @@ class AuthEndpointsTest(APITestCase):
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
+        self.assertNotIn("refresh", response.data)
+        self.assertIn("refresh", response.cookies)
 
 
 class LoginErrorTest(APITestCase):
