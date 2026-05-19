@@ -1,67 +1,53 @@
 """
-This package contains all the views for the API.
+This package contains all the views for the vmlc (exam-domain) API.
 """
 
-from identity.views.auth import (
-    RefreshTokenView,
-    VerifyEmailOTPView,
-    SendEmailOTPView,
-    RequestPasswordChangeView,
-    PasswordChangeOTPConfirmView,
-    PasswordChangeView,
-    ResendPasswordChangeOTPView,
-    CustomTokenObtainPairSerializer,
-    LoginView,
-    LogoutView,
+from .answer import (
+    SubmitAnswersV2View,
+    AutoSaveAnswersV2View,
+    GetSavedAnswersV2View,
 )
-from identity.views.user import (
-    AccountManagementView,
-    BulkCandidateImportView,
-    BulkNotificationView,
-    BulkStaffImportView,
-    ResetUserPasswordView,
-    StaffInviteView,
-    UserActivityLogView,
-    UserDetailView,
-    UserExportView,
-    UserListView,
+from .exam import (
+    ExamRetractV2View,
+    ExamTimeView,
+    ExamListV2View,
+    ExamDetailV2View,
+    ExamResultsV2View,
+    ExamQuestionsV2View,
+    ExamHistoryV2View,
+    ExamFaceCaptureView,
+    candidate_take_exam_V2,
 )
-from .candidate import CandidateListView
-from .metrics import RegistrationMetricsView
-from .status import (
-    health_check,
-    stats_overview,
-    registration_status,
+from .proctoring import (
+    CandidateLiveStatusV2View,
+    ExamHeartbeatView,
+    IntegrityAuditView,
+    UpdateProctoringStatusView,
+)
+from .question import (
+    QuestionListCreateV2View,
+    QuestionDetailV2View,
+    QuestionBulkActionV2View,
 )
 
 __all__ = [
-    # auth
-    "RefreshTokenView",
-    "VerifyEmailOTPView",
-    "SendEmailOTPView",
-    "RequestPasswordChangeView",
-    "PasswordChangeOTPConfirmView",
-    "PasswordChangeView",
-    "ResendPasswordChangeOTPView",
-    "CustomTokenObtainPairSerializer",
-    "LoginView",
-    "LogoutView",
-    # candidate
-    "CandidateListView",
-    # status
-    "health_check",
-    "stats_overview",
-    "registration_status",
-    # user
-    "AccountManagementView",
-    "BulkCandidateImportView",
-    "BulkNotificationView",
-    "BulkStaffImportView",
-    "ResetUserPasswordView",
-    "StaffInviteView",
-    "UserActivityLogView",
-    "UserDetailView",
-    "UserExportView",
-    "UserListView",
-    "RegistrationMetricsView",
+    "SubmitAnswersV2View",
+    "AutoSaveAnswersV2View",
+    "GetSavedAnswersV2View",
+    "ExamRetractV2View",
+    "ExamTimeView",
+    "ExamListV2View",
+    "ExamDetailV2View",
+    "ExamResultsV2View",
+    "ExamQuestionsV2View",
+    "ExamHistoryV2View",
+    "ExamFaceCaptureView",
+    "candidate_take_exam_V2",
+    "CandidateLiveStatusV2View",
+    "ExamHeartbeatView",
+    "IntegrityAuditView",
+    "UpdateProctoringStatusView",
+    "QuestionListCreateV2View",
+    "QuestionDetailV2View",
+    "QuestionBulkActionV2View",
 ]

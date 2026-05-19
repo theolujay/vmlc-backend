@@ -21,7 +21,7 @@ User = get_user_model()
 class HealthCheckTest(APITestCase):
 
     def test_health_check(self):
-        url = reverse("vmlc:health-check")
+        url = reverse("health-check")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 

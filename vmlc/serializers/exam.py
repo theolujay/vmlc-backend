@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from vmlc.serializers.staff import MinimalStaffSerializer
+from identity.serializers.staff import MinimalStaffSerializer
 from vmlc.models import (
     CandidateExamResult,
     Exam,

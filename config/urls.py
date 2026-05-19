@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
 
+from core.views import health_check
+
 
 admin.site.site_header = "Verboheit MLC Developer Admin"
 admin.site.index_title = "Verboheit MLC"
@@ -48,6 +50,7 @@ competition_urlpatterns = [
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    path("v1/health/", health_check, name="health-check"),
     path("", include(vmlc_urlpatterns)),
     path("", include(comms_urlpatterns)),
     path("", include(competition_urlpatterns)),

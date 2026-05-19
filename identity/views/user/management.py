@@ -24,7 +24,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.exceptions import ValidationError
 
-from vmlc.serializers import (
+from identity.serializers import (
     StaffListSerializer,
     CandidateListSerializer,
     UserProfileDetailSerializer,
@@ -181,12 +181,12 @@ class ProfileManager:
         Returns: (profile_instance, serializer_class) or (None, None)
         """
         if hasattr(user, "candidate_profile"):
-            from vmlc.serializers import CandidateDetailSerializer
+            from identity.serializers import CandidateDetailSerializer
 
             return user.candidate_profile, CandidateDetailSerializer
 
         if hasattr(user, "staff_profile"):
-            from vmlc.serializers import StaffDetailSerializer
+            from identity.serializers import StaffDetailSerializer
 
             return user.staff_profile, StaffDetailSerializer
 
@@ -336,7 +336,7 @@ class AccountManagementView(APIView):
 
             # Validate user data if provided
             if user_data:
-                from vmlc.serializers import UserSerializer
+                from identity.serializers import UserSerializer
 
                 user_serializer = UserSerializer(
                     target_user, data=user_data, partial=True

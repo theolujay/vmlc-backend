@@ -18,7 +18,7 @@ from identity.models import (
 )
 from core.utils.auth import generate_password
 from identity.utils.user import normalize_title
-from vmlc.serializers.staff import MinimalStaffSerializer
+from identity.serializers.staff import MinimalStaffSerializer
 
 logger = logging.getLogger(__name__)
 

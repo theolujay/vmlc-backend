@@ -27,7 +27,7 @@ class RegistrationV2Tests(APITestCase):
             key="staff_registration", defaults={"value": True}
         )
 
-        self.url = reverse("vmlc:register")
+        self.url = reverse("identity:register")
 
     def test_candidate_missing_fields(self):
         data = {
@@ -149,7 +149,7 @@ class RegistrationV2Tests(APITestCase):
 
 class PreRegistrationTestCase(APITestCase):
     def setUp(self):
-        self.url = reverse("vmlc:pre-register")
+        self.url = reverse("identity:pre-register")
 
         self.valid_payload = {
             "full_name": "Test User",

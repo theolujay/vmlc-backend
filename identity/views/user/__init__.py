@@ -10,9 +10,9 @@ from .management import (
     UserDetailView,
 )
 from .export import UserExportView
+from .candidate import CandidateListView
 
 __all__ = [
-    # management
     "BulkNotificationView",
     "BulkStaffImportView",
     "BulkCandidateImportView",
@@ -23,4 +23,5 @@ __all__ = [
     "UserListView",
     "UserDetailView",
     "UserExportView",
+    "CandidateListView",
 ]

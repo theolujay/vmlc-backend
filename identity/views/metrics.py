@@ -10,11 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class RegistrationMetricsView(APIView):
-    """
-    Retrieve aggregated registration metrics for daily and weekly trends,
-    including the registration funnel.
-    """
-
     permission_classes = ActiveVolunteerPermissions
 
     def get(self, request):
@@ -28,11 +23,6 @@ class RegistrationMetricsView(APIView):
             days = query_params.get("days")
             weeks = query_params.get("weeks")
 
-            # Since query params can vary, we might want to include them in the cache key
-            # However, the original code used a static "registration_metrics" key
-            # which means it ignored query params if cached.
-            # For consistency with original logic but new strategy:
-
             def fetch_metrics():
                 kwargs = {}
                 if days:
@@ -45,7 +35,7 @@ class RegistrationMetricsView(APIView):
                 return data
 
             metrics_data = get_or_set_cache(
-                CacheKeys.REGISTRATION_METRICS, fetch_metrics, ttl=600  # 10 minutes
+                CacheKeys.REGISTRATION_METRICS, fetch_metrics, ttl=600
             )
             return Response(metrics_data)
         except (ValueError, TypeError) as e:

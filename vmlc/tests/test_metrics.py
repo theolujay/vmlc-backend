@@ -20,7 +20,7 @@ class RegistrationMetricsViewTest(APITestCase):
             user=self.staff_user, role=Staff.Roles.ADMIN
         )
         self.client.force_authenticate(user=self.staff_user)
-        self.url = reverse("vmlc:registration-trends")
+        self.url = reverse("identity:registration-trends")
 
     def test_get_registration_metrics_success(self):
         # Create some data

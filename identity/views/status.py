@@ -1,4 +1,5 @@
 import logging
+
 from django.utils import timezone
 
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -10,9 +11,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from vmlc.models import FeatureFlag
-from identity.permissions import (
-    ActiveVolunteerPermissions,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -23,26 +21,8 @@ class RegistrationStatusThrottle(AnonRateThrottle):
 
 @api_view(["GET", "HEAD"])
 @permission_classes([AllowAny])
-def health_check(request):
-    """
-    Returns a 200 OK response to indicate the service is healthy.
-    """
-    current_time = timezone.now()
-    logger.info("Health check performed at %s", current_time)
-    return Response(
-        {"status": "healthy", "timestamp": current_time.isoformat()},
-        status=status.HTTP_200_OK,
-    )
-
-
-@api_view(["GET", "HEAD"])
-@permission_classes([AllowAny])
 @throttle_classes([RegistrationStatusThrottle])
 def registration_status(request):
-    """
-    Returns information of if registration is open/closed for staff and candidate
-    """
-    logger.info("Registration status request by %s", request.user)
     from vmlc.utils.cache import get_or_set_cache, CacheKeys
 
     def fetch_reg_status():
@@ -61,20 +41,7 @@ def registration_status(request):
         }
 
     reg_status_data = get_or_set_cache(
-        CacheKeys.REGISTRATION_STATUS, fetch_reg_status, ttl=604800  # 1 week
+        CacheKeys.REGISTRATION_STATUS, fetch_reg_status, ttl=604800
     )
 
     return Response(reg_status_data, status=status.HTTP_200_OK)
-
-
-@api_view(["GET"])
-@permission_classes(ActiveVolunteerPermissions)
-def stats_overview(request):
-    """
-    Retrieve overall statistics for candidates and staff.
-    """
-    logger.info("Stats overview request by %s", request.user.id)
-    from competition.utils.stats import generate_stats_overview_data
-
-    data = generate_stats_overview_data()
-    return Response(data)

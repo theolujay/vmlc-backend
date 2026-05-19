@@ -32,7 +32,7 @@ class ListEndpointsTest(APITestCase):
         self.client.force_authenticate(user=self.staff_user)
 
     def test_get_candidate_list(self):
-        url = reverse("vmlc:candidate-list")
+        url = reverse("identity:candidate-list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -58,7 +58,7 @@ class InviteStaffTest(APITestCase):
     @patch("identity.tasks.revoke_user_invite_task.apply_async")
     def test_invite_staff_success(self, _mock_task):
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("vmlc:staff-invite")
+        url = reverse("identity:staff-invite")
 
         data = {
             "email": "staff2@gmail.com",
@@ -78,7 +78,7 @@ class InviteStaffTest(APITestCase):
 
     def test_invite_staff_invalid_role(self):
         self.client.force_authenticate(user=self.staff_user)
-        url = reverse("vmlc:staff-invite")
+        url = reverse("identity:staff-invite")
 
         data = {
             "email": "staff2@gmail.com",

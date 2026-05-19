@@ -1,3 +1,4 @@
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
@@ -570,3 +571,13 @@ class PromoteCandidatesView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+@api_view(["GET"])
+@permission_classes([ActiveVolunteerPermissions])
+def stats_overview(request):
+    logger.info("Stats overview request by %s", request.user.id)
+    from competition.utils.stats import generate_stats_overview_data
+
+    data = generate_stats_overview_data()
+    return Response(data)

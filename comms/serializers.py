@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from identity.models import User
-from vmlc.serializers.staff import MinimalStaffSerializer
+from identity.serializers.staff import MinimalStaffSerializer
 
 from .models import (
     PublicSupportRequest,

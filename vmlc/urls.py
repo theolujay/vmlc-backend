@@ -5,35 +5,28 @@ URL configuration for the v1 API endpoints.
 from django.urls import path
 
 from .views import (
-    AccountManagementView,
-    BulkCandidateImportView,
-    BulkNotificationView,
-    BulkStaffImportView,
-    CandidateListView,
-    RegistrationMetricsView,
-    ResetUserPasswordView,
-    StaffInviteView,
-    UserActivityLogView,
-    UserDetailView,
-    UserExportView,
-    UserListView,
-    health_check,
-    stats_overview,
-    registration_status,
+    ExamRetractV2View,
+    ExamTimeView,
+    ExamListV2View,
+    ExamDetailV2View,
+    ExamResultsV2View,
+    ExamQuestionsV2View,
+    ExamHistoryV2View,
+    ExamFaceCaptureView,
+    candidate_take_exam_V2,
 )
-from vmlc.views.exam import ExamRetractV2View, ExamTimeView, ExamListV2View, ExamDetailV2View, ExamResultsV2View, ExamQuestionsV2View, ExamHistoryV2View, ExamFaceCaptureView, candidate_take_exam_V2
-from vmlc.views.proctoring import (
+from .views.proctoring import (
     CandidateLiveStatusV2View,
     ExamHeartbeatView,
     IntegrityAuditView,
     UpdateProctoringStatusView,
 )
-from vmlc.views.question import (
+from .views.question import (
     QuestionListCreateV2View,
     QuestionDetailV2View,
     QuestionBulkActionV2View,
 )
-from vmlc.views.answer import (
+from .views.answer import (
     SubmitAnswersV2View,
     AutoSaveAnswersV2View,
     GetSavedAnswersV2View,
@@ -42,47 +35,6 @@ from vmlc.views.answer import (
 app_name = "vmlc"
 
 urlpatterns = [
-    # =============================================================================
-    # HEALTH & ROOT
-    # =============================================================================
-    path("health/", health_check, name="health-check"),
-    path("registration/", registration_status, name="registration-status"),
-    path("user/list/", UserListView.as_view(), name="user-list"),
-    path("user/export/", UserExportView.as_view(), name="user-export"),
-    path("user/bulk-notification/", BulkNotificationView.as_view(), name="user-bulk-notification"),
-    path("user/reset-password/", ResetUserPasswordView.as_view(), name="user-reset-password"),
-    path("user/activity/", UserActivityLogView.as_view(), name="user-activity"),
-    path("user/import/staff/", BulkStaffImportView.as_view(), name="user-import-staff"),
-    path("user/import/candidate/", BulkCandidateImportView.as_view(), name="user-import-candidate"),
-    # =============================================================================
-    # USER & ACCOUNT MANAGEMENT
-    # =============================================================================
-    path(
-        "account-management/",
-        AccountManagementView.as_view(),
-        name="account-management",
-    ),
-    path(
-        "account-management/<uuid:user_id>/",
-        AccountManagementView.as_view(),
-        name="account-management-detail",
-    ),
-    path("staff/invite/", StaffInviteView.as_view(), name="staff-invite"),
-    # =============================================================================
-    # CANDIDATE MANAGEMENT
-    # =============================================================================
-    path("candidates/", CandidateListView.as_view(), name="candidate-list"),
-    path(
-        "candidates/<uuid:candidate_id>/",
-        UserDetailView.as_view(),
-        name="candidate-detail",
-    ),
-    path("stats/overview/", stats_overview, name="stats-overview"),
-    path(
-        "stats/registration-trends/",
-        RegistrationMetricsView.as_view(),
-        name="registration-trends",
-    ),
     # =============================================================================
     # EXAM & QUESTION MANAGEMENT
     # =============================================================================
