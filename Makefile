@@ -142,7 +142,7 @@ test/coverage:
 ## test/docker: run tests inside the Django container
 .PHONY: test/docker
 test/docker:
-	docker compose exec python manage.py test --settings=config.settings.test --noinput --keepdb --failfast
+	docker compose exec django python manage.py test --settings=config.settings.test --noinput --keepdb --failfast
 
 ## security: run bandit security checks
 .PHONY: security

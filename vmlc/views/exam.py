@@ -208,7 +208,10 @@ class ExamDetailV2View(RetrieveUpdateDestroyAPIView):
         )
 
     def perform_destroy(self, instance):
-        instance.competition_slot.delete()  # this cascades into instance.delete()
+        if instance.competition_slot:
+            instance.competition_slot.delete()  # this cascades into instance.delete()
+        else:
+            instance.delete()
 
 
 class ExamRetractV2View(APIView):

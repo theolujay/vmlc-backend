@@ -5,7 +5,7 @@ from ..models import (
     Exam,
 )
 
-from .staff import MinimalStaffSerializer
+from identity.serializers.staff import MinimalStaffSerializer
 
 
 class RelatedExamSerializer(serializers.ModelSerializer):
