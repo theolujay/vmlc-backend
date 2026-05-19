@@ -1,49 +1,46 @@
+from django.db import transaction
+from django.db.models import Count, Prefetch, Q
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.db.models import Q, Count, Prefetch
-from django.utils import timezone
-from django.db import transaction
+from rest_framework.views import APIView
 
+from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
+from competition.serializers import (
+    CandidateResultDetailSerializer,
+    CompetitionDashboardSerializer,
+    LeagueLeaderboardEntrySerializer,
+    LeagueLeaderboardSerializer,
+    PromoteCandidatesSerializer,
+    PublishRankingSnapshotSerializer,
+    RankingSnapshotListSerializer,
+    RankingSnapshotSerializer,
+)
+from competition.services.candidate_dashboard import CandidateDashboardService
+from competition.services.leaderboard import LeaderboardService
+from competition.services.promotion import PromotionError, PromotionService
+from competition.services.staff_dashboard import StaffCompetitionDashboardService
+from competition.tasks import (
+    generate_ranking_and_update_leaderboard_task,
+    invalidate_published_ranking_cache_task,
+    publish_league_leaderboard_update_task,
+    publish_ranking_task,
+)
+from core.utils.cache import CacheKeys, get_or_set_cache
 from identity.models import Staff
 from identity.permissions import (
-    ActiveManagerPermissions,
     ActiveAdminPermissions,
     ActiveModeratorPermissions,
     ActiveSuperadminPermissions,
     ActiveVolunteerPermissions,
-    CanViewScoreboard,
     CandidatePermissions,
+    CanViewScoreboard,
     IsLeagueParticipantOrStaff,
     get_enrollment,
 )
-from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
-from competition.serializers import (
-    LeagueLeaderboardSerializer,
-    PublishRankingSnapshotSerializer,
-    RankingSnapshotListSerializer,
-    RankingSnapshotSerializer,
-    CandidateResultDetailSerializer,
-    LeagueLeaderboardEntrySerializer,
-    CompetitionDashboardSerializer,
-    PromoteCandidatesSerializer,
-)
-from competition.tasks import (
-    generate_ranking_and_update_leaderboard_task,
-    publish_league_leaderboard_update_task,
-    update_leaderboard_task,
-    invalidate_published_ranking_cache_task,
-    publish_ranking_task,
-)
-from competition.services.leaderboard import LeaderboardService
-from competition.services.staff_dashboard import StaffCompetitionDashboardService
-from competition.services.candidate_dashboard import CandidateDashboardService
-from competition.services.promotion import PromotionService, PromotionError
-
-from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from core.utils.cache import CacheKeys, get_or_set_cache
+from vmlc.models import CandidateExamResult, Exam, ExamAccess
 from vmlc.services.proctoring import ProctoringService
 
 
@@ -79,8 +76,8 @@ class StaffCompetitionDashboardView(APIView):
     def get(self, request):
         is_internal_view = False
         if hasattr(request.user, "staff_profile"):
-            from identity.permissions import StaffRoleHierarchy
             from identity.models import Staff
+            from identity.permissions import StaffRoleHierarchy
 
             if StaffRoleHierarchy.has_minimum_role(
                 request.user.staff_profile.role, Staff.Roles.ADMIN
@@ -88,12 +85,15 @@ class StaffCompetitionDashboardView(APIView):
                 is_internal_view = True
 
         cache_key = (
-            f"{CacheKeys.STAFF_DASHBOARD}:internal" if is_internal_view
+            f"{CacheKeys.STAFF_DASHBOARD}:internal"
+            if is_internal_view
             else f"{CacheKeys.STAFF_DASHBOARD}:public"
         )
         data = get_or_set_cache(
             cache_key,
-            lambda: StaffCompetitionDashboardService.get_dashboard_data(is_internal=is_internal_view),
+            lambda: StaffCompetitionDashboardService.get_dashboard_data(
+                is_internal=is_internal_view
+            ),
             ttl=3600,
         )
         serializer = CompetitionDashboardSerializer(data)
@@ -233,16 +233,20 @@ class PublishRankingSnapshotView(APIView):
                 )
                 # Trigger cache invalidation for all candidates in this snapshot
                 transaction.on_commit(
-                    lambda ranking_snapshot_id=ranking.id: invalidate_published_ranking_cache_task.delay(
-                        ranking_snapshot_id=ranking_snapshot_id
+                    lambda ranking_snapshot_id=ranking.id: (
+                        invalidate_published_ranking_cache_task.delay(
+                            ranking_snapshot_id=ranking_snapshot_id
+                        )
                     )
                 )
                 # Trigger leaderboard update if it's a league exam
                 if ranking.stage == Stage.Type.LEAGUE:
                     transaction.on_commit(
-                        lambda cid=ranking.competition_id, r=ranking.round: publish_league_leaderboard_update_task.delay(
-                            competition_id=cid,
-                            as_of_round=r,
+                        lambda cid=ranking.competition_id, r=ranking.round: (
+                            publish_league_leaderboard_update_task.delay(
+                                competition_id=cid,
+                                as_of_round=r,
+                            )
                         )
                     )
                 return Response(
@@ -314,8 +318,8 @@ class LeagueLeaderboardView(APIView):
         is_public_filter = True
 
         if hasattr(request.user, "staff_profile"):
-            from identity.permissions import StaffRoleHierarchy
             from identity.models import Staff
+            from identity.permissions import StaffRoleHierarchy
 
             if StaffRoleHierarchy.has_minimum_role(
                 request.user.staff_profile.role, Staff.Roles.ADMIN
@@ -344,9 +348,7 @@ class LeagueLeaderboardView(APIView):
             if is_public_filter is True
             else CacheKeys.LEADERBOARD_LEAGUE_INTERNAL
         )
-        data = get_or_set_cache(
-            cache_key, fetch_and_serialize_leaderboard, ttl=86400
-        )
+        data = get_or_set_cache(cache_key, fetch_and_serialize_leaderboard, ttl=86400)
 
         if not data:
             return Response(
@@ -563,7 +565,7 @@ class PromoteCandidatesView(APIView):
                 {"status": "error", "message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
+        except Exception:
             return Response(
                 {
                     "status": "error",

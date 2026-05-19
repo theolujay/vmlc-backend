@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0006_backuplog"),
         ("identity", "0001_initial"),

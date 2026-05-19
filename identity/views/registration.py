@@ -1,20 +1,20 @@
 import logging
 
-from rest_framework import status, parsers
+from rest_framework import parsers, status
 from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
-from rest_framework.permissions import AllowAny
 
 from comms.tasks import send_welcome_mail_task
+from core.utils.exceptions import PermissionDenied
+from core.utils.helpers import invalidate_all_staff_dashboards, sanitize_data
 from identity.models import Candidate, Staff
-from vmlc.models import FeatureFlag
 from identity.serializers.registration import (
     PreRegUserSerializer,
     RegistrationV2Serializer,
 )
-from core.utils.exceptions import PermissionDenied
-from core.utils.helpers import sanitize_data, invalidate_all_staff_dashboards
+from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
 

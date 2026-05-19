@@ -1,16 +1,18 @@
 from django.test import TestCase
 from django.utils import timezone
+
 from competition.models import (
     Competition,
-    Stage,
     Enrollment,
     EnrollmentStageProgress,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
     StageExam,
 )
-from identity.models import User, Candidate
+from competition.services.promotion import PromotionService
+from identity.models import Candidate, User
 from vmlc.models import Exam
-from competition.services.promotion import PromotionService, PromotionError
-from competition.models import RankingSnapshot, RankingSnapshotEntry
 
 
 class PromotionLogicTest(TestCase):

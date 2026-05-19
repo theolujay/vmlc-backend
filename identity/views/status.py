@@ -1,14 +1,11 @@
 import logging
 
-from django.utils import timezone
-
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.throttling import AnonRateThrottle
-
 from django.conf import settings
 from rest_framework import status
-from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from vmlc.models import FeatureFlag
 
@@ -23,7 +20,7 @@ class RegistrationStatusThrottle(AnonRateThrottle):
 @permission_classes([AllowAny])
 @throttle_classes([RegistrationStatusThrottle])
 def registration_status(request):
-    from core.utils.cache import get_or_set_cache, CacheKeys
+    from core.utils.cache import CacheKeys, get_or_set_cache
 
     def fetch_reg_status():
         def _get_detailed_status(feature_flag_key):

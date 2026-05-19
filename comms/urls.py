@@ -3,15 +3,15 @@ from django.urls import path
 from .views import (
     BroadcastView,
     DatabaseBackupWebhookView,
+    HelpdeskThreadMessageView,
+    HelpdeskThreadView,
     MarkAllNotificationsAsReadView,
     MarkNotificationAsReadView,
     NotificationHistory,
-    StaffHelpdeskThreadDetailView,
-    StaffHelpdeskThreadActionView,
-    StaffHelpdeskThreadListView,
-    HelpdeskThreadMessageView,
-    HelpdeskThreadView,
     PublicSupportRequestView,
+    StaffHelpdeskThreadActionView,
+    StaffHelpdeskThreadDetailView,
+    StaffHelpdeskThreadListView,
 )
 
 app_name = "comms"

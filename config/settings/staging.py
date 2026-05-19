@@ -2,11 +2,8 @@
 Staging environment settings.
 """
 
-import os
 from datetime import timedelta
-import dj_database_url
-from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
+
 from ._utils import read_secret
 from .base import *
 

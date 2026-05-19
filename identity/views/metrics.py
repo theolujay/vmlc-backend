@@ -1,9 +1,10 @@
 import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 
-from core.utils.metrics import get_registration_metrics, get_funnel_metrics
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.utils.metrics import get_funnel_metrics, get_registration_metrics
 from identity.permissions import ActiveVolunteerPermissions
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ class RegistrationMetricsView(APIView):
     def get(self, request):
         logger.info(f"RegistrationMetricsView: request from user {request.user.id}")
 
-        from core.utils.cache import get_or_set_cache, CacheKeys
+        from core.utils.cache import CacheKeys, get_or_set_cache
 
         query_params = request.query_params
 

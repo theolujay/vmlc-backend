@@ -108,6 +108,8 @@ lint/fix:
 format:
 	ruff format .
 	black .
+	isort .
+	ruff check --select I --fix .
 
 ## format/check: check formatting without changes
 .PHONY: format/check

@@ -1,9 +1,9 @@
 from django.test import TestCase
-from vmlc.models import Question, Exam
+
+from vmlc.models import Exam, Question
 
 
 class QuestionModelTest(TestCase):
-
     def test_create_question(self):
         question = Question.objects.create(
             text="What is the capital of France?",
@@ -18,7 +18,6 @@ class QuestionModelTest(TestCase):
 
 
 class ExamModelTest(TestCase):
-
     def test_create_exam(self):
 
         exam = Exam.objects.create()

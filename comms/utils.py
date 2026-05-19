@@ -1,6 +1,3 @@
-import re
-
-
 def _normalize_phone(phone):
     if not phone:
         return ""

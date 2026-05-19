@@ -8,12 +8,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from identity.permissions import CandidatePermissions
-from vmlc.models import Exam, ExamAccess, CandidateExamResult, CandidateAnswer
-from vmlc.serializers.answer import CandidateAnswerBulkSerializer
-from vmlc.serializers.answer import AutoSaveAnswersBulkSerializer
-from core.utils.helpers import sanitize_data
 from core.utils.cache import GRACE_PERIOD_MINUTES, invalidate_exam_cache
+from core.utils.helpers import sanitize_data
+from identity.permissions import CandidatePermissions
+from vmlc.models import CandidateAnswer, CandidateExamResult, Exam, ExamAccess
+from vmlc.serializers.answer import (
+    AutoSaveAnswersBulkSerializer,
+    CandidateAnswerBulkSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +85,9 @@ class SubmitAnswersV2View(APIView):
             if access.started_at:
                 personal_deadline = access.deadline
                 # Add grace period for network latency
-                if timezone.now() <= personal_deadline + timedelta(minutes=GRACE_PERIOD_MINUTES):
+                if timezone.now() <= personal_deadline + timedelta(
+                    minutes=GRACE_PERIOD_MINUTES
+                ):
                     is_within_personal_time = True
 
             if not is_globally_open and not is_within_personal_time:
@@ -105,20 +109,25 @@ class SubmitAnswersV2View(APIView):
                 recorded_at=timezone.now(),
             )
 
-            CandidateAnswer.objects.bulk_create([
-                CandidateAnswer(
-                    candidate_exam_result=result,
-                    question=answer_data["question"],
-                    selected_option=answer_data.get("selected_option", "").strip().upper(),
-                )
-                for answer_data in answers_data
-            ])
+            CandidateAnswer.objects.bulk_create(
+                [
+                    CandidateAnswer(
+                        candidate_exam_result=result,
+                        question=answer_data["question"],
+                        selected_option=answer_data.get("selected_option", "")
+                        .strip()
+                        .upper(),
+                    )
+                    for answer_data in answers_data
+                ]
+            )
 
             access.status = ExamAccess.Status.SUBMITTED
             access.submitted_at = timezone.now()
             access.save(update_fields=["status", "submitted_at"])
 
             from core.utils.cache import invalidate_candidate_cache
+
             invalidate_candidate_cache(candidate.pk, request.user.id)
 
         logger.info(
@@ -127,8 +136,8 @@ class SubmitAnswersV2View(APIView):
             exam.pk,
         )
 
-        from comms.tasks import notify_user_task
         from comms.models import Broadcast
+        from comms.tasks import notify_user_task
 
         notify_user_task.delay(
             user_id=str(request.user.id),
@@ -159,7 +168,6 @@ class AutoSaveAnswersV2View(APIView):
         candidate = request.user.candidate_profile
         exam = get_object_or_404(Exam, pk=exam_id)
 
-        safe_data = sanitize_data(request.data)
         logger.info(
             f"AutoSaveAnswersV2View: request from user {request.user.id} "
             f"(candidate_id: {candidate.pk}) for exam {exam_id}"
@@ -192,7 +200,9 @@ class AutoSaveAnswersV2View(APIView):
                     f"{exam_id} (Access Status: {access.status})"
                 )
                 return Response(
-                    {"detail": "You cannot save answers for this exam. It has already been submitted, expired, or failed."},
+                    {
+                        "detail": "You cannot save answers for this exam. It has already been submitted, expired, or failed."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -201,7 +211,9 @@ class AutoSaveAnswersV2View(APIView):
 
             if access.started_at:
                 personal_deadline = access.deadline
-                if timezone.now() <= personal_deadline + timedelta(minutes=GRACE_PERIOD_MINUTES):
+                if timezone.now() <= personal_deadline + timedelta(
+                    minutes=GRACE_PERIOD_MINUTES
+                ):
                     is_within_personal_time = True
 
             if not is_globally_open and not is_within_personal_time:
@@ -245,7 +257,10 @@ class AutoSaveAnswersV2View(APIView):
         )
 
         return Response(
-            {"message": f"Auto-saved {len(answers_data)} answers.", "saved": len(answers_data)},
+            {
+                "message": f"Auto-saved {len(answers_data)} answers.",
+                "saved": len(answers_data),
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -275,21 +290,29 @@ class GetSavedAnswersV2View(APIView):
         except CandidateExamResult.DoesNotExist:
             return Response({"answers": [], "total": 0})
 
-        saved_answers = CandidateAnswer.objects.filter(
-            candidate_exam_result=candidate_exam_result,
-        ).select_related("question").order_by("question_id", "answered_at")
+        saved_answers = (
+            CandidateAnswer.objects.filter(
+                candidate_exam_result=candidate_exam_result,
+            )
+            .select_related("question")
+            .order_by("question_id", "answered_at")
+        )
 
         answers = [
             {
                 "question_id": answer.question_id,
                 "selected_option": answer.selected_option,
-                "answered_at": answer.answered_at.isoformat() if answer.answered_at else None,
+                "answered_at": (
+                    answer.answered_at.isoformat() if answer.answered_at else None
+                ),
             }
             for answer in saved_answers
             if answer.selected_option
         ]
 
-        return Response({
-            "answers": answers,
-            "total": len(answers),
-        })
+        return Response(
+            {
+                "answers": answers,
+                "total": len(answers),
+            }
+        )

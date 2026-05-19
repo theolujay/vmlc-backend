@@ -1,16 +1,16 @@
+from .candidate import CandidateListView
+from .export import UserExportView
 from .management import (
+    AccountManagementView,
+    BulkCandidateImportView,
     BulkNotificationView,
     BulkStaffImportView,
-    BulkCandidateImportView,
     ResetUserPasswordView,
-    UserActivityLogView,
     StaffInviteView,
-    AccountManagementView,
-    UserListView,
+    UserActivityLogView,
     UserDetailView,
+    UserListView,
 )
-from .export import UserExportView
-from .candidate import CandidateListView
 
 __all__ = [
     "BulkNotificationView",

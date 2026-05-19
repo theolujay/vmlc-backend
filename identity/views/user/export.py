@@ -1,17 +1,17 @@
 import io
 import logging
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
 from django.http import HttpResponse
-from rest_framework.views import APIView
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
+from rest_framework.views import APIView
 
-from identity.models import Staff, Candidate
+from competition.models import Competition, Enrollment, StageExam
+from core.utils.query_filters import filter_candidates, filter_staffs
+from identity.models import Candidate, Staff
 from identity.permissions import ActiveManagerPermissions
-from core.utils.query_filters import filter_staffs, filter_candidates
-from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import CandidateExamResult, Exam
 
 logger = logging.getLogger(__name__)
@@ -51,17 +51,22 @@ class UserExportView(APIView):
     Inherits filters and sorting from the list view.
     Supports column selection via 'columns' query parameter (comma-separated).
     """
+
     permission_classes = ActiveManagerPermissions
 
     def get(self, request, *args, **kwargs):
         profile_type = request.query_params.get("profile")
         columns_param = request.query_params.get("columns", "")
-        include_exam_data = request.query_params.get("include_exam_data", "").lower() == "true"
+        include_exam_data = (
+            request.query_params.get("include_exam_data", "").lower() == "true"
+        )
 
         if profile_type == "candidate":
             queryset = Candidate.objects.select_related("user").order_by("-created_at")
             queryset = filter_candidates(queryset, request.query_params)
-            filename = f"candidates_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filename = (
+                f"candidates_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            )
 
             if columns_param:
                 columns = [c.strip() for c in columns_param.split(",") if c.strip()]
@@ -74,7 +79,9 @@ class UserExportView(APIView):
             if include_exam_data:
                 exam_columns, exam_data_map = self._prepare_exam_data(queryset)
 
-            return self._export_candidates(queryset, filename, columns, exam_columns, exam_data_map)
+            return self._export_candidates(
+                queryset, filename, columns, exam_columns, exam_data_map
+            )
 
         elif profile_type == "staff":
             queryset = Staff.objects.select_related("user").order_by("-created_at")
@@ -90,7 +97,9 @@ class UserExportView(APIView):
             return self._export_staff(queryset, filename, columns)
 
         else:
-            return HttpResponse("Invalid profile type. Must be 'candidate' or 'staff'.", status=400)
+            return HttpResponse(
+                "Invalid profile type. Must be 'candidate' or 'staff'.", status=400
+            )
 
     def _prepare_exam_data(self, queryset):
         """
@@ -101,7 +110,9 @@ class UserExportView(APIView):
         """
         # Get active competition
         try:
-            competition = Competition.objects.filter(status=Competition.Status.ACTIVE).first()
+            competition = Competition.objects.filter(
+                status=Competition.Status.ACTIVE
+            ).first()
             if not competition:
                 competition = Competition.objects.order_by("-edition").first()
         except Competition.DoesNotExist:
@@ -109,8 +120,7 @@ class UserExportView(APIView):
 
         # Get all stage exams for the competition, ordered by stage order then round
         stage_exams = (
-            StageExam.objects
-            .filter(competition_stage__competition=competition)
+            StageExam.objects.filter(competition_stage__competition=competition)
             .select_related("competition_stage", "exam")
             .order_by("competition_stage__order", "round")
         )
@@ -145,11 +155,9 @@ class UserExportView(APIView):
 
         # Get all results for candidates in queryset
         candidate_ids = [c.pk for c in queryset]
-        results = (
-            CandidateExamResult.objects
-            .filter(candidate_id__in=candidate_ids, exam_id__in=exam_key_map.keys())
-            .select_related("exam")
-        )
+        results = CandidateExamResult.objects.filter(
+            candidate_id__in=candidate_ids, exam_id__in=exam_key_map.keys()
+        ).select_related("exam")
 
         for result in results:
             key = exam_key_map.get(result.exam_id)
@@ -157,21 +165,23 @@ class UserExportView(APIView):
                 exam_data_map[result.candidate_id][key] = float(result.score)
 
         # Get last stage for each candidate from enrollment
-        enrollments = (
-            Enrollment.objects
-            .filter(candidate_id__in=candidate_ids, competition=competition)
-            .select_related("current_stage")
-        )
+        enrollments = Enrollment.objects.filter(
+            candidate_id__in=candidate_ids, competition=competition
+        ).select_related("current_stage")
 
         for enrollment in enrollments:
             if enrollment.current_stage:
-                exam_data_map[enrollment.candidate_id]["last_stage"] = enrollment.current_stage.get_type_display()
+                exam_data_map[enrollment.candidate_id][
+                    "last_stage"
+                ] = enrollment.current_stage.get_type_display()
             else:
                 exam_data_map[enrollment.candidate_id]["last_stage"] = "N/A"
 
         return exam_columns, exam_data_map
 
-    def _export_candidates(self, queryset, filename, columns, exam_columns=None, exam_data_map=None):
+    def _export_candidates(
+        self, queryset, filename, columns, exam_columns=None, exam_data_map=None
+    ):
         wb = Workbook()
         ws = wb.active
         ws.title = "Candidates"
@@ -199,7 +209,11 @@ class UserExportView(APIView):
                 elif col == "school_name":
                     row_data.append(candidate.school_name)
                 elif col == "school_type":
-                    row_data.append(candidate.get_school_type_display() if hasattr(candidate, 'get_school_type_display') else candidate.school_type)
+                    row_data.append(
+                        candidate.get_school_type_display()
+                        if hasattr(candidate, "get_school_type_display")
+                        else candidate.school_type
+                    )
                 elif col == "current_class":
                     row_data.append(candidate.current_class or "N/A")
                 elif col == "state":
@@ -207,7 +221,11 @@ class UserExportView(APIView):
                 elif col == "role":
                     row_data.append(candidate.get_role_display())
                 elif col == "date_joined":
-                    row_data.append(user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A")
+                    row_data.append(
+                        user.date_joined.strftime("%Y-%m-%d %H:%M:%S")
+                        if user.date_joined
+                        else "N/A"
+                    )
                 elif col == "status":
                     row_data.append(candidate.status)
                 else:
@@ -253,7 +271,11 @@ class UserExportView(APIView):
                 elif col == "role":
                     row_data.append(staff.get_role_display())
                 elif col == "date_joined":
-                    row_data.append(user.date_joined.strftime("%Y-%m-%d %H:%M:%S") if user.date_joined else "N/A")
+                    row_data.append(
+                        user.date_joined.strftime("%Y-%m-%d %H:%M:%S")
+                        if user.date_joined
+                        else "N/A"
+                    )
                 elif col == "status":
                     row_data.append(staff.status)
                 else:
@@ -267,7 +289,9 @@ class UserExportView(APIView):
         ws.append(headers)
 
         header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="3E4095", end_color="3E4095", fill_type="solid")
+        header_fill = PatternFill(
+            start_color="3E4095", end_color="3E4095", fill_type="solid"
+        )
         header_alignment = Alignment(horizontal="center", vertical="center")
 
         for cell in ws[1]:
@@ -279,11 +303,10 @@ class UserExportView(APIView):
             max_length = 0
             column_letter = column[0].column_letter
             for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+                else:
+                    continue
             ws.column_dimensions[column_letter].width = max_length + 2
 
     def _get_response(self, wb, filename):
@@ -293,7 +316,7 @@ class UserExportView(APIView):
 
         response = HttpResponse(
             output.read(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = f"attachment; filename={filename}"
         return response

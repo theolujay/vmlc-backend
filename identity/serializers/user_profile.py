@@ -1,12 +1,11 @@
 from rest_framework import serializers
 
+from identity.models import User
 from identity.serializers import (
     CandidateDetailSerializer,
-    StaffDetailSerializer,
     MinimalUserSerializer,
+    StaffDetailSerializer,
 )
-
-from identity.models import User
 
 
 class UserProfileDetailSerializer(serializers.Serializer):

@@ -1,19 +1,17 @@
 import logging
 
-from django.core.paginator import Paginator
 from channels.db import database_sync_to_async
 
-from identity.permissions import StaffRoleHierarchy
 from comms.models import HelpdeskThread, ThreadMessage
 from comms.serializers import HelpdeskThreadListSerializer
+from competition.utils.stats import get_helpdesk_stats_cached
 from core.utils.query_filters import (
-    filter_helpdesk_threads,
-    annotate_thread_with_staff_unread_count,
     annotate_thread_with_last_candidate_message_at,
     annotate_thread_with_last_message_sender_type,
+    annotate_thread_with_staff_unread_count,
+    filter_helpdesk_threads,
 )
-
-from competition.utils.stats import get_helpdesk_stats_cached
+from identity.permissions import StaffRoleHierarchy
 
 logger = logging.getLogger(__name__)
 

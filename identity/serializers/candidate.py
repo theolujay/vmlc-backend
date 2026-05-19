@@ -1,16 +1,15 @@
-from rest_framework import serializers
 from django.core.cache import cache
 from django.db import transaction
+from rest_framework import serializers
 
-
+from competition.models import Competition, Enrollment
 from identity.models import (
     Candidate,
     CowrywiseKidProfile,
 )
-from competition.models import Competition, Enrollment
+from identity.serializers.cowrywise_kid import CowrywiseKidProfileSerializer
 from identity.serializers.user import UserSerializer
 from vmlc.services.candidate_records import CandidateRecordService
-from identity.serializers.cowrywise_kid import CowrywiseKidProfileSerializer
 
 
 class MinimalCandidateSerializer(serializers.ModelSerializer):

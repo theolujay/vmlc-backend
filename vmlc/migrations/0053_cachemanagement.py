@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0052_remove_examaccess_access_url_and_more"),
     ]

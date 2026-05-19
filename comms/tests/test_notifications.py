@@ -1,16 +1,16 @@
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth import get_user_model
-from django.core.cache import cache
-from comms.models import Notification
 from rest_framework_api_key.models import APIKey
+
+from comms.models import Notification
 
 User = get_user_model()
 
 
 class NotificationHTTPTest(APITestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)

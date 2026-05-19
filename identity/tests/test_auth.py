@@ -1,14 +1,13 @@
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-from django.urls import reverse
-from django.test import TestCase, RequestFactory
 
 from identity.models import Candidate, User
 
 
 class AuthEndpointsTest(APITestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)

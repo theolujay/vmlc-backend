@@ -1,13 +1,15 @@
 import logging
+
 from django.db import transaction
 from django.utils import timezone
+
 from competition.models import (
     Competition,
-    RankingSnapshotEntry,
-    Stage,
     Enrollment,
     EnrollmentStageProgress,
     RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
 )
 from competition.services.leaderboard import LeaderboardService
 from core.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
@@ -254,7 +256,10 @@ class PromotionService:
         )
 
         # Invalidate Caches
-        from core.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
+        from core.utils.cache import (
+            invalidate_candidate_cache,
+            invalidate_staff_dashboard,
+        )
 
         all_affected_ids = candidate_ids_to_promote + candidate_ids_to_eliminate
 
@@ -311,7 +316,10 @@ class PromotionService:
             competition=ranking.competition, absentee_entries=absentee_entries
         )
         # Invalidate Caches
-        from core.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
+        from core.utils.cache import (
+            invalidate_candidate_cache,
+            invalidate_staff_dashboard,
+        )
 
         def clear_caches():
             for c_id in candidate_ids:
@@ -418,7 +426,9 @@ class PromotionService:
             enrollment=enrollment,
             stage=enrollment.current_stage,
             status=EnrollmentStageProgress.Status.DISCONTINUED,
-        ).update(status=EnrollmentStageProgress.Status.IN_PROGRESS, discontinued_at=None)
+        ).update(
+            status=EnrollmentStageProgress.Status.IN_PROGRESS, discontinued_at=None
+        )
 
         # Invalidate Caches
         invalidate_candidate_cache(candidate_id)
@@ -478,10 +488,11 @@ class PromotionService:
         Sends platform notifications to candidates about their promotion or elimination via Broadcast.
         Also informs staff members.
         """
+        from django.conf import settings
+
         from comms.models import Broadcast
         from comms.services.notification import NotificationService
         from identity.models import Staff
-        from django.conf import settings
 
         ns = NotificationService()
         ENV = settings.APP_ENVIRONMENT
@@ -531,7 +542,7 @@ class PromotionService:
         if promoted_ids or eliminated_ids:
             staff_subject = f"{env_prefix}System Update: {from_stage_type.title()} Stage Promotion Completed"
             ignore_message = (
-                f"You may ignore this alert, as testing is ongoing.\n\n"
+                "You may ignore this alert, as testing is ongoing.\n\n"
                 if ENV != "production"
                 else ""
             )

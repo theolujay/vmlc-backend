@@ -1,13 +1,14 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.core.cache import cache
-from unittest.mock import patch, MagicMock, AsyncMock
 
-from identity.models import Staff, Candidate
-from comms.models import HelpdeskThread, ThreadMessage, MessageRead
+from comms.models import HelpdeskThread, MessageRead, ThreadMessage
+from identity.models import Candidate, Staff
 from vmlc.models import Exam, ExamAccess
 
 User = get_user_model()

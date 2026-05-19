@@ -3,6 +3,7 @@ Custom pagination class for consistent page size handling in API responses.
 """
 
 from collections import OrderedDict
+
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 

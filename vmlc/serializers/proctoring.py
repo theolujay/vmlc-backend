@@ -1,13 +1,15 @@
 from datetime import timedelta
+
 from django.conf import settings
 from rest_framework import serializers
+
 from vmlc.models import ExamHeartbeat, ViolationEvent
 
 HEARTBEAT_INTERVAL_MINUTES = (
-    1 if settings.APP_ENVIRONMENT == "development" or "staging" else 5
+    1 if settings.APP_ENVIRONMENT in ["development", "staging"] else 5
 )
 HEARTBEAT_INTERVAL_TOLERANCE_SECONDS = (
-    30 if settings.APP_ENVIRONMENT == "development" or "staging" else 6
+    30 if settings.APP_ENVIRONMENT in ["development", "staging"] else 6
 )
 
 
@@ -144,8 +146,8 @@ class CandidateLiveStatusV2Serializer(serializers.Serializer):
         }
 
     def get_proctoring(self, obj):
-        from vmlc.services.proctoring import ProctoringService
         from vmlc.models import ViolationEvent
+        from vmlc.services.proctoring import ProctoringService
 
         summary = ProctoringService.get_proctoring_summary(obj)
         last_hb = obj.heartbeats.order_by("-sequence_number").first()

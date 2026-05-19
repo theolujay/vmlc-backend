@@ -1,6 +1,5 @@
 from django.conf import settings
 
-
 REFRESH_COOKIE_KEY = "refresh"
 REFRESH_COOKIE_PATH = "/v1/auth/"
 REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60

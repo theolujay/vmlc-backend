@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0012_alter_rankingsnapshot_options_and_more"),
     ]

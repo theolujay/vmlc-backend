@@ -1,19 +1,18 @@
-import uuid
 import logging
-from typing import List, Any, Dict
+import uuid
+from typing import Dict, List
 
-from django.db import DatabaseError
-from django.conf import settings
 from celery import shared_task
 from celery.exceptions import Retry
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db import DatabaseError
 
-from identity.models import User
-from core.utils.exceptions import ServerError
-from comms.services.notification import NotificationService
 from comms.services.kudi_sms import KudiSmsService
+from comms.services.notification import NotificationService
 from comms.services.slack import SlackService
-
+from core.utils.exceptions import ServerError
+from identity.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +21,16 @@ kudi_sms_service = KudiSmsService()
 slack_service = SlackService()
 
 
-
 @shared_task(name="deliver_notifications_task", queue="comms")
 def deliver_notifications_task(notification_ids: List[int]):
     """
     Background task to deliver notifications via WebSocket (real-time) and Email (if requested).
     """
-    from comms.models import Notification
-    from comms.services.email import create_email_html
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
+
+    from comms.models import Notification
+    from comms.services.email import create_email_html
 
     notifications = Notification.objects.filter(id__in=notification_ids).select_related(
         "recipient"
@@ -122,9 +121,11 @@ def notify_prereg_users_via_whatsapp_task():
     Notify PreRegUser entities via WhatsApp if registration is open.
     """
     import re
+
     from django.conf import settings
-    from vmlc.models import FeatureFlag
+
     from identity.models import PreRegUser
+    from vmlc.models import FeatureFlag
 
     if not FeatureFlag.get_bool("candidate_registration"):
         logger.info("Candidate registration is closed. Skipping WhatsApp notification.")
@@ -246,7 +247,11 @@ def notify_candidates_about_exam_task(exam_id, event_type):
     queue="comms",
 )
 def send_bulk_sms_task(
-    self, body: str, recipients: List[str], broadcast_log_id: int = None, broadcast_id: int = None
+    self,
+    body: str,
+    recipients: List[str],
+    broadcast_log_id: int = None,
+    broadcast_id: int = None,
 ):
     """
     Sends bulk SMS and retries if the balance is insufficient.
@@ -298,8 +303,8 @@ def send_bulk_sms_task(
                 "Bulk SMS via Kudi sent successfully for log %s.", broadcast_log_id
             )
             if log:
-                from django.utils import timezone
                 from django.db.models import F
+                from django.utils import timezone
 
                 log.status = BroadcastLog.MediumStatus.SENT
                 log.sent_at = timezone.now()
@@ -333,6 +338,7 @@ def send_bulk_sms_task(
 
                     # Invalidate cache
                     from django.core.cache import cache
+
                     from core.utils.cache import CacheKeys
 
                     cache.delete(
@@ -343,7 +349,11 @@ def send_bulk_sms_task(
                         f"Invalidated broadcast cache for broadcast {broadcast.pk} from task."
                     )
 
-            return {"status": "SUCCESS", "count": len(recipients), "broadcast_id": broadcast_id}
+            return {
+                "status": "SUCCESS",
+                "count": len(recipients),
+                "broadcast_id": broadcast_id,
+            }
         else:
             message = response.get("message", "Unknown error from Kudi")
             logger.error(
@@ -376,7 +386,9 @@ def send_bulk_sms_task(
     default_retry_delay=60,
     queue="comms",
 )
-def send_mail_task(self, subject, message, recipient_list, html_message=None, image_path=None):
+def send_mail_task(
+    self, subject, message, recipient_list, html_message=None, image_path=None
+):
     """
     Celery task to send an email asynchronously.
     Supports inline image attachment via image_path.
@@ -391,11 +403,17 @@ def send_mail_task(self, subject, message, recipient_list, html_message=None, im
 
         if image_path:
             import mimetypes
+
             content_type, _ = mimetypes.guess_type(image_path)
             if content_type is None:
                 content_type = "application/octet-stream"
             with open(image_path, "rb") as f:
-                email.attach("image", f.read(), content_type, headers={"Content-ID": "<email_image>"})
+                email.attach(
+                    "image",
+                    f.read(),
+                    content_type,
+                    headers={"Content-ID": "<email_image>"},
+                )
 
         if html_message:
             email.attach_alternative(html_message, "text/html")
@@ -420,15 +438,15 @@ def send_system_email_task(
     """
     Send system emails for user registration and support inquiries.
     """
+    from comms.models import PublicSupportRequest
     from comms.services.email import (
-        send_system_email,
-        build_registration_welcome_email,
         build_pre_registration_email,
+        build_registration_welcome_email,
         build_support_confirmation_email,
         build_support_notification_email,
+        send_system_email,
     )
-    from identity.models import User, PreRegUser
-    from comms.models import PublicSupportRequest
+    from identity.models import PreRegUser, User
 
     if not obj_id:
         logger.error("No object ID provided for email task")
@@ -500,9 +518,10 @@ def auto_close_in_progress_threads_task():
     Periodic task to close helpdesk threads that have been IN_PROGRESS for at least 10 minutes
     where the last message was NOT from the candidate.
     """
-    from comms.models import HelpdeskThread, ThreadMessage
-    from django.utils import timezone
     from django.db.models import OuterRef, Subquery
+    from django.utils import timezone
+
+    from comms.models import HelpdeskThread, ThreadMessage
 
     ten_minutes_ago = timezone.now() - timezone.timedelta(minutes=10)
     # Subquery to get the sender_type of the latest message for each thread
@@ -535,6 +554,7 @@ def auto_close_in_progress_threads_task():
 
         # Invalidate stats cache
         from django.core.cache import cache
+
         from core.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
@@ -554,8 +574,9 @@ def cleanup_snoozed_helpdesk_threads_task():
     """
     Periodic task to revert SNOOZED helpdesk threads to CLOSED if snoozed_until is in the past.
     """
-    from comms.models import HelpdeskThread
     from django.utils import timezone
+
+    from comms.models import HelpdeskThread
 
     now = timezone.now()
     expired_snoozed_threads = HelpdeskThread.objects.filter(
@@ -570,6 +591,7 @@ def cleanup_snoozed_helpdesk_threads_task():
         logger.info(f"Reverted {count} SNOOZED helpdesk threads to CLOSED.")
         # Invalidate stats cache
         from django.core.cache import cache
+
         from core.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
@@ -592,8 +614,9 @@ def broadcast_staff_helpdesk_update_task():
     """
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
-    from competition.utils.stats import get_helpdesk_stats_cached
     from django.core.cache import cache
+
+    from competition.utils.stats import get_helpdesk_stats_cached
     from core.utils.cache import CacheKeys
 
     # Invalidate stats cache to get fresh data
@@ -619,9 +642,10 @@ def send_welcome_mail_task(
     self, user_id=None, generated_password=None, is_pre_reg=False
 ):
     """Send welcome email to newly registered user."""
-    from comms.services.email import send_welcome_email
-    from identity.models import User, PreRegUser
     from celery.exceptions import Retry
+
+    from comms.services.email import send_welcome_email
+    from identity.models import PreRegUser, User
 
     try:
         if is_pre_reg:
@@ -657,9 +681,10 @@ def send_otp_on_registration_task(self, user_id):
     """
     Celery task to send OTP to user on registration.
     """
-    from identity.models import User
-    from core.utils.auth import send_otp_to_email
     from celery.exceptions import Retry
+
+    from core.utils.auth import send_otp_to_email
+    from identity.models import User
 
     try:
         user = User.objects.get(pk=user_id)
@@ -680,11 +705,10 @@ def helpdesk_escalation_task(message_id):
     Check if a support message from a candidate has been replied to within 2 minutes.
     If not, escalate to admins and managers.
     """
-    from comms.models import ThreadMessage, HelpdeskThread
-    from identity.models import Staff
-    from vmlc.models import ExamAccess, Exam
-    from django.db.models import Q
     from django.utils import timezone
+
+    from comms.models import ThreadMessage
+    from vmlc.models import Exam, ExamAccess
 
     try:
         message = ThreadMessage.objects.select_related("thread__candidate").get(
@@ -751,15 +775,7 @@ def helpdesk_escalation_task(message_id):
             logger.info(
                 f"Escalating helpdesk thread {thread.id} - candidate in ongoing exam, no staff reply after 2 minutes."
             )
-
-            # 1. Send Slack Alert
             slack_service.send_support_escalation_alert(thread, latest_message)
-
-            # 2. Get admins and managers for Email/SMS
-            escalation_targets = Staff.objects.filter(
-                Q(role=Staff.Roles.ADMIN) | Q(role=Staff.Roles.MODERATOR),
-                user__is_active=True,
-            ).select_related("user")
 
             subject = f"URGENT: Helpdesk Escalation - {thread.candidate.user.get_full_name()} - {exam_title}"
             body = (
@@ -792,9 +808,9 @@ def notify_staff_about_exam_event_task(exam_id: uuid.UUID, event_type: str):
     """
     Notify staff members about exam status changes.
     """
-    from vmlc.models import Exam
-    from identity.models import Staff
     from comms.services.email import create_email_html
+    from identity.models import Staff
+    from vmlc.models import Exam
 
     try:
         exam = Exam.objects.get(id=exam_id)
@@ -824,7 +840,7 @@ def notify_staff_about_exam_event_task(exam_id: uuid.UUID, event_type: str):
         return
 
     app_environment = settings.APP_ENVIRONMENT
-    subject = f"{app_environment.title() if app_environment != "production" else ""} Exam Update: {exam.get_title()} is now {event_type.capitalize()}"
+    subject = f"{app_environment.title() if app_environment != 'production' else ''} Exam Update: {exam.get_title()} is now {event_type.capitalize()}"
     message = (
         f"This is an automated notification to inform you that the exam "
         f"'{exam.get_title()}' has been marked as '{event_type.capitalize()}' "

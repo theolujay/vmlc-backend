@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0007_remove_stageexam_unique_exam_per_stage_and_more"),
     ]

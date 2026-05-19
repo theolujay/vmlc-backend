@@ -5,7 +5,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
-from identity.models import Candidate, Staff, User
+from identity.models import Candidate, Staff
 
 # TODO: move to [core] app
 phone_regex = RegexValidator(

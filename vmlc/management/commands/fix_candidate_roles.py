@@ -1,6 +1,8 @@
-from django.core.management.base import BaseCommand
-from identity.models import Candidate
 import logging
+
+from django.core.management.base import BaseCommand
+
+from identity.models import Candidate
 
 logger = logging.getLogger(__name__)
 

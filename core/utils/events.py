@@ -1,4 +1,5 @@
 import logging
+
 from vmlc.models import Event
 
 logger = logging.getLogger(__name__)

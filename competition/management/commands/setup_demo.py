@@ -1,11 +1,12 @@
-import random
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from django.db import transaction
-from competition.models import Competition, Stage, StageExam, Enrollment
-from vmlc.models import Exam, Question
-from identity.models import Candidate, User, Staff
+from django.utils import timezone
+
+from competition.models import Competition, Enrollment, Stage, StageExam
+from identity.models import Candidate, Staff, User
+from vmlc.models import Exam
 
 
 class Command(BaseCommand):
@@ -121,7 +122,7 @@ class Command(BaseCommand):
             )
             exam.competition_slot = stage_exam
             exam.save()
-            self.stdout.write(self.style.SUCCESS(f"Linked exam to Screening stage"))
+            self.stdout.write(self.style.SUCCESS("Linked exam to Screening stage"))
 
             # 4. Create Demo Candidates and Enroll them
             for i in range(num_candidates):

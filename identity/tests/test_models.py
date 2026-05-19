@@ -4,7 +4,6 @@ from identity.models import Candidate, Staff, User
 
 
 class UserModelTest(TestCase):
-
     def test_create_user(self):
         user = User.objects.create_user(
             email="testuser@example.com",
@@ -29,7 +28,6 @@ class UserModelTest(TestCase):
 
 
 class CandidateModelTest(TestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             email="candidate@example.com",
@@ -46,7 +44,6 @@ class CandidateModelTest(TestCase):
 
 
 class StaffModelTest(TestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             email="staff@example.com",

@@ -1,25 +1,31 @@
 from django.core.cache import cache
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
+from django.db.models.signals import post_delete, post_save
 
-from identity.models import Candidate, Staff, User, UserVerification, CowrywiseKidProfile, PreRegUser
+from competition.models import (
+    Competition,
+    Enrollment,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
+    StageExam,
+)
+from competition.tasks import generate_stats_overview_task
+from core.utils.cache import CacheKeys
+from identity.models import (
+    Candidate,
+    CowrywiseKidProfile,
+    PreRegUser,
+    Staff,
+    User,
+    UserVerification,
+)
 from vmlc.models import (
     CandidateExamResult,
     Exam,
     ExamAccess,
 )
-from competition.models import (
-    Competition,
-    Stage,
-    RankingSnapshot,
-    Enrollment,
-    StageExam,
-    RankingSnapshotEntry,
-    LeagueLeaderboard,
-    LeagueLeaderboardEntry,
-)
-from competition.tasks import generate_stats_overview_task
-from core.utils.cache import CacheKeys
 
 
 def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
@@ -46,8 +52,8 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
     """Specific invalidations for dashboards when data changes."""
     from core.utils.cache import (
         invalidate_candidate_cache,
-        invalidate_staff_dashboard,
         invalidate_score_boards,
+        invalidate_staff_dashboard,
     )
 
     if isinstance(instance, Candidate):
@@ -71,12 +77,24 @@ def invalidate_dashboard_on_change(sender, instance, **kwargs):
     elif isinstance(instance, RankingSnapshotEntry):
         invalidate_staff_dashboard()
         invalidate_score_boards(exam_id=instance.ranking_snapshot.exam_id)
-    elif isinstance(instance, (Competition, Stage, Enrollment, StageExam, LeagueLeaderboard, LeagueLeaderboardEntry, ExamAccess)):
+    elif isinstance(
+        instance,
+        (
+            Competition,
+            Stage,
+            Enrollment,
+            StageExam,
+            LeagueLeaderboard,
+            LeagueLeaderboardEntry,
+            ExamAccess,
+        ),
+    ):
         invalidate_staff_dashboard()
         invalidate_score_boards()
     elif isinstance(instance, Exam):
-        from vmlc.tasks import invalidate_exam_related_caches_task
         from django.db import transaction
+
+        from vmlc.tasks import invalidate_exam_related_caches_task
 
         transaction.on_commit(
             lambda: invalidate_exam_related_caches_task.delay(str(instance.id))

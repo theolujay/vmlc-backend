@@ -1,41 +1,21 @@
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from django.db.models import Avg, Count, Q
-from django.core.cache import cache
-
-from rest_framework.views import APIView
+from django.utils import timezone
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import (
     ListAPIView,
-    RetrieveUpdateDestroyAPIView,
     ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
 from competition.services.eligibility import EligibilityService
-from identity.models import Candidate
-from identity.permissions import (
-    ActiveAdminPermissions,
-    ActiveModeratorPermissions,
-    CandidatePermissions,
-    StaffRoleHierarchy,
-)
-
-from django.utils import timezone
-from vmlc.models import Exam, ExamHeartbeat, Question, CandidateExamResult, ExamAccess
-from vmlc.services.candidate_records import CandidateRecordService
-from vmlc.serializers.exam import (
-    ExamListV2Serializer,
-    ExamDetailV2Serializer,
-    ExamResultV2Serializer,
-    CandidateTakeExamSerializer,
-    ExamFaceCaptureSerializer,
-)
-from vmlc.serializers.question import QuestionV2Serializer
 from core.utils.cache import (
     CacheKeys,
     get_or_set_cache,
@@ -44,9 +24,25 @@ from core.utils.cache import (
     invalidate_staff_dashboard,
     question_pool_aggregate,
 )
-from core.utils.exceptions import PermissionDenied, NotFound
+from core.utils.exceptions import NotFound, PermissionDenied
 from core.utils.query_filters import ExamFilter
-
+from identity.models import Candidate
+from identity.permissions import (
+    ActiveAdminPermissions,
+    ActiveModeratorPermissions,
+    CandidatePermissions,
+    StaffRoleHierarchy,
+)
+from vmlc.models import CandidateExamResult, Exam, ExamAccess, ExamHeartbeat, Question
+from vmlc.serializers.exam import (
+    CandidateTakeExamSerializer,
+    ExamDetailV2Serializer,
+    ExamFaceCaptureSerializer,
+    ExamListV2Serializer,
+    ExamResultV2Serializer,
+)
+from vmlc.serializers.question import QuestionV2Serializer
+from vmlc.services.candidate_records import CandidateRecordService
 
 logger = logging.getLogger(__name__)
 
@@ -470,7 +466,9 @@ def candidate_take_exam_V2(request, exam_id):
     except Exam.DoesNotExist:
         raise NotFound("Exam not found.")
 
-    is_eligible, in_eligibility_reason, access = EligibilityService.can_take_exam(candidate, exam)
+    is_eligible, in_eligibility_reason, access = EligibilityService.can_take_exam(
+        candidate, exam
+    )
 
     if not is_eligible:
         logger.warning(
@@ -492,8 +490,8 @@ def candidate_take_exam_V2(request, exam_id):
         heartbeats = ExamHeartbeat.objects.filter(exam_access=access)
         heartbeats.delete()
         # Schedule expiration task
-        from vmlc.tasks import mark_exam_access_as_expired_task
         from core.utils.cache import GRACE_PERIOD_MINUTES
+        from vmlc.tasks import mark_exam_access_as_expired_task
 
         mark_exam_access_as_expired_task.apply_async(
             # Add grace period for network latency

@@ -1,19 +1,18 @@
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITransactionTestCase
-from django.contrib.auth import get_user_model
 from rest_framework_api_key.models import APIKey
-from django.utils import timezone
-from unittest.mock import patch
 
-from identity.models import Staff, UserVerification, Candidate
 from comms.models import Broadcast, BroadcastLog
+from identity.models import Candidate, Staff, UserVerification
 
 User = get_user_model()
 
 
 class BroadcastTest(APITransactionTestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)

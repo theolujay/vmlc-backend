@@ -4,11 +4,12 @@ Base Django settings to be shared across all environments.
 
 from datetime import timedelta
 from pathlib import Path
-import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
-from corsheaders.defaults import default_headers, default_methods
-from ._utils import read_secret
 
+import dj_database_url
+from corsheaders.defaults import default_headers, default_methods
+from django.core.exceptions import ImproperlyConfigured
+
+from ._utils import read_secret
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -305,7 +306,7 @@ CORS_ALLOW_HEADERS = (*default_headers, "x-api-key")
 # ============================================================================
 # CHANNELS AND CACHE CONFIGURATION
 # ============================================================================
-REDIS_URL = read_secret("REDIS_URL", f"redis://redis:6379/0")
+REDIS_URL = read_secret("REDIS_URL", "redis://redis:6379/0")
 
 CHANNEL_LAYERS = {
     "default": {
@@ -350,12 +351,6 @@ CELERY_TASK_ROUTES = {
     "send_broadcast_task": {"queue": "comms", "priority": 8},
     "broadcast_staff_helpdesk_update_task": {"queue": "comms", "priority": 7},
     "send_otp_on_registration_task": {"queue": "emails", "priority": 9},
-    # "compute_candidate_result_task": {"queue": "scoring", "priority": 6},
-    # "validate_user_verification_files_task": {"queue": "files", "priority": 5},
-    # "generate_leaderboard_snapshot_task": {"queue": "reports", "priority": 3},
-    "generate_results_snapshot_task": {"queue": "reports", "priority": 3},
-    # "update_staff_dashboard_cache_task": {"queue": "cache", "priority": 2},
-    # "update_candidate_ranking_cache_task": {"queue": "cache", "priority": 2},
 }
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ACKS_LATE = True

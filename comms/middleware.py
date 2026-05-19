@@ -2,12 +2,13 @@
 
 import logging
 from urllib.parse import parse_qs
+
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.db import close_old_connections
-from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import AccessToken
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -122,8 +123,8 @@ class DualAuthMiddleware:
     @database_sync_to_async
     def validate_api_key(self, key):
         """Validate API key using rest_framework_api_key."""
-        from rest_framework_api_key.models import APIKey
         from django.conf import settings
+        from rest_framework_api_key.models import APIKey
 
         if settings.DEBUG:
             return True

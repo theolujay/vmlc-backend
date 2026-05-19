@@ -8,9 +8,9 @@ from competition.models import (
     Competition,
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
-    Stage,
     RankingSnapshot,
     RankingSnapshotEntry,
+    Stage,
 )
 
 
@@ -21,8 +21,7 @@ class LeaderboardService:
 
     @staticmethod
     def get_latest_league_leaderboard(
-        competition: Optional[Competition] = None,
-        is_public: Optional[bool] = None
+        competition: Optional[Competition] = None, is_public: Optional[bool] = None
     ) -> Optional[LeagueLeaderboard]:
         """
         Retrieves the latest cumulative leaderboard for the league stage.
@@ -193,4 +192,3 @@ class LeaderboardService:
         ).first()
         leaderboard.is_public = True
         leaderboard.save()
-

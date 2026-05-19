@@ -4,6 +4,7 @@ Run with `python manage.py test --settings=config.settings.test --noinput --fail
 """
 
 import dj_database_url
+
 from .base import *
 
 # ============================================================================

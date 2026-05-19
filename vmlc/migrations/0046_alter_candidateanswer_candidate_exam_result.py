@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0045_alter_event_id_alter_exam_id_alter_exam_is_active_and_more"),
     ]

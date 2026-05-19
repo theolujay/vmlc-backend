@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0057_examaccess_is_manually_reviewed_and_more"),
     ]

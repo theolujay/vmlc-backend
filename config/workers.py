@@ -1,4 +1,5 @@
 from typing import Any, Dict
+
 from uvicorn.workers import UvicornWorker as BaseUvicornWorker
 
 

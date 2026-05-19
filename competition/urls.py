@@ -1,14 +1,15 @@
 from django.urls import path
+
 from competition.views import (
-    PublishRankingSnapshotView,
-    RetrieveRankingSnapshotView,
-    ListRankingSnapshotsView,
-    LeagueLeaderboardView,
-    StaffCompetitionDashboardView,
-    RetrieveCandidateRankingSnapshotEntryView,
-    LeagueCandidateLeaderboardView,
     CandidateDashboardView,
+    LeagueCandidateLeaderboardView,
+    LeagueLeaderboardView,
+    ListRankingSnapshotsView,
     PromoteCandidatesView,
+    PublishRankingSnapshotView,
+    RetrieveCandidateRankingSnapshotEntryView,
+    RetrieveRankingSnapshotView,
+    StaffCompetitionDashboardView,
 )
 
 app_name = "competition"

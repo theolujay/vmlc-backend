@@ -1,9 +1,10 @@
 from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-from django.contrib.auth import get_user_model
-from django.urls import reverse
 
 from identity.models import Staff, UserVerification
 
@@ -11,7 +12,6 @@ User = get_user_model()
 
 
 class ListEndpointsTest(APITestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)

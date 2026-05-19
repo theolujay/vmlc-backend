@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0008_remove_notification_read_and_more"),
     ]

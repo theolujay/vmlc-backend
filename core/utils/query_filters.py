@@ -1,23 +1,22 @@
 from typing import Any, List
 
 import django_filters
-from django.utils import timezone
 from django.db.models import (
-    Q,
-    OuterRef,
-    QuerySet,
-    Count,
-    Max,
-    Subquery,
     Case,
-    When,
-    Value,
+    Count,
     IntegerField,
+    Max,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Value,
+    When,
 )
 
+from comms.models import Broadcast, HelpdeskThread, ThreadMessage
 from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Exam, Question
-from comms.models import Broadcast, HelpdeskThread, ThreadMessage
 
 
 def annotate_thread_with_staff_unread_count(

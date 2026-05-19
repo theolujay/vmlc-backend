@@ -1,9 +1,11 @@
 import logging
+
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
+
 from competition.models import Competition
+from competition.services.enrollment import EnrollmentError, EnrollmentService
 from identity.models import Candidate
-from competition.services.enrollment import EnrollmentService, EnrollmentError
 
 logger = logging.getLogger(__name__)
 

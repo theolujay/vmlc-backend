@@ -1,9 +1,11 @@
+from datetime import timedelta
+
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.utils import timezone
-from datetime import timedelta
-from identity.models import User, Candidate, Staff, PreRegUser
+
+from identity.models import Candidate, PreRegUser, Staff, User
 from vmlc.models import Event
 
 

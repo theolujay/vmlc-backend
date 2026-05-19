@@ -2,13 +2,12 @@
 Authentication-related API views for login, logout, and registration.
 """
 
-from asyncio import sleep
 import logging
+from asyncio import sleep
 
 from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
 from django.db import transaction
-
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +16,15 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from comms.services.email import create_email_html
+from comms.tasks import send_mail_task
+from core.utils.cookies import set_refresh_cookie, unset_refresh_cookie
+from core.utils.exceptions import (
+    InvalidTokenError,
+    NotFound,
+    ServerError,
+    ValidationError,
+)
 from identity.models import User
 from identity.permissions import HasXAPIKey
 from identity.serializers.auth import (
@@ -26,15 +34,7 @@ from identity.serializers.auth import (
     SendEmailOTPSerializer,
     VerifyEmailOTPSerializer,
 )
-from comms.tasks import send_mail_task
-from comms.services.email import create_email_html
-from core.utils.cookies import set_refresh_cookie, unset_refresh_cookie
-from core.utils.exceptions import (
-    InvalidTokenError,
-    NotFound,
-    ServerError,
-    ValidationError,
-)
+
 logger = logging.getLogger(__name__)
 
 

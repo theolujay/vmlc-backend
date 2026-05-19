@@ -1,12 +1,13 @@
 from rest_framework import serializers
+
 from competition.models import (
-    RankingSnapshot,
-    RankingSnapshotEntry,
     LeagueLeaderboard,
     LeagueLeaderboardEntry,
+    RankingSnapshot,
+    RankingSnapshotEntry,
 )
-from vmlc.serializers.question import QuestionListSerializer
 from vmlc.models import CandidateAnswer, CandidateExamResult
+from vmlc.serializers.question import QuestionListSerializer
 
 
 class RankingSnapshotListSerializer(serializers.ModelSerializer):

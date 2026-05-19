@@ -1,9 +1,9 @@
 import logging
 
-from django.utils import timezone
+from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
-from celery import shared_task
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 

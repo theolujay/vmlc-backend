@@ -1,9 +1,11 @@
 import json
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from vmlc.models import Exam, Question
-from competition.models import Stage, StageExam, Competition
+
+from competition.models import Competition, Stage, StageExam
 from identity.models import Staff
+from vmlc.models import Exam, Question
 
 
 class Command(BaseCommand):

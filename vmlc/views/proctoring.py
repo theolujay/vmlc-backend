@@ -1,21 +1,26 @@
-import logging
 import json
+import logging
 from datetime import datetime, timedelta
+
 from django.core.cache import cache
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser
-from vmlc.models import Exam, ExamAccess
-from identity.permissions import CandidatePermissions, ActiveAdminPermissions
-from vmlc.services.proctoring import ProctoringService
-from vmlc.serializers.proctoring import (
-    HeartbeatPayloadSerializer,
-    ExamHeartbeatSerializer,
-    CandidateLiveStatusV2Serializer,
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.utils.cache import (
+    CacheKeys,
+    get_or_set_cache,
 )
-from core.utils.cache import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
 from core.utils.exceptions import NotFound, PermissionDenied
+from identity.permissions import ActiveAdminPermissions, CandidatePermissions
+from vmlc.models import Exam, ExamAccess
+from vmlc.serializers.proctoring import (
+    CandidateLiveStatusV2Serializer,
+    ExamHeartbeatSerializer,
+    HeartbeatPayloadSerializer,
+)
+from vmlc.services.proctoring import ProctoringService
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +37,9 @@ class CandidateLiveStatusV2View(APIView):
 
     def get(self, request, exam_id, candidate_id):
         try:
-            access = ExamAccess.objects.select_related(
-                "exam", "candidate__user"
-            ).get(exam_id=exam_id, candidate_id=candidate_id)
+            access = ExamAccess.objects.select_related("exam", "candidate__user").get(
+                exam_id=exam_id, candidate_id=candidate_id
+            )
         except ExamAccess.DoesNotExist:
             raise NotFound("Exam access record not found for this candidate.")
 

@@ -1,20 +1,22 @@
 from django.urls import path
 
 from .views import (
+    CandidateListView,
+    CowrywiseKidProfileView,
     LoginView,
     LogoutView,
     PasswordChangeOTPConfirmView,
     PasswordChangeView,
     RefreshTokenView,
+    RegistrationMetricsView,
     RequestPasswordChangeView,
     ResendPasswordChangeOTPView,
     SendEmailOTPView,
     VerifyEmailOTPView,
-    CowrywiseKidProfileView,
     registration_status,
-    RegistrationMetricsView,
-    CandidateListView,
 )
+from .views.auth import DirectAccessLoginView
+from .views.registration import PreRegistrationView, RegistrationV2View
 from .views.user import (
     AccountManagementView,
     BulkCandidateImportView,
@@ -27,8 +29,6 @@ from .views.user import (
     UserExportView,
     UserListView,
 )
-from .views.registration import RegistrationV2View, PreRegistrationView
-from .views.auth import DirectAccessLoginView
 
 app_name = "identity"
 
@@ -41,7 +41,11 @@ urlpatterns = [
     # Authentication
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
-    path("auth/direct-access/", DirectAccessLoginView.as_view(), name="direct-access-login"),
+    path(
+        "auth/direct-access/",
+        DirectAccessLoginView.as_view(),
+        name="direct-access-login",
+    ),
     path("auth/token/refresh/", RefreshTokenView.as_view(), name="token-refresh"),
     path(
         "auth/password-change/request/",
@@ -68,18 +72,46 @@ urlpatterns = [
     # User management
     path("user/list/", UserListView.as_view(), name="user-list"),
     path("user/export/", UserExportView.as_view(), name="user-export"),
-    path("user/bulk-notification/", BulkNotificationView.as_view(), name="user-bulk-notification"),
-    path("user/reset-password/", ResetUserPasswordView.as_view(), name="user-reset-password"),
+    path(
+        "user/bulk-notification/",
+        BulkNotificationView.as_view(),
+        name="user-bulk-notification",
+    ),
+    path(
+        "user/reset-password/",
+        ResetUserPasswordView.as_view(),
+        name="user-reset-password",
+    ),
     path("user/activity/", UserActivityLogView.as_view(), name="user-activity"),
     path("user/import/staff/", BulkStaffImportView.as_view(), name="user-import-staff"),
-    path("user/import/candidate/", BulkCandidateImportView.as_view(), name="user-import-candidate"),
+    path(
+        "user/import/candidate/",
+        BulkCandidateImportView.as_view(),
+        name="user-import-candidate",
+    ),
     path("staff/invite/", StaffInviteView.as_view(), name="staff-invite"),
     # Account management
-    path("account-management/", AccountManagementView.as_view(), name="account-management"),
-    path("account-management/<uuid:user_id>/", AccountManagementView.as_view(), name="account-management-detail"),
+    path(
+        "account-management/",
+        AccountManagementView.as_view(),
+        name="account-management",
+    ),
+    path(
+        "account-management/<uuid:user_id>/",
+        AccountManagementView.as_view(),
+        name="account-management-detail",
+    ),
     # Candidate management
     path("candidates/", CandidateListView.as_view(), name="candidate-list"),
-    path("candidates/<uuid:candidate_id>/", UserDetailView.as_view(), name="candidate-detail"),
+    path(
+        "candidates/<uuid:candidate_id>/",
+        UserDetailView.as_view(),
+        name="candidate-detail",
+    ),
     # Registration metrics
-    path("stats/registration-trends/", RegistrationMetricsView.as_view(), name="registration-trends"),
+    path(
+        "stats/registration-trends/",
+        RegistrationMetricsView.as_view(),
+        name="registration-trends",
+    ),
 ]

@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0002_broadcast_task_id_alter_broadcast_status"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

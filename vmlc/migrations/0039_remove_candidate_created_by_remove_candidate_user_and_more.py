@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0007_alter_broadcast_created_by"),
         ("identity", "0001_initial"),

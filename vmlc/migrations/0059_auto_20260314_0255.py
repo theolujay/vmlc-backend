@@ -11,7 +11,6 @@ def make_proctoring_status_null_for_absentees(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0058_alter_examaccess_proctoring_status"),
     ]

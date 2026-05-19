@@ -1,4 +1,5 @@
 import logging
+
 from celery import shared_task
 from django.core.cache import cache
 
@@ -10,14 +11,14 @@ def invalidate_exam_related_caches_task(exam_id):
     """
     Invalidates caches related to a specific exam, including candidate dashboards.
     """
-    from vmlc.models import Exam
     from competition.models import Enrollment
     from core.utils.cache import (
         CacheKeys,
-        invalidate_staff_dashboard,
         invalidate_exam_cache,
         invalidate_score_boards,
+        invalidate_staff_dashboard,
     )
+    from vmlc.models import Exam
 
     try:
         exam = Exam.objects.select_related(
@@ -74,10 +75,12 @@ def check_exam_status_transitions_task():
     Periodic task to check for exams that have transitioned status due to time.
     Invalidates caches if a transition is detected.
     """
-    from vmlc.models import Exam
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.utils import timezone
+
     from core.utils.events import log_event
+    from vmlc.models import Exam
 
     now = timezone.now()
     # We look for exams that have scheduled_date or conclusion_time
@@ -112,9 +115,9 @@ def check_exam_status_transitions_task():
 
     # Passcode Generation: Identify exams that became SCHEDULED since the last run
     # (Exam status is SCHEDULED if scheduled_date is in the future)
-    newly_scheduled_exams = Exam.objects.select_related("competition_slot__competition_stage").filter(
-        is_active=True, scheduled_date__gt=now, updated_at__gt=last_run
-    )
+    newly_scheduled_exams = Exam.objects.select_related(
+        "competition_slot__competition_stage"
+    ).filter(is_active=True, scheduled_date__gt=now, updated_at__gt=last_run)
     for exam in newly_scheduled_exams:
         generate_and_send_exam_passcodes_task.delay(str(exam.id), exam.stage)
         logger.info(
@@ -189,8 +192,8 @@ def generate_and_send_exam_passcodes_task(exam_id, exam_stage=None):
     """
     Task to generate passcodes and send them via email to eligible candidates.
     """
-    from vmlc.models import Exam
     from competition.models import Stage
+    from vmlc.models import Exam
     from vmlc.services.exam_access import ExamAccessService
 
     stage = exam_stage
@@ -200,7 +203,9 @@ def generate_and_send_exam_passcodes_task(exam_id, exam_stage=None):
 
     if stage is None:
         try:
-            exam = Exam.objects.select_related("competition_slot__competition_stage").get(pk=exam_id)
+            exam = Exam.objects.select_related(
+                "competition_slot__competition_stage"
+            ).get(pk=exam_id)
             stage = exam.stage
         except Exam.DoesNotExist:
             logger.warning(f"Exam {exam_id} not found for passcode task.")
@@ -220,10 +225,11 @@ def mark_exam_access_as_expired_task(access_id):
     Marks an ExamAccess as EXPIRED if it's still in STARTED status after its deadline.
     Includes a 5-minute grace period consistent with SubmitAnswersV2View.
     """
-    from vmlc.models import ExamAccess
-    from core.utils.cache import invalidate_candidate_cache
+
     from django.utils import timezone
-    from datetime import timedelta
+
+    from core.utils.cache import invalidate_candidate_cache
+    from vmlc.models import ExamAccess
 
     try:
         access = ExamAccess.objects.select_related("candidate").get(pk=access_id)

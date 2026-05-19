@@ -1,17 +1,18 @@
 import logging
 from typing import Any, Dict, List, Optional
-from django.db.models import Count, Avg, Max, Min, Sum
 
-from identity.models import Candidate
-from vmlc.models import Exam, CandidateExamResult
+from django.db.models import Avg, Count, Max, Min, Sum
+
 from competition.models import (
     Competition,
+    Enrollment,
+    LeagueLeaderboardEntry,
+    RankingSnapshotEntry,
     Stage,
     StageExam,
-    Enrollment,
-    RankingSnapshotEntry,
-    LeagueLeaderboardEntry,
 )
+from identity.models import Candidate
+from vmlc.models import CandidateExamResult, Exam
 
 logger = logging.getLogger(__name__)
 

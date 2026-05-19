@@ -1,21 +1,21 @@
 import logging
-import logging
-from django.db.models import F, Count, Avg, Q, Max, Min, Exists, OuterRef
+
+from django.db.models import Avg, Count, Exists, F, Max, Min, OuterRef, Q
+
 from competition.models import (
     Competition,
-    StageExam,
     Enrollment,
     RankingSnapshot,
     RankingSnapshotEntry,
+    StageExam,
 )
-from vmlc.models import Exam, CandidateExamResult, CandidateAnswer, ExamAccess
-from competition.services.leaderboard import LeaderboardService
 from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
     RankingSnapshotEntrySerializer,
 )
+from competition.services.leaderboard import LeaderboardService
 from core.utils.cache import truncate_float
-
+from vmlc.models import CandidateAnswer, CandidateExamResult, Exam, ExamAccess
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,9 @@ class StaffCompetitionDashboardService:
             "progress": _get_progress(active_comp),
             "exams": _get_exams_list(active_comp),
             "leaderboard_summary": _get_leaderboard_summary(active_comp, is_internal),
-            "latest_ranking_summary": _get_latest_ranking_summary(active_comp, is_internal),
+            "latest_ranking_summary": _get_latest_ranking_summary(
+                active_comp, is_internal
+            ),
         }
 
 
@@ -309,9 +311,9 @@ def _get_latest_ranking_summary(competition: Competition, is_internal) -> dict |
     if not latest_ranking:
         return None
 
-    entries = latest_ranking.entries.select_related(
-        "candidate__user"
-    ).order_by("rank")[:3]
+    entries = latest_ranking.entries.select_related("candidate__user").order_by("rank")[
+        :3
+    ]
 
     return {
         "exam_id": latest_ranking.exam_id,

@@ -5,15 +5,20 @@ URL configuration for the v1 API endpoints.
 from django.urls import path
 
 from .views import (
+    ExamDetailV2View,
+    ExamFaceCaptureView,
+    ExamHistoryV2View,
+    ExamListV2View,
+    ExamQuestionsV2View,
+    ExamResultsV2View,
     ExamRetractV2View,
     ExamTimeView,
-    ExamListV2View,
-    ExamDetailV2View,
-    ExamResultsV2View,
-    ExamQuestionsV2View,
-    ExamHistoryV2View,
-    ExamFaceCaptureView,
     candidate_take_exam_V2,
+)
+from .views.answer import (
+    AutoSaveAnswersV2View,
+    GetSavedAnswersV2View,
+    SubmitAnswersV2View,
 )
 from .views.proctoring import (
     CandidateLiveStatusV2View,
@@ -22,14 +27,9 @@ from .views.proctoring import (
     UpdateProctoringStatusView,
 )
 from .views.question import (
-    QuestionListCreateV2View,
-    QuestionDetailV2View,
     QuestionBulkActionV2View,
-)
-from .views.answer import (
-    SubmitAnswersV2View,
-    AutoSaveAnswersV2View,
-    GetSavedAnswersV2View,
+    QuestionDetailV2View,
+    QuestionListCreateV2View,
 )
 
 app_name = "vmlc"

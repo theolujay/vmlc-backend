@@ -3,13 +3,13 @@ Local development environment settings.
 This settings configuration is used when running without Docker containers locally.
 """
 
-import sys
 from datetime import timedelta
+
 import dj_database_url
 from dotenv import load_dotenv
-from .base import *
-from ._utils import read_secret
 
+from ._utils import read_secret
+from .base import *
 
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / ".env")

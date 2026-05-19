@@ -6,11 +6,11 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
+from competition.models import Competition, Enrollment
 from core.utils.events import log_event
 from identity.models import Candidate, CowrywiseKidProfile
 from identity.permissions import CandidatePermissions
 from identity.serializers import CowrywiseKidProfileSerializer
-from competition.models import Competition, Enrollment
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class CowrywiseKidProfileView(CreateAPIView):
                 )
             except Exception as e:
                 logger.exception(
-                    f"Unexpected error linking Cowrywise profile for {request.user.email}"
+                    f"Unexpected error linking Cowrywise profile for {request.user.email}: {e}"
                 )
                 return Response(
                     {"error": "An internal error occurred during profile linking."},

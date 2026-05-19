@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0046_alter_candidateanswer_candidate_exam_result"),
     ]

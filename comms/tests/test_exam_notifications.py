@@ -1,18 +1,19 @@
-from django.test import TestCase
-from unittest.mock import patch, MagicMock
-from django.utils import timezone
 from datetime import timedelta
-from identity.models import User, Candidate, Staff, UserVerification
+from unittest.mock import patch
+
+from django.test import TestCase
+from django.utils import timezone
+
+from comms.services.notification import NotificationService
 from competition.models import (
     Competition,
-    Stage,
-    StageExam,
     Enrollment,
     EnrollmentStageProgress,
+    Stage,
+    StageExam,
 )
+from identity.models import Candidate, Staff, User, UserVerification
 from vmlc.models import Exam
-from comms.services.notification import NotificationService
-from comms.models import Broadcast
 
 
 class ExamNotificationTest(TestCase):

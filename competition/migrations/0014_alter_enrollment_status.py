@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0013_remove_rankingsnapshot_unique_ranking_per_exam"),
     ]

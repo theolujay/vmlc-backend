@@ -1,25 +1,22 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APITestCase
-from rest_framework import status
-from unittest.mock import patch, MagicMock
 from django.utils.dateparse import parse_datetime
+from rest_framework import status
+from rest_framework.test import APITestCase
 
-from identity.models import User, Candidate, Staff
 from competition.models import (
     Competition,
+    RankingSnapshot,
     Stage,
     StageExam,
-    RankingSnapshot,
-    RankingSnapshotEntry,
 )
-from vmlc.models import Exam
 from competition.tasks import (
-    generate_ranking_and_update_leaderboard_task,
-    update_leaderboard_task,
-    invalidate_published_ranking_cache_task,
     publish_ranking_task,
 )
+from identity.models import Staff, User
+from vmlc.models import Exam
 
 
 class PublishRankingSnapshotViewTest(APITestCase):

@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.utils import timezone
-from competition.models import Competition, Stage, StageExam, RankingSnapshot
+
+from competition.models import Competition, RankingSnapshot, Stage, StageExam
 from vmlc.models import Exam
 
 
