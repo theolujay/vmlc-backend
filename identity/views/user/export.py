@@ -10,7 +10,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 
 from identity.models import Staff, Candidate
 from identity.permissions import ActiveManagerPermissions
-from vmlc.utils.query_filters import filter_staffs, filter_candidates
+from core.utils.query_filters import filter_staffs, filter_candidates
 from competition.models import Competition, Stage, StageExam, Enrollment
 from vmlc.models import CandidateExamResult, Exam
 

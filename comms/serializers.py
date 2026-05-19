@@ -221,7 +221,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
         Retrieves the live exam status for the candidate if they have an active or ongoing attempt.
         """
         from vmlc.models import ExamAccess
-        from vmlc.v2.serializers.proctoring import CandidateLiveStatusV2Serializer
+        from vmlc.serializers.proctoring import CandidateLiveStatusV2Serializer
 
         # Find the most recently started active exam attempt for this candidate
         access = (
@@ -410,3 +410,65 @@ class WebSocketThreadMessageSerializer(serializers.ModelSerializer):
             "metadata",
             "created_at",
         ]
+
+
+class BulkNotificationSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=True,
+        help_text="List of user IDs to send notification to"
+    )
+    message = serializers.CharField(
+        required=True,
+        help_text="Message content"
+    )
+    medium = serializers.ChoiceField(
+        choices=["email", "sms", "both"],
+        required=False,
+        default="email",
+        help_text="Delivery channel: email, sms, or both"
+    )
+    subject = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Subject (required for email, optional for SMS)"
+    )
+    image_base64 = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Base64-encoded image data to embed in email"
+    )
+    image_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Original filename of the attached image"
+    )
+
+    def validate_image_base64(self, value):
+        if value and not value.strip():
+            return ""
+        return value
+
+    def validate_user_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one user ID is required.")
+        return value
+
+    def validate_message(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Message cannot be empty.")
+        return value
+
+    def validate(self, data):
+        medium = data.get("medium", "email")
+        subject = data.get("subject", "")
+
+        if medium in ["email", "both"] and not subject.strip():
+            raise serializers.ValidationError({
+                "subject": "Subject is required for email notifications."
+            })
+
+        return data

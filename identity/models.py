@@ -557,7 +557,7 @@ class Candidate(models.Model):
     @property
     def status(self):
         """Get the user status"""
-        from vmlc.utils.user import get_last_concluded_exam
+        from identity.utils.user import get_last_concluded_exam
 
         if not self.user.is_active:
             return "deactivated"

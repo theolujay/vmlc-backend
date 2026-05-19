@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from comms.tasks import send_welcome_mail_task
 from identity.models import Candidate, Staff
 from vmlc.models import FeatureFlag
-from vmlc.v2.serializers.registration import (
+from identity.serializers.registration import (
     PreRegUserSerializer,
     RegistrationV2Serializer,
 )
@@ -29,11 +29,9 @@ class RegistrationV2View(CreateAPIView):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def post(self, request, *args, **kwargs):
-        # 1. Sanitize Data (logging mostly)
         safe_data = sanitize_data(request.data)
         logger.info(f"V2 Registration attempt with data: {safe_data}")
 
-        # 2. Check Authentication
         if request.user.is_authenticated:
             logger.warning(
                 f"Authenticated user {request.user.id} attempted to register."
@@ -42,11 +40,10 @@ class RegistrationV2View(CreateAPIView):
                 "Already authenticated. Please log out to register a new account."
             )
 
-        # 3. Check Feature Flags
         user_type = request.data.get("user_type")
         feature_flag_key = None
 
-        from vmlc.tasks import clear_pre_reg_user
+        from identity.tasks import clear_pre_reg_user
 
         if user_type == "candidate":
             feature_flag_key = "candidate_registration"
@@ -64,7 +61,6 @@ class RegistrationV2View(CreateAPIView):
             )
 
         try:
-            # 4. Serialize & Save
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             instance = serializer.save()
@@ -82,17 +78,14 @@ class RegistrationV2View(CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 5. Tasks (Email with Password)
         generated_password = getattr(instance, "_generated_password", None)
-
         if generated_password:
             send_welcome_mail_task.delay(
                 user_id=instance.user.pk, generated_password=generated_password
             )
 
-        # 6. Invalidate Caches
         if isinstance(instance, Candidate):
-            from vmlc.v2.utils import (
+            from vmlc.utils.cache import (
                 invalidate_candidate_cache,
                 invalidate_staff_dashboard,
             )
@@ -101,7 +94,7 @@ class RegistrationV2View(CreateAPIView):
             invalidate_all_staff_dashboards()
             invalidate_staff_dashboard()
         elif isinstance(instance, Staff):
-            from vmlc.v2.utils import invalidate_staff_dashboard
+            from vmlc.utils.cache import invalidate_staff_dashboard
 
             invalidate_all_staff_dashboards()
             invalidate_staff_dashboard()
@@ -125,17 +118,10 @@ class PreRegistrationView(CreateAPIView):
     serializer_class = PreRegUserSerializer
 
     def post(self, request, *args, **kwargs):
-        # 1. Sanitize Data (logging mostly)
         safe_data = sanitize_data(request.data)
         logger.info(f"Pre-Registration attempt with data: {safe_data}")
 
-        # 2. Check Feature Flag
-        # if not FeatureFlag.get_bool("pre_registration_open", default=True):
-        #      logger.warning("Pre-registration attempt while it is closed.")
-        #      raise PermissionDenied("Pre-registration is currently closed.")
-
         try:
-            # 3. Serialize & Save
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             pre_reg_user = serializer.save()
@@ -150,7 +136,6 @@ class PreRegistrationView(CreateAPIView):
                 },
             )
 
-            # 4. Tasks (Email)
             send_welcome_mail_task.delay(user_id=pre_reg_user.id, is_pre_reg=True)
 
             logger.info(

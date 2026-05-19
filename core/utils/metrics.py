@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncWeek
 from django.utils import timezone
 from identity.models import User, Candidate, Staff, PreRegUser
-from ..models import Event
+from vmlc.models import Event
 
 
 def get_registration_metrics(days=30, weeks=12):

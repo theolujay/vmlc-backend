@@ -12,11 +12,15 @@ from .views import (
     VerifyEmailOTPView,
     CowrywiseKidProfileView,
 )
+from .views.registration import RegistrationV2View, PreRegistrationView
 
 app_name = "identity"
 
 urlpatterns = [
     path("cowrywise-kids/", CowrywiseKidProfileView.as_view(), name="cowrywise-kids"),
+    # Registration
+    path("register/", RegistrationV2View.as_view(), name="register"),
+    path("pre-register/", PreRegistrationView.as_view(), name="pre-register"),
     # Authentication
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),

@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.utils import timezone
 from identity.models import Candidate, Staff, PreRegUser, User
 from vmlc.models import Exam
-from vmlc.utils.user import get_user_status_counts
+from identity.utils.user import get_user_status_counts
 
 
 class UserStatsRefactorTest(TestCase):

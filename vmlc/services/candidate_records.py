@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from django.db.models import Count, Avg, Max, Min, Sum
 
 from identity.models import Candidate
-from vmlc.models import Exam, CandidateExamResult, CandidateExamResultSnapshot
+from vmlc.models import Exam, CandidateExamResult
 from competition.models import (
     Competition,
     Stage,
@@ -96,19 +96,7 @@ class CandidateRecordService:
         """
         Computes performance statistics for the candidate leveraging modern RankingSnapshot and Leaderboards.
         """
-        # 1. Fetch latest published snapshot for legacy bounds if necessary
-        # (Though we prefer RankingSnapshot/Leaderboards now)
-        latest_snapshot = (
-            CandidateExamResultSnapshot.objects.filter(published_at__isnull=False)
-            .order_by("-published_at")
-            .first()
-        )
-
         results_qs = CandidateExamResult.objects.filter(candidate=candidate)
-        if latest_snapshot:
-            results_qs = results_qs.filter(
-                recorded_at__lte=latest_snapshot.published_at
-            )
 
         result_stats = results_qs.aggregate(
             total_exams_taken=Count("id"),

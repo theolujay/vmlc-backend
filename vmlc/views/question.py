@@ -8,11 +8,11 @@ from rest_framework.settings import api_settings
 
 from identity.permissions import ActiveModeratorPermissions, ActiveAdminPermissions
 from vmlc.models import Question, Exam
-from vmlc.v2.serializers.question import (
+from vmlc.serializers.question import (
     QuestionV2Serializer,
     QuestionBulkActionSerializer,
 )
-from vmlc.utils.query_filters import filter_questions
+from core.utils.query_filters import filter_questions
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class QuestionListCreateV2View(ListCreateAPIView):
 
     def list(self, request, *args, **kwargs):
         # Handle Question Pool Data Caching
-        from vmlc.v2.utils import CacheKeys, get_or_set_cache, question_pool_aggregate
+        from vmlc.utils.cache import CacheKeys, get_or_set_cache, question_pool_aggregate
 
         pool_data = get_or_set_cache(
             CacheKeys.QUESTION_POOL,
@@ -52,7 +52,7 @@ class QuestionListCreateV2View(ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user.staff_profile)
         # Clear pool cache
-        from vmlc.v2.utils import invalidate_question_pool, invalidate_staff_dashboard
+        from vmlc.utils.cache import invalidate_question_pool, invalidate_staff_dashboard
 
         invalidate_question_pool()
         invalidate_staff_dashboard()
@@ -79,7 +79,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         instance = serializer.save(updated_by=self.request.user.staff_profile)
         # Invalidate related exam caches
-        from vmlc.v2.utils import (
+        from vmlc.utils.cache import (
             invalidate_exam_cache,
             invalidate_question_pool,
             invalidate_staff_dashboard,
@@ -92,7 +92,7 @@ class QuestionDetailV2View(RetrieveUpdateDestroyAPIView):
         invalidate_staff_dashboard()
 
     def perform_destroy(self, instance):
-        from vmlc.v2.utils import (
+        from vmlc.utils.cache import (
             invalidate_exam_cache,
             invalidate_question_pool,
             invalidate_staff_dashboard,
@@ -127,7 +127,7 @@ class QuestionBulkActionV2View(APIView):
 
         questions = Question.objects.filter(id__in=question_ids)
 
-        from vmlc.v2.utils import (
+        from vmlc.utils.cache import (
             invalidate_exam_cache,
             invalidate_question_pool,
             invalidate_staff_dashboard,

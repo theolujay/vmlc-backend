@@ -26,13 +26,13 @@ from rest_framework.exceptions import ValidationError
 
 from vmlc.serializers import (
     StaffListSerializer,
-    StaffInviteSerializer,
     CandidateListSerializer,
     UserProfileDetailSerializer,
     UserProfileListSerializer,
 )
+from identity.serializers.registration import StaffInviteSerializer
 from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
-        from core.utils.auth import generate_password
+from core.utils.auth import generate_password
 from identity.permissions import (
     AuthenticatedUser,
     IsManagerForStaffDetail,
@@ -41,19 +41,19 @@ from identity.permissions import (
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
 )
-from vmlc.tasks import (
+from identity.tasks import (
     revoke_user_invite_task,
 )
 from comms.tasks import send_mail_task
-from vmlc.utils.stats import generate_stats_overview_data
-from vmlc.utils.query_filters import (
+from competition.utils.stats import generate_stats_overview_data
+from core.utils.query_filters import (
     filter_pre_reg_users,
     filter_staffs,
     filter_candidates,
     filter_users,
 )
-from vmlc.v2.serializers.registration import PreRegUserSerializer
-from vmlc.v2.utils import get_or_set_cache, CacheKeys
+from identity.serializers.registration import PreRegUserSerializer
+from vmlc.utils.cache import get_or_set_cache, CacheKeys
 
 logger = logging.getLogger(__name__)
 
@@ -698,7 +698,7 @@ class BulkNotificationView(APIView):
         from comms.models import Notification, Broadcast
         from comms.signals import notifications_created
         from comms.tasks import send_bulk_sms_task
-        from vmlc.serializers.comms import BulkNotificationSerializer
+        from comms.serializers import BulkNotificationSerializer
         import base64
         import uuid
         import os
@@ -840,7 +840,7 @@ class ResetUserPasswordView(APIView):
 
     def post(self, request):
         from identity.models import User
-from core.utils.auth import generate_password
+        from core.utils.auth import generate_password
         from comms.tasks import send_mail_task
         from django.conf import settings
 

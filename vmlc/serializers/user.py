@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from identity.models import User
-from vmlc.utils.user import normalize_title
+from identity.utils.user import normalize_title
 
 logger = logging.getLogger(__name__)
 

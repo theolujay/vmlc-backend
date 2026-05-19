@@ -5,7 +5,7 @@ from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 from .services.ws_notification import WSNotificationService
 from .services.ws_helpdesk_dashboard import WSHelpdeskDashboardService
 from .services.ws_helpdesk_thread import WSHelpdeskThreadService
-from vmlc.utils.query_filters import ongoing_exam_exists
+from core.utils.query_filters import ongoing_exam_exists
 from channels.db import database_sync_to_async
 
 logger = logging.getLogger(__name__)

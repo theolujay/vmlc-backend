@@ -10,7 +10,7 @@ from competition.models import (
     RankingSnapshot,
 )
 from competition.services.leaderboard import LeaderboardService
-from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+from vmlc.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ class PromotionService:
         )
 
         # Invalidate Caches
-        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+        from vmlc.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
 
         all_affected_ids = candidate_ids_to_promote + candidate_ids_to_eliminate
 
@@ -311,7 +311,7 @@ class PromotionService:
             competition=ranking.competition, absentee_entries=absentee_entries
         )
         # Invalidate Caches
-        from vmlc.v2.utils import invalidate_candidate_cache, invalidate_staff_dashboard
+        from vmlc.utils.cache import invalidate_candidate_cache, invalidate_staff_dashboard
 
         def clear_caches():
             for c_id in candidate_ids:

@@ -25,10 +25,9 @@ from identity.models import (
 from vmlc.models import (
     CandidateAnswer,
     CandidateExamResult,
-    CandidateExamResultSnapshot,
     Exam,
+    Event,
     FeatureFlag,
-    LeaderboardSnapshot,
     Question,
     Event,
 )
@@ -170,8 +169,6 @@ class Command(BaseCommand):
         EnrollmentStageProgress.objects.all().delete()
         Stage.objects.all().delete()
         Competition.objects.all().delete()
-        LeaderboardSnapshot.objects.all().delete()
-        CandidateExamResultSnapshot.objects.all().delete()
         PreRegUser.objects.all().delete()
         ThreadMessage.objects.all().delete()
         PublicSupportRequest.objects.all().delete()

@@ -66,7 +66,7 @@ class CandidateRecordServiceTest(APITestCase):
 
         self.client.force_authenticate(user=self.user)
         url = reverse(
-            "vmlc-v2:candidate-exam-history", kwargs={"candidate_id": self.candidate.pk}
+            "vmlc:candidate-exam-history", kwargs={"candidate_id": self.candidate.pk}
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

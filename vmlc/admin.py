@@ -12,7 +12,6 @@ from .models import (
     CandidateExamResult,
     CandidateAnswer,
     FeatureFlag,
-    CandidateExamResultSnapshot,
     ExamAccess,
     ExamAccessPasscode,
     CacheManagement,
@@ -20,10 +19,10 @@ from .models import (
     ViolationEvent,
 )
 
-from .utils.helpers import (
+from core.utils.helpers import (
     invalidate_all_dashboard_caches,
 )
-from vmlc.v2.utils import (
+from vmlc.utils.cache import (
     invalidate_exam_cache,
     invalidate_question_pool,
     invalidate_candidate_cache,
@@ -59,7 +58,7 @@ class ExamAdmin(admin.ModelAdmin):
 
     @admin.action(description="Generate and Send Direct Access Passcodes")
     def generate_and_send_passcodes(self, request, queryset):
-        from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+        from vmlc.tasks import generate_and_send_exam_passcodes_task
 
         for exam in queryset:
             generate_and_send_exam_passcodes_task.delay(str(exam.id))
@@ -324,52 +323,6 @@ class CandidateAnswerAdmin(admin.ModelAdmin):
         )
 
 
-@admin.register(CandidateExamResultSnapshot)
-class CandidateExamResultSnapshotAdmin(admin.ModelAdmin):
-    """
-    Admin interface for the CandidateExamResultSnapshot model.
-    Displays key details about each snapshot for the candidate results.
-    """
-
-    list_display = (
-        "id",
-        "published_at",
-        "data_summary",
-        "published_by_name",
-        "created_at",
-    )
-    readonly_fields = ("created_at",)
-    list_filter = ("created_at", "published_by")
-    search_fields = ("published_by__user__email",)
-    list_select_related = ("published_by__user",)
-    date_hierarchy = "created_at"
-
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        invalidate_all_dashboard_caches()
-
-    def delete_model(self, request, obj):
-        invalidate_all_dashboard_caches()
-        super().delete_model(request, obj)
-
-    def delete_queryset(self, request, queryset):
-        invalidate_all_dashboard_caches()
-        super().delete_queryset(request, queryset)
-
-    @admin.display(description="Published By", ordering="published_by__user__email")
-    def published_by_name(self, obj):
-        if obj.published_by:
-            return obj.published_by.user.get_full_name()
-        return None
-
-    @admin.display(description="Data Summary")
-    def data_summary(self, obj):
-        import json
-
-        summary = str(json.dumps(obj.data))
-        return (summary[:75] + "...") if len(summary) > 75 else summary
-
-
 @admin.register(FeatureFlag)
 class FeatureFlagAdmin(admin.ModelAdmin):
     list_display = ("key", "value", "auto_off_date")
@@ -377,7 +330,7 @@ class FeatureFlagAdmin(admin.ModelAdmin):
     list_editable = ("value", "auto_off_date")
 
     def save_model(self, request, obj, form, change):
-        from vmlc.tasks import disable_expired_feature_flags_task
+        from core.tasks import disable_expired_feature_flags_task
 
         super().save_model(request, obj, form, change)
         invalidate_feature_flag(obj.key)

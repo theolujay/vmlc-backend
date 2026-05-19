@@ -362,7 +362,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         )
 
         # Add profile information (candidate or staff)
-        from vmlc.views.user.management import ProfileManager
+        from identity.views.user.management import ProfileManager
 
         profile_data = ProfileManager.serialize_profile(self.user)
 
@@ -430,3 +430,34 @@ class LogoutView(APIView):
         except RuntimeError as e:
             logger.error("Logout failed with an unexpected error: %s", str(e))
             raise ServerError("Logout failed")
+
+
+class DirectAccessLoginView(APIView):
+    """
+    Login via a unique single-use passcode for direct exam access.
+    """
+
+    permission_classes = [HasXAPIKey]
+
+    def post(self, request):
+        from vmlc.services.exam_access import ExamAccessService
+
+        passcode = request.data.get("passcode")
+
+        if not passcode:
+            return Response(
+                {"detail": "Passcode is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        logger.info(f"Direct access login attempt with passcode: {passcode[:8]}...")
+
+        data, error = ExamAccessService.authenticate_passcode(passcode)
+
+        if error:
+            logger.warning(f"Direct access login failed: {error}")
+            return Response({"detail": error}, status=status.HTTP_403_FORBIDDEN)
+
+        logger.info(
+            f"Direct access login successful for user {data['profile']['user']['email']}"
+        )
+        return Response(data, status=status.HTTP_200_OK)

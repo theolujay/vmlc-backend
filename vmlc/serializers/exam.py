@@ -8,7 +8,7 @@ from vmlc.models import (
     ExamAccess,
 )
 from vmlc.serializers.question import CandidateQuestionSerializer
-from vmlc.v2.serializers.question import QuestionV2Serializer
+from vmlc.serializers.question import QuestionV2Serializer
 
 
 class ExamListV2Serializer(serializers.ModelSerializer):
@@ -146,7 +146,7 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         # This is almost never reached, as a new exam (from the portal) leaves scheduled_date
         # and countdown_timer null.
         # if exam.status == Exam.Status.SCHEDULED:
-        #     from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
+        #     from vmlc.tasks import generate_and_send_exam_passcodes_task
         #     transaction.on_commit(
         #         lambda: generate_and_send_exam_passcodes_task.delay(exam.id)
         #     )
@@ -167,8 +167,8 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         self._handle_competition_slot(instance, stage_id, round)
 
         # if old_status == Exam.Status.DRAFT and instance.status == Exam.Status.SCHEDULED:
-        #     from vmlc.v2.tasks import generate_and_send_exam_passcodes_task
-
+        #     from vmlc.tasks import generate_and_send_exam_passcodes_task
+        #
         #     transaction.on_commit(
         #         lambda: generate_and_send_exam_passcodes_task.delay(str(instance.id))
         #     )

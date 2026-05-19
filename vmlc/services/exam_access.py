@@ -196,8 +196,8 @@ class ExamAccessService:
         user = p_record.exam_access.candidate.user
         refresh = RefreshToken.for_user(user)
 
-        from vmlc.v2.utils import invalidate_candidate_cache
-        from vmlc.views.user.management import ProfileManager
+        from vmlc.utils.cache import invalidate_candidate_cache
+        from identity.views.user.management import ProfileManager
 
         # Invalidate cache since status might change
         invalidate_candidate_cache(p_record.exam_access.candidate.pk, user.id)

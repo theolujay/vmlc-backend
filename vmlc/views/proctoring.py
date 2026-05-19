@@ -9,12 +9,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from vmlc.models import Exam, ExamAccess
 from identity.permissions import CandidatePermissions, ActiveAdminPermissions
 from vmlc.services.proctoring import ProctoringService
-from vmlc.v2.serializers.proctoring import (
+from vmlc.serializers.proctoring import (
     HeartbeatPayloadSerializer,
     ExamHeartbeatSerializer,
     CandidateLiveStatusV2Serializer,
 )
-from vmlc.v2.utils import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
+from vmlc.utils.cache import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
 from core.utils.exceptions import NotFound, PermissionDenied
 
 logger = logging.getLogger(__name__)

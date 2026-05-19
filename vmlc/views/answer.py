@@ -11,9 +11,9 @@ from rest_framework.views import APIView
 from identity.permissions import CandidatePermissions
 from vmlc.models import Exam, ExamAccess, CandidateExamResult, CandidateAnswer
 from vmlc.serializers.answer import CandidateAnswerBulkSerializer
-from vmlc.v2.serializers.answer import AutoSaveAnswersBulkSerializer
+from vmlc.serializers.answer import AutoSaveAnswersBulkSerializer
 from core.utils.helpers import sanitize_data
-from vmlc.v2.utils import GRACE_PERIOD_MINUTES, invalidate_exam_cache
+from vmlc.utils.cache import GRACE_PERIOD_MINUTES, invalidate_exam_cache
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class SubmitAnswersV2View(APIView):
             access.submitted_at = timezone.now()
             access.save(update_fields=["status", "submitted_at"])
 
-            from vmlc.v2.utils import invalidate_candidate_cache
+            from vmlc.utils.cache import invalidate_candidate_cache
             invalidate_candidate_cache(candidate.pk, request.user.id)
 
         logger.info(

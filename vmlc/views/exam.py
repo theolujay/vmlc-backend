@@ -28,15 +28,15 @@ from identity.permissions import (
 from django.utils import timezone
 from vmlc.models import Exam, ExamHeartbeat, Question, CandidateExamResult, ExamAccess
 from vmlc.services.candidate_records import CandidateRecordService
-from vmlc.v2.serializers.exam import (
+from vmlc.serializers.exam import (
     ExamListV2Serializer,
     ExamDetailV2Serializer,
     ExamResultV2Serializer,
     CandidateTakeExamSerializer,
     ExamFaceCaptureSerializer,
 )
-from vmlc.v2.serializers.question import QuestionV2Serializer
-from vmlc.v2.utils import (
+from vmlc.serializers.question import QuestionV2Serializer
+from vmlc.utils.cache import (
     CacheKeys,
     get_or_set_cache,
     invalidate_candidate_cache,
@@ -45,7 +45,7 @@ from vmlc.v2.utils import (
     question_pool_aggregate,
 )
 from core.utils.exceptions import PermissionDenied, NotFound
-from vmlc.utils.query_filters import ExamFilter
+from core.utils.query_filters import ExamFilter
 
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ class ExamListV2View(ListCreateAPIView):
         )
 
         # Question Pool Data (Staff Dashboard context)
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         question_pool_data = get_or_set_cache(
             CacheKeys.QUESTION_POOL,
@@ -254,7 +254,7 @@ class ExamResultsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs[self.lookup_url_kwarg]
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache_key = CacheKeys.EXAM_RESULTS.format(exam_id=exam_id)
 
@@ -290,7 +290,7 @@ class ExamQuestionsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs["exam_id"]
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache_key = CacheKeys.EXAM_QUESTIONS.format(exam_id=exam_id)
 
@@ -336,7 +336,7 @@ class ExamHistoryV2View(ListAPIView):
     def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
 
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache_key = CacheKeys.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id)
 
@@ -489,8 +489,8 @@ def candidate_take_exam_V2(request, exam_id):
         heartbeats = ExamHeartbeat.objects.filter(exam_access=access)
         heartbeats.delete()
         # Schedule expiration task
-        from vmlc.v2.tasks import mark_exam_access_as_expired_task
-        from vmlc.v2.utils import GRACE_PERIOD_MINUTES
+        from vmlc.tasks import mark_exam_access_as_expired_task
+        from vmlc.utils.cache import GRACE_PERIOD_MINUTES
 
         mark_exam_access_as_expired_task.apply_async(
             # Add grace period for network latency

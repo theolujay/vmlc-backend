@@ -12,12 +12,12 @@ from django.db.models import (
 from django.utils import timezone
 from identity.models import Candidate, Staff, User
 from competition.models import Competition, Stage
-from ..models import Exam
+from vmlc.models import Exam
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
-from vmlc.utils.query_filters import annotate_thread_with_staff_unread_count
-from ..v2.utils import CacheKeys, get_or_set_cache
-from .user import get_user_status_counts
-from .metrics import get_funnel_metrics
+from core.utils.query_filters import annotate_thread_with_staff_unread_count
+from vmlc.utils.cache import CacheKeys, get_or_set_cache
+from identity.utils.user import get_user_status_counts
+from core.utils.metrics import get_funnel_metrics
 
 
 def generate_stats_overview_data():

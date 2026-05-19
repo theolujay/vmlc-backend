@@ -2,7 +2,7 @@ from datetime import timedelta
 from django.db.models import Q, QuerySet, F, ExpressionWrapper, DateTimeField
 from django.utils import timezone
 from identity.models import PreRegUser
-from ..models import Exam
+from vmlc.models import Exam
 
 
 def normalize_title(name):

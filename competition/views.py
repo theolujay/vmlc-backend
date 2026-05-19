@@ -42,7 +42,7 @@ from competition.services.candidate_dashboard import CandidateDashboardService
 from competition.services.promotion import PromotionService, PromotionError
 
 from vmlc.models import Exam, CandidateExamResult, ExamAccess
-from vmlc.v2.utils import CacheKeys, get_or_set_cache
+from vmlc.utils.cache import CacheKeys, get_or_set_cache
 from vmlc.services.proctoring import ProctoringService
 
 
@@ -56,7 +56,7 @@ class CandidateDashboardView(APIView):
     def get(self, request):
         candidate = request.user.candidate_profile
         enrollment = get_enrollment(request)
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache_key = CacheKeys.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate.pk)
 

@@ -14,7 +14,7 @@ from competition.serializers import (
     LeagueLeaderboardEntrySerializer,
     RankingSnapshotEntrySerializer,
 )
-from vmlc.v2.utils import truncate_float
+from vmlc.utils.cache import truncate_float
 
 
 logger = logging.getLogger(__name__)

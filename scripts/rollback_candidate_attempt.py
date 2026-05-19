@@ -16,7 +16,7 @@ from competition.models import (
     EnrollmentStageProgress,
     StageExam
 )
-from vmlc.v2.utils import invalidate_candidate_cache, invalidate_exam_cache
+from vmlc.utils.cache import invalidate_candidate_cache, invalidate_exam_cache
 
 # --- CONFIGURATION ---
 EXAM_ID = "e0981a32-2765-4654-a523-11c2fd4c9b60"

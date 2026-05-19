@@ -1,7 +1,8 @@
 import os
 import uuid
+import logging
 from django.conf import settings
-from django.db import transaction
+from django.db import transaction, IntegrityError, DatabaseError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -16,7 +17,10 @@ from identity.models import (
     validate_face_id,
 )
 from core.utils.auth import generate_password
-from vmlc.utils.user import normalize_title
+from identity.utils.user import normalize_title
+from vmlc.serializers.staff import MinimalStaffSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class RegistrationV2Serializer(serializers.Serializer):
@@ -60,7 +64,6 @@ class RegistrationV2Serializer(serializers.Serializer):
         return value
 
     def validate_phone(self, value):
-        """Validate phone number format."""
         import re
 
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
@@ -68,32 +71,26 @@ class RegistrationV2Serializer(serializers.Serializer):
         return value
 
     def validate_first_name(self, value):
-        """Normalize first name to title case."""
         return normalize_title(value)
 
     def validate_last_name(self, value):
-        """Normalize last name to title case."""
         return normalize_title(value)
 
     def validate_school_name(self, value):
-        """Normalize school name to title case."""
         return normalize_title(value)
 
     def validate_occupation(self, value):
-        """Normalize occupation to title case"""
         return normalize_title(value)
 
     def validate(self, data):
         user_type = data.get("user_type")
         document_type = data.get("document_type")
 
-        # Validate consent
         if data.get("consent", "").lower() != "true":
             raise serializers.ValidationError(
                 {"consent": _("You must accept the consent.")}
             )
 
-        # Validate conditional fields
         if user_type == "candidate":
             required_fields = ["school_name", "school_type", "current_class"]
             for field in required_fields:
@@ -124,22 +121,16 @@ class RegistrationV2Serializer(serializers.Serializer):
                     }
                 )
 
-        # Validate file content based on intended target (id_card vs verification_document)
         document = data.get("document")
         if document:
             try:
-                # if self._is_id_card(user_type, document_type):
-                #     validate_id_card_file(document)
-                # else:
                 validate_document_file(document)
             except (serializers.ValidationError, DjangoValidationError) as e:
-                # Re-raise as field error
                 detail = (
                     e.messages if isinstance(e, DjangoValidationError) else e.detail
                 )
                 raise serializers.ValidationError({"document": detail})
 
-        # Validate face capture
         face_capture = data.get("face_capture")
         if face_capture:
             try:
@@ -152,19 +143,9 @@ class RegistrationV2Serializer(serializers.Serializer):
 
         return data
 
-    # def _is_id_card(self, user_type, document_type):
-    #     """Helper to determine if document maps to id_card"""
-    #     if user_type == "volunteer":
-    #         return True
-    #     if user_type == "candidate" and document_type == "NIN":
-    #         return True
-    #     return False
     @transaction.atomic
     def create(self, validated_data):
-        """
-        Create user and related objects with async file upload.
-        """
-        from vmlc.tasks import upload_user_documents_task
+        from identity.tasks import upload_user_documents_task
 
         user_type = validated_data.get("user_type")
         email = validated_data.get("email")
@@ -172,7 +153,6 @@ class RegistrationV2Serializer(serializers.Serializer):
         document_type = validated_data.get("document_type")
         face_capture = validated_data.get("face_capture")
 
-        # Create User
         password = generate_password()
         user = User.objects.create_user(
             email=email,
@@ -186,13 +166,11 @@ class RegistrationV2Serializer(serializers.Serializer):
             is_email_verified=False,
         )
 
-        # Create UserVerification
         UserVerification.objects.create(
             user=user,
             verification_document_type=document_type,
         )
 
-        # Create Profile (Candidate or Staff/Volunteer)
         if user_type == "candidate":
             profile = Candidate.objects.create(
                 user=user,
@@ -201,7 +179,6 @@ class RegistrationV2Serializer(serializers.Serializer):
                 current_class=validated_data.get("current_class"),
                 role=Candidate.Roles.SCREENING,
             )
-            # Auto-enroll in active competition if one exists
             from competition.models import (
                 Competition,
                 Enrollment,
@@ -233,13 +210,11 @@ class RegistrationV2Serializer(serializers.Serializer):
             )
         profile._generated_password = password
 
-        # Prepare files for async upload - save to temp location
         temp_dir = os.path.join(settings.BASE_DIR, "media", "temp_uploads")
         os.makedirs(temp_dir, exist_ok=True)
 
         file_mappings = []
 
-        # Process document file
         if document:
             doc_ext = os.path.splitext(document.name)[1]
             doc_temp_name = f"{uuid.uuid4()}_verification_document{doc_ext}"
@@ -257,7 +232,6 @@ class RegistrationV2Serializer(serializers.Serializer):
                 }
             )
 
-        # Process face capture file
         if face_capture:
             face_ext = os.path.splitext(face_capture.name)[1]
             face_temp_name = f"{uuid.uuid4()}_face_id{face_ext}"
@@ -275,8 +249,6 @@ class RegistrationV2Serializer(serializers.Serializer):
                 }
             )
 
-        # Schedule async upload after transaction commits
-        # Use a proper closure to avoid variable capture issues
         def schedule_upload():
             upload_user_documents_task.delay(user.pk, file_mappings)
 
@@ -303,7 +275,6 @@ class PreRegUserSerializer(serializers.ModelSerializer):
         return value
 
     def validate_phone(self, value):
-        """Validate phone number format."""
         import re
 
         if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
@@ -311,5 +282,138 @@ class PreRegUserSerializer(serializers.ModelSerializer):
         return value
 
     def validate_full_name(self, value):
-        """Normalize full name to title case."""
         return normalize_title(value)
+
+
+class BaseRegistrationSerializer(serializers.ModelSerializer):
+    """Abstract base serializer for staff invite user creation."""
+
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=30)
+    last_name = serializers.CharField(max_length=30)
+    phone = serializers.CharField(max_length=17)
+    state = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={"input_type": "password"},
+    )
+    password2 = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={"input_type": "password"},
+        label="Confirm password",
+    )
+    generate_password = serializers.BooleanField(write_only=True, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.initial_data.get("generate_password"):
+            self.fields["password"].required = False
+            self.fields["password2"].required = False
+
+    def validate_phone(self, value):
+        import re
+
+        if not re.match(r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$", value):
+            raise serializers.ValidationError("Enter a valid Nigerian phone number.")
+        return value
+
+    def validate_first_name(self, value):
+        return normalize_title(value)
+
+    def validate_last_name(self, value):
+        return normalize_title(value)
+
+    def validate(self, attrs):
+        if not self.initial_data.get("generate_password"):
+            if attrs["password"] != attrs["password2"]:
+                raise serializers.ValidationError(
+                    {"password2": "Passwords do not match."}
+                )
+        return attrs
+
+    def create_user(self, user_data, password):
+        return User.objects.create_user(
+            email=user_data["email"],
+            password=password,
+            first_name=user_data["first_name"],
+            last_name=user_data["last_name"],
+            phone=user_data["phone"],
+            state=user_data.get("state", ""),
+        )
+
+    def create(self, validated_data):
+        user_data = {
+            "email": validated_data.pop("email"),
+            "first_name": validated_data.pop("first_name"),
+            "last_name": validated_data.pop("last_name"),
+            "phone": validated_data.pop("phone"),
+            "state": validated_data.pop("state", ""),
+        }
+        password = validated_data.pop("password", None)
+        validated_data.pop("password2", None)
+        validated_data.pop("generate_password", None)
+
+        try:
+            with transaction.atomic():
+                user = self.create_user(user_data, password)
+                profile = self.Meta.model.objects.create(user=user, **validated_data)
+                return profile
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {"error": "A user with this information already exists."}
+            )
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}", exc_info=True)
+            raise serializers.ValidationError(
+                {
+                    "error": "Registration temporarily unavailable. Please try again later."
+                }
+            )
+
+
+class StaffInviteSerializer(BaseRegistrationSerializer):
+    created_by = MinimalStaffSerializer(read_only=True)
+    occupation = serializers.CharField(max_length=50, required=False)
+    role = serializers.ChoiceField(choices=Staff.Roles.choices, required=False)
+
+    class Meta:
+        model = Staff
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "state",
+            "password",
+            "password2",
+            "role",
+            "occupation",
+            "created_by",
+            "generate_password",
+        ]
+
+    def validate_role(self, value):
+        valid_roles: list[str] = [
+            role[0] for role in Staff.Roles.choices if role[0] != "superadmin"
+        ]
+        if value not in valid_roles:
+            raise serializers.ValidationError(
+                f"'{value}' is not a valid role. "
+                f"Valid choices are: {', '.join(valid_roles)}."
+            )
+
+        if value == "superadmin":
+            raise serializers.ValidationError(
+                "The 'superadmin' role cannot be assigned via the API."
+                f"Valid choices are: {', '.join(valid_roles)}."
+            )
+
+        user = self.context["request"].user
+        if hasattr(user, "staff_profile") and user.staff_profile.role == "manager":
+            if value == "manager":
+                raise serializers.ValidationError(
+                    "Managers cannot assign the 'manager' role."
+                )
+        return value

@@ -17,22 +17,11 @@ from PIL import Image
 import magic
 import mimetypes
 
-from identity.models import (
-    Candidate,
-    Staff,
-    User,
-)
 from vmlc.models import (
-    LeaderboardSnapshot,
     Exam,
     CandidateExamResult,
     CandidateAnswer,
-    CandidateExamResultSnapshot,
     ExamAccess,
-)
-from vmlc.serializers import MinimalCandidateSerializer
-from vmlc.utils.dashboard import (
-    get_staff_dashboard_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -147,76 +136,11 @@ def _compute_and_save_candidate_exam_result(candidate_exam_result):
     candidate_exam_result.recorded_at = timezone.now()
     candidate_exam_result.save()
 
-    from vmlc.v2.utils import invalidate_candidate_cache
+    from vmlc.utils.cache import invalidate_candidate_cache
 
     invalidate_candidate_cache(
         candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id
     )
-
-
-def generate_results_snapshot(staff_id=None):
-    """
-    Generate and publish the results snapshot.
-    """
-
-    try:
-        if staff_id:
-            staff = Staff.objects.get(pk=staff_id)
-        else:
-            # If no staff_id is provided, use the first superadmin
-            superadmin_user = User.objects.filter(is_superuser=True).first()
-            if not superadmin_user:
-                logger.error(
-                    "No superadmin user found to publish the results snapshot."
-                )
-                return
-            staff = superadmin_user.staff_profile
-        candidates = Candidate.objects.with_results().filter(user__is_active=True)
-
-        results_data = []
-        for candidate in candidates:
-            results_data.append(
-                {
-                    "candidate": MinimalCandidateSerializer(candidate).data,
-                    "total_score": float(candidate.total_score or 0.0),
-                    "average_score": float(candidate.average_score or 0.0),
-                    "exams_taken": candidate.exams_taken or 0,
-                }
-            )
-
-        snapshot = CandidateExamResultSnapshot.objects.create(
-            data=results_data,
-            published_by=staff,
-            published_at=timezone.now(),
-        )
-
-        # Notify all active candidates
-        from comms.services.notification import NotificationService
-        from comms.models import Broadcast
-
-        notification_service = NotificationService()
-        subject = "Overall Results Published"
-        message = (
-            "The overall results snapshot has been published. "
-            "Please check your dashboard to see your updated standing and performance across all exams."
-        )
-        active_candidates = Candidate.objects.filter(
-            user__is_active=True
-        ).select_related("user")
-        for candidate in active_candidates:
-            notification_service.notify_user(
-                user=candidate.user,
-                subject=subject,
-                message=message,
-                mediums=[Broadcast.Medium.PLATFORM, Broadcast.Medium.EMAIL],
-                notification_type="success",
-            )
-
-        logger.info(f"Scores published by staff {staff.pk}. Snapshot ID: {snapshot.pk}")
-    except Staff.DoesNotExist:
-        logger.error(f"Staff with id {staff_id} does not exist.")
-    except Exception as e:
-        logger.error(f"Failed to generate results snapshot: {e}")
 
 
 def _validate_file_size(value, max_size_mb, field_name):

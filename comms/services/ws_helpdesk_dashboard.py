@@ -6,14 +6,14 @@ from channels.db import database_sync_to_async
 from identity.permissions import StaffRoleHierarchy
 from comms.models import HelpdeskThread, ThreadMessage
 from comms.serializers import HelpdeskThreadListSerializer
-from vmlc.utils.query_filters import (
+from core.utils.query_filters import (
     filter_helpdesk_threads,
     annotate_thread_with_staff_unread_count,
     annotate_thread_with_last_candidate_message_at,
     annotate_thread_with_last_message_sender_type,
 )
 
-from vmlc.utils.stats import get_helpdesk_stats_cached
+from competition.utils.stats import get_helpdesk_stats_cached
 
 logger = logging.getLogger(__name__)
 

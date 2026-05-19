@@ -506,49 +506,6 @@ class CandidateAnswer(models.Model):
         return f"Orphaned Answer #{self.id}"
 
 
-class LeaderboardSnapshot(models.Model):  # pylint: disable=too-few-public-methods
-    """Model for a snapshot of the leaderboard."""
-
-    data = models.JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_published = models.BooleanField(default=False)
-    published_by = models.ForeignKey(
-        "identity.Staff",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="leaderboard_snapshots",
-    )
-
-    class Meta:
-        """Meta options for the LeaderboardSnapshot model."""
-
-        ordering = ["-created_at"]
-
-
-class CandidateExamResultSnapshot(
-    models.Model
-):  # pylint: disable=too-few-public-methods
-    """Model for a snapshot of a candidate's result."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    data = models.JSONField()
-
-    published_by = models.ForeignKey(
-        "identity.Staff",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="candidate_exam_result_snapshots",
-    )
-
-    class Meta:
-        """Meta options for the CandidateExamResultSnapshot model."""
-
-        ordering = ["-created_at"]
-
-
 class Event(models.Model):
     """
     Model for recording key events for analytics and dashboards.

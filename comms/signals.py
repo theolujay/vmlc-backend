@@ -8,7 +8,7 @@ from django.db.models.signals import post_save, post_delete
 from celery.signals import task_success, task_failure
 
 from core.utils.exceptions import ValidationError
-from vmlc.v2.utils import CacheKeys, invalidate_notifications
+from vmlc.utils.cache import CacheKeys, invalidate_notifications
 from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def invalidate_notification_cache(sender, instance, **kwargs):
     invalidate_notifications(user_id)
 
     # Also invalidate candidate dashboard if they have one
-    from vmlc.v2.utils import invalidate_candidate_cache
+    from vmlc.utils.cache import invalidate_candidate_cache
     from identity.models import Candidate
 
     try:

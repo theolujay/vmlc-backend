@@ -43,7 +43,7 @@ def registration_status(request):
     Returns information of if registration is open/closed for staff and candidate
     """
     logger.info("Registration status request by %s", request.user)
-    from vmlc.v2.utils import get_or_set_cache, CacheKeys
+    from vmlc.utils.cache import get_or_set_cache, CacheKeys
 
     def fetch_reg_status():
         def _get_detailed_status(feature_flag_key):
@@ -74,7 +74,7 @@ def stats_overview(request):
     Retrieve overall statistics for candidates and staff.
     """
     logger.info("Stats overview request by %s", request.user.id)
-    from vmlc.utils import generate_stats_overview_data
+    from competition.utils.stats import generate_stats_overview_data
 
     data = generate_stats_overview_data()
     return Response(data)

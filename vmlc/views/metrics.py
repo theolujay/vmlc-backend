@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ..utils.metrics import get_registration_metrics, get_funnel_metrics
+from core.utils.metrics import get_registration_metrics, get_funnel_metrics
 from identity.permissions import ActiveVolunteerPermissions
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class RegistrationMetricsView(APIView):
     def get(self, request):
         logger.info(f"RegistrationMetricsView: request from user {request.user.id}")
 
-        from vmlc.v2.utils import get_or_set_cache, CacheKeys
+        from vmlc.utils.cache import get_or_set_cache, CacheKeys
 
         query_params = request.query_params
 

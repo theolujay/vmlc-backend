@@ -13,7 +13,7 @@ from core.utils.exceptions import ServerError
 from comms.services.notification import NotificationService
 from comms.services.kudi_sms import KudiSmsService
 from comms.services.slack import SlackService
-from vmlc.v2 import tasks as v2_tasks
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ notification_service = NotificationService()
 kudi_sms_service = KudiSmsService()
 slack_service = SlackService()
 
-v2_tasks.do_nothing()  # this helps bypass linters flagging v2_tasks as unused
 
 
 @shared_task(name="deliver_notifications_task", queue="comms")
@@ -334,7 +333,7 @@ def send_bulk_sms_task(
 
                     # Invalidate cache
                     from django.core.cache import cache
-                    from vmlc.v2.utils import CacheKeys
+                    from vmlc.utils.cache import CacheKeys
 
                     cache.delete(
                         CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast.pk)
@@ -536,7 +535,7 @@ def auto_close_in_progress_threads_task():
 
         # Invalidate stats cache
         from django.core.cache import cache
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
         try:
@@ -571,7 +570,7 @@ def cleanup_snoozed_helpdesk_threads_task():
         logger.info(f"Reverted {count} SNOOZED helpdesk threads to CLOSED.")
         # Invalidate stats cache
         from django.core.cache import cache
-        from vmlc.v2.utils import CacheKeys
+        from vmlc.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
         try:
@@ -593,9 +592,9 @@ def broadcast_staff_helpdesk_update_task():
     """
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
-    from vmlc.utils.stats import get_helpdesk_stats_cached
+    from competition.utils.stats import get_helpdesk_stats_cached
     from django.core.cache import cache
-    from vmlc.v2.utils import CacheKeys
+    from vmlc.utils.cache import CacheKeys
 
     # Invalidate stats cache to get fresh data
     cache.delete(CacheKeys.STATS_HELPDESK)

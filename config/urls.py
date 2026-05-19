@@ -34,7 +34,6 @@ def get_favicon(request):
 
 vmlc_urlpatterns = [
     path("v1/", include("vmlc.urls", namespace="vmlc")),
-    path("v2/", include("vmlc.v2.urls", namespace="vmlc-v2")),
 ]
 
 identity_urlpatterns = [path("v1/", include("identity.urls", namespace="identity"))]

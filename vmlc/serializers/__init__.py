@@ -5,6 +5,8 @@ This package contains all the serializers for the API.
 from .answer import (
     CandidateAnswerSerializer,
     CandidateAnswerBulkSerializer,
+    AutoSaveAnswerSerializer,
+    AutoSaveAnswersBulkSerializer,
 )
 from identity.serializers.auth import (
     VerifyEmailOTPSerializer,
@@ -18,18 +20,11 @@ from .candidate import (
     CandidateListSerializer,
     CandidateDetailSerializer,
 )
-from .comms import BulkNotificationSerializer
 from .question import (
     QuestionListSerializer,
     QuestionDetailSerializer,
     CandidateQuestionSerializer,
 )
-from .registration import (
-    CandidateRegistrationSerializer,
-    StaffRegistrationSerializer,
-    StaffInviteSerializer,
-)
-from ..v2.serializers.registration import RegistrationV2Serializer
 from .staff import (
     MinimalStaffSerializer,
     StaffListSerializer,
@@ -56,17 +51,10 @@ __all__ = [
     "MinimalCandidateSerializer",
     "CandidateListSerializer",
     "CandidateDetailSerializer",
-    # comms
-    "BulkNotificationSerializer",
     # question
     "QuestionListSerializer",
     "QuestionDetailSerializer",
     "CandidateQuestionSerializer",
-    # registration
-    "CandidateRegistrationSerializer",
-    "StaffRegistrationSerializer",
-    "StaffInviteSerializer",
-    "RegistrationV2Serializer",
     # staff
     "MinimalStaffSerializer",
     "StaffListSerializer",

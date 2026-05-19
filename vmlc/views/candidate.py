@@ -6,7 +6,7 @@ from rest_framework.settings import api_settings
 from identity.models import Candidate
 from identity.permissions import ActiveModeratorPermissions
 from ..serializers import CandidateListSerializer
-from ..utils.query_filters import filter_candidates
+from core.utils.query_filters import filter_candidates
 
 logger = logging.getLogger(__name__)
 
