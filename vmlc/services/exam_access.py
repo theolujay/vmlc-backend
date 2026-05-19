@@ -1,15 +1,16 @@
 import logging
 import secrets
 from datetime import timedelta
+
 from django.conf import settings
-from django.utils import timezone
 from django.db import transaction
-from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
-from competition.models import Enrollment, Competition
-from comms.models import Broadcast
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from comms.models import Broadcast
+from competition.models import Enrollment
 from core.utils.exceptions import ServerError
+from vmlc.models import Exam, ExamAccess, ExamAccessPasscode
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +115,8 @@ class ExamAccessService:
         """
         Sends emails with access URLs to all candidates who have an unsent passcode for the exam.
         """
-        from comms.tasks import send_mail_task
         from comms.services.email import create_email_html
+        from comms.tasks import send_mail_task
 
         passcode_records = ExamAccessPasscode.objects.filter(
             exam_access__exam_id=exam_id,

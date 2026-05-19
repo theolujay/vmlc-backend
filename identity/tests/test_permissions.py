@@ -1,5 +1,5 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from identity.models import Staff
@@ -9,7 +9,6 @@ User = get_user_model()
 
 
 class IsStaffPermissionTest(TestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         self.user = User.objects.create_user(

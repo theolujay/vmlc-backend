@@ -94,8 +94,12 @@ def invalidate_all_staff_dashboards():
     """
     Invalidates the dashboard cache for all staff members.
     """
+    from core.utils.cache import (
+        invalidate_score_boards,
+        invalidate_staff_cache,
+        invalidate_staff_dashboard,
+    )
     from identity.models import Staff
-    from core.utils.cache import invalidate_staff_cache, invalidate_staff_dashboard, invalidate_score_boards
 
     invalidate_score_boards()
     invalidate_staff_dashboard()
@@ -109,8 +113,8 @@ def invalidate_all_candidate_dashboards():
     """
     Invalidates the dashboard cache for all candidates.
     """
-    from identity.models import Candidate
     from core.utils.cache import invalidate_candidate_cache
+    from identity.models import Candidate
 
     for candidate in Candidate.objects.all():
         invalidate_candidate_cache(candidate.pk, candidate.user_id)

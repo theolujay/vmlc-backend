@@ -1,33 +1,32 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.cache import cache
-from django.utils.html import format_html
-from django.urls import reverse, path
-from django.shortcuts import redirect
-from django.contrib import messages
 from django.db.models import Count
+from django.shortcuts import redirect
+from django.urls import path, reverse
+from django.utils.html import format_html
 
-from .models import (
-    Exam,
-    Question,
-    CandidateExamResult,
-    CandidateAnswer,
-    FeatureFlag,
-    ExamAccess,
-    ExamAccessPasscode,
-    CacheManagement,
-    ExamHeartbeat,
-    ViolationEvent,
+from core.utils.cache import (
+    invalidate_candidate_cache,
+    invalidate_exam_cache,
+    invalidate_feature_flag,
+    invalidate_question_pool,
+    invalidate_registration_status,
 )
-
 from core.utils.helpers import (
     invalidate_all_dashboard_caches,
 )
-from core.utils.cache import (
-    invalidate_exam_cache,
-    invalidate_question_pool,
-    invalidate_candidate_cache,
-    invalidate_feature_flag,
-    invalidate_registration_status,
+
+from .models import (
+    CacheManagement,
+    CandidateAnswer,
+    CandidateExamResult,
+    Exam,
+    ExamAccess,
+    ExamAccessPasscode,
+    ExamHeartbeat,
+    FeatureFlag,
+    Question,
+    ViolationEvent,
 )
 
 
@@ -378,7 +377,9 @@ class ExamHeartbeatInline(admin.TabularInline):
     @admin.display(description="Action")
     def view_details(self, obj):
         url = reverse("admin:vmlc_examheartbeat_change", args=[obj.id])
-        return format_html('<a href="{}" class="button">View Heartbeat & Events</a>', url)
+        return format_html(
+            '<a href="{}" class="button">View Heartbeat & Events</a>', url
+        )
 
 
 @admin.register(ExamAccess)
@@ -424,10 +425,10 @@ class ExamAccessAdmin(admin.ModelAdmin):
 
     @admin.action(description="Unlock selected exam sessions")
     def unlock_exam_access(self, request, queryset):
-        from channels.layers import get_channel_layer
-        from django.utils import timezone
         from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
         from django.core.cache import cache
+        from django.utils import timezone
 
         channel_layer = get_channel_layer()
         unlocked_count = 0
@@ -435,7 +436,9 @@ class ExamAccessAdmin(admin.ModelAdmin):
 
         for access in queryset:
             # Check for existing cache entry as well
-            is_qr_unlocked = cache.get(f"qr_unlock:{access.candidate_id}:{access.exam_id}")
+            is_qr_unlocked = cache.get(
+                f"qr_unlock:{access.candidate_id}:{access.exam_id}"
+            )
             if access.is_unlocked or is_qr_unlocked:
                 already_unlocked += 1
                 continue
@@ -443,11 +446,17 @@ class ExamAccessAdmin(admin.ModelAdmin):
             # is_unlocked is kept False by design as a manual override/verification flag.
             # The actual eligibility is granted via a temporary cache entry.
             access.is_unlocked = False
-            access.unlocked_by = request.user.staff_profile if hasattr(request.user, "staff_profile") else None
+            access.unlocked_by = (
+                request.user.staff_profile
+                if hasattr(request.user, "staff_profile")
+                else None
+            )
             access.save(update_fields=["is_unlocked", "unlocked_by"])
 
             # Register a temporary QR unlock in cache for EligibilityService
-            cache.set(f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300)
+            cache.set(
+                f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300
+            )
 
             # Send unlock signal via WebSocket to candidate's user group
             if channel_layer:
@@ -458,10 +467,11 @@ class ExamAccessAdmin(admin.ModelAdmin):
                             "type": "exam.unlocked",
                             "data": {
                                 "exam_id": str(access.exam_id),
-                                "unlocked_by_name": request.user.get_full_name() or request.user.email,
+                                "unlocked_by_name": request.user.get_full_name()
+                                or request.user.email,
                                 "timestamp": str(timezone.now().timestamp()),
                             },
-                        }
+                        },
                     )
                     unlocked_count += 1
                 except Exception as e:
@@ -493,10 +503,10 @@ class ExamAccessAdmin(admin.ModelAdmin):
 
     def unlock_exam_view(self, request, access_id):
         """Individual unlock action from change form button."""
-        from channels.layers import get_channel_layer
-        from django.utils import timezone
         from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
         from django.core.cache import cache
+        from django.utils import timezone
 
         access = self.get_object(request, access_id)
         if access is None:
@@ -505,17 +515,25 @@ class ExamAccessAdmin(admin.ModelAdmin):
 
         is_qr_unlocked = cache.get(f"qr_unlock:{access.candidate_id}:{access.exam_id}")
         if access.is_unlocked or is_qr_unlocked:
-            self.message_user(request, "This exam session is already unlocked.", level=messages.INFO)
+            self.message_user(
+                request, "This exam session is already unlocked.", level=messages.INFO
+            )
             return redirect("admin:vmlc_examaccess_change", access_id)
 
         # is_unlocked is kept False by design as a manual override/verification flag.
         # The actual eligibility is granted via a temporary cache entry.
         access.is_unlocked = False
-        access.unlocked_by = request.user.staff_profile if hasattr(request.user, "staff_profile") else None
+        access.unlocked_by = (
+            request.user.staff_profile
+            if hasattr(request.user, "staff_profile")
+            else None
+        )
         access.save(update_fields=["unlocked_by", "is_unlocked"])
 
         # Register a temporary QR unlock in cache for EligibilityService
-        cache.set(f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300)
+        cache.set(
+            f"qr_unlock:{access.candidate_id}:{access.exam_id}", True, timeout=300
+        )
 
         channel_layer = get_channel_layer()
         if channel_layer:
@@ -526,10 +544,11 @@ class ExamAccessAdmin(admin.ModelAdmin):
                         "type": "exam.unlocked",
                         "data": {
                             "exam_id": str(access.exam_id),
-                            "unlocked_by_name": request.user.get_full_name() or request.user.email,
+                            "unlocked_by_name": request.user.get_full_name()
+                            or request.user.email,
                             "timestamp": str(timezone.now().timestamp()),
                         },
-                    }
+                    },
                 )
                 self.message_user(
                     request,
@@ -554,7 +573,9 @@ class ExamAccessAdmin(admin.ModelAdmin):
     @admin.display(description="")
     def unlock_action(self, obj):
         if obj.is_unlocked:
-            return format_html('<span style="color: #0f973d; font-weight: bold;">✓ Unlocked</span>')
+            return format_html(
+                '<span style="color: #0f973d; font-weight: bold;">✓ Unlocked</span>'
+            )
         url = reverse("admin:examaccess-unlock", args=[obj.pk])
         return format_html(
             '<a href="{}" class="button" style="background: #3E4095; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-size: 11px; font-weight: bold;">Unlock Exam</a>',
@@ -611,8 +632,8 @@ class CacheManagementAdmin(admin.ModelAdmin):
         """
         Redirect the changelist view to the clear cache view or show a button.
         """
-        from django.shortcuts import render, redirect
         from django.contrib import messages
+        from django.shortcuts import redirect, render
 
         if "clear" in request.GET:
             cache.clear()

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from identity.models import Staff
-from identity.serializers.user import UserSerializer, MinimalUserSerializer
+from identity.serializers.user import MinimalUserSerializer, UserSerializer
 
 
 class MinimalStaffSerializer(serializers.ModelSerializer):

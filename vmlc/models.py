@@ -2,8 +2,8 @@
 This module defines the database models for the VMLC backend application.
 """
 
-import uuid
 import logging
+import uuid
 from datetime import timedelta
 
 from django.core.cache import cache
@@ -13,8 +13,8 @@ from django.db.models import Avg
 from django.utils import timezone
 
 from competition.models import Stage
-from identity.validators import validate_image
 from core.storage_backends import PrivateMediaStorage, PublicMediaStorage
+from identity.validators import validate_image
 
 logger = logging.getLogger(__name__)
 
@@ -414,8 +414,9 @@ class Exam(models.Model):
 
         # If status changed and it's now CANCELLED, trigger notification
         if old_status != new_status and new_status == self.Status.CANCELLED:
-            from comms.tasks import notify_staff_about_exam_event_task
             from django.db import transaction
+
+            from comms.tasks import notify_staff_about_exam_event_task
 
             transaction.on_commit(
                 lambda: notify_staff_about_exam_event_task.delay(

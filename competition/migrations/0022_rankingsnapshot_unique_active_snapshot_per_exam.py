@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0021_rankingsnapshotentry_attempt_status"),
         ("vmlc", "0060_candidateexamresult_is_auto_submit"),

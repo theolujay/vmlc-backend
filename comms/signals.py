@@ -1,15 +1,17 @@
 import logging
-from django.conf import settings
-from django.dispatch import Signal
-from django.core.mail import mail_admins
-from django.core.cache import cache
-from django.db import transaction
-from django.db.models.signals import post_save, post_delete
-from celery.signals import task_success, task_failure
 
-from core.utils.exceptions import ValidationError
+from celery.signals import task_failure, task_success
+from django.conf import settings
+from django.core.cache import cache
+from django.core.mail import mail_admins
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import Signal
+
 from core.utils.cache import CacheKeys, invalidate_notifications
-from .models import Notification, Broadcast, HelpdeskThread, ThreadMessage
+from core.utils.exceptions import ValidationError
+
+from .models import Broadcast, HelpdeskThread, Notification, ThreadMessage
 
 logger = logging.getLogger(__name__)
 notifications_created = Signal()
@@ -112,14 +114,14 @@ def _notify_broadcast_sender(broadcast, status="sent", summary=None, medium=None
     if status == "sent":
         subject = f"Bulk Notification {'Delivered' if medium else 'Sent'}"
         message = (
-            f"Your bulk notification \"{broadcast.subject}\" was delivered "
+            f'Your bulk notification "{broadcast.subject}" was delivered '
             f"to {broadcast.total_recipients} user(s) via {mediums}."
         )
         ntype = Notification.Type.SUCCESS
     else:
         subject = "Bulk Notification Delivery Failed"
         message = (
-            f"Your bulk notification \"{broadcast.subject}\" "
+            f'Your bulk notification "{broadcast.subject}" '
             f"failed during delivery via {mediums}."
         )
         if summary:
@@ -165,9 +167,7 @@ def _handle_notifications_delivery_complete(result):
             broadcast = Broadcast.objects.get(id=bid)
             broadcast.status = Broadcast.Status.SENT
             broadcast.save(update_fields=["status"])
-            _notify_broadcast_sender(
-                broadcast, status="sent", medium="email / in-app"
-            )
+            _notify_broadcast_sender(broadcast, status="sent", medium="email / in-app")
         except Broadcast.DoesNotExist:
             logger.warning("Broadcast %s not found for delivery notification.", bid)
 

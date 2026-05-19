@@ -7,10 +7,21 @@ from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-
 from dotenv import load_dotenv
 from faker import Faker
 
+from competition.models import (
+    Competition,
+    Enrollment,
+    EnrollmentStageProgress,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
+    StageExam,
+)
+from competition.services.enrollment import EnrollmentService
 from identity.models import (
     Candidate,
     Staff,
@@ -24,18 +35,6 @@ from vmlc.models import (
     FeatureFlag,
     Question,
 )
-from competition.models import (
-    Competition,
-    Stage,
-    Enrollment,
-    EnrollmentStageProgress,
-    RankingSnapshot,
-    RankingSnapshotEntry,
-    LeagueLeaderboard,
-    LeagueLeaderboardEntry,
-    StageExam,
-)
-from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
 
@@ -178,7 +177,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            email = f"staff{i+1}@dev.mail.com"
+            email = f"staff{i + 1}@dev.mail.com"
             if User.objects.filter(email=email).exists():
                 staff = Staff.objects.filter(user__email=email).first()
                 if staff:
@@ -350,7 +349,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} simulation candidate users...")
         simulation_candidates = list()
         for i in range(count):
-            email = f"candidate{i+1}.vmlc@mailsac.com"
+            email = f"candidate{i + 1}.vmlc@mailsac.com"
             user = None
             if User.objects.filter(email=email).exists():
                 candidate = Candidate.objects.filter(user__email=email).first()

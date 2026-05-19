@@ -1,17 +1,17 @@
 from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from identity.models import (
-    PreRegUser,
-    User,
-    Candidate,
-    Staff,
-    UserVerification,
-)
 from competition.models import Enrollment
 from competition.signals import refresh_stats_overview_cache
+from identity.models import (
+    Candidate,
+    PreRegUser,
+    Staff,
+    User,
+    UserVerification,
+)
 
 
 def invalidate_user_list_cache(sender=None, _instance=None, **kwargs):

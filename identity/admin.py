@@ -1,35 +1,35 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.html import format_html
-from django.urls import reverse
-from django.db.models import Count, Sum, Q
-from django import forms
+from django.db.models import Count, Q, Sum
 from django.template.response import TemplateResponse
+from django.urls import reverse
+from django.utils.html import format_html
 
-from competition.models import Stage
-from identity.models import (
-    Candidate,
-    Staff,
-    User,
-    UserVerification,
-    PreRegUser,
-    EmailOTP,
-    CowrywiseKidProfile,
-)
+from comms.models import HelpdeskThread
+from comms.services.email import create_email_html
 
 # These are imported from vmlc as they are core to the application's admin functionality
 from comms.tasks import send_mail_task
-from comms.services.email import create_email_html
+from competition.models import Stage
 from core.utils.cache import (
-    invalidate_user_cache,
     invalidate_candidate_cache,
     invalidate_staff_cache,
     invalidate_staff_dashboard,
+    invalidate_user_cache,
 )
-from vmlc.models import ExamAccess, CandidateExamResult, ViolationEvent
-from comms.models import HelpdeskThread
+from identity.models import (
+    Candidate,
+    CowrywiseKidProfile,
+    EmailOTP,
+    PreRegUser,
+    Staff,
+    User,
+    UserVerification,
+)
+from vmlc.models import CandidateExamResult, ExamAccess, ViolationEvent
 
 
 class ExamAccessInline(admin.TabularInline):
@@ -64,16 +64,15 @@ class ExamAccessInline(admin.TabularInline):
 
     @admin.display(description="Passcode")
     def passcode_display(self, obj):
-        try:
-            return obj.exam_access.passcode
-        except:
-            return "-"
+        return obj.exam_access.passcode or "-"
 
     @admin.display(description="Violations")
     def violations_count(self, obj):
         count = ViolationEvent.objects.filter(heartbeat__exam_access=obj).count()
         if count > 0:
-            return format_html('<span style="color: red; font-weight: bold;">{}</span>', count)
+            return format_html(
+                '<span style="color: red; font-weight: bold;">{}</span>', count
+            )
         return count
 
     @admin.display(description="Action")
@@ -221,7 +220,7 @@ def change_candidate_role(modeladmin, request, queryset):
 
 @admin.action(description="Disqualify selected candidates")
 def disqualify_selected_candidates(modeladmin, request, queryset):
-    from competition.services.promotion import PromotionService, PromotionError
+    from competition.services.promotion import PromotionError, PromotionService
 
     if "apply" in request.POST:
         form = DisqualifyForm(request.POST)
@@ -267,7 +266,7 @@ def disqualify_selected_candidates(modeladmin, request, queryset):
 
 @admin.action(description="Undisqualify selected candidates")
 def undisqualify_selected_candidates(modeladmin, request, queryset):
-    from competition.services.promotion import PromotionService, PromotionError
+    from competition.services.promotion import PromotionError, PromotionService
 
     count = 0
     errors = []
@@ -293,7 +292,6 @@ def undisqualify_selected_candidates(modeladmin, request, queryset):
 
 @admin.action(description="Send Direct Access Passcodes via Email")
 def send_passcodes_via_email(modeladmin, request, queryset):
-    from vmlc.services.exam_access import ExamAccessService
     from comms.models import Broadcast
 
     _send_passcodes_action(
@@ -303,17 +301,14 @@ def send_passcodes_via_email(modeladmin, request, queryset):
 
 @admin.action(description="Send Direct Access Passcodes via SMS")
 def send_passcodes_via_sms(modeladmin, request, queryset):
-    from vmlc.services.exam_access import ExamAccessService
     from comms.models import Broadcast
 
-    _send_passcodes_action(
-        modeladmin, request, queryset, [Broadcast.Medium.SMS], "SMS"
-    )
+    _send_passcodes_action(modeladmin, request, queryset, [Broadcast.Medium.SMS], "SMS")
 
 
 def _send_passcodes_action(modeladmin, request, queryset, mediums, medium_name):
-    from vmlc.services.exam_access import ExamAccessService
     from competition.models import Enrollment
+    from vmlc.services.exam_access import ExamAccessService
 
     total_sent = 0
     errors = []

@@ -1,15 +1,13 @@
+from django.contrib.auth import get_user_model
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-
-from django.contrib.auth import get_user_model
-from django.urls import reverse
 
 from identity.models import (
     Staff,
     UserVerification,
 )
-
 from vmlc.models import (
     Exam,
     Question,
@@ -19,7 +17,6 @@ User = get_user_model()
 
 
 class HealthCheckTest(APITestCase):
-
     def test_health_check(self):
         url = reverse("health-check")
         response = self.client.get(url)
@@ -27,7 +24,6 @@ class HealthCheckTest(APITestCase):
 
 
 class ExamEndpointsTest(APITestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)
@@ -80,7 +76,6 @@ class ExamEndpointsTest(APITestCase):
 
 
 class QuestionEndpointsTest(APITestCase):
-
     def setUp(self):
         self.api_key, self.key = APIKey.objects.create_key(name="test-key")
         self.client.credentials(HTTP_X_API_KEY=self.key)
@@ -124,6 +119,3 @@ class QuestionEndpointsTest(APITestCase):
         url = reverse("vmlc:question-detail", kwargs={"question_id": question.id})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-
-

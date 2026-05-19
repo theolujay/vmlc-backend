@@ -1,9 +1,11 @@
 from datetime import timedelta
+
 from django.test import TestCase
 from django.utils import timezone
-from identity.models import Candidate, Staff, PreRegUser, User
-from vmlc.models import Exam
+
+from identity.models import Candidate, PreRegUser, Staff, User
 from identity.utils.user import get_user_status_counts
+from vmlc.models import Exam
 
 
 class UserStatsRefactorTest(TestCase):

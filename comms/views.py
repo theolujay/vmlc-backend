@@ -1,65 +1,61 @@
-from asgiref.sync import async_to_sync
-from django.db import transaction
 import hashlib
 import logging
 from datetime import datetime
 
+from asgiref.sync import async_to_sync
 from django.core.cache import cache
 from django.db import models, transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.generics import (
+    CreateAPIView,
     GenericAPIView,
     ListAPIView,
-    CreateAPIView,
     RetrieveAPIView,
 )
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
 
 from comms.models import (
     BackupLog,
     Broadcast,
     BroadcastLog,
-    Notification,
     HelpdeskThread,
     MessageRead,
+    Notification,
     ThreadMessage,
 )
 from comms.serializers import (
     BroadcastDetailSerializer,
     BroadcastListSerializer,
     HelpdeskThreadActionSerializer,
-    NotificationSerializer,
-    PublicSupportRequestSerializer,
     HelpdeskThreadDetailSerializer,
     HelpdeskThreadListSerializer,
+    NotificationSerializer,
+    PublicSupportRequestSerializer,
     ThreadMessageSerializer,
-    HelpdeskThreadActionSerializer,
 )
 from comms.tasks import send_broadcast_task
-from identity.permissions import (
-    ActiveAdminPermissions,
-    HasXAPIKey,
-    AuthenticatedUser,
-    CandidatePermissions,
-    ActiveManagerPermissions,
-    ActiveModeratorPermissions,
-)
-from core.utils.helpers import sanitize_data
-from core.utils.query_filters import (
-    annotate_thread_with_last_message_sender_type,
-    filter_broadcasts,
-    filter_helpdesk_threads,
-    annotate_thread_with_staff_unread_count,
-    annotate_thread_with_last_candidate_message_at,
-)
 from competition.utils.stats import get_helpdesk_stats_cached
 from core.utils.cache import CacheKeys, invalidate_notifications
-
+from core.utils.helpers import sanitize_data
+from core.utils.query_filters import (
+    annotate_thread_with_last_candidate_message_at,
+    annotate_thread_with_last_message_sender_type,
+    annotate_thread_with_staff_unread_count,
+    filter_broadcasts,
+    filter_helpdesk_threads,
+)
+from identity.permissions import (
+    ActiveAdminPermissions,
+    ActiveManagerPermissions,
+    ActiveModeratorPermissions,
+    AuthenticatedUser,
+    HasXAPIKey,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -739,8 +735,8 @@ class HelpdeskThreadMessageView(CreateAPIView):
         # Validate user is either: Thread owner or Staff (Moderator+)
         is_staff = False
         if hasattr(request.user, "staff_profile"):
-            from identity.permissions import StaffRoleHierarchy
             from identity.models import Staff
+            from identity.permissions import StaffRoleHierarchy
 
             is_staff = StaffRoleHierarchy.has_minimum_role(
                 request.user.staff_profile.role, Staff.Roles.MODERATOR
@@ -790,9 +786,9 @@ class HelpdeskThreadMessageView(CreateAPIView):
         def broadcast_message():
             from asgiref.sync import async_to_sync
             from channels.layers import get_channel_layer
+
             from comms.serializers import (
                 WebSocketThreadMessageSerializer,
-                HelpdeskThreadDetailSerializer,
             )
 
             # Get fresh thread state for metadata
@@ -846,7 +842,7 @@ class HelpdeskThreadMessageView(CreateAPIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def assign_staff_automatically(self, thread, current_staff):
+    def assign_staff_automatically(self, thread):
         """
         Assign thread automatically to the staff with the lowest load.
         """

@@ -1,18 +1,18 @@
-import os
 import logging
+import os
 
-from django.conf import settings
-from django.core.files import File
 from celery import shared_task
 from celery.exceptions import Retry
+from django.conf import settings
+from django.core.files import File
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(name="clear_pre_reg_user")
 def clear_pre_reg_user(user_email, user_type="candidate"):
-    from identity.models import PreRegUser
     from core.utils.events import log_event
+    from identity.models import PreRegUser
 
     try:
         pre_reg_user = PreRegUser.objects.get(email=user_email)

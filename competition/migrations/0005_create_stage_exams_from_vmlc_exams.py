@@ -1,7 +1,6 @@
 # Written by Olujay on 2026-01-28 16:24
 
-from django.db import migrations, models
-import django.db.models.deletion
+from django.db import migrations
 
 
 def create_stage_exams_from_vmlc_exams(apps, schema_editor):
@@ -86,7 +85,6 @@ def reverse_create_stage_exams(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0004_stageexam"),  # update as appropriate
         (

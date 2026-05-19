@@ -5,16 +5,29 @@ from typing import Any
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
 from dotenv import load_dotenv
 from faker import Faker
 
 from comms.models import (
+    Notification,
     PublicSupportRequest,
     ThreadMessage,
-    Notification,
-    HelpdeskThread,
 )
+from competition.models import (
+    Competition,
+    Enrollment,
+    EnrollmentStageProgress,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
+    StageExam,
+)
+from competition.services.enrollment import EnrollmentService
+from competition.services.leaderboard import LeaderboardService
+from competition.services.promotion import PromotionService
+from competition.services.ranking import RankingSnapshotGenerator
 from identity.models import (
     Candidate,
     PreRegUser,
@@ -25,27 +38,11 @@ from identity.models import (
 from vmlc.models import (
     CandidateAnswer,
     CandidateExamResult,
-    Exam,
     Event,
+    Exam,
     FeatureFlag,
     Question,
-    Event,
 )
-from competition.models import (
-    Competition,
-    Stage,
-    StageExam,
-    Enrollment,
-    EnrollmentStageProgress,
-    RankingSnapshot,
-    RankingSnapshotEntry,
-    LeagueLeaderboard,
-    LeagueLeaderboardEntry,
-)
-from competition.services.ranking import RankingSnapshotGenerator
-from competition.services.leaderboard import LeaderboardService
-from competition.services.promotion import PromotionService
-from competition.services.enrollment import EnrollmentService
 
 load_dotenv(".env")
 
@@ -206,7 +203,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} staff users...")
         staff_list = []
         for i in range(count):
-            email = f"staff{i+1}@mail.com"
+            email = f"staff{i + 1}@mail.com"
             if User.objects.filter(email=email).exists():
                 staff = Staff.objects.filter(user__email=email).first()
                 if staff:
@@ -273,7 +270,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Creating {count} candidate users...")
         candidates = []
         for i in range(count):
-            email = f"candidate{i+1}@mail.com"
+            email = f"candidate{i + 1}@mail.com"
             if User.objects.filter(email=email).exists():
                 candidate = Candidate.objects.filter(user__email=email).first()
                 if candidate:

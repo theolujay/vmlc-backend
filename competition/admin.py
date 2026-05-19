@@ -1,27 +1,28 @@
+from django import forms
 from django.contrib import admin
 from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
-from core.utils.exceptions import ValidationError
+
 from core.utils.cache import (
-    invalidate_score_boards,
     invalidate_candidate_cache,
     invalidate_exam_cache,
+    invalidate_score_boards,
 )
 from core.utils.helpers import invalidate_all_dashboard_caches
-from .models import (
-    Competition,
-    Stage,
-    StageExam,
-    Enrollment,
-    EnrollmentStageProgress,
-    RankingSnapshot,
-    RankingSnapshotEntry,
-    LeagueLeaderboard,
-    LeagueLeaderboardEntry,
-)
 from identity.admin import send_passcodes_via_email, send_passcodes_via_sms
 
+from .models import (
+    Competition,
+    Enrollment,
+    EnrollmentStageProgress,
+    LeagueLeaderboard,
+    LeagueLeaderboardEntry,
+    RankingSnapshot,
+    RankingSnapshotEntry,
+    Stage,
+    StageExam,
+)
 
 
 class StageInline(admin.TabularInline):
@@ -108,9 +109,6 @@ class CompetitionAdmin(admin.ModelAdmin):
             colors.get(obj.status, "black"),
             obj.get_status_display(),
         )
-
-
-from django import forms
 
 
 class StageAdminForm(forms.ModelForm):
@@ -207,7 +205,7 @@ class StageAdmin(admin.ModelAdmin):
         if mode == "top_n":
             return f"Top {int(value)} candidates"
         elif mode == "top_percent":
-            return f"Top {float(value)*100}% of candidates"
+            return f"Top {float(value) * 100}% of candidates"
         return f"{mode}: {value}"
 
 
@@ -443,6 +441,7 @@ class RankingSnapshotAdmin(admin.ModelAdmin):
     @admin.action(description="Export selected Ranking Snapshots as CSV")
     def export_rankings_as_csv(self, request, queryset):
         import csv
+
         from django.http import HttpResponse
 
         response = HttpResponse(content_type="text/csv")

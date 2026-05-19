@@ -1,14 +1,15 @@
 import logging
+
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+
 from competition.models import (
     Competition,
     Stage,
 )
-from vmlc.models import FeatureFlag
-from competition.services.enrollment import EnrollmentService, EnrollmentError
+from competition.services.enrollment import EnrollmentError, EnrollmentService
 
 logger = logging.getLogger(__name__)
 

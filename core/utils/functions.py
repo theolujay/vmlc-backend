@@ -1,30 +1,19 @@
 import logging
-from datetime import timedelta
-
-from django.core.cache import cache
-from django.db.models import (
-    F,
-    Q,
-    Avg,
-    Sum,
-    Window,
-    ExpressionWrapper,
-    DateTimeField,
-    functions,
-)
-from django.utils import timezone
-from PIL import Image
-import magic
 import mimetypes
 
+import magic
+from django.utils import timezone
+from PIL import Image
+
 from vmlc.models import (
-    Exam,
-    CandidateExamResult,
     CandidateAnswer,
+    CandidateExamResult,
+    Exam,
     ExamAccess,
 )
 
 logger = logging.getLogger(__name__)
+
 
 def compute_candidate_result(candidate_result_id):
     """

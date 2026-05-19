@@ -2,27 +2,23 @@
 This module defines the identity models for the VMLC backend application.
 """
 
-import os
 import uuid
 from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from django.apps import apps
 from django.db import models
-from django.db.models import Avg, Count, F, Max, Min, Q, Sum, Window
-from django.db.models.functions import Rank
+from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 
 from core.storage_backends import PrivateMediaStorage, PublicMediaStorage
 from identity.validators import (
-    validate_profile_picture,
+    validate_document_file,
     validate_face_id,
     validate_id_card_file,
-    validate_document_file,
+    validate_profile_picture,
 )
-
 
 phone_regex = RegexValidator(
     regex=r"^(\+234[789][01]\d{8}|0[789][01]\d{8})$",

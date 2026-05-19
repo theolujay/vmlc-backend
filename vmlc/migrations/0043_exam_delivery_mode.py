@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0042_remove_exam_vmlc_exam_stage_ece6e5_idx_and_more"),
     ]

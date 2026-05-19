@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0003_aggregateleaderboard_aggregateleaderboardentry_and_more"),
         ("vmlc", "0041_examaccess"),

@@ -1,13 +1,14 @@
 import json
 import os
+from io import StringIO
+
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
-from io import StringIO
 
-from vmlc.models import Exam, Question
-from identity.models import Staff, User
 from competition.models import Competition, Stage, StageExam
+from identity.models import Staff, User
+from vmlc.models import Exam, Question
 
 
 class ExamCommandsTests(TestCase):

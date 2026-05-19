@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0002_standings_standingsentry_and_more"),
         ("identity", "0001_initial"),

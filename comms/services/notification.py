@@ -16,8 +16,8 @@ from comms.services.kudi_sms import KudiSmsService
 from comms.utils import (
     _normalize_phone,
     format_sms_body,
-    is_placeholder_phone as _is_placeholder_phone,
 )
+from comms.utils import is_placeholder_phone as _is_placeholder_phone
 from core.utils.exceptions import (
     InvalidMediumError,
     NoRecipientsFoundError,
@@ -376,8 +376,8 @@ class NotificationService:
         """
         Notify candidates that exam results are available, and alert staff via Slack/Email.
         """
-        from identity.models import Staff
         from comms.services.slack import SlackService
+        from identity.models import Staff
 
         ENV = settings.APP_ENVIRONMENT
         exam = ranking.exam
@@ -410,7 +410,7 @@ class NotificationService:
             f"{env_prefix}System Update: Results Published for {exam.get_title()}"
         )
         ignore_message = (
-            f"You may ignore this alert, as testing is ongoing.\n\n"
+            "You may ignore this alert, as testing is ongoing.\n\n"
             if ENV != "production"
             else ""
         )
@@ -690,8 +690,8 @@ class NotificationService:
                 "No valid email addresses found for role '%s'." % role
             )
 
-        from comms.tasks import send_mail_task
         from comms.services.email import create_email_html
+        from comms.tasks import send_mail_task
 
         html_message = create_email_html(
             subject=broadcast.subject, message=broadcast.message
@@ -803,7 +803,9 @@ class NotificationService:
             }
 
         # Ensure recipient has leading + for Twilio E.164 format
-        formatted_recipient = recipient if recipient.startswith("+") else "+" + recipient
+        formatted_recipient = (
+            recipient if recipient.startswith("+") else "+" + recipient
+        )
 
         message = self.twilio_client.messages.create(
             body=body,
@@ -811,7 +813,9 @@ class NotificationService:
             to="whatsapp:%s" % formatted_recipient,
         )
         logger.info(
-            "Sent WhatsApp to %s (SID: %s)", formatted_recipient[:8] + "***", message.sid
+            "Sent WhatsApp to %s (SID: %s)",
+            formatted_recipient[:8] + "***",
+            message.sid,
         )
         return {
             "success": True,

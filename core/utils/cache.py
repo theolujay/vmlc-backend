@@ -1,8 +1,7 @@
 import math
+
 from django.core.cache import cache
-
 from django.db.models import Count, Q
-
 
 DEFAULT_TTL = 86400  # 24h
 GRACE_PERIOD_MINUTES = 10

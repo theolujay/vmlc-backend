@@ -1,17 +1,14 @@
 import logging
-import string
 import secrets
+import string
 from datetime import timedelta
-from typing import Tuple, Any
+from typing import Any, Tuple
 
-from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from identity.models import EmailOTP, PreRegUser, User
-from vmlc.models import FeatureFlag
 from comms.services.email import create_email_html
-
+from identity.models import EmailOTP, User
 
 logger = logging.getLogger(__name__)
 

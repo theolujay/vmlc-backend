@@ -1,5 +1,7 @@
 import logging
+
 from django.core.cache import cache
+
 from competition.models import Competition, Enrollment, Stage
 from identity.models import Candidate
 from vmlc.models import Exam, ExamAccess
@@ -13,14 +15,20 @@ class EligibilityService:
     """
 
     @staticmethod
-    def can_take_exam(candidate: Candidate, exam: Exam) -> tuple[bool, str | None, ExamAccess | None]:
+    def can_take_exam(
+        candidate: Candidate, exam: Exam
+    ) -> tuple[bool, str | None, ExamAccess | None]:
         """
         Determines if a candidate is eligible to take a specific exam based on
         competition rules and their current progress.
         """
         if not candidate.user.is_active:
             logger.warning(f"Candidate {candidate.pk} is inactive.")
-            return False, "Your account is currently inactive. Please contact support.", None
+            return (
+                False,
+                "Your account is currently inactive. Please contact support.",
+                None,
+            )
 
         # If exam is not active, nobody can take it
         if not exam.is_active:
@@ -36,7 +44,8 @@ class EligibilityService:
             return False, "This exam is not currently open for attempts.", None
 
         access, created = ExamAccess.objects.get_or_create(
-            candidate=candidate, exam=exam,
+            candidate=candidate,
+            exam=exam,
             defaults={
                 "status": ExamAccess.Status.PENDING,
                 "facilitator_system": ExamAccess.Facilitator.VMLC,
@@ -80,7 +89,11 @@ class EligibilityService:
             logger.info(
                 f"Candidate {candidate.pk} has no active competition enrollment or valid role fallback."
             )
-            return False, "You are not enrolled in the required stage for this exam.", access
+            return (
+                False,
+                "You are not enrolled in the required stage for this exam.",
+                access,
+            )
 
         # Check if candidate's current stage matches the exam's stage
         if candidate_current_stage != slot.competition_stage:
@@ -111,7 +124,11 @@ class EligibilityService:
                 logger.info(
                     f"Candidate {candidate.pk} has no valid progress for stage {slot.competition_stage.type}"
                 )
-                return False, "You do not have active progress for this competition stage.", access
+                return (
+                    False,
+                    "You do not have active progress for this competition stage.",
+                    access,
+                )
 
         # Check if they have already submitted, failed or if access expired
         if access.status == ExamAccess.Status.SUBMITTED:
@@ -124,14 +141,22 @@ class EligibilityService:
 
         if access.status == ExamAccess.Status.FAILED:
             logger.info(f"Candidate {candidate.pk} attempt for exam {exam.pk} failed.")
-            return False, "You have failed this exam attempt and cannot retake it.", access
+            return (
+                False,
+                "You have failed this exam attempt and cannot retake it.",
+                access,
+            )
 
         if exam.stage == "final" and not access.is_unlocked:
-            is_qr_unlocked = cache.get(
-                f"qr_unlock:{candidate.pk}:{exam.pk}"
-            ) is not None
+            is_qr_unlocked = (
+                cache.get(f"qr_unlock:{candidate.pk}:{exam.pk}") is not None
+            )
             if not is_qr_unlocked:
-                return False, "Your access to this final exam has not yet been unlocked.", access
+                return (
+                    False,
+                    "Your access to this final exam has not yet been unlocked.",
+                    access,
+                )
 
         return True, None, access
 

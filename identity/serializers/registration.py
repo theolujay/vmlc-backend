@@ -1,24 +1,25 @@
+import logging
 import os
 import uuid
-import logging
+
 from django.conf import settings
-from django.db import transaction, IntegrityError, DatabaseError
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import DatabaseError, IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from core.utils.auth import generate_password
 from identity.models import (
+    Candidate,
     PreRegUser,
+    Staff,
     User,
     UserVerification,
-    Candidate,
-    Staff,
     validate_document_file,
     validate_face_id,
 )
-from core.utils.auth import generate_password
-from identity.utils.user import normalize_title
 from identity.serializers.staff import MinimalStaffSerializer
+from identity.utils.user import normalize_title
 
 logger = logging.getLogger(__name__)
 

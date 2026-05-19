@@ -1,8 +1,9 @@
 import os
+import warnings
+
 from celery import Celery
 from celery.schedules import crontab
 from django.apps import apps
-import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pycparser")
 

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0004_broadcastlog_role_type_alter_broadcast_target_roles_and_more"),
     ]

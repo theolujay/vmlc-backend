@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
 
+from core.utils.events import log_event
 from identity.models import PreRegUser, User
 from vmlc.models import Event
-from core.utils.events import log_event
 
 
 class Command(BaseCommand):

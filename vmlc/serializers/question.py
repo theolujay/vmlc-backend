@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from ..models import (
-    Question,
-    Exam,
-)
-
 from identity.serializers.staff import MinimalStaffSerializer
+
+from ..models import (
+    Exam,
+    Question,
+)
 
 
 class RelatedExamSerializer(serializers.ModelSerializer):

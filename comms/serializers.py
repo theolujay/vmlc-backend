@@ -4,12 +4,12 @@ from identity.models import User
 from identity.serializers.staff import MinimalStaffSerializer
 
 from .models import (
-    PublicSupportRequest,
-    HelpdeskThread,
-    ThreadMessage,
     Broadcast,
     BroadcastLog,
+    HelpdeskThread,
     Notification,
+    PublicSupportRequest,
+    ThreadMessage,
 )
 
 
@@ -232,7 +232,7 @@ class HelpdeskThreadDetailSerializer(serializers.ModelSerializer):
                     ExamAccess.Status.STARTED,
                     ExamAccess.Status.SUBMITTED,
                     ExamAccess.Status.EXPIRED,
-                ]
+                ],
             )
             .select_related("exam")
             .order_by("-created_at")
@@ -343,7 +343,7 @@ class BroadcastDetailSerializer(serializers.ModelSerializer):
         ]
 
     def validate_target_roles(self, value):
-        from identity.models import Staff, Candidate
+        from identity.models import Candidate, Staff
 
         if not isinstance(value, dict):
             raise serializers.ValidationError("target_roles must be a dictionary.")
@@ -416,35 +416,32 @@ class BulkNotificationSerializer(serializers.Serializer):
     user_ids = serializers.ListField(
         child=serializers.UUIDField(),
         required=True,
-        help_text="List of user IDs to send notification to"
+        help_text="List of user IDs to send notification to",
     )
-    message = serializers.CharField(
-        required=True,
-        help_text="Message content"
-    )
+    message = serializers.CharField(required=True, help_text="Message content")
     medium = serializers.ChoiceField(
         choices=["email", "sms", "both"],
         required=False,
         default="email",
-        help_text="Delivery channel: email, sms, or both"
+        help_text="Delivery channel: email, sms, or both",
     )
     subject = serializers.CharField(
         required=False,
         allow_blank=True,
         default="",
-        help_text="Subject (required for email, optional for SMS)"
+        help_text="Subject (required for email, optional for SMS)",
     )
     image_base64 = serializers.CharField(
         required=False,
         allow_blank=True,
         default="",
-        help_text="Base64-encoded image data to embed in email"
+        help_text="Base64-encoded image data to embed in email",
     )
     image_name = serializers.CharField(
         required=False,
         allow_blank=True,
         default="",
-        help_text="Original filename of the attached image"
+        help_text="Original filename of the attached image",
     )
 
     def validate_image_base64(self, value):
@@ -467,8 +464,8 @@ class BulkNotificationSerializer(serializers.Serializer):
         subject = data.get("subject", "")
 
         if medium in ["email", "both"] and not subject.strip():
-            raise serializers.ValidationError({
-                "subject": "Subject is required for email notifications."
-            })
+            raise serializers.ValidationError(
+                {"subject": "Subject is required for email notifications."}
+            )
 
         return data

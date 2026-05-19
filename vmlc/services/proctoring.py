@@ -1,17 +1,17 @@
 import logging
 import math
 from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
-from vmlc.models import ExamHeartbeat, ViolationEvent, ExamAccess
 
-logger = logging.getLogger(__name__)
-
-# Import heartbeat interval settings from serializers
+from vmlc.models import ExamAccess, ExamHeartbeat, ViolationEvent
 from vmlc.serializers.proctoring import (
     HEARTBEAT_INTERVAL_MINUTES,
     HEARTBEAT_INTERVAL_TOLERANCE_SECONDS,
 )
+
+logger = logging.getLogger(__name__)
 
 SUSPICION_WEIGHTS = {
     "TAB_SWITCH": 0.3,
@@ -164,6 +164,7 @@ class ProctoringService:
         # Trigger WebSocket update for Helpdesk Thread if it exists
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
+
         from comms.models import HelpdeskThread
         from vmlc.serializers.proctoring import CandidateLiveStatusV2Serializer
 
@@ -174,10 +175,7 @@ class ProctoringService:
 
             async_to_sync(channel_layer.group_send)(
                 f"helpdesk_thread_{str(thread.id)}",
-                {
-                    "type": "helpdesk.thread.exam_telemetry",
-                    "data": status_data
-                }
+                {"type": "helpdesk.thread.exam_telemetry", "data": status_data},
             )
         except HelpdeskThread.DoesNotExist:
             pass
@@ -269,7 +267,6 @@ class ProctoringService:
         Detects if there are clusters of violations occurring in a short time window.
         Returns a multiplier to apply to the suspicion score.
         """
-        from django.utils import timezone
 
         events = ViolationEvent.objects.filter(
             heartbeat__exam_access=exam_access

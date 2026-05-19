@@ -1,9 +1,9 @@
 import json
 import logging
-import requests
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+import requests
 from django.conf import settings
 from django.core.cache import cache
 

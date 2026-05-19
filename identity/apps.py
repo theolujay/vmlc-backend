@@ -6,4 +6,4 @@ class IdentityConfig(AppConfig):
     name = "identity"
 
     def ready(self) -> None:
-        import identity.signals
+        pass

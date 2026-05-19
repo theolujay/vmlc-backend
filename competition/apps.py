@@ -6,4 +6,4 @@ class CompetitionConfig(AppConfig):
     name = "competition"
 
     def ready(self) -> None:
-        import competition.signals
+        pass

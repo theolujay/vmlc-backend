@@ -1,7 +1,9 @@
 import json
+
 from django.core.management.base import BaseCommand, CommandError
-from vmlc.models import Exam
 from django.core.serializers.json import DjangoJSONEncoder
+
+from vmlc.models import Exam
 
 
 class Command(BaseCommand):

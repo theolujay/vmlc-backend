@@ -1,6 +1,7 @@
 import logging
 
 from channels.db import database_sync_to_async
+
 from comms.models import Notification
 
 logger = logging.getLogger(__name__)

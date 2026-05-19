@@ -3,15 +3,15 @@ This package contains all the serializers for the vmlc (exam-domain) API.
 """
 
 from .answer import (
-    CandidateAnswerSerializer,
-    CandidateAnswerBulkSerializer,
-    AutoSaveAnswerSerializer,
     AutoSaveAnswersBulkSerializer,
+    AutoSaveAnswerSerializer,
+    CandidateAnswerBulkSerializer,
+    CandidateAnswerSerializer,
 )
 from .question import (
-    QuestionListSerializer,
-    QuestionDetailSerializer,
     CandidateQuestionSerializer,
+    QuestionDetailSerializer,
+    QuestionListSerializer,
 )
 
 __all__ = [

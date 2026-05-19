@@ -1,7 +1,8 @@
 import logging
+
 from django.db import transaction
+
 from competition.models import (
-    Competition,
     Enrollment,
     EnrollmentStageProgress,
 )

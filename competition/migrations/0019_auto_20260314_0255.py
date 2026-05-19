@@ -8,7 +8,6 @@ def make_proctoring_status_null_for_absentees(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("competition", "0018_alter_rankingsnapshotentry_proctoring_status"),
     ]

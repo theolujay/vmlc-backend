@@ -1,10 +1,10 @@
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework_api_key.permissions import HasAPIKey
 
-from identity.models import Candidate, Staff
-from competition.models import Enrollment, Competition, RankingSnapshot
+from competition.models import Enrollment, RankingSnapshot
+from identity.models import Staff
 from vmlc.models import ExamAccess
 
 
@@ -60,7 +60,7 @@ def get_enrollment(request):
         # If not found (e.g. middleware ran before auth), try to fetch manually
         candidate = get_candidate_profile(request)
         if candidate:
-            from competition.models import Enrollment, Competition
+            from competition.models import Competition, Enrollment
 
             enrollment = (
                 Enrollment.objects.filter(
@@ -305,6 +305,7 @@ class IsActiveModeratorOrCandidate(BasePermission):
         is_candidate = get_candidate_profile(request) is not None
         return is_active_moderator or is_candidate
 
+
 class CanViewScoreboard(BasePermission):
     """
     Grants access to a scoreboard if:
@@ -338,7 +339,8 @@ class CanViewScoreboard(BasePermission):
                 return False
             try:
                 ranking_snapshot = RankingSnapshot.objects.select_related(
-                    "competition", "exam__competition_slot__competition_stage__competition"
+                    "competition",
+                    "exam__competition_slot__competition_stage__competition",
                 ).get(exam_id=exam_id, is_published=True)
 
                 return True if ranking_snapshot is not None else False

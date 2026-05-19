@@ -1,4 +1,5 @@
 import uuid
+
 from django.db import models, transaction
 from django.db.models import Q
 
@@ -459,9 +460,7 @@ class LeagueLeaderboard(models.Model):
                     competition=self.competition,
                     stage=self.stage,
                     is_public=True,
-                ).exclude(
-                    pk=self.pk
-                ).update(is_public=False)
+                ).exclude(pk=self.pk).update(is_public=False)
         super().save(*args, **kwargs)
 
     class Meta:

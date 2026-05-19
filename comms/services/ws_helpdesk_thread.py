@@ -1,7 +1,9 @@
 import logging
 import time
-from django.core.cache import cache
+
 from channels.db import database_sync_to_async
+from django.core.cache import cache
+
 from ..models import HelpdeskThread
 
 logger = logging.getLogger(__name__)
@@ -58,11 +60,8 @@ class WSHelpdeskThreadService:
     async def refresh_presence(user_id, set_name):
         """Refreshes the user's heartbeat in the Sorted Set."""
         cache.set(f"user_online_{user_id}", 1, timeout=60)
-        try:
-            client = cache.client.get_client()
-            client.zadd(set_name, {str(user_id): time.time()})
-        except:
-            pass
+        client = cache.client.get_client()
+        client.zadd(set_name, {str(user_id): time.time()})
 
     @staticmethod
     def get_online_counts():

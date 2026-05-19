@@ -1,4 +1,5 @@
 import os
+
 from django.core.exceptions import ValidationError
 
 
@@ -11,7 +12,7 @@ def validate_verification_document(value):
     valid_extensions = [".jpg", ".jpeg", ".png", ".pdf"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported document format. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:
@@ -27,7 +28,7 @@ def validate_profile_picture(value):
     valid_extensions = [".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported image format. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:
@@ -42,7 +43,7 @@ def validate_image(value):
     valid_extensions = [".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported image format. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:
@@ -58,7 +59,7 @@ def validate_id_card_file(value):
     valid_extensions = [".jpg", ".jpeg", ".png", ".pdf"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported file extension. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:
@@ -74,7 +75,7 @@ def validate_face_id(value):
     valid_extensions = [".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported image format. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported image format. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:
@@ -90,7 +91,7 @@ def validate_document_file(value):
     valid_extensions = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
     if ext not in valid_extensions:
         raise ValidationError(
-            f'Unsupported document format. Allowed: {", ".join(valid_extensions)}'
+            f"Unsupported document format. Allowed: {', '.join(valid_extensions)}"
         )
 
     if value.size > 5 * 1024 * 1024:

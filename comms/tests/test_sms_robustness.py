@@ -1,10 +1,13 @@
-from django.test import TestCase
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
-from unittest.mock import patch, MagicMock
-from comms.services.notification import NotificationService
+from django.test import TestCase
+
 from comms.models import Broadcast
+from comms.services.notification import NotificationService
 
 User = get_user_model()
+
 
 class SMSRobustnessTest(TestCase):
     def setUp(self):
@@ -13,7 +16,7 @@ class SMSRobustnessTest(TestCase):
             password="password123",
             first_name="Test",
             last_name="User",
-            phone="+2348012345678"
+            phone="+2348012345678",
         )
         self.service = NotificationService()
 
@@ -28,12 +31,12 @@ class SMSRobustnessTest(TestCase):
             user=self.user,
             subject="Test Subject",
             message="Test Message",
-            mediums=[Broadcast.Medium.SMS]
+            mediums=[Broadcast.Medium.SMS],
         )
 
         # Check results map
         self.assertTrue(results.get("sms"))
-        
+
         # Verify task was queued
         mock_sms_task.assert_called_once()
         args, kwargs = mock_sms_task.call_args
@@ -48,12 +51,12 @@ class SMSRobustnessTest(TestCase):
         when provider is NOT Kudi.
         """
         mock_send_phone_msg.return_value = {"success": True}
-        
+
         results = self.service.notify_user(
             user=self.user,
             subject="Test Subject",
             message="Test Message",
-            mediums=[Broadcast.Medium.SMS]
+            mediums=[Broadcast.Medium.SMS],
         )
 
         self.assertTrue(results.get("sms"))
@@ -70,7 +73,7 @@ class SMSRobustnessTest(TestCase):
             user=self.user,
             subject="Test Subject",
             message="Test Message",
-            mediums=[Broadcast.Medium.SMS]
+            mediums=[Broadcast.Medium.SMS],
         )
 
         self.assertFalse(results.get("sms"))
@@ -79,23 +82,21 @@ class SMSRobustnessTest(TestCase):
     @patch("django.conf.settings.TWILIO_ACCOUNT_SID", "ACxxx")
     @patch("django.conf.settings.TWILIO_AUTH_TOKEN", "authxxx")
     @patch("django.conf.settings.TWILIO_FROM_PHONE", "+12345")
-    def test_whatsapp_recipient_formatting(self, mock_twilio):
+    def test_whatsapp_recipient_formatting(self):
         """
         Verify that WhatsApp recipient is correctly formatted with a leading '+'.
         """
         # Re-init service to pick up mocked twilio settings
         service = NotificationService()
-        
+
         # Mock twilio message creation
         mock_messages = MagicMock()
         service.twilio_client.messages = mock_messages
-        
+
         # Test with phone number missing +
         self.user.phone = "2348012345678"
         service._dispatch_phone_notification(self.user, "Body", "whatsapp")
-        
+
         mock_messages.create.assert_called_with(
-            body="Body",
-            from_="whatsapp:+12345",
-            to="whatsapp:+2348012345678"
+            body="Body", from_="whatsapp:+12345", to="whatsapp:+2348012345678"
         )

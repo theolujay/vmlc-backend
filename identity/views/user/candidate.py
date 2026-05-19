@@ -3,10 +3,10 @@ import logging
 from rest_framework.generics import ListAPIView
 from rest_framework.settings import api_settings
 
+from core.utils.query_filters import filter_candidates
 from identity.models import Candidate
 from identity.permissions import ActiveModeratorPermissions
 from identity.serializers import CandidateListSerializer
-from core.utils.query_filters import filter_candidates
 
 logger = logging.getLogger(__name__)
 

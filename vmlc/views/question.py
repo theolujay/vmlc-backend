@@ -1,18 +1,19 @@
 import logging
+
 from django.db import transaction
-from rest_framework import status, parsers
+from rest_framework import parsers, status
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
-from identity.permissions import ActiveModeratorPermissions, ActiveAdminPermissions
-from vmlc.models import Question, Exam
-from vmlc.serializers.question import (
-    QuestionV2Serializer,
-    QuestionBulkActionSerializer,
-)
 from core.utils.query_filters import filter_questions
+from identity.permissions import ActiveAdminPermissions, ActiveModeratorPermissions
+from vmlc.models import Exam, Question
+from vmlc.serializers.question import (
+    QuestionBulkActionSerializer,
+    QuestionV2Serializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,11 @@ class QuestionListCreateV2View(ListCreateAPIView):
 
     def list(self, request, *args, **kwargs):
         # Handle Question Pool Data Caching
-        from core.utils.cache import CacheKeys, get_or_set_cache, question_pool_aggregate
+        from core.utils.cache import (
+            CacheKeys,
+            get_or_set_cache,
+            question_pool_aggregate,
+        )
 
         pool_data = get_or_set_cache(
             CacheKeys.QUESTION_POOL,
@@ -52,7 +57,10 @@ class QuestionListCreateV2View(ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user.staff_profile)
         # Clear pool cache
-        from core.utils.cache import invalidate_question_pool, invalidate_staff_dashboard
+        from core.utils.cache import (
+            invalidate_question_pool,
+            invalidate_staff_dashboard,
+        )
 
         invalidate_question_pool()
         invalidate_staff_dashboard()

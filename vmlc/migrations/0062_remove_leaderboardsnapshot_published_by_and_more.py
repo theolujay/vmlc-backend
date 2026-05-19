@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("vmlc", "0061_examaccess_is_unlocked_examaccess_unlocked_by_and_more"),
     ]

@@ -3,9 +3,11 @@
 Identity App Migration - Production Deployment Script
 Executes table renames and content type updates before running Django migrations
 """
+
+import sys
+
 from django.db import connection, transaction
 from django.utils import timezone
-import sys
 
 
 def check_prerequisites():

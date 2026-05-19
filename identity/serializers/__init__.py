@@ -1,6 +1,6 @@
 from .auth import *
+from .candidate import *
 from .cowrywise_kid import *
-from .user import UserSerializer, MinimalUserSerializer
-from .staff import MinimalStaffSerializer, StaffListSerializer, StaffDetailSerializer
-from .candidate import MinimalCandidateSerializer, CandidateListSerializer, CandidateDetailSerializer
-from .user_profile import UserProfileDetailSerializer, UserProfileListSerializer
+from .staff import *
+from .user import *
+from .user_profile import *

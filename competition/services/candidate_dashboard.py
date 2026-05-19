@@ -7,19 +7,18 @@ from django.utils import timezone
 
 from competition.models import (
     Competition,
-    Stage,
-    StageExam,
     Enrollment,
     EnrollmentStageProgress,
     RankingSnapshot,
     RankingSnapshotEntry,
+    Stage,
+    StageExam,
 )
-
-from competition.services.leaderboard import LeaderboardService
 from competition.services.eligibility import EligibilityService
-from identity.models import Candidate
-from vmlc.models import Exam, CandidateExamResult, ExamAccess
+from competition.services.leaderboard import LeaderboardService
 from core.utils.cache import truncate_float
+from identity.models import Candidate
+from vmlc.models import CandidateExamResult, Exam, ExamAccess
 
 logger = logging.getLogger(__name__)
 
@@ -331,8 +330,9 @@ class CandidateDashboardService:
                 exam = slot.exam
                 status = exam.status
 
-                is_eligible, _, access = EligibilityService.can_take_exam(candidate, exam)
-
+                is_eligible, _, access = EligibilityService.can_take_exam(
+                    candidate, exam
+                )
 
                 has_participated = (
                     access.status == ExamAccess.Status.SUBMITTED if access else False
@@ -462,7 +462,9 @@ class CandidateDashboardService:
         Fetches the candidate's entry from the latest league leaderboard.
         Returns a ranking dict or None.
         """
-        leaderboard = LeaderboardService.get_latest_league_leaderboard(active_comp, is_public=True)
+        leaderboard = LeaderboardService.get_latest_league_leaderboard(
+            active_comp, is_public=True
+        )
         if not leaderboard:
             return None
 

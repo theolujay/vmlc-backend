@@ -1,59 +1,59 @@
-import logging
 import itertools
-from datetime import timedelta
+import logging
 import re
+from datetime import timedelta
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q, QuerySet
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
+from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.conf import settings
-from django.core.files.uploadedfile import UploadedFile
-
-from rest_framework.settings import api_settings
+from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import (
     CreateAPIView,
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
-from identity.serializers import (
-    StaffListSerializer,
-    CandidateListSerializer,
-    UserProfileDetailSerializer,
-    UserProfileListSerializer,
-)
-from identity.serializers.registration import StaffInviteSerializer
-from identity.models import PreRegUser, User, UserVerification, Staff, Candidate
+from comms.tasks import send_mail_task
+from competition.utils.stats import generate_stats_overview_data
 from core.utils.auth import generate_password
+from core.utils.query_filters import (
+    filter_candidates,
+    filter_pre_reg_users,
+    filter_staffs,
+    filter_users,
+)
+from identity.models import Candidate, PreRegUser, Staff, User, UserVerification
 from identity.permissions import (
-    AuthenticatedUser,
-    IsManagerForStaffDetail,
-    IsObjectOwnerOrActiveAdmin,
     ActiveAdminPermissions,
     ActiveManagerPermissions,
     ActiveModeratorPermissions,
+    AuthenticatedUser,
+    IsManagerForStaffDetail,
+    IsObjectOwnerOrActiveAdmin,
+)
+from identity.serializers import (
+    CandidateListSerializer,
+    StaffListSerializer,
+    UserProfileDetailSerializer,
+    UserProfileListSerializer,
+)
+from identity.serializers.registration import (
+    PreRegUserSerializer,
+    StaffInviteSerializer,
 )
 from identity.tasks import (
     revoke_user_invite_task,
 )
-from comms.tasks import send_mail_task
-from competition.utils.stats import generate_stats_overview_data
-from core.utils.query_filters import (
-    filter_pre_reg_users,
-    filter_staffs,
-    filter_candidates,
-    filter_users,
-)
-from identity.serializers.registration import PreRegUserSerializer
-from core.utils.cache import get_or_set_cache, CacheKeys
 
 logger = logging.getLogger(__name__)
 
@@ -692,17 +692,20 @@ class BulkNotificationView(APIView):
     """
     Send bulk notification/email/SMS to selected users.
     """
+
     permission_classes = ActiveManagerPermissions
 
     def post(self, request):
-        from comms.models import Notification, Broadcast
+        import base64
+        import os
+        import uuid
+
+        from django.conf import settings
+
+        from comms.models import Broadcast, Notification
+        from comms.serializers import BulkNotificationSerializer
         from comms.signals import notifications_created
         from comms.tasks import send_bulk_sms_task
-        from comms.serializers import BulkNotificationSerializer
-        import base64
-        import uuid
-        import os
-        from django.conf import settings
 
         serializer = BulkNotificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -719,8 +722,7 @@ class BulkNotificationView(APIView):
 
         if target_count == 0:
             return Response(
-                {"error": "No valid users found."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No valid users found."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Map medium string to Broadcast mediums list
@@ -797,8 +799,7 @@ class BulkNotificationView(APIView):
 
                 # Trigger background delivery (WebSocket and/or Email)
                 notifications_created.send(
-                    sender=self.__class__,
-                    notifications=created_notifications
+                    sender=self.__class__, notifications=created_notifications
                 )
 
                 # Send SMS if needed
@@ -817,7 +818,7 @@ class BulkNotificationView(APIView):
             broadcast.save(update_fields=["status"])
             return Response(
                 {"error": f"Failed to create notifications: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         delivery_methods = []
@@ -826,38 +827,40 @@ class BulkNotificationView(APIView):
         if send_sms:
             delivery_methods.append("SMS")
 
-        return Response({
-            "message": f"{', '.join(delivery_methods)} sent to {target_count} users.",
-            "broadcast_id": broadcast.id,
-        })
+        return Response(
+            {
+                "message": f"{', '.join(delivery_methods)} sent to {target_count} users.",
+                "broadcast_id": broadcast.id,
+            }
+        )
 
 
 class ResetUserPasswordView(APIView):
     """
     Reset a user's password and send them a temporary password via email.
     """
+
     permission_classes = ActiveManagerPermissions
 
     def post(self, request):
-        from identity.models import User
-        from core.utils.auth import generate_password
-        from comms.tasks import send_mail_task
         from django.conf import settings
+
+        from comms.tasks import send_mail_task
+        from core.utils.auth import generate_password
+        from identity.models import User
 
         user_id = request.data.get("user_id")
 
         if not user_id:
             return Response(
-                {"error": "user_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "user_id is required."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response(
-                {"error": "User not found."},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "User not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
         # Generate temporary password
@@ -886,79 +889,86 @@ class ResetUserPasswordView(APIView):
         except Exception as e:
             logger.error(f"Failed to send password reset email: {e}")
             return Response(
-                {"error": "Password reset but failed to send email. Please contact IT."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {
+                    "error": "Password reset but failed to send email. Please contact IT."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return Response({
-            "message": f"Password reset for {user.email}. Temporary password sent via email.",
-        })
+        return Response(
+            {
+                "message": f"Password reset for {user.email}. Temporary password sent via email.",
+            }
+        )
 
 
 class UserActivityLogView(ListAPIView):
     """
     Retrieve activity log for a specific user.
     """
+
     permission_classes = ActiveModeratorPermissions
     serializer_class = None
 
     def list(self, request, *args, **kwargs):
-        from vmlc.models import Event
         from identity.models import User
+        from vmlc.models import Event
 
         user_id = request.query_params.get("user_id")
 
         if not user_id:
             return Response(
                 {"error": "user_id query parameter is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response(
-                {"error": "User not found."},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "User not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
         # Get events for this user
         events = Event.objects.filter(actor=user).order_by("-timestamp")[:50]
 
-        return Response({
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-            },
-            "activities": [
-                {
-                    "event_name": e.event_name,
-                    "timestamp": e.timestamp.isoformat(),
-                    "metadata": e.metadata,
-                }
-                for e in events
-            ]
-        })
+        return Response(
+            {
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                },
+                "activities": [
+                    {
+                        "event_name": e.event_name,
+                        "timestamp": e.timestamp.isoformat(),
+                        "metadata": e.metadata,
+                    }
+                    for e in events
+                ],
+            }
+        )
 
 
 class BulkStaffImportView(APIView):
     """
     Bulk import staff from CSV/Excel file.
     """
+
     permission_classes = ActiveManagerPermissions
     parser_classes = [MultiPartParser]
 
     def post(self, request):
         import io
+
         from openpyxl import load_workbook
 
         file = request.FILES.get("file")
         if not file:
             return Response(
-                {"error": "No file uploaded."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Determine file type and load
@@ -970,6 +980,7 @@ class BulkStaffImportView(APIView):
                 # Read CSV
                 content = file.read().decode("utf-8")
                 import csv
+
                 reader = csv.DictReader(io.StringIO(content))
                 rows = list(reader)
             elif filename.endswith((".xlsx", ".xls")):
@@ -985,26 +996,27 @@ class BulkStaffImportView(APIView):
                 wb.close()
             else:
                 return Response(
-                    {"error": "Invalid file format. Only CSV and Excel files are supported."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "error": "Invalid file format. Only CSV and Excel files are supported."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         except Exception as e:
             logger.error(f"Failed to parse file: {e}")
             return Response(
                 {"error": f"Failed to parse file: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not rows:
             return Response(
-                {"error": "No data found in file."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No data found in file."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Expected columns
         required_fields = ["email", "first_name", "last_name"]
         optional_fields = ["phone", "state", "role", "occupation"]
-        all_fields = required_fields + optional_fields
+        _ = required_fields + optional_fields
 
         # Validate columns from first row
         first_row = rows[0]
@@ -1012,7 +1024,7 @@ class BulkStaffImportView(APIView):
         if missing_required:
             return Response(
                 {"error": f"Missing required columns: {', '.join(missing_required)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Process each row
@@ -1037,61 +1049,75 @@ class BulkStaffImportView(APIView):
 
             # Validate required fields
             if not email:
-                results["errors"].append({
-                    "row": idx,
-                    "error": "Email is required",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": "Email is required",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             if not first_name:
-                results["errors"].append({
-                    "row": idx,
-                    "error": "First name is required",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": "First name is required",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             if not last_name:
-                results["errors"].append({
-                    "row": idx,
-                    "error": "Last name is required",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": "Last name is required",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             # Validate role
             if role and role not in VALID_ROLES:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Invalid role '{role}'. Valid roles: {', '.join(VALID_ROLES)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Invalid role '{role}'. Valid roles: {', '.join(VALID_ROLES)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             # Validate state
             if state and state not in VALID_STATES:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Invalid state '{state}'. Valid states: {', '.join(VALID_STATES)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Invalid state '{state}'. Valid states: {', '.join(VALID_STATES)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             # Check if user exists
             try:
                 if User.objects.filter(email__iexact=email).exists():
-                    results["errors"].append({
-                        "row": idx,
-                        "error": f"Email '{email}' already exists",
-                    })
+                    results["errors"].append(
+                        {
+                            "row": idx,
+                            "error": f"Email '{email}' already exists",
+                        }
+                    )
                     results["failed"] += 1
                     continue
             except Exception as e:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Database error: {str(e)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Database error: {str(e)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
@@ -1136,18 +1162,22 @@ class BulkStaffImportView(APIView):
                 except Exception as e:
                     logger.warning(f"Failed to send invitation email for {email}: {e}")
 
-                results["success"].append({
-                    "row": idx,
-                    "email": email,
-                    "staff_id": str(staff.pk),
-                })
+                results["success"].append(
+                    {
+                        "row": idx,
+                        "email": email,
+                        "staff_id": str(staff.pk),
+                    }
+                )
                 results["created"] += 1
 
             except Exception as e:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Failed to create staff: {str(e)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Failed to create staff: {str(e)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
@@ -1158,18 +1188,19 @@ class BulkCandidateImportView(APIView):
     """
     Bulk import candidates from CSV/Excel file.
     """
+
     permission_classes = ActiveManagerPermissions
     parser_classes = [MultiPartParser]
 
     def post(self, request):
         import io
+
         from openpyxl import load_workbook
 
         file = request.FILES.get("file")
         if not file:
             return Response(
-                {"error": "No file uploaded."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Determine file type and load
@@ -1180,6 +1211,7 @@ class BulkCandidateImportView(APIView):
             if filename.endswith(".csv"):
                 content = file.read().decode("utf-8")
                 import csv
+
                 reader = csv.DictReader(io.StringIO(content))
                 rows = list(reader)
             elif filename.endswith((".xlsx", ".xls")):
@@ -1193,20 +1225,21 @@ class BulkCandidateImportView(APIView):
                 wb.close()
             else:
                 return Response(
-                    {"error": "Invalid file format. Only CSV and Excel files are supported."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "error": "Invalid file format. Only CSV and Excel files are supported."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         except Exception as e:
             logger.error(f"Failed to parse file: {e}")
             return Response(
                 {"error": f"Failed to parse file: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not rows:
             return Response(
-                {"error": "No data found in file."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No data found in file."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Expected columns
@@ -1215,7 +1248,7 @@ class BulkCandidateImportView(APIView):
         if missing_required:
             return Response(
                 {"error": f"Missing required columns: {', '.join(missing_required)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         results = {
@@ -1228,7 +1261,7 @@ class BulkCandidateImportView(APIView):
         VALID_CLASSES = ["SS1", "SS2", "SS3"]
         VALID_SCHOOL_TYPES = ["public", "private"]
         VALID_STATES = ["lagos", "ogun", "rivers", "abuja"]
-        VALID_ROLES = ["screening", "league", "final", "winner"]
+        _ = ["screening", "league", "final", "winner"]
 
         for idx, row in enumerate(rows, start=2):
             email = row.get("email", "").strip().lower()
@@ -1246,7 +1279,9 @@ class BulkCandidateImportView(APIView):
                 results["failed"] += 1
                 continue
             if not first_name:
-                results["errors"].append({"row": idx, "error": "First name is required"})
+                results["errors"].append(
+                    {"row": idx, "error": "First name is required"}
+                )
                 results["failed"] += 1
                 continue
             if not last_name:
@@ -1256,32 +1291,40 @@ class BulkCandidateImportView(APIView):
 
             # Validate optional fields
             if current_class and current_class not in VALID_CLASSES:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Invalid class '{current_class}'. Valid: {', '.join(VALID_CLASSES)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Invalid class '{current_class}'. Valid: {', '.join(VALID_CLASSES)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             if school_type and school_type not in VALID_SCHOOL_TYPES:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Invalid school_type '{school_type}'. Valid: {', '.join(VALID_SCHOOL_TYPES)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Invalid school_type '{school_type}'. Valid: {', '.join(VALID_SCHOOL_TYPES)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             if state and state not in VALID_STATES:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Invalid state '{state}'. Valid: {', '.join(VALID_STATES)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Invalid state '{state}'. Valid: {', '.join(VALID_STATES)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 
             # Check if user exists
             if User.objects.filter(email__iexact=email).exists():
-                results["errors"].append({"row": idx, "error": f"Email '{email}' already exists"})
+                results["errors"].append(
+                    {"row": idx, "error": f"Email '{email}' already exists"}
+                )
                 results["failed"] += 1
                 continue
 
@@ -1328,18 +1371,22 @@ class BulkCandidateImportView(APIView):
                 except Exception as e:
                     logger.warning(f"Failed to send invitation email for {email}: {e}")
 
-                results["success"].append({
-                    "row": idx,
-                    "email": email,
-                    "candidate_id": str(candidate.pk),
-                })
+                results["success"].append(
+                    {
+                        "row": idx,
+                        "email": email,
+                        "candidate_id": str(candidate.pk),
+                    }
+                )
                 results["created"] += 1
 
             except Exception as e:
-                results["errors"].append({
-                    "row": idx,
-                    "error": f"Failed to create candidate: {str(e)}",
-                })
+                results["errors"].append(
+                    {
+                        "row": idx,
+                        "error": f"Failed to create candidate: {str(e)}",
+                    }
+                )
                 results["failed"] += 1
                 continue
 

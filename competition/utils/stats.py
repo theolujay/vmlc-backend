@@ -1,23 +1,22 @@
-from datetime import timedelta
 import re
+from datetime import timedelta
+
 from django.db.models import (
-    F,
-    Q,
     Count,
-    ExpressionWrapper,
     DateTimeField,
-    OuterRef,
-    Subquery,
+    ExpressionWrapper,
+    F,
 )
 from django.utils import timezone
-from identity.models import Candidate, Staff, User
-from competition.models import Competition, Stage
-from vmlc.models import Exam
+
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
-from core.utils.query_filters import annotate_thread_with_staff_unread_count
+from competition.models import Competition, Stage
 from core.utils.cache import CacheKeys, get_or_set_cache
-from identity.utils.user import get_user_status_counts
 from core.utils.metrics import get_funnel_metrics
+from core.utils.query_filters import annotate_thread_with_staff_unread_count
+from identity.models import Candidate, Staff, User
+from identity.utils.user import get_user_status_counts
+from vmlc.models import Exam
 
 
 def generate_stats_overview_data():

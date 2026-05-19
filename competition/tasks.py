@@ -1,16 +1,16 @@
-import uuid
 import logging
+import uuid
 
-from django.utils import timezone
-from django.db import transaction
 from celery import shared_task
+from django.db import transaction
+from django.utils import timezone
 
-from competition.services.ranking import (
-    RankingSnapshotGenerator,
-    RankingSnapshotGenerationError,
-)
-from competition.services.leaderboard import LeaderboardService
 from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
+from competition.services.leaderboard import LeaderboardService
+from competition.services.ranking import (
+    RankingSnapshotGenerationError,
+    RankingSnapshotGenerator,
+)
 from core.utils.cache import invalidate_candidate_cache, invalidate_score_boards
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,9 @@ def invalidate_published_ranking_cache_task(ranking_snapshot_id):
 
 
 @shared_task(name="generate_ranking_and_update_leaderboard_task")
-def generate_ranking_and_update_leaderboard_task(stage_exam_id, actor_id=None, ranking_policy="standard"):
+def generate_ranking_and_update_leaderboard_task(
+    stage_exam_id, actor_id=None, ranking_policy="standard"
+):
     """
     Celery task to generate (and optionally publish) ranking snapshot for a stage exam.
     """
@@ -83,18 +85,22 @@ def generate_ranking_and_update_leaderboard_task(stage_exam_id, actor_id=None, r
         )
         raise
 
+
 @shared_task(name="publish_league_leaderboard_update_task")
 def publish_league_leaderboard_update_task(competition_id, as_of_round):
-    logger.info(
-        "Publishing league leaderboard update"
-    )
+    logger.info("Publishing league leaderboard update")
     try:
-        LeaderboardService.publish_league_leaderboard_update(competition_id, as_of_round)
+        LeaderboardService.publish_league_leaderboard_update(
+            competition_id, as_of_round
+        )
         invalidate_score_boards()
         logger.info("League leaderboard update published")
     except Exception as exc:
-        logger.error(f"Error publishing league leaderboard update: {exc}", exc_info=True)
+        logger.error(
+            f"Error publishing league leaderboard update: {exc}", exc_info=True
+        )
         raise
+
 
 @shared_task(name="update_leaderboard_task")
 def update_leaderboard_task(competition_id, as_of_round):
@@ -213,12 +219,12 @@ def generate_stats_overview_task():
     """
     from competition.utils.stats import (
         get_candidate_stats_cached,
-        get_staff_stats_cached,
-        get_exam_stats_cached,
         get_competition_stats_cached,
-        get_helpdesk_stats_cached,
+        get_exam_stats_cached,
         get_funnel_metrics_cached,
         get_geographic_stats_cached,
+        get_helpdesk_stats_cached,
+        get_staff_stats_cached,
     )
 
     get_candidate_stats_cached()

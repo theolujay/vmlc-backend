@@ -1,12 +1,14 @@
-import logging
 import asyncio
+import logging
+
+from channels.db import database_sync_to_async
 from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 
-from .services.ws_notification import WSNotificationService
+from core.utils.query_filters import ongoing_exam_exists
+
 from .services.ws_helpdesk_dashboard import WSHelpdeskDashboardService
 from .services.ws_helpdesk_thread import WSHelpdeskThreadService
-from core.utils.query_filters import ongoing_exam_exists
-from channels.db import database_sync_to_async
+from .services.ws_notification import WSNotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
     @classmethod
     async def encode_json(cls, content):
         import json
+
         from django.core.serializers.json import DjangoJSONEncoder
 
         return json.dumps(content, cls=DjangoJSONEncoder)
@@ -62,12 +65,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
         logger.info(f"Unified WebSocket connected: {user.email}")
 
         # Send socket_id (channel_name) to the client
-        await self.send_json({
-            "type": "connection.established",
-            "data": {
-                "socket_id": self.channel_name
-            }
-        })
+        await self.send_json(
+            {"type": "connection.established", "data": {"socket_id": self.channel_name}}
+        )
 
         # 1. Always subscribe to private notification group
         self.user_group = f"user__{user.pk}"
@@ -94,7 +94,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             self.refresh_presence_periodically(user.id)
         )
 
-    async def disconnect(self, close_code):
+    async def disconnect(self):
         user = self.scope.get("user")
         if user and user.is_authenticated:
             # Leave notification group
@@ -192,7 +192,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             target_socket_id = data.get("socket_id")
 
             if not candidate_id or not exam_id or not target_socket_id:
-                await self.send_error("candidate_id, exam_id, and socket_id are required")
+                await self.send_error(
+                    "candidate_id, exam_id, and socket_id are required"
+                )
                 return
 
             # Register a temporary QR unlock in cache (not DB)
@@ -207,15 +209,20 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
                         "type": "exam.unlocked",
                         "data": {
                             "exam_id": exam_id,
-                            "unlocked_by_name": f"{user.first_name} {user.last_name}".strip() or user.email,
-                            "timestamp": str(asyncio.get_event_loop().time())
+                            "unlocked_by_name": f"{user.first_name} {user.last_name}".strip()
+                            or user.email,
+                            "timestamp": str(asyncio.get_event_loop().time()),
                         },
-                    }
+                    },
                 )
             elif result == "not_final":
-                await self.send_error("This exam is not a final exam and cannot be unlocked via QR.")
+                await self.send_error(
+                    "This exam is not a final exam and cannot be unlocked via QR."
+                )
             else:
-                await self.send_error("Failed to unlock exam session. Access record not found.")
+                await self.send_error(
+                    "Failed to unlock exam session. Access record not found."
+                )
 
         else:
             await self.send_error(f"Unknown action: {action}")
@@ -226,10 +233,7 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
 
     async def exam_unlocked(self, event):
         """Forwards exam unlock events to the candidate."""
-        await self.send_json({
-            "type": "exam.unlocked",
-            "data": event.get("data", {})
-        })
+        await self.send_json({"type": "exam.unlocked", "data": event.get("data", {})})
 
     async def notification_activity(self, event):
         """Forwards notification events to the client."""
@@ -300,21 +304,18 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             "not_final" - exam is not a final exam
             False - access record not found
         """
-        from identity.models import Staff
-        from vmlc.models import ExamAccess, Exam
         from django.core.cache import cache
+
+        from identity.models import Staff
+        from vmlc.models import Exam, ExamAccess
 
         try:
             access = ExamAccess.objects.get(candidate_id=candidate_id, exam_id=exam_id)
-            exam = (
-                Exam.objects.select_related(
-                    "competition_slot__competition_stage"
-                )
-                .get(pk=exam_id)
-            )
+            exam = Exam.objects.select_related(
+                "competition_slot__competition_stage"
+            ).get(pk=exam_id)
             if exam.stage != "final":
                 return "not_final"
-
 
             # Get the staff record
             try:
@@ -329,7 +330,9 @@ class UnifiedConsumer(GenericAsyncAPIConsumer):
             access.save(update_fields=["unlocked_by", "is_unlocked"])
 
             # Register a temporary QR unlock in cache for EligibilityService
-            cache.set(f"qr_unlock:{candidate_id}:{exam_id}", True, timeout=300) # 5 minutes
+            cache.set(
+                f"qr_unlock:{candidate_id}:{exam_id}", True, timeout=300
+            )  # 5 minutes
             return "success"
         except ExamAccess.DoesNotExist:
             return False

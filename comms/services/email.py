@@ -1,11 +1,11 @@
 import logging
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from identity.models import User, PreRegUser
-from comms.models import PublicSupportRequest, HelpdeskThread, ThreadMessage
+from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
+from identity.models import PreRegUser, User
 from vmlc.models import FeatureFlag
 
 logger = logging.getLogger(__name__)

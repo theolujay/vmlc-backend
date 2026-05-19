@@ -1,13 +1,14 @@
 import io
-from PIL import Image
-from django.urls import reverse
 
+from django.urls import reverse
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
-from rest_framework_api_key.models import APIKey
 
-from identity.models import User, Candidate, Staff, PreRegUser
+from identity.models import PreRegUser, User
 from vmlc.models import FeatureFlag
+
+
 def generate_photo_file(name="test.jpg"):
     file = io.BytesIO()
     image = Image.new("RGB", (100, 100))

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("comms", "0010_publicsupportrequest_alter_broadcast_options_and_more"),
     ]

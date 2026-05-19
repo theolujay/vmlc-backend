@@ -1,6 +1,5 @@
 import logging
 import uuid
-from datetime import datetime, timezone
 
 from django.db import transaction
 
@@ -10,9 +9,9 @@ from competition.models import (
     RankingSnapshotEntry,
     StageExam,
 )
-from vmlc.models import CandidateExamResult, Exam, ExamAccess
-from identity.models import Candidate
 from core.utils.functions import compute_exam_results
+from identity.models import Candidate
+from vmlc.models import CandidateExamResult, Exam, ExamAccess
 
 logger = logging.getLogger(__name__)
 
@@ -365,10 +364,10 @@ class RankingSnapshotGenerator:
         candidate_ids and exam_id are captured explicitly to avoid closure issues.
         """
         from core.utils.cache import (
-            invalidate_staff_dashboard,
-            invalidate_score_boards,
-            invalidate_exam_cache,
             invalidate_candidate_cache,
+            invalidate_exam_cache,
+            invalidate_score_boards,
+            invalidate_staff_dashboard,
         )
 
         exam_id = self.exam.id

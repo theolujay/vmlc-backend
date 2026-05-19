@@ -1,12 +1,12 @@
 from django.urls import reverse
-from rest_framework.test import APITestCase
-from rest_framework import status
-from rest_framework_api_key.models import APIKey
 from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
+from rest_framework_api_key.models import APIKey
 
-from identity.models import User, Candidate
-from competition.models import Competition, Stage, StageExam, Enrollment
-from vmlc.models import Exam, CandidateExamResult
+from competition.models import Competition, Enrollment, Stage, StageExam
+from identity.models import Candidate, User
+from vmlc.models import CandidateExamResult, Exam
 from vmlc.services.candidate_records import CandidateRecordService
 
 

@@ -4,10 +4,11 @@ Used when running in Docker containers locally.
 Uses PostgreSQL container and includes comprehensive development tools.
 """
 
-import sys
 from datetime import timedelta
+
 import dj_database_url
 from dotenv import load_dotenv
+
 from ._utils import read_secret
 from .base import *
 

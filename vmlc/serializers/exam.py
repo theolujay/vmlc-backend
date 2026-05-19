@@ -7,12 +7,10 @@ from vmlc.models import (
     Exam,
     ExamAccess,
 )
-from vmlc.serializers.question import CandidateQuestionSerializer
-from vmlc.serializers.question import QuestionV2Serializer
+from vmlc.serializers.question import CandidateQuestionSerializer, QuestionV2Serializer
 
 
 class ExamListV2Serializer(serializers.ModelSerializer):
-
     class Meta:
         model = Exam
         fields = [
@@ -35,6 +33,7 @@ class ExamListV2Serializer(serializers.ModelSerializer):
         if not obj.competition_slot:
             return None
         return obj.competition_slot.competition_stage.type
+
     def get_title(self, obj):
         return obj.title
 
@@ -56,7 +55,6 @@ class ExamListV2Serializer(serializers.ModelSerializer):
 
 
 class ExamDetailV2Serializer(serializers.ModelSerializer):
-
     class Meta:
         model = Exam
         fields = [
@@ -162,16 +160,8 @@ class ExamDetailV2Serializer(serializers.ModelSerializer):
         stage_id = validated_data.pop("stage_id", None)
         round = validated_data.pop("round", None)
 
-        old_status = instance.status
         instance = super().update(instance, validated_data)
         self._handle_competition_slot(instance, stage_id, round)
-
-        # if old_status == Exam.Status.DRAFT and instance.status == Exam.Status.SCHEDULED:
-        #     from vmlc.tasks import generate_and_send_exam_passcodes_task
-        #
-        #     transaction.on_commit(
-        #         lambda: generate_and_send_exam_passcodes_task.delay(str(instance.id))
-        #     )
 
         return instance
 

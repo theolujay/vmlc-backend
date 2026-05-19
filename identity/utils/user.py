@@ -1,6 +1,8 @@
 from datetime import timedelta
-from django.db.models import Q, QuerySet, F, ExpressionWrapper, DateTimeField
+
+from django.db.models import DateTimeField, ExpressionWrapper, F, Q, QuerySet
 from django.utils import timezone
+
 from identity.models import PreRegUser
 from vmlc.models import Exam
 

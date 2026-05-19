@@ -1,7 +1,7 @@
 from django.utils.deprecation import MiddlewareMixin
 
 from competition.models import Competition, Enrollment
-from core.utils.cache import get_or_set_cache, CacheKeys
+from core.utils.cache import CacheKeys, get_or_set_cache
 
 
 class CompetitionContextMiddleware(MiddlewareMixin):
@@ -17,13 +17,15 @@ class CompetitionContextMiddleware(MiddlewareMixin):
                 cache_key = CacheKeys.ENROLLMENT.format(user_id=request.user.id)
                 request.enrollment = get_or_set_cache(
                     cache_key,
-                    lambda: Enrollment.objects.filter(
-                        candidate=request.user.candidate_profile,
-                        competition__status=Competition.Status.ACTIVE,
-                        status=Enrollment.Status.ACTIVE,
-                    )
-                    .select_related("competition", "current_stage")
-                    .first(),
+                    lambda: (
+                        Enrollment.objects.filter(
+                            candidate=request.user.candidate_profile,
+                            competition__status=Competition.Status.ACTIVE,
+                            status=Enrollment.Status.ACTIVE,
+                        )
+                        .select_related("competition", "current_stage")
+                        .first()
+                    ),
                     ttl=300,  # 5-minute cache for context
                 )
             else:

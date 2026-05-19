@@ -2,11 +2,7 @@
 Production environment settings.
 """
 
-import dj_database_url
-from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
 from ._utils import read_secret
-
 from .base import *
 
 # Ensure SECRET_KEY is set for production

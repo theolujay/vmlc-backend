@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("identity", "0004_alter_cowrywisekidprofile_options"),
         ("vmlc", "0060_candidateexamresult_is_auto_submit"),
