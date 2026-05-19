@@ -178,7 +178,7 @@ class NotificationAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
     def _invalidate_cache(self, obj):
-        from vmlc.utils.cache import invalidate_candidate_cache
+        from core.utils.cache import invalidate_candidate_cache
 
         if hasattr(obj.recipient, "candidate_profile"):
             invalidate_candidate_cache(

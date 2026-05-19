@@ -364,7 +364,7 @@ class RankingSnapshotGenerator:
         Registers a post-commit hook to invalidate all ranking-related caches.
         candidate_ids and exam_id are captured explicitly to avoid closure issues.
         """
-        from vmlc.utils.cache import (
+        from core.utils.cache import (
             invalidate_staff_dashboard,
             invalidate_score_boards,
             invalidate_exam_cache,

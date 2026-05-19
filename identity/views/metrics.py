@@ -15,7 +15,7 @@ class RegistrationMetricsView(APIView):
     def get(self, request):
         logger.info(f"RegistrationMetricsView: request from user {request.user.id}")
 
-        from vmlc.utils.cache import get_or_set_cache, CacheKeys
+        from core.utils.cache import get_or_set_cache, CacheKeys
 
         query_params = request.query_params
 

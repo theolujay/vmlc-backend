@@ -36,7 +36,7 @@ from vmlc.serializers.exam import (
     ExamFaceCaptureSerializer,
 )
 from vmlc.serializers.question import QuestionV2Serializer
-from vmlc.utils.cache import (
+from core.utils.cache import (
     CacheKeys,
     get_or_set_cache,
     invalidate_candidate_cache,
@@ -97,7 +97,7 @@ class ExamListV2View(ListCreateAPIView):
         )
 
         # Question Pool Data (Staff Dashboard context)
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         question_pool_data = get_or_set_cache(
             CacheKeys.QUESTION_POOL,
@@ -257,7 +257,7 @@ class ExamResultsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs[self.lookup_url_kwarg]
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache_key = CacheKeys.EXAM_RESULTS.format(exam_id=exam_id)
 
@@ -293,7 +293,7 @@ class ExamQuestionsV2View(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         exam_id = self.kwargs["exam_id"]
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache_key = CacheKeys.EXAM_QUESTIONS.format(exam_id=exam_id)
 
@@ -339,7 +339,7 @@ class ExamHistoryV2View(ListAPIView):
     def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs[self.lookup_url_kwarg]
 
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache_key = CacheKeys.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id)
 
@@ -493,7 +493,7 @@ def candidate_take_exam_V2(request, exam_id):
         heartbeats.delete()
         # Schedule expiration task
         from vmlc.tasks import mark_exam_access_as_expired_task
-        from vmlc.utils.cache import GRACE_PERIOD_MINUTES
+        from core.utils.cache import GRACE_PERIOD_MINUTES
 
         mark_exam_access_as_expired_task.apply_async(
             # Add grace period for network latency

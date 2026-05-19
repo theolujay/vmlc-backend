@@ -19,7 +19,7 @@ from competition.models import (
     LeagueLeaderboardEntry,
 )
 from competition.tasks import generate_stats_overview_task
-from vmlc.utils.cache import CacheKeys
+from core.utils.cache import CacheKeys
 
 
 def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
@@ -44,7 +44,7 @@ def refresh_stats_overview_cache(sender=None, _instance=None, **kwargs):
 
 def invalidate_dashboard_on_change(sender, instance, **kwargs):
     """Specific invalidations for dashboards when data changes."""
-    from vmlc.utils.cache import (
+    from core.utils.cache import (
         invalidate_candidate_cache,
         invalidate_staff_dashboard,
         invalidate_score_boards,

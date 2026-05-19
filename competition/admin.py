@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
 from core.utils.exceptions import ValidationError
-from vmlc.utils.cache import (
+from core.utils.cache import (
     invalidate_score_boards,
     invalidate_candidate_cache,
     invalidate_exam_cache,

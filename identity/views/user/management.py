@@ -53,7 +53,7 @@ from core.utils.query_filters import (
     filter_users,
 )
 from identity.serializers.registration import PreRegUserSerializer
-from vmlc.utils.cache import get_or_set_cache, CacheKeys
+from core.utils.cache import get_or_set_cache, CacheKeys
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ def invalidate_exam_related_caches_task(exam_id):
     """
     from vmlc.models import Exam
     from competition.models import Enrollment
-    from vmlc.utils.cache import (
+    from core.utils.cache import (
         CacheKeys,
         invalidate_staff_dashboard,
         invalidate_exam_cache,
@@ -221,7 +221,7 @@ def mark_exam_access_as_expired_task(access_id):
     Includes a 5-minute grace period consistent with SubmitAnswersV2View.
     """
     from vmlc.models import ExamAccess
-    from vmlc.utils.cache import invalidate_candidate_cache
+    from core.utils.cache import invalidate_candidate_cache
     from django.utils import timezone
     from datetime import timedelta
 

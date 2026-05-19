@@ -333,7 +333,7 @@ def send_bulk_sms_task(
 
                     # Invalidate cache
                     from django.core.cache import cache
-                    from vmlc.utils.cache import CacheKeys
+                    from core.utils.cache import CacheKeys
 
                     cache.delete(
                         CacheKeys.BROADCAST_DETAIL.format(broadcast_id=broadcast.pk)
@@ -535,7 +535,7 @@ def auto_close_in_progress_threads_task():
 
         # Invalidate stats cache
         from django.core.cache import cache
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
         try:
@@ -570,7 +570,7 @@ def cleanup_snoozed_helpdesk_threads_task():
         logger.info(f"Reverted {count} SNOOZED helpdesk threads to CLOSED.")
         # Invalidate stats cache
         from django.core.cache import cache
-        from vmlc.utils.cache import CacheKeys
+        from core.utils.cache import CacheKeys
 
         cache.delete(CacheKeys.STATS_HELPDESK)
         try:
@@ -594,7 +594,7 @@ def broadcast_staff_helpdesk_update_task():
     from channels.layers import get_channel_layer
     from competition.utils.stats import get_helpdesk_stats_cached
     from django.core.cache import cache
-    from vmlc.utils.cache import CacheKeys
+    from core.utils.cache import CacheKeys
 
     # Invalidate stats cache to get fresh data
     cache.delete(CacheKeys.STATS_HELPDESK)

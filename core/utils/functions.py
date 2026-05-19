@@ -136,7 +136,7 @@ def _compute_and_save_candidate_exam_result(candidate_exam_result):
     candidate_exam_result.recorded_at = timezone.now()
     candidate_exam_result.save()
 
-    from vmlc.utils.cache import invalidate_candidate_cache
+    from core.utils.cache import invalidate_candidate_cache
 
     invalidate_candidate_cache(
         candidate_exam_result.candidate.pk, candidate_exam_result.candidate.user.id

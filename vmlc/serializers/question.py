@@ -208,7 +208,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         question = super().create(validated_data)
 
         if exam_ids:
-            from vmlc.utils.cache import invalidate_exam_cache, invalidate_question_pool
+            from core.utils.cache import invalidate_exam_cache, invalidate_question_pool
 
             exams = Exam.objects.filter(id__in=exam_ids)
             for exam in exams:
@@ -228,7 +228,7 @@ class QuestionV2Serializer(serializers.ModelSerializer):
         question = super().update(instance, validated_data)
 
         if exam_ids is not None:
-            from vmlc.utils.cache import invalidate_exam_cache, invalidate_question_pool
+            from core.utils.cache import invalidate_exam_cache, invalidate_question_pool
 
             exams = Exam.objects.filter(id__in=exam_ids)
 

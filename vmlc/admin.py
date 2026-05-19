@@ -22,7 +22,7 @@ from .models import (
 from core.utils.helpers import (
     invalidate_all_dashboard_caches,
 )
-from vmlc.utils.cache import (
+from core.utils.cache import (
     invalidate_exam_cache,
     invalidate_question_pool,
     invalidate_candidate_cache,

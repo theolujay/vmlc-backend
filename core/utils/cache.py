@@ -3,8 +3,6 @@ from django.core.cache import cache
 
 from django.db.models import Count, Q
 
-from vmlc.models import Question
-
 
 DEFAULT_TTL = 86400  # 24h
 GRACE_PERIOD_MINUTES = 10
@@ -98,7 +96,6 @@ class CacheKeys:
             cls.CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
             cls.CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
             cls.CANDIDATE_EXAM_HISTORY.format(candidate_id=candidate_id),
-            # Include legacy keys to ensure they are cleared
             cls._LEGACY_CANDIDATE_DASHBOARD.format(candidate_id=candidate_id),
             cls._LEGACY_CANDIDATE_DASHBOARD_V2.format(candidate_id=candidate_id),
         ]
@@ -129,7 +126,6 @@ class CacheKeys:
             cls.STAFF_PROFILE.format(user_id=user_id),
             cls.STAFF_DASHBOARD_DATA.format(user_id=user_id),
             cls.ENROLLMENT.format(user_id=user_id),
-            # Legacy
             cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
             cls._LEGACY_USER_VERIFICATION.format(user_id=user_id),
             cls._LEGACY_CANDIDATE_PROFILE.format(user_id=user_id),
@@ -145,7 +141,6 @@ class CacheKeys:
             cls.STAFF_PROFILE.format(user_id=user_id),
             cls.STAFF_DASHBOARD_DATA.format(user_id=user_id),
             cls.USER_ACCOUNT_MANAGEMENT.format(user_id=user_id),
-            # Legacy
             cls._LEGACY_STAFF_PROFILE.format(user_id=user_id),
             cls._LEGACY_STAFF_DASHBOARD.format(user_id=user_id),
             cls._LEGACY_ACCOUNT_MANAGEMENT.format(user_id=user_id),
@@ -176,90 +171,72 @@ def delete_many_cache(keys):
 
 
 def invalidate_candidate_cache(candidate_id, user_id=None):
-    """Clear all cache entries related to a specific candidate."""
-    # In our model, Candidate.pk is User.id, so they are the same.
     effective_user_id = user_id or candidate_id
     keys = CacheKeys.get_candidate_keys(candidate_id, effective_user_id)
     delete_many_cache(keys)
 
 
 def invalidate_user_cache(user_id):
-    """Clear all cache entries related to a specific user."""
     keys = CacheKeys.get_user_keys(user_id)
     delete_many_cache(keys)
 
 
 def invalidate_staff_cache(user_id):
-    """Clear all cache entries related to a specific staff member."""
     keys = CacheKeys.get_staff_keys(user_id)
     delete_many_cache(keys)
 
 
 def invalidate_exam_cache(exam_id):
-    """Clear all cache entries related to a specific exam."""
     keys = CacheKeys.get_exam_keys(exam_id)
     delete_many_cache(keys)
 
-    # Since EXAM_DETAIL in ExamDetailV2View appends query params,
-    # we use delete_pattern to clear all variations of it.
     detail_pattern = f"{CacheKeys.EXAM_DETAIL.format(exam_id=exam_id)}*"
     try:
         cache.delete_pattern(detail_pattern)
     except (AttributeError, NotImplementedError):
-        # Fallback if the cache backend doesn't support delete_pattern
         pass
 
 
 def invalidate_integrity_audit_cache(exam_id, candidate_id):
-    """Clear integrity audit cache for a specific candidate and exam."""
     cache.delete(
         CacheKeys.INTEGRITY_AUDIT.format(exam_id=exam_id, candidate_id=candidate_id)
     )
 
 
 def invalidate_staff_dashboard():
-    """Clear global staff dashboard cache."""
     cache.delete(CacheKeys.STAFF_DASHBOARD)
-    # Clear variations used in StaffCompetitionDashboardView
     cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:internal")
     cache.delete(f"{CacheKeys.STAFF_DASHBOARD}:public")
 
 
 def invalidate_score_boards(exam_id=None):
-    """Clear league leaderboard cache."""
     cache.delete(CacheKeys.LEADERBOARD_LEAGUE_PUBLIC)
     cache.delete(CacheKeys.LEADERBOARD_LEAGUE_INTERNAL)
     cache.delete(CacheKeys.RANKING_SNAPSHOT.format(exam_id=exam_id))
 
 
 def invalidate_question_pool():
-    """Clear question pool cache."""
     cache.delete(CacheKeys.QUESTION_POOL)
     cache.delete(CacheKeys._LEGACY_QUESTION_POOL)
 
 
 def invalidate_feature_flag(key):
-    """Clear feature flag cache."""
     cache.delete(CacheKeys.FEATURE_FLAG.format(key=key))
     cache.delete(CacheKeys._LEGACY_FEATURE_FLAG.format(key=key))
 
 
 def invalidate_registration_status():
-    """Clear registration status cache."""
     cache.delete(CacheKeys.REGISTRATION_STATUS)
     cache.delete(CacheKeys._LEGACY_REGISTRATION_STATUS)
 
 
 def invalidate_notifications(user_id):
-    """Increment the notification version in the cache for a given user ID."""
     version_key = CacheKeys.NOTIFICATIONS_VERSION.format(user_id=user_id)
     try:
         cache.incr(version_key)
     except ValueError:
-        # First time, set to 1 (next read will be version 1)
         cache.set(version_key, 1, 86400)
 
-    # Also clear any cached notification lists for this user
     pattern = f"notifications_{user_id}_*"
     try:
         cache.delete_pattern(pattern)
@@ -268,6 +245,8 @@ def invalidate_notifications(user_id):
 
 
 def question_pool_aggregate(qs):
+    from vmlc.models import Question
+
     return qs.aggregate(
         total_questions=Count("id"),
         hard_questions_count=Count("id", filter=Q(difficulty=Question.Difficulty.HARD)),
@@ -279,9 +258,5 @@ def question_pool_aggregate(qs):
 
 
 def truncate_float(val):
-    """
-    Truncates a float to a specified number
-    of decimal places without rounding
-    """
     factor = 10.0**2
     return math.trunc(val * factor) / factor

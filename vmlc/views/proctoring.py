@@ -14,7 +14,7 @@ from vmlc.serializers.proctoring import (
     ExamHeartbeatSerializer,
     CandidateLiveStatusV2Serializer,
 )
-from vmlc.utils.cache import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
+from core.utils.cache import CacheKeys, get_or_set_cache, invalidate_integrity_audit_cache
 from core.utils.exceptions import NotFound, PermissionDenied
 
 logger = logging.getLogger(__name__)

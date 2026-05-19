@@ -11,7 +11,7 @@ from competition.services.ranking import (
 )
 from competition.services.leaderboard import LeaderboardService
 from competition.models import RankingSnapshot, RankingSnapshotEntry, Stage
-from vmlc.utils.cache import invalidate_candidate_cache, invalidate_score_boards
+from core.utils.cache import invalidate_candidate_cache, invalidate_score_boards
 
 logger = logging.getLogger(__name__)
 

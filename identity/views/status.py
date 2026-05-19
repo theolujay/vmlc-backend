@@ -23,7 +23,7 @@ class RegistrationStatusThrottle(AnonRateThrottle):
 @permission_classes([AllowAny])
 @throttle_classes([RegistrationStatusThrottle])
 def registration_status(request):
-    from vmlc.utils.cache import get_or_set_cache, CacheKeys
+    from core.utils.cache import get_or_set_cache, CacheKeys
 
     def fetch_reg_status():
         def _get_detailed_status(feature_flag_key):

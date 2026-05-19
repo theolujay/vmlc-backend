@@ -85,7 +85,7 @@ class ProctoringService:
         )
 
         # Invalidate integrity audit cache
-        from vmlc.utils.cache import invalidate_integrity_audit_cache
+        from core.utils.cache import invalidate_integrity_audit_cache
 
         invalidate_integrity_audit_cache(exam_access.exam_id, exam_access.candidate_id)
 

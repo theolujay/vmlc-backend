@@ -58,7 +58,7 @@ from core.utils.query_filters import (
     annotate_thread_with_last_candidate_message_at,
 )
 from competition.utils.stats import get_helpdesk_stats_cached
-from vmlc.utils.cache import CacheKeys, invalidate_notifications
+from core.utils.cache import CacheKeys, invalidate_notifications
 
 
 logger = logging.getLogger(__name__)

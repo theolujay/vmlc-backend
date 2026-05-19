@@ -15,7 +15,7 @@ from competition.models import Competition, Stage
 from vmlc.models import Exam
 from comms.models import HelpdeskThread, PublicSupportRequest, ThreadMessage
 from core.utils.query_filters import annotate_thread_with_staff_unread_count
-from vmlc.utils.cache import CacheKeys, get_or_set_cache
+from core.utils.cache import CacheKeys, get_or_set_cache
 from identity.utils.user import get_user_status_counts
 from core.utils.metrics import get_funnel_metrics
 

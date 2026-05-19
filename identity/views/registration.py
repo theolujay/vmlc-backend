@@ -85,7 +85,7 @@ class RegistrationV2View(CreateAPIView):
             )
 
         if isinstance(instance, Candidate):
-            from vmlc.utils.cache import (
+            from core.utils.cache import (
                 invalidate_candidate_cache,
                 invalidate_staff_dashboard,
             )
@@ -94,7 +94,7 @@ class RegistrationV2View(CreateAPIView):
             invalidate_all_staff_dashboards()
             invalidate_staff_dashboard()
         elif isinstance(instance, Staff):
-            from vmlc.utils.cache import invalidate_staff_dashboard
+            from core.utils.cache import invalidate_staff_dashboard
 
             invalidate_all_staff_dashboards()
             invalidate_staff_dashboard()
