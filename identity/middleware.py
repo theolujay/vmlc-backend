@@ -4,6 +4,7 @@ from competition.models import Competition, Enrollment
 from core.utils.cache import CacheKeys, get_or_set_cache
 
 
+
 class CompetitionContextMiddleware(MiddlewareMixin):
     """
     Middleware that attaches the candidate's active competition enrollment

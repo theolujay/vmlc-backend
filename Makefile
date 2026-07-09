@@ -1,4 +1,14 @@
 # ==================================================================================== #
+# VARIABLES
+# ==================================================================================== #
+
+APPS = comms competition config core identity vmlc
+MANAGE = python manage.py
+DOCKER_DJANGO = docker compose exec django
+DOCKER_DB = docker compose exec db
+CELERY_WORKER = celery_worker
+
+# ==================================================================================== #
 # HELPERS
 # ==================================================================================== #
 
@@ -49,12 +59,21 @@ dev/watch:
 ## dev/shell: open a shell in the Django container
 .PHONY: dev/shell
 dev/shell:
-	docker compose exec -it django bash
+	$(DOCKER_DJANGO) bash
 
 ## dev/psql: connect to local database
 .PHONY: dev/psql
 dev/psql:
-	@docker compose exec -it db psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-vmlc_dev}
+	@$(DOCKER_DB) psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-vmlc_dev}
+
+# ==================================================================================== #
+# PACKAGE MANAGEMENT (UV)
+# ==================================================================================== #
+
+## uv/sync: sync dependencies with uv
+.PHONY: uv/sync
+uv/sync:
+	uv sync --group dev --group test --group docs
 
 # ==================================================================================== #
 # DATABASE
@@ -63,31 +82,31 @@ dev/psql:
 ## db/makemigrations: create new migrations
 .PHONY: db/makemigrations
 db/makemigrations:
-	python manage.py makemigrations
+	$(MANAGE) makemigrations
 
 ## db/migrate: apply pending migrations
 .PHONY: db/migrate
 db/migrate:
-	python manage.py migrate
+	$(MANAGE) migrate
 
 ## db/migrate/plan: show migration plan without applying
 .PHONY: db/migrate/plan
 db/migrate/plan:
-	python manage.py showmigrations
+	$(MANAGE) showmigrations
 
 # ==================================================================================== #
-# BUILD
+# BUILD & STATIC FILES
 # ==================================================================================== #
 
-## build: build Docker images (no push)
+## build: build Docker images
 .PHONY: build
 build:
 	docker compose build
 
-## collectstatic: collect static files
+## collectstatic: collect static files inside container
 .PHONY: collectstatic
 collectstatic:
-	docker compose exec django python manage.py collectstatic --noinput
+	$(DOCKER_DJANGO) $(MANAGE) collectstatic --noinput
 
 # ==================================================================================== #
 # QUALITY CONTROL
@@ -98,17 +117,15 @@ collectstatic:
 lint:
 	ruff check .
 
-## lint/fix: auto-fix lint issues
+## lint/fix: auto-fix lint issues with Ruff
 .PHONY: lint/fix
 lint/fix:
 	ruff check --fix .
 
-## format: format code with Ruff formatter
+## format: format code with Ruff
 .PHONY: format
 format:
 	ruff format .
-	black .
-	isort .
 	ruff check --select I --fix .
 
 ## format/check: check formatting without changes
@@ -116,25 +133,35 @@ format:
 format/check:
 	ruff format --check .
 
-## pylint: run pylint (stricter checks)
-.PHONY: pylint
-pylint:
-	pylint comms competition config core identity vmlc
-
 ## typecheck: run mypy type checking
 .PHONY: typecheck
 typecheck:
-	mypy comms competition config core identity vmlc
+	mypy $(APPS)
 
-## isort: sort imports
+## pylint: run pylint (stricter checks)
+.PHONY: pylint
+pylint:
+	pylint $(APPS)
+
+## isort: sort imports (using Ruff)
 .PHONY: isort
 isort:
 	ruff check --select I --fix .
 
-## test: run tests with pytest
+## security: run bandit security checks
+.PHONY: security
+security:
+	bandit -r $(APPS)
+
+## deadcode: find dead code with vulture
+.PHONY: deadcode
+deadcode:
+	vulture $(APPS) --min-confidence 70
+
+## test: run tests with Django test runner
 .PHONY: test
 test:
-	python manage.py test --settings=config.settings.test --noinput --keepdb --failfast
+	$(MANAGE) test --settings=config.settings.test --noinput --keepdb --failfast
 
 ## test/coverage: run tests with coverage report
 .PHONY: test/coverage
@@ -144,46 +171,36 @@ test/coverage:
 ## test/docker: run tests inside the Django container
 .PHONY: test/docker
 test/docker:
-	docker compose exec django python manage.py test --settings=config.settings.test --noinput --keepdb --failfast
-
-## security: run bandit security checks
-.PHONY: security
-security:
-	bandit -r comms competition config core identity vmlc
-
-## deadcode: find dead code with vulture
-.PHONY: deadcode
-deadcode:
-	vulture comms competition config core identity vmlc --min-confidence 70
+	$(DOCKER_DJANGO) $(MANAGE) test --settings=config.settings.test --noinput --keepdb --failfast
 
 # ==================================================================================== #
 # MANAGEMENT
 # ==================================================================================== #
 
-## shell: open Django shell
+## shell: open Django shell inside container
 .PHONY: shell
 shell:
-	docker compose exec -it django python manage.py shell
+	$(DOCKER_DJANGO) $(MANAGE) shell
 
-## shell/plus: open Django shell_plus (requires django-extensions)
+## shell/plus: open Django shell_plus inside container
 .PHONY: shell/plus
 shell/plus:
-	docker compose exec -it django python manage.py shell_plus
+	$(DOCKER_DJANGO) $(MANAGE) shell_plus
 
-## dbshell: open Django database shell
+## dbshell: open Django database shell inside container
 .PHONY: dbshell
 dbshell:
-	docker compose exec -it django python manage.py dbshell
+	$(DOCKER_DJANGO) $(MANAGE) dbshell
 
-## createsuperuser: create a Django superuser
+## createsuperuser: create a Django superuser inside container
 .PHONY: createsuperuser
 createsuperuser:
-	docker compose exec -it django python manage.py createsuperuser
+	$(DOCKER_DJANGO) $(MANAGE) createsuperuser
 
-## manage: run any manage.py command (usage: manage <command>)
+## manage: run any manage.py command (usage: make manage <command>)
 .PHONY: manage
 manage:
-	docker compose exec -it django python manage.py $(filter-out $@,$(MAKECMDGOALS))
+	$(DOCKER_DJANGO) $(MANAGE) $(filter-out $@,$(MAKECMDGOALS))
 
 # ==================================================================================== #
 # CELERY
@@ -192,7 +209,7 @@ manage:
 ## celery/status: check Celery worker status
 .PHONY: celery/status
 celery/status:
-	docker compose exec celery_worker celery -A config inspect ping
+	docker compose exec $(CELERY_WORKER) celery -A config inspect ping
 
 ## celery/flower: enable Flower monitoring
 .PHONY: celery/flower
@@ -202,7 +219,7 @@ celery/flower:
 ## celery/logs: tail Celery worker logs
 .PHONY: celery/logs
 celery/logs:
-	docker compose logs -f celery_worker
+	docker compose logs -f $(CELERY_WORKER)
 
 # ==================================================================================== #
 # INFRASTRUCTURE (Docker Swarm)
@@ -243,17 +260,12 @@ infra/rm/staging: confirm
 infra/rm/production: confirm
 	docker stack rm vmlc-prod
 
-## infra/init: bootstrap a fresh VPS (run on server as root)
-.PHONY: infra/init
-infra/init: confirm
-	sudo ./scripts/infra-init.sh --staging-env-file .env.staging --prod-env-file .env.production --infra-env-file .env.infra --deploy-pub-key ~/.ssh/github-actions-deploy.pub --deploy-apps
-
 ## infra/services: list all Swarm services
 .PHONY: infra/services
 infra/services:
 	docker service ls
 
-## infra/logs: tail logs from a Swarm service (usage: SERVICE=stack_service)
+## infra/logs: tail logs from a Swarm service (usage: make infra/logs SERVICE=stack_service)
 .PHONY: infra/logs
 infra/logs:
 	docker service logs -f ${SERVICE}
