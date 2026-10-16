@@ -18,6 +18,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from comms.services.email import create_email_html
 from comms.tasks import send_mail_task
+from core.utils.auth import resend_otp_to_email
 from core.utils.cookies import set_refresh_cookie, unset_refresh_cookie
 from core.utils.exceptions import (
     InvalidTokenError,
@@ -337,9 +338,7 @@ class ResendPasswordChangeOTPView(APIView):
                     },
                     status=status.HTTP_200_OK,
                 )
-            from vmlc import utils
-
-            utils.auth.resend_otp_to_email(user)
+            resend_otp_to_email(user)
             logger.info(f"Password change OTP resent to user {user.id}")
             # Mask email for response
             email_parts = email.split("@")
