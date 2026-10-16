@@ -132,7 +132,7 @@ services:
       labels:
         - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
         - "traefik.swarm.network=prod"
-      replicas: 4
+      replicas: 1
       resources:
         limits:
           memory: 1024M
@@ -170,7 +170,7 @@ services:
     networks:
       - prod
     deploy:
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           memory: 1024M
