@@ -26,6 +26,7 @@ INTERNAL_IPS = [
     ip.strip() for ip in read_secret("INTERNAL_IPS", "").split(",") if ip.strip()
 ]
 ADMIN_URL = read_secret("DJANGO_ADMIN_URL", "admin/")
+GOOGLE_OAUTH_CLIENT_ID = read_secret("GOOGLE_OAUTH_CLIENT_ID", "")
 
 AUTH_USER_MODEL = "identity.User"
 APPEND_SLASH = True
@@ -300,6 +301,11 @@ CORS_ALLOW_CREDENTIALS = (
 CORS_ALLOW_ALL_ORIGINS = (
     str(read_secret("CORS_ALLOW_ALL_ORIGINS", "false")).lower() == "true"
 )
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in read_secret("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 CORS_ALLOW_METHODS = (*default_methods,)
 CORS_ALLOW_HEADERS = (*default_headers, "x-api-key")
 

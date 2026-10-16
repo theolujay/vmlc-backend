@@ -6,11 +6,15 @@ import logging
 from asyncio import sleep
 
 from django.contrib.auth.signals import user_logged_in
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from google.auth.exceptions import GoogleAuthError
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google.oauth2 import id_token
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -415,6 +419,80 @@ class LoginView(TokenObtainPairView):
             logger.info("User with email '%s' logged in successfully.", email)
         else:
             logger.warning("Failed login attempt for email: %s", email)
+        return response
+
+
+class GoogleSignInView(APIView):
+    """Sign in an existing user using a Google OpenID Connect ID token."""
+
+    # Google ID token + API key authenticate this request; don't try to
+    # authenticate an unrelated browser session cookie and trigger CSRF checks.
+    authentication_classes = []
+    permission_classes = [HasXAPIKey]
+    throttle_scope = "login"
+
+    def post(self, request):
+        credential = request.data.get("credential") or request.data.get("id_token")
+        if not isinstance(credential, str) or not credential:
+            return Response(
+                {"detail": "Google credential is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not settings.GOOGLE_OAUTH_CLIENT_ID:
+            logger.error("Google sign-in is not configured: missing client ID")
+            return Response(
+                {"detail": "Google sign-in is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            claims = id_token.verify_oauth2_token(
+                credential,
+                GoogleAuthRequest(),
+                audience=settings.GOOGLE_OAUTH_CLIENT_ID,
+            )
+        except (ValueError, GoogleAuthError):
+            logger.warning("Google sign-in rejected an invalid ID token")
+            return Response(
+                {"detail": "Invalid Google credential."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        email = claims.get("email", "").strip().lower()
+        if not email or claims.get("email_verified") is not True:
+            return Response(
+                {"detail": "Google account must have a verified email address."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "No account is registered with this Google email."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not user.is_active:
+            return Response(
+                {"detail": "This account is inactive."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        user_logged_in.send(sender=user.__class__, request=request, user=user)
+        refresh = RefreshToken.for_user(user)
+        response_data = {"access": str(refresh.access_token)}
+
+        from identity.views.user.management import ProfileManager
+
+        profile = ProfileManager.serialize_profile(user)
+        if profile:
+            response_data["profile"] = profile
+
+        response = Response(response_data, status=status.HTTP_200_OK)
+        set_refresh_cookie(response, str(refresh))
+        logger.info("User with email '%s' signed in with Google.", email)
         return response
 
 

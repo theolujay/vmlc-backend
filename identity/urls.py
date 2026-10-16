@@ -4,6 +4,7 @@ from .views import (
     CandidateListView,
     CowrywiseKidProfileView,
     LoginView,
+    GoogleSignInView,
     LogoutView,
     PasswordChangeOTPConfirmView,
     PasswordChangeView,
@@ -40,6 +41,7 @@ urlpatterns = [
     path("registration/", registration_status, name="registration-status"),
     # Authentication
     path("auth/login/", LoginView.as_view(), name="login"),
+    path("auth/google/", GoogleSignInView.as_view(), name="google-sign-in"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path(
         "auth/direct-access/",

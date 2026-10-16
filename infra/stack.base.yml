@@ -41,6 +41,7 @@ x-vmlc-base-env: &vmlc-base-env
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
   KUDI_API_KEY_FILE: /run/secrets/kudi-api-key
   SECRET_KEY_FILE: /run/secrets/django-secret-key
+  GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-1096824569272-15un0fg361bn4kj70n4hm1euesbrlepg.apps.googleusercontent.com}
   SUPERUSER_EMAIL_FILE: /run/secrets/su-email
   SUPERUSER_PASSWORD_FILE: /run/secrets/su-password
   SLACK_WEBHOOK_URL_FILE: /run/secrets/slack-webhook-url
