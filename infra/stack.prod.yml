@@ -22,24 +22,24 @@ x-vmlc-prod-env: &vmlc-prod-env
   REDIS_PORT: "6379"
 
 x-vmlc-prod: &vmlc-prod
-  image: ghcr.io/verboheit/vmlc-backend:${GIT_COMMIT_HASH:-prod}
+  image: ghcr.io/theolujay/vmlc-backend:${GIT_COMMIT_HASH:-prod}
 
 services:
-  traefik:
-    volumes:
-      - "prod_letsencrypt:/letsencrypt"
-    environment:
-      TRAEFIK_PROVIDERS_DOCKER_NETWORK: prod
-    networks:
-      - prod
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.3'
-        reservations:
-          memory: 192M
-          cpus: '0.15'
+  # traefik:
+  #   volumes:
+  #     - "prod_letsencrypt:/letsencrypt"
+  #   environment:
+  #     TRAEFIK_PROVIDERS_DOCKER_NETWORK: prod
+  #   networks:
+  #     - prod
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 256M
+  #         cpus: '0.3'
+  #       reservations:
+  #         memory: 192M
+  #         cpus: '0.15'
 
   db:
     command: >
@@ -126,11 +126,12 @@ services:
     environment: *vmlc-prod-env
     volumes:
       - prod_media:/app/media
-    labels:
-      - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
     networks:
       - prod
     deploy:
+      labels:
+        - "traefik.http.routers.django.rule=Host(`api.verboheit.org`)"
+        - "traefik.swarm.network=prod"
       replicas: 4
       resources:
         limits:
@@ -199,11 +200,12 @@ services:
   alloy:
     volumes:
       - prod_alloy:/var/lib/alloy/data
-    labels:
-      - "traefik.http.routers.alloy.rule=Host(`ops.verboheit.org`) && PathPrefix(`/alloy`)"
     networks:
       - prod
     deploy:
+      labels:
+        - "traefik.http.routers.alloy.rule=Host(`ops.verboheit.org`) && PathPrefix(`/alloy`)"
+        - "traefik.swarm.network=prod"
       resources:
         limits:
           memory: 512M
@@ -270,11 +272,12 @@ services:
       GF_SMTP_FROM_ADDRESS: verboheitmlc@gmail.com
     volumes:
       - prod_grafana:/var/lib/grafana
-    labels:
-      - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
     networks:
       - prod
     deploy:
+      labels:
+        - "traefik.http.routers.grafana.rule=Host(`ops.verboheit.org`)"
+        - "traefik.swarm.network=prod"
       resources:
         limits:
           memory: 384M

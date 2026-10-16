@@ -119,11 +119,12 @@ services:
     volumes:
       - staging_media:/app/media
       - staging_static:/app/staticfiles
-    labels:
-      - "traefik.http.routers.django.rule=Host(`staging-api.verboheit.org`)"
     networks:
       - staging
     deploy:
+      labels:
+        - "traefik.http.routers.django.rule=Host(`staging-api.verboheit.org`)"
+        - "traefik.swarm.network=staging"
       resources:
         limits:
           memory: 768M
@@ -171,11 +172,12 @@ services:
   alloy:
     volumes:
       - "staging_alloy:/var/lib/alloy/data"
-    labels:
-      - "traefik.http.routers.alloy.rule=Host(`staging-ops.verboheit.org`) && PathPrefix(`/alloy`)"
     networks:
       - staging
     deploy:
+      labels:
+        - "traefik.http.routers.alloy.rule=Host(`staging-ops.verboheit.org`) && PathPrefix(`/alloy`)"
+        - "traefik.swarm.network=staging"
       resources:
         limits:
           memory: 384M
@@ -242,11 +244,12 @@ services:
       GF_SMTP_FROM_ADDRESS: verboheitmlc@gmail.com
     volumes:
       - "staging_grafana:/var/lib/grafana"
-    labels:
-      - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
     networks:
       - staging
     deploy:
+      labels:
+        - "traefik.http.routers.grafana.rule=Host(`staging-ops.verboheit.org`)"
+        - "traefik.swarm.network=staging"
       resources:
         limits:
           memory: 256M

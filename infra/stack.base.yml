@@ -96,47 +96,47 @@ x-infra-logging: &infra-logging
       max-file: "3"
 
 services:
-  traefik:
-    <<: *infra-logging
-    image: traefik:v3.5.3
-    command:
-      - "--api.insecure=false"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
-      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-      - "--metrics.prometheus=false"
-      - "--metrics.otlp=true"
-      - "--metrics.otlp.http=true"
-      - "--metrics.otlp.grpc=false"
-      - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
-      - "--metrics.otlp.serviceName=traefik"
-      - "--metrics.otlp.addEntryPointsLabels=true"
-      - "--metrics.otlp.addRoutersLabels=true"
-      - "--metrics.otlp.addServicesLabels=true"
-      - "--tracing=true"
-      - "--tracing.serviceName=traefik"
-      - "--tracing.sampleRate=0.05"
-      - "--tracing.otlp.grpc=false"
-      - "--tracing.otlp.http=true"
-      - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
-      - "--log.level=INFO"
-      - "--log.format=json"
-      - "--accesslog=true"
-    volumes:
-      - letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "80:80"
-      - "443:443"
+  # traefik:
+  #   <<: *infra-logging
+  #   image: traefik:v3.5.3
+  #   command:
+  #     - "--api.insecure=false"
+  #     - "--api.dashboard=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #     - "--entrypoints.websecure.address=:443"
+  #     - "--entrypoints.websecure.http.tls=true"
+  #     - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+  #     - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+  #     - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+  #     - "--certificatesresolvers.le.acme.email=verboheitconsulting@gmail.com"
+  #     - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+  #     - "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+  #     - "--metrics.prometheus=false"
+  #     - "--metrics.otlp=true"
+  #     - "--metrics.otlp.http=true"
+  #     - "--metrics.otlp.grpc=false"
+  #     - "--metrics.otlp.http.endpoint=http://alloy:4318/v1/metrics"
+  #     - "--metrics.otlp.serviceName=traefik"
+  #     - "--metrics.otlp.addEntryPointsLabels=true"
+  #     - "--metrics.otlp.addRoutersLabels=true"
+  #     - "--metrics.otlp.addServicesLabels=true"
+  #     - "--tracing=true"
+  #     - "--tracing.serviceName=traefik"
+  #     - "--tracing.sampleRate=0.05"
+  #     - "--tracing.otlp.grpc=false"
+  #     - "--tracing.otlp.http=true"
+  #     - "--tracing.otlp.http.endpoint=http://alloy:4318/v1/traces"
+  #     - "--log.level=INFO"
+  #     - "--log.format=json"
+  #     - "--accesslog=true"
+  #   volumes:
+  #     - letsencrypt:/letsencrypt
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
 
   db:
     <<: *infra-logging
@@ -210,15 +210,16 @@ services:
       timeout: 15s
       retries: 5
       start_period: 120s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.django.entrypoints=websecure"
-      - "traefik.http.routers.django.tls.certresolver=le"
-      - "traefik.http.routers.django.tls=true"
-      - "traefik.http.services.django.loadbalancer.server.port=8000"
     depends_on:
       - db-migrate
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.django.entrypoints=websecure"
+        - "traefik.http.routers.django.tls.certresolver=le"
+        - "traefik.http.routers.django.tls=true"
+        - "traefik.http.routers.django.service=django"
+        - "traefik.http.services.django.loadbalancer.server.port=8000"
       update_config:
         order: start-first
       mode: replicated
@@ -303,12 +304,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - alloy:/var/lib/alloy/data
-    labels:
-      - "traefik.enable=false"
-      - "traefik.http.routers.alloy.entrypoints=websecure"
-      - "traefik.http.routers.alloy.tls=true"
-      - "traefik.http.services.alloy.loadbalancer.server.port=12345"
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.alloy.entrypoints=websecure"
+        - "traefik.http.routers.alloy.tls=true"
+        - "traefik.http.routers.alloy.service=alloy"
+        - "traefik.http.services.alloy.loadbalancer.server.port=12345"
       mode: global
 
   prometheus:
@@ -378,17 +380,19 @@ services:
       GF_SMTP_USER__FILE: /run/secrets/gmail-host-user
       GF_SMTP_PASSWORD__FILE: /run/secrets/gmail-host-password
       GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=le"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
     volumes:
       - grafana:/var/lib/grafana
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls.certresolver=le"
+        - "traefik.http.routers.grafana.tls=true"
+        - "traefik.http.routers.grafana.service=grafana"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
 secrets:
   aws-access-key-id:
